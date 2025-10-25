@@ -36,6 +36,8 @@ pub enum CoreLibPointerId {
     Map,                                 // #core.Map
     Function,                            // #core.Function
     Unit,                                // #core.Unit
+    Never,                               // #core.never
+    Unknown,                             // #core.unknown
 }
 
 impl CoreLibPointerId {
@@ -54,6 +56,8 @@ impl CoreLibPointerId {
             CoreLibPointerId::List => 9,
             CoreLibPointerId::Unit => 11,
             CoreLibPointerId::Map => 12,
+            CoreLibPointerId::Never => 13,
+            CoreLibPointerId::Unknown => 14,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -79,6 +83,8 @@ impl CoreLibPointerId {
             9 => Some(CoreLibPointerId::List),
             11 => Some(CoreLibPointerId::Unit),
             12 => Some(CoreLibPointerId::Map),
+            13 => Some(CoreLibPointerId::Never),
+            14 => Some(CoreLibPointerId::Unknown),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -195,6 +201,8 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         boolean(),
         endpoint(),
         unit(),
+        never(),
+        unknown(),
         map(),
         null(),
     ]
@@ -228,6 +236,14 @@ pub fn map() -> CoreLibTypeDefinition {
 
 pub fn unit() -> CoreLibTypeDefinition {
     create_core_type("Unit", None, None, CoreLibPointerId::Unit)
+}
+
+pub fn never() -> CoreLibTypeDefinition {
+    create_core_type("never", None, None, CoreLibPointerId::Never)
+}
+
+pub fn unknown() -> CoreLibTypeDefinition {
+    create_core_type("unknown", None, None, CoreLibPointerId::Unknown)
 }
 
 pub fn boolean() -> CoreLibTypeDefinition {

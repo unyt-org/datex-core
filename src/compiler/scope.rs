@@ -1,15 +1,15 @@
-use crate::ast::VariableKind;
-use crate::compiler::precompiler::{AstMetadata, PrecompilerScopeStack};
+use crate::compiler::precompiler::{PrecompilerScopeStack};
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
+use datex_core::compiler::precompiler::RichAst;
+use crate::ast::tree::VariableKind;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PrecompilerData {
     // precompiler ast metadata
-    pub ast_metadata: Rc<RefCell<AstMetadata>>,
+    pub rich_ast: RichAst,
     // precompiler scope stack
     pub precompiler_scope_stack: RefCell<PrecompilerScopeStack>,
 }

@@ -1,4 +1,4 @@
-use crate::ast::DatexExpression;
+use crate::ast::tree::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
@@ -189,7 +189,7 @@ impl Type {
     /// integer matches integer -> true
     pub fn matches_type(&self, other: &Type) -> bool {
         // TODO #324
-        println!("Matching types: {} and {}", self, other);
+        // println!("Matching types: {} and {}", self, other);
 
         let other_base_type =
             other.base_type().expect("other type has no base type");
@@ -259,6 +259,10 @@ impl Type {
                 todo!("#327 handle reference type matching");
                 //reference.value_matches(value)
             }
+            TypeDefinition::Type(inner_type) => {
+                // TODO: also check mutability of current type?
+                inner_type.value_matches(value)
+            }
             TypeDefinition::Function {
                 parameters,
                 return_type,
@@ -269,6 +273,8 @@ impl Type {
                 todo!("#329 handle collection type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
+            TypeDefinition::Never => false,
+            TypeDefinition::Unknown => false,
         }
     }
 }
@@ -362,25 +368,25 @@ impl From<CoreValue> for Type {
     }
 }
 
-impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
+impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     type Error = ();
 
-    fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
+    fn try_from(expr: &DatexExpressionData) -> Result<Self, Self::Error> {
         Ok(match expr {
-            DatexExpression::Null => StructuralTypeDefinition::Null,
-            DatexExpression::Boolean(b) => {
+            DatexExpressionData::Null => StructuralTypeDefinition::Null,
+            DatexExpressionData::Boolean(b) => {
                 StructuralTypeDefinition::Boolean(Boolean::from(*b))
             }
-            DatexExpression::Text(s) => {
+            DatexExpressionData::Text(s) => {
                 StructuralTypeDefinition::Text(Text::from(s.clone()))
             }
-            DatexExpression::Decimal(d) => {
+            DatexExpressionData::Decimal(d) => {
                 StructuralTypeDefinition::Decimal(d.clone())
             }
-            DatexExpression::Integer(i) => {
+            DatexExpressionData::Integer(i) => {
                 StructuralTypeDefinition::Integer(i.clone())
             }
-            DatexExpression::Endpoint(e) => {
+            DatexExpressionData::Endpoint(e) => {
                 StructuralTypeDefinition::Endpoint(e.clone())
             }
             _ => return Err(()),
@@ -388,10 +394,10 @@ impl TryFrom<&DatexExpression> for StructuralTypeDefinition {
     }
 }
 
-impl TryFrom<&DatexExpression> for Type {
+impl TryFrom<&DatexExpressionData> for Type {
     type Error = ();
 
-    fn try_from(expr: &DatexExpression) -> Result<Self, Self::Error> {
+    fn try_from(expr: &DatexExpressionData) -> Result<Self, Self::Error> {
         Ok(Type::structural(StructuralTypeDefinition::try_from(expr)?))
     }
 }

@@ -6,11 +6,11 @@ use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
-use crate::ast::{
-    DatexExpression, DatexParserTrait, ParserRecoverExt, TypeExpression,
-    VariableKind,
-};
+use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt};
 use chumsky::prelude::*;
+use datex_core::ast::tree::VariableDeclaration;
+use crate::ast::tree::{TypeExpression, VariableAssignment, VariableKind};
+
 pub type VariableId = usize;
 
 fn create_variable_declaration(
@@ -18,14 +18,14 @@ fn create_variable_declaration(
     value: DatexExpression,
     type_annotation: Option<TypeExpression>,
     kind: VariableKind,
-) -> DatexExpression {
-    DatexExpression::VariableDeclaration {
+) -> DatexExpressionData {
+    DatexExpressionData::VariableDeclaration(VariableDeclaration {
         id: None,
         kind,
         name,
         type_annotation,
         init_expression: Box::new(value),
-    }
+    })
 }
 
 /// A variable assignment (e.g. `x = 42` or `y += 1`)
@@ -37,13 +37,13 @@ pub fn variable_assignment<'a>(
     select! { Token::Identifier(name) => name }
         .then(assignment_op)
         .then(expression)
-        .map(|((var_name, op), expr)| {
-            DatexExpression::VariableAssignment(
-                op,
-                None,
-                var_name.to_string(),
-                Box::new(expr),
-            )
+        .map_with(|((var_name, operator), expr), e| {
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: None,
+                operator,
+                name: var_name.to_string(),
+                expression: Box::new(expr),
+            }).with_span(e.span())
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -61,17 +61,17 @@ pub fn deref_assignment<'a>(
         .then(unary)
         .then(assignment_op)
         .then(expression)
-        .map(
+        .map_with(
             |(
                 ((deref_count, deref_expression), operator),
                 assigned_expression,
-            )| {
-                DatexExpression::DerefAssignment {
+            ), e| {
+                DatexExpressionData::DerefAssignment {
                     operator,
                     deref_count,
                     deref_expression: Box::new(deref_expression),
                     assigned_expression: Box::new(assigned_expression),
-                }
+                }.with_span(e.span())
             },
         )
         // FIXME #369 assignment instead of declaration
@@ -100,7 +100,7 @@ pub fn variable_declaration<'a>(
         .then(type_annotation)
         .then(assignment_op)
         .then(union.clone())
-        .map(|((((kind, var_name), annotation), op), expr)| {
+        .map_with(|((((kind, var_name), annotation), op), expr), e| {
             if op != AssignmentOperator::Assign {
                 return Err(ParseError::new_custom(format!(
                     "Cannot use '{}' operator in variable declaration",
@@ -113,7 +113,7 @@ pub fn variable_declaration<'a>(
                 expr,
                 annotation,
                 kind,
-            ))
+            ).with_span(e.span()))
         })
         .recover_invalid()
         .labelled(Pattern::Declaration)

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::ast::DatexExpression;
+use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
 use crate::ast::error::error::ParseError;
@@ -15,8 +15,9 @@ pub fn endpoint<'a>() -> impl DatexParserTrait<'a> {
                 Err(e) => Err(ParseError::from(e).with_note(
                     "Make sure the endpoint only contains valid characters."
                 )),
-                Ok(endpoint) => Ok(DatexExpression::Endpoint(endpoint))
+                Ok(endpoint) => Ok(DatexExpressionData::Endpoint(endpoint))
         }
     }
+    .map_with(|data, e| data.map(|data| data.with_span(e.span())))
     .recover_invalid()
 }

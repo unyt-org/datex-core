@@ -10,6 +10,7 @@
 #![feature(box_patterns)]
 #![feature(buf_read_has_data_left)]
 #![feature(if_let_guard)]
+#![feature(try_trait_v2)]
 // FIXME #228: remove in the future, not required in edition 2024, but RustRover complains
 #![allow(unused_parens)]
 

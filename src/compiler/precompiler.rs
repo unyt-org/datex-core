@@ -1,7 +1,6 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::ast::{DatexExpression, TypeExpression};
-use crate::compiler::error::CompilerError;
+use crate::compiler::error::{collect_or_pass_error, CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction, SpannedCompilerError};
 use crate::libs::core::CoreLibPointerId;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
@@ -14,14 +13,23 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::fmt::{Debug, Display};
+use std::ops::Range;
 use std::rc::Rc;
+use chumsky::prelude::SimpleSpan;
+use datex_core::ast::parse_result::ValidDatexParseResult;
+use datex_core::ast::tree::VariableAccess;
+use crate::ast::tree::{DatexExpression, DatexExpressionData, TypeExpression, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
+use crate::compiler::error::{DetailedCompilerErrorsWithRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::compiler::type_inference::infer_expression_type_detailed_errors;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
     original_realm_index: usize,
     pub is_cross_realm: bool,
-    pub kind: VariableKind,
+    pub shape: VariableShape,
     pub var_type: Option<TypeContainer>,
+    pub name: String,
 }
 
 #[derive(Default, Debug)]
@@ -50,9 +58,9 @@ impl AstMetadata {
     }
 }
 
-#[derive(Debug)]
-pub struct AstWithMetadata {
-    pub ast: DatexExpression,
+#[derive(Debug, Clone, Default)]
+pub struct RichAst {
+    pub ast: Option<DatexExpression>,
     pub metadata: Rc<RefCell<AstMetadata>>,
 }
 
@@ -72,9 +80,24 @@ impl PrecompilerScope {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VariableKind {
+pub enum VariableShape {
     Type,
-    Value,
+    Value(VariableKind)
+}
+
+impl From<VariableKind> for VariableShape {
+    fn from(value: VariableKind) -> Self {
+        VariableShape::Value(value)
+    }
+}
+
+impl Display for VariableShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableShape::Type => write!(f, "type"),
+            VariableShape::Value(kind) => write!(f, "{kind}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -122,15 +145,16 @@ impl PrecompilerScopeStack {
         &mut self,
         name: String,
         id: usize,
-        kind: VariableKind,
+        kind: VariableShape,
     ) -> VariableMetadata {
         let current_realm_index =
             self.scopes.last().map_or(0, |s| s.realm_index);
         let var_metadata = VariableMetadata {
             is_cross_realm: false,
             original_realm_index: current_realm_index,
-            kind,
+            shape: kind,
             var_type: None,
+            name: name.clone(),
         };
         self.set_variable(name, id);
         var_metadata
@@ -200,51 +224,133 @@ impl PrecompilerScopeStack {
         &self,
         name: &str,
         metadata: &AstMetadata,
-    ) -> Option<VariableKind> {
+    ) -> Option<VariableShape> {
         if let Some(var_id) = self.get_variable(name) {
-            metadata.variable_metadata(var_id).map(|v| v.kind)
+            metadata.variable_metadata(var_id).map(|v| v.shape)
         } else {
             None
         }
     }
 }
 
-impl AstWithMetadata {
+impl RichAst {
     pub fn new(
         ast: DatexExpression,
         metadata: &Rc<RefCell<AstMetadata>>,
     ) -> Self {
-        AstWithMetadata {
-            ast,
+        RichAst {
+            ast: Some(ast),
             metadata: metadata.clone(),
         }
     }
 
     pub fn new_without_metadata(ast: DatexExpression) -> Self {
-        AstWithMetadata {
-            ast,
+        RichAst {
+            ast: Some(ast),
             metadata: Rc::new(RefCell::new(AstMetadata::default())),
         }
     }
 }
 
-pub fn precompile_ast(
-    mut ast: DatexExpression,
+#[derive(Debug, Clone, Default)]
+pub struct PrecompilerOptions {
+    /// If enabled, all collected errors as well as the RichAst
+    /// are returned if one or multiple errors occurred.
+    /// Otherwise, only the first error is returned (fast failing)
+    pub detailed_errors: bool,
+}
+
+pub fn precompile_ast_simple_error(
+    parse_result: ValidDatexParseResult,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &mut PrecompilerScopeStack,
-) -> Result<AstWithMetadata, CompilerError> {
+) -> Result<RichAst, SpannedCompilerError> {
+    precompile_ast(
+        parse_result,
+        ast_metadata,
+        scope_stack,
+        PrecompilerOptions { detailed_errors: false }
+    ).map_err(|e| {
+        match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
+            _ => unreachable!() // because detailed_errors: false
+        }
+    })
+}
+
+pub fn precompile_ast_detailed_error(
+    parse_result: ValidDatexParseResult,
+    ast_metadata: Rc<RefCell<AstMetadata>>,
+    scope_stack: &mut PrecompilerScopeStack,
+) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
+    precompile_ast(
+        parse_result,
+        ast_metadata,
+        scope_stack,
+        PrecompilerOptions { detailed_errors: true }
+    ).map_err(|e| {
+        match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error) => error,
+            _ => unreachable!() // because detailed_errors: true
+        }
+    })
+}
+
+
+pub (crate) fn precompile_ast(
+    mut parse_result: ValidDatexParseResult,
+    ast_metadata: Rc<RefCell<AstMetadata>>,
+    scope_stack: &mut PrecompilerScopeStack,
+    options: PrecompilerOptions
+) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // visit all expressions recursively to collect metadata
+    let collected_errors = if options.detailed_errors {
+        &mut Some(DetailedCompilerErrors::default())
+    }
+    else {&mut None};
     visit_expression(
-        &mut ast,
+        &mut parse_result.ast,
         &mut ast_metadata.borrow_mut(),
         scope_stack,
         NewScopeType::None,
-    )?;
+        &parse_result.spans,
+        collected_errors,
+    )
+        // no detailed error collection, return no RichAst
+        // TODO: make sure Err result is actually only returned when detailed_errors is set to false
+        .map_err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple)?;
 
-    Ok(AstWithMetadata {
+    let mut rich_ast = RichAst {
         metadata: ast_metadata,
-        ast,
-    })
+        ast: Some(parse_result.ast),
+    };
+    
+    // type inference - currently only if detailed errors are enabled
+    // FIXME: always do type inference here, not only for detailed errors
+    if options.detailed_errors {
+        let type_res = infer_expression_type_detailed_errors(
+            rich_ast.ast.as_mut().unwrap(),
+            rich_ast.metadata.clone(),
+        );
+
+        // append type errors to collected_errors if any
+        if let Some(collected_errors) = collected_errors &&
+            let Err(type_errors) = type_res {
+            collected_errors.append(type_errors.into());
+        }
+    }
+
+    // if collecting detailed errors and an error occurred, return
+    if let Some(errors) = collected_errors.take() && errors.has_errors() {
+        Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(DetailedCompilerErrorsWithRichAst {
+            errors,
+            ast: rich_ast
+        }))
+    }
+
+    else {
+        Ok(rich_ast)
+    }
 }
 
 enum NewScopeType {
@@ -256,12 +362,16 @@ enum NewScopeType {
     NewScopeWithNewRealm,
 }
 
+/// This method must hold the contract that it always returns an Ok()
+/// result if collected_errors is Some, and only returns Err() if collected_errors is None.
 fn visit_expression(
     expression: &mut DatexExpression,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
-) -> Result<(), CompilerError> {
+    spans: &Vec<Range<usize>>,
+    collected_errors: &mut Option<DetailedCompilerErrors>,
+) -> Result<(), SpannedCompilerError> {
     match new_scope {
         NewScopeType::NewScopeWithNewRealm => {
             scope_stack.push_scope();
@@ -273,8 +383,21 @@ fn visit_expression(
         _ => {}
     }
 
+    // update span from token span -> source code span
+    let span_start = expression.span.start;
+    let span_end = expression.span.end;
+    // skip if both zero (default span used for testing)
+    // TODO: improve this
+    if span_start != 0 || span_end != 0 {
+        let start_token = spans.get(span_start).cloned().unwrap();
+        let end_token = spans.get(span_end - 1).cloned().unwrap();
+        let full_span = start_token.start..end_token.end;
+        expression.span = SimpleSpan::from(full_span);
+    }
+
+
     // Important: always make sure all expressions are visited recursively
-    match expression {
+    match &mut expression.data {
         // DatexExpression::GenericAssessor(left, right) => {
         //     visit_expression(
         //         left,
@@ -289,15 +412,16 @@ fn visit_expression(
         //         NewScopeType::NewScope,
         //     )?;
         // }
-        DatexExpression::TypeExpression(type_expr) => {
+        DatexExpressionData::TypeExpression(type_expr) => {
             visit_type_expression(
                 type_expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
         }
-        DatexExpression::Conditional {
+        DatexExpressionData::Conditional {
             condition,
             then_branch,
             else_branch,
@@ -307,12 +431,16 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors,
             )?;
             visit_expression(
                 then_branch,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             if let Some(else_branch) = else_branch {
                 visit_expression(
@@ -320,10 +448,12 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans,
+                    collected_errors
                 )?;
             }
         }
-        DatexExpression::TypeDeclaration {
+        DatexExpressionData::TypeDeclaration {
             id,
             // generic: generic_parameters,
             name,
@@ -335,6 +465,7 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans
             )?;
             // already declared if hoisted
             if *hoisted {
@@ -345,24 +476,26 @@ fn visit_expression(
             } else {
                 *id = Some(add_new_variable(
                     name.clone(),
-                    VariableKind::Type,
+                    VariableShape::Type,
                     metadata,
                     scope_stack,
                 ));
             }
         }
-        DatexExpression::VariableDeclaration {
+        DatexExpressionData::VariableDeclaration(VariableDeclaration {
             id,
             kind,
             name,
             init_expression: value,
             type_annotation,
-        } => {
+        }) => {
             visit_expression(
                 value,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             if let Some(type_annotation) = type_annotation {
                 visit_type_expression(
@@ -370,39 +503,66 @@ fn visit_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans,
                 )?;
             }
             *id = Some(add_new_variable(
                 name.clone(),
-                VariableKind::Value,
+                VariableShape::Value(*kind),
                 metadata,
                 scope_stack,
             ));
         }
-        DatexExpression::Identifier(name) => {
-            let resolved_variable =
-                resolve_variable(name, metadata, scope_stack)?;
-            *expression = match resolved_variable {
-                ResolvedVariable::VariableId(id) => {
-                    DatexExpression::Variable(id, name.clone())
-                }
-                ResolvedVariable::PointerAddress(pointer_address) => {
-                    DatexExpression::GetReference(pointer_address)
-                }
-            };
+        DatexExpressionData::Identifier(name) => {
+            let action = collect_or_pass_error(
+                collected_errors,
+                resolve_variable(name, metadata, scope_stack)
+                    .map_err(|error| SpannedCompilerError::new_with_simple_span(error, expression.span)),
+            )?;
+            if let MaybeAction::Do(resolved_variable) = action {
+                *expression = match resolved_variable {
+                    ResolvedVariable::VariableId(id) => {
+                        DatexExpressionData::VariableAccess(VariableAccess {id, name: name.clone()}).with_span(expression.span)
+                    }
+                    ResolvedVariable::PointerAddress(pointer_address) => {
+                        DatexExpressionData::GetReference(pointer_address).with_span(expression.span)
+                    }
+                };
+            }
         }
-        DatexExpression::VariableAssignment(_, id, name, expr) => {
+        DatexExpressionData::VariableAssignment(VariableAssignment {
+            id, name, expression: inner_expression, ..
+        }) => {
             visit_expression(
-                expr,
+                inner_expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
-            *id = Some(
-                scope_stack.get_variable_and_update_metadata(name, metadata)?,
-            );
+            let new_id = scope_stack.get_variable_and_update_metadata(name, metadata)?;
+            // check if variable is const
+            let var_metadata = metadata
+                .variable_metadata(new_id)
+                .expect("Variable must have metadata");
+            if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
+                let error = SpannedCompilerError::new_with_simple_span(
+                    CompilerError::AssignmentToConst(
+                        name.clone(),
+                    ),
+                    expression.span,
+                );
+                match collected_errors {
+                    Some(collected_errors) => {
+                        collected_errors.record_error(error);
+                    }
+                    None => return Err(error)
+                }
+            }
+            *id = Some(new_id);
         }
-        DatexExpression::DerefAssignment {
+        DatexExpressionData::DerefAssignment {
             operator: _,
             deref_count: _,
             deref_expression,
@@ -413,28 +573,36 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             visit_expression(
                 assigned_expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::Deref(expr) => {
+        DatexExpressionData::Deref(expr) => {
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::ApplyChain(expr, applies) => {
+        DatexExpressionData::ApplyChain(expr, applies) => {
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             for apply in applies {
                 match apply {
@@ -446,55 +614,67 @@ fn visit_expression(
                             metadata,
                             scope_stack,
                             NewScopeType::NewScope,
+                            spans,
+                            collected_errors
                         )?;
                     }
                 }
             }
         }
-        DatexExpression::List(exprs) => {
-            for expr in exprs {
+        DatexExpressionData::List(exprs) => {
+            for expr in &mut exprs.items {
                 visit_expression(
                     expr,
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans,
+                    collected_errors
                 )?;
             }
         }
-        DatexExpression::Map(properties) => {
-            for (key, val) in properties {
+        DatexExpressionData::Map(properties) => {
+            for (key, val) in &mut properties.entries {
                 visit_expression(
                     key,
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans,
+                    collected_errors
                 )?;
                 visit_expression(
                     val,
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans,
+                    collected_errors
                 )?;
             }
         }
-        DatexExpression::RemoteExecution(callee, expr) => {
+        DatexExpressionData::RemoteExecution(callee, expr) => {
             visit_expression(
                 callee,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScopeWithNewRealm,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::BinaryOperation(operator, left, right, _) => {
+        DatexExpressionData::BinaryOperation(operator, left, right, _) => {
             if matches!(operator, BinaryOperator::VariantAccess) {
                 let lit_left =
-                    if let DatexExpression::Identifier(name) = &**left {
+                    if let DatexExpressionData::Identifier(name) = &left.data {
                         name.clone()
                     } else {
                         unreachable!(
@@ -503,7 +683,7 @@ fn visit_expression(
                     };
 
                 let lit_right =
-                    if let DatexExpression::Identifier(name) = &**right {
+                    if let DatexExpressionData::Identifier(name) = &right.data {
                         name.clone()
                     } else {
                         unreachable!(
@@ -530,7 +710,7 @@ fn visit_expression(
                         .variable_kind(lit_left.as_str(), metadata)
                         .unwrap()
                     {
-                        VariableKind::Type => {
+                        VariableShape::Type => {
                             // user defined type, continue to variant access
                             let resolved_variable = resolve_variable(
                                 &full_name,
@@ -545,39 +725,43 @@ fn visit_expression(
                             })?;
                             *expression = match resolved_variable {
                                 ResolvedVariable::VariableId(id) => {
-                                    DatexExpression::Variable(
+                                    DatexExpressionData::VariableAccess(VariableAccess {
                                         id,
-                                        full_name.to_string(),
-                                    )
+                                        name: full_name.to_string(),
+                                    }).with_span(expression.span)
                                 }
                                 _ => unreachable!(
                                     "Variant access must resolve to a core library type"
                                 ),
                             };
                         }
-                        VariableKind::Value => {
+                        VariableShape::Value(_) => {
                             // user defined value, this is a division
                             visit_expression(
                                 left,
                                 metadata,
                                 scope_stack,
                                 NewScopeType::NewScope,
+                                spans,
+                                collected_errors
                             )?;
                             visit_expression(
                                 right,
                                 metadata,
                                 scope_stack,
                                 NewScopeType::NewScope,
+                                spans,
+                                collected_errors
                             )?;
 
-                            *expression = DatexExpression::BinaryOperation(
+                            *expression = DatexExpressionData::BinaryOperation(
                                 BinaryOperator::Arithmetic(
                                     ArithmeticOperator::Divide,
                                 ),
                                 left.to_owned(),
                                 right.to_owned(),
                                 None,
-                            );
+                            ).with_span(expression.span);
                         }
                     }
                     return Ok(());
@@ -592,23 +776,32 @@ fn visit_expression(
                     format!("{lit_left}/{lit_right}").as_str(),
                     metadata,
                     scope_stack,
-                );
-                if resolved_variable.is_err() {
-                    return Err(CompilerError::SubvariantNotFound(
-                        lit_left, lit_right,
-                    ));
+                ).map_err(|error| {
+                    SpannedCompilerError::new_with_simple_span(
+                        CompilerError::SubvariantNotFound(
+                            lit_left, lit_right,
+                        ),
+                        expression.span,
+                    )
+                });
+                let action = collect_or_pass_error(
+                    collected_errors,
+                    resolved_variable
+                )?;
+                if let MaybeAction::Do(resolved_variable) = action {
+                    *expression = match resolved_variable {
+                        ResolvedVariable::PointerAddress(pointer_address) => {
+                            DatexExpressionData::GetReference(pointer_address)
+                                .with_span(expression.span)
+                        }
+                        // FIXME #442 is variable User/whatever allowed here, or
+                        // will this always be a reference to the type?
+                        _ => unreachable!(
+                            "Variant access must resolve to a core library type"
+                        ),
+                    };
+                    return Ok(())
                 }
-                *expression = match resolved_variable.unwrap() {
-                    ResolvedVariable::PointerAddress(pointer_address) => {
-                        DatexExpression::GetReference(pointer_address)
-                    }
-                    // FIXME #442 is variable User/whatever allowed here, or
-                    // will this always be a reference to the type?
-                    _ => unreachable!(
-                        "Variant access must resolve to a core library type"
-                    ),
-                };
-                return Ok(());
             }
 
             visit_expression(
@@ -616,54 +809,71 @@ fn visit_expression(
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             visit_expression(
                 right,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::UnaryOperation(_operator, expr) => {
+        DatexExpressionData::UnaryOperation(UnaryOperation {operator: _, expression}) => {
+            visit_expression(
+                expression,
+                metadata,
+                scope_stack,
+                NewScopeType::NewScope,
+                spans,
+                collected_errors
+            )?;
+        }
+        DatexExpressionData::SlotAssignment(_slot, expr) => {
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::SlotAssignment(_slot, expr) => {
-            visit_expression(
-                expr,
-                metadata,
-                scope_stack,
-                NewScopeType::NewScope,
-            )?;
-        }
-        DatexExpression::GetReference(_pointer_id) => {
+        DatexExpressionData::GetReference(_pointer_id) => {
             // nothing to do
         }
-        DatexExpression::Statements(stmts) => {
+        DatexExpressionData::Statements(stmts) => {
             // hoist type declarations first
             let mut registered_names = HashSet::new();
-            for stmt in stmts.iter_mut() {
-                if let DatexExpression::TypeDeclaration {
+            for stmt in stmts.statements.iter_mut() {
+                if let DatexExpressionData::TypeDeclaration {
                     name, hoisted, ..
-                } = &mut stmt.expression
+                } = &mut stmt.data
                 {
                     // set hoisted to true
                     *hoisted = true;
                     if registered_names.contains(name) {
-                        return Err(CompilerError::InvalidRedeclaration(
-                            name.clone(),
-                        ));
+                        let error = SpannedCompilerError::new_with_simple_span(
+                            CompilerError::InvalidRedeclaration(
+                                name.clone(),
+                            ),
+                            stmt.span
+                        );
+                        match collected_errors {
+                            Some(collected_errors) => {
+                                collected_errors.record_error(error);
+                            }
+                            None => return Err(error)
+                        }
                     }
                     registered_names.insert(name.clone());
 
                     // register variable
                     let type_id = add_new_variable(
                         name.clone(),
-                        VariableKind::Type,
+                        VariableShape::Type,
                         metadata,
                         scope_stack,
                     );
@@ -687,64 +897,72 @@ fn visit_expression(
                     }
                 }
             }
-            for stmt in stmts {
+            for stmt in &mut stmts.statements {
                 visit_expression(
-                    &mut stmt.expression,
+                    stmt,
                     metadata,
                     scope_stack,
-                    NewScopeType::None,
+                    NewScopeType::NewScope,
+                    spans,
+                    collected_errors
                 )?
             }
         }
-        DatexExpression::ComparisonOperation(op, left, right) => {
+        DatexExpressionData::ComparisonOperation(op, left, right) => {
             visit_expression(
                 left,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
             visit_expression(
                 right,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::CreateRefMut(expr)
-        | DatexExpression::CreateRefFinal(expr)
-        | DatexExpression::CreateRef(expr) => {
+        DatexExpressionData::CreateRefMut(expr)
+        | DatexExpressionData::CreateRefFinal(expr)
+        | DatexExpressionData::CreateRef(expr) => {
             visit_expression(
                 expr,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,
+                spans,
+                collected_errors
             )?;
         }
-        DatexExpression::Recover => {
+        DatexExpressionData::Recover => {
             unreachable!("Expression should have been caught during parsing")
         }
-        DatexExpression::Variable(_, _) => unreachable!(
+        DatexExpressionData::VariableAccess(_) => unreachable!(
             "Variable expressions should have been replaced with their IDs during precompilation"
         ),
-        DatexExpression::FunctionDeclaration {
+        DatexExpressionData::FunctionDeclaration {
             name,
             parameters,
             return_type,
             body,
         } => todo!("#443 Undescribed by author."),
 
-        DatexExpression::Integer(_)
-        | DatexExpression::Text(_)
-        | DatexExpression::Boolean(_)
-        | DatexExpression::Null
-        | DatexExpression::Decimal(_)
-        | DatexExpression::Endpoint(_)
-        | DatexExpression::Placeholder
-        | DatexExpression::TypedDecimal(_)
-        | DatexExpression::TypedInteger(_)
-        | DatexExpression::Type(_)
-        | DatexExpression::Slot(_)
-        | DatexExpression::PointerAddress(_) => {
+        DatexExpressionData::Integer(_)
+        | DatexExpressionData::Text(_)
+        | DatexExpressionData::Boolean(_)
+        | DatexExpressionData::Null
+        | DatexExpressionData::Decimal(_)
+        | DatexExpressionData::Endpoint(_)
+        | DatexExpressionData::Placeholder
+        | DatexExpressionData::TypedDecimal(_)
+        | DatexExpressionData::TypedInteger(_)
+        | DatexExpressionData::Type(_)
+        | DatexExpressionData::Slot(_)
+        | DatexExpressionData::PointerAddress(_) => {
             // ignored
         }
     }
@@ -761,7 +979,7 @@ fn visit_expression(
 
 fn add_new_variable(
     name: String,
-    kind: VariableKind,
+    kind: VariableShape,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
 ) -> usize {
@@ -823,11 +1041,13 @@ fn resolve_variable(
     }
 }
 
+// FIXME: use tree visitor once fully implemented instead of custom visit function
 fn visit_type_expression(
     type_expr: &mut TypeExpression,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
+    spans: &Vec<Range<usize>>
 ) -> Result<(), CompilerError> {
     match type_expr {
         TypeExpression::Literal(name) => {
@@ -859,6 +1079,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -870,6 +1091,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -881,6 +1103,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -892,6 +1115,7 @@ fn visit_type_expression(
                     metadata,
                     scope_stack,
                     NewScopeType::NewScope,
+                    spans
                 )?;
             }
             Ok(())
@@ -903,41 +1127,72 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::VariableKind;
-    use crate::ast::{Statement, error::src::SrcId, parse};
+    use crate::ast::{error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use datex_core::values::core_values::integer::Integer;
     use std::assert_matches::assert_matches;
     use std::io;
+    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
+    use crate::ast::tree::Statements;
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
         let res = parse(src);
-        if let Err(errors) = res {
+        if let DatexParseResult::Invalid(InvalidDatexParseResult { errors, ..}) = res {
             errors.iter().for_each(|e| {
                 let cache = ariadne::sources(vec![(src_id, src)]);
                 e.clone().write(cache, io::stdout());
             });
             panic!("Parsing errors found");
         }
-        res.unwrap()
+        res.unwrap().ast
     }
-    fn parse_and_precompile(
+
+    fn parse_and_precompile_spanned_result(
         src: &str,
-    ) -> Result<AstWithMetadata, CompilerError> {
+    ) -> Result<RichAst, SpannedCompilerError> {
         let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::new(runtime)));
-        let expr = parse_unwrap(src);
-        precompile_ast(expr, ast_metadata.clone(), &mut scope_stack)
+        let expr = parse(src).to_result()
+            .map_err(|mut e| {
+                SpannedCompilerError::from(e.remove(0))
+            })?;
+        precompile_ast(expr, ast_metadata.clone(), &mut scope_stack, PrecompilerOptions {detailed_errors: false})
+            .map_err(|e| match e {
+                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => error,
+                _ => unreachable!(), // because detailed_errors: false
+            })
+    }
+
+    fn parse_and_precompile(
+        src: &str,
+    ) -> Result<RichAst, CompilerError> {
+        parse_and_precompile_spanned_result(src)
+            .map_err(|e| e.error)
     }
 
     #[test]
     fn undeclared_variable() {
-        let result = parse_and_precompile("x + 42");
+        let result = parse_and_precompile_spanned_result("x + 42");
         assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "x");
+        assert_matches!(
+            result,
+            Err(SpannedCompilerError{ error: CompilerError::UndeclaredVariable(var_name), span })
+            if var_name == "x" && span == Some((0..1))
+        );
+    }
+
+    #[test]
+    fn scoped_variable() {
+        let result = parse_and_precompile("(var z = 42;z); z");
+        assert!(result.is_err());
+        assert_matches!(
+            result,
+            Err(CompilerError::UndeclaredVariable(var_name))
+            if var_name == "z"
+        );
     }
 
     #[test]
@@ -946,8 +1201,8 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                RichAst {
+                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Boolean.into()
@@ -956,8 +1211,8 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                RichAst {
+                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Integer(None).into()
@@ -967,8 +1222,8 @@ mod tests {
         assert_matches!(
             result,
             Ok(
-                AstWithMetadata {
-                    ast: DatexExpression::GetReference(pointer_id),
+                RichAst {
+                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
                     ..
                 }
             ) if pointer_id == CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
@@ -982,9 +1237,9 @@ mod tests {
             parse_and_precompile("integer/u8").expect("Precompilation failed");
         assert_eq!(
             result.ast,
-            DatexExpression::GetReference(
+            Some(DatexExpressionData::GetReference(
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
-            )
+            ).with_default_span())
         );
 
         // core type with bad variant should error
@@ -992,8 +1247,8 @@ mod tests {
         assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "integer" && variant == "invalid");
 
         // unknown type should error
-        let result = parse_and_precompile("unknown/u8");
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "unknown");
+        let result = parse_and_precompile("invalid/u8");
+        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "invalid");
 
         // declared type with invalid subvariant shall throw
         let result = parse_and_precompile("type User = {}; User/u8");
@@ -1010,74 +1265,65 @@ mod tests {
             "type User = {}; type User/admin = {}; User/admin",
         );
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(0),
-                        name: "User".to_string(),
-                        value: TypeExpression::StructuralMap(vec![]),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(1),
-                        name: "User/admin".to_string(),
-                        value: TypeExpression::StructuralMap(vec![]),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::Variable(
-                        1,
-                        "User/admin".to_string()
-                    ),
-                    is_terminated: false,
-                }
-            ])
+            rich_ast.ast,
+            Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "User".to_string(),
+                    value: TypeExpression::StructuralMap(vec![]),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(1),
+                    name: "User/admin".to_string(),
+                    value: TypeExpression::StructuralMap(vec![]),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 1,
+                    name: "User/admin".to_string()
+                }).with_default_span()
+            ])).with_default_span())
         );
 
         // value shall be interpreted as division
         let result = parse_and_precompile("var a = 42; var b = 69; a/b");
         assert!(result.is_ok());
         let statements =
-            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+            if let DatexExpressionData::Statements(stmts) = result.unwrap().ast.unwrap().data {
                 stmts
             } else {
                 panic!("Expected statements");
             };
         assert_eq!(
-            statements.get(2).unwrap().expression,
-            DatexExpression::BinaryOperation(
+            *statements.statements.get(2).unwrap(),
+            DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(DatexExpression::Variable(0, "a".to_string())),
-                Box::new(DatexExpression::Variable(1, "b".to_string())),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 0, name: "a".to_string()}).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 1, name: "b".to_string()}).with_default_span()),
                 None
-            )
+            ).with_default_span()
         );
 
         // type with value should be interpreted as division
         let result = parse_and_precompile("var a = 10; type b = 42; a/b");
         assert!(result.is_ok());
         let statements =
-            if let DatexExpression::Statements(stmts) = result.unwrap().ast {
+            if let DatexExpressionData::Statements(stmts) = result.unwrap().ast.unwrap().data {
                 stmts
             } else {
                 panic!("Expected statements");
             };
         assert_eq!(
-            statements.get(2).unwrap().expression,
-            DatexExpression::BinaryOperation(
+            *statements.statements.get(2).unwrap(),
+            DatexExpressionData::BinaryOperation(
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
-                Box::new(DatexExpression::Variable(1, "a".to_string())),
-                Box::new(DatexExpression::Variable(0, "b".to_string())),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 1, name: "a".to_string()}).with_default_span()),
+                Box::new(DatexExpressionData::VariableAccess(VariableAccess {id: 0, name: "b".to_string()}).with_default_span()),
                 None
-            )
+            ).with_default_span()
         );
     }
 
@@ -1085,34 +1331,28 @@ mod tests {
     fn test_type_declaration_assigment() {
         let result = parse_and_precompile("type MyInt = 1; var x = MyInt;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(0),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1)),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::VariableDeclaration {
-                        id: Some(1),
-                        kind: VariableKind::Var,
-                        name: "x".to_string(),
-                        // must refer to variable id 0
-                        init_expression: Box::new(DatexExpression::Variable(
-                            0,
-                            "MyInt".to_string()
-                        )),
-                        type_annotation: None,
-                    },
-                    is_terminated: true,
-                },
-            ])
+            rich_ast.ast,
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Integer(Integer::from(1)),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                    id: Some(1),
+                    kind: VariableKind::Var,
+                    name: "x".to_string(),
+                    // must refer to variable id 0
+                    init_expression: Box::new(DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "MyInt".to_string()
+                    }).with_default_span()),
+                    type_annotation: None,
+                }).with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1120,34 +1360,28 @@ mod tests {
     fn test_type_declaration_hoisted_assigment() {
         let result = parse_and_precompile("var x = MyInt; type MyInt = 1;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
-                Statement {
-                    expression: DatexExpression::VariableDeclaration {
-                        id: Some(1),
-                        kind: VariableKind::Var,
-                        name: "x".to_string(),
-                        // must refer to variable id 0
-                        init_expression: Box::new(DatexExpression::Variable(
-                            0,
-                            "MyInt".to_string()
-                        )),
-                        type_annotation: None,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(0),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Integer(Integer::from(1)),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-            ])
+            rich_ast.ast,
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                    id: Some(1),
+                    kind: VariableKind::Var,
+                    name: "x".to_string(),
+                    // must refer to variable id 0
+                    init_expression: Box::new(DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "MyInt".to_string()
+                    }).with_default_span()),
+                    type_annotation: None,
+                }).with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Integer(Integer::from(1)),
+                    hoisted: true,
+                }.with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1155,29 +1389,23 @@ mod tests {
     fn test_type_declaration_hoisted_cross_assigment() {
         let result = parse_and_precompile("type x = MyInt; type MyInt = x;");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(0),
-                        name: "x".to_string(),
-                        value: TypeExpression::Variable(1, "MyInt".to_string()),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(1),
-                        name: "MyInt".to_string(),
-                        value: TypeExpression::Variable(0, "x".to_string()),
-                        hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-            ])
+            rich_ast.ast,
+            Some(DatexExpressionData::Statements(Statements::new_terminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "x".to_string(),
+                    value: TypeExpression::Variable(1, "MyInt".to_string()),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(1),
+                    name: "MyInt".to_string(),
+                    value: TypeExpression::Variable(0, "x".to_string()),
+                    hoisted: true,
+                }.with_default_span(),
+            ])).with_default_span())
         )
     }
 
@@ -1194,45 +1422,33 @@ mod tests {
         let result =
             parse_and_precompile("type x = 10; (1; type NestedVar = x;)");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::Statements(vec![
-                Statement {
-                    expression: DatexExpression::TypeDeclaration {
-                        id: Some(0),
-                        name: "x".to_string(),
-                        value: TypeExpression::Integer(
-                            Integer::from(10).into()
+            rich_ast.ast,
+            Some(DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                DatexExpressionData::TypeDeclaration {
+                    id: Some(0),
+                    name: "x".to_string(),
+                    value: TypeExpression::Integer(
+                        Integer::from(10).into()
+                    ),
+                    hoisted: true,
+                }.with_default_span(),
+                DatexExpressionData::Statements(Statements::new_terminated(vec![
+                    DatexExpressionData::Integer(
+                        Integer::from(1)
+                    ).with_default_span(),
+                    DatexExpressionData::TypeDeclaration {
+                        id: Some(1),
+                        name: "NestedVar".to_string(),
+                        value: TypeExpression::Variable(
+                            0,
+                            "x".to_string()
                         ),
                         hoisted: true,
-                    },
-                    is_terminated: true,
-                },
-                Statement {
-                    expression: DatexExpression::Statements(vec![
-                        Statement {
-                            expression: DatexExpression::Integer(
-                                Integer::from(1)
-                            ),
-                            is_terminated: true,
-                        },
-                        Statement {
-                            expression: DatexExpression::TypeDeclaration {
-                                id: Some(1),
-                                name: "NestedVar".to_string(),
-                                value: TypeExpression::Variable(
-                                    0,
-                                    "x".to_string()
-                                ),
-                                hoisted: true,
-                            },
-                            is_terminated: true,
-                        },
-                    ]),
-                    is_terminated: false,
-                }
-            ])
+                    }.with_default_span(),
+                ])).with_default_span()
+            ])).with_default_span())
         )
     }
 
@@ -1240,17 +1456,17 @@ mod tests {
     fn test_core_reference_type() {
         let result = parse_and_precompile("type x = integer");
         assert!(result.is_ok());
-        let ast_with_metadata = result.unwrap();
+        let rich_ast = result.unwrap();
         assert_eq!(
-            ast_with_metadata.ast,
-            DatexExpression::TypeDeclaration {
+            rich_ast.ast,
+            Some(DatexExpressionData::TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),
                 value: TypeExpression::GetReference(PointerAddress::from(
                     CoreLibPointerId::Integer(None)
                 )),
                 hoisted: false,
-            }
+            }.with_default_span())
         );
     }
 }

@@ -47,10 +47,10 @@ pub enum ErrorKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
-    kind: ErrorKind,
-    span: SpanOrToken,
-    context: Option<(SpanOrToken, String)>,
-    note: Option<&'static str>,
+    pub kind: ErrorKind,
+    pub span: SpanOrToken,
+    pub context: Option<(SpanOrToken, String)>,
+    pub note: Option<&'static str>,
 }
 impl From<NumberParseError> for ParseError {
     fn from(value: NumberParseError) -> Self {

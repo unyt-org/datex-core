@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::ast::DatexExpression;
+use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::ast::DatexParserTrait;
 use crate::ast::lexer::Token;
 use crate::ast::utils::operation;
@@ -47,7 +47,12 @@ fn comparison_op(
     op: ComparisonOperator,
 ) -> impl Fn(Box<DatexExpression>, Box<DatexExpression>) -> DatexExpression + Clone
 {
-    move |lhs, rhs| DatexExpression::ComparisonOperation(op, lhs, rhs)
+    move |lhs, rhs| {
+        let start = lhs.span.start.min(rhs.span.start);
+        let end = lhs.span.end.max(rhs.span.end);
+        let combined_span = start..end;
+        DatexExpressionData::ComparisonOperation(op, lhs, rhs).with_span(SimpleSpan::from(combined_span))
+    }
 }
 
 pub fn comparison_operation<'a>(

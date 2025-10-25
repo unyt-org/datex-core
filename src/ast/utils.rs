@@ -1,5 +1,5 @@
 use crate::ast::lexer::Token;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 
 pub fn whitespace<'a>() -> impl DatexParserTrait<'a, ()> {
@@ -13,17 +13,17 @@ pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
         .then_ignore(just(Token::Whitespace).repeated())
 }
 pub fn is_identifier(expr: &DatexExpression) -> bool {
-    matches!(expr, DatexExpression::Identifier { .. })
+    matches!(expr, DatexExpression { data: DatexExpressionData::Identifier { .. }, .. })
 }
 pub fn unwrap_single_statement(expr: DatexExpression) -> DatexExpression {
-    match expr {
-        DatexExpression::Statements(mut stmts) => {
-            if stmts.len() == 1 && stmts[0].is_terminated {
-                stmts.remove(0).expression
+    match expr.data {
+        DatexExpressionData::Statements(mut stmts) => {
+            if stmts.statements.len() == 1 && !stmts.is_terminated {
+                stmts.statements.remove(0)
             } else {
-                DatexExpression::Statements(stmts)
+                DatexExpressionData::Statements(stmts).with_span(expr.span)
             }
         }
-        other => other,
+        _ => expr,
     }
 }

@@ -1,4 +1,3 @@
-use crate::ast::TypeExpression;
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
@@ -7,9 +6,10 @@ use crate::values::core_values::integer::Integer;
 use datex_core::compiler::precompiler::AstMetadata;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::ast::tree::TypeExpression;
 
 /// Compilation functions for type expressions.
-impl<'a> CompilationContext<'a> {
+impl CompilationContext {
     pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
         self.append_u8(code as u8);
     }

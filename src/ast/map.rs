@@ -1,9 +1,10 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 
 use chumsky::prelude::*;
+use crate::ast::tree::Map;
 
 pub fn map<'a>(
     key: impl DatexParserTrait<'a>,
@@ -17,7 +18,9 @@ pub fn map<'a>(
         .collect()
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
-        .map(DatexExpression::Map)
+        .map_with(|entries, e| {
+            DatexExpressionData::Map(Map::new(entries)).with_span(e.span())
+        })
         .labelled(Pattern::Custom("map"))
         .as_context()
 }

@@ -1,11 +1,19 @@
-use crate::ast::TypeExpression;
-use crate::ast::chain::ApplyOperation;
-use crate::decompiler::DecompileOptions;
-use datex_core::ast::DatexExpression;
-use datex_core::decompiler::Formatting;
+use std::fmt::{self};
+
+use crate::{
+    ast::{
+        chain::ApplyOperation,
+        tree::{
+            DatexExpression, DatexExpressionData, TypeExpression,
+            VariableAccess, VariableAssignment, VariableDeclaration,
+        },
+    },
+    decompiler::FormattingMode,
+};
+use crate::ast::tree::{List, Map};
 
 #[derive(Clone, Default)]
-enum BraceStyle {
+pub enum BraceStyle {
     Curly,
     Square,
     Paren,
@@ -33,364 +41,931 @@ impl BraceStyle {
     }
 }
 
-/// Converts a DatexExpression AST back into its source code representation as a String.
-pub fn ast_to_source_code(
-    ast: &DatexExpression,
-    decompile_options: &DecompileOptions,
-) -> String {
-    match ast {
-        DatexExpression::Integer(i) => i.to_string(),
-        DatexExpression::TypedInteger(ti) => ti.to_string_with_suffix(),
-        DatexExpression::Decimal(d) => d.to_string(),
-        DatexExpression::TypedDecimal(td) => td.to_string_with_suffix(),
-        DatexExpression::Boolean(b) => b.to_string(),
-        DatexExpression::Text(t) => text_to_source_code(t),
-        DatexExpression::Endpoint(e) => e.to_string(),
-        DatexExpression::Null => "null".to_string(),
-        DatexExpression::Identifier(l) => l.to_string(),
-        DatexExpression::Map(map) => map_to_source_code(map, decompile_options),
-        DatexExpression::List(elements) => {
-            list_to_source_code(elements, decompile_options)
-        }
-        DatexExpression::CreateRef(expr) => {
-            format!("&{}", ast_to_source_code(expr, decompile_options))
-        }
-        DatexExpression::CreateRefMut(expr) => {
-            format!("&mut {}", ast_to_source_code(expr, decompile_options))
-        }
-        DatexExpression::CreateRefFinal(expr) => {
-            format!("&final {}", ast_to_source_code(expr, decompile_options))
-        }
-        DatexExpression::BinaryOperation(operator, left, right, _type) => {
-            let left_code = key_to_source_code(left, decompile_options);
-            let right_code = key_to_source_code(right, decompile_options);
-            let space = if matches!(
-                decompile_options.formatting,
-                Formatting::Compact
-            ) {
-                ""
-            } else {
-                " "
-            };
-            format!("{}{}{}{}{}", left_code, space, operator, space, right_code)
-        }
-        DatexExpression::ApplyChain(operand, applies) => {
-            let mut applies_code = vec![];
-            for apply in applies {
-                match apply {
-                    ApplyOperation::FunctionCall(args) => {
-                        let args_code =
-                            ast_to_source_code(args, decompile_options);
-                        // apply()
-                        if args_code.starts_with('(')
-                            && args_code.ends_with(')')
-                        {
-                            applies_code.push(args_code);
-                        }
-                        // apply x
-                        else {
-                            applies_code.push(format!(" {}", args_code));
-                        }
-                    }
-                    ApplyOperation::PropertyAccess(prop) => {
-                        applies_code.push(format!(
-                            ".{}",
-                            key_to_source_code(prop, decompile_options)
-                        ));
-                    }
-                    _ => todo!("#419 Undescribed by author."),
-                }
-            }
-            format!(
-                "{}{}",
-                ast_to_source_code(operand, decompile_options),
-                applies_code.join("")
-            )
-        }
-
-        DatexExpression::TypeExpression(type_expr) => {
-            format!(
-                "type({})",
-                type_expression_to_source_code(type_expr, decompile_options)
-            )
-        }
-
-        _ => todo!("#420 Undescribed by author."),
-    }
-}
-
-fn type_expression_to_source_code(
-    type_expr: &TypeExpression,
-    decompile_options: &DecompileOptions,
-) -> String {
-    match type_expr {
-        TypeExpression::Integer(ti) => ti.to_string(),
-        _ => todo!("#421 Undescribed by author."),
-    }
-}
-
-/// Converts a DatexExpression key into source code, adding parentheses if necessary
-fn key_to_source_code(
-    key: &DatexExpression,
-    decompile_options: &DecompileOptions,
-) -> String {
-    match key {
-        DatexExpression::Text(t) => key_to_string(t, decompile_options),
-        DatexExpression::Integer(i) => i.to_string(),
-        DatexExpression::TypedInteger(ti) => ti.to_string(),
-        _ => format!("({})", ast_to_source_code(key, decompile_options)),
-    }
-}
-
-/// Converts the contents of a DatexExpression::List into source code
-fn list_to_source_code(
-    list: &[DatexExpression],
-    decompile_options: &DecompileOptions,
-) -> String {
-    let elements: Vec<String> = list
-        .iter()
-        .map(|e| ast_to_source_code(e, decompile_options))
-        .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Square)
-}
-
-/// Converts the contents of a DatexExpression::Map into source code
-fn map_to_source_code(
-    map: &[(DatexExpression, DatexExpression)],
-    decompile_options: &DecompileOptions,
-) -> String {
-    let elements: Vec<String> = map
-        .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}:{}{}",
-                key_to_source_code(k, decompile_options),
-                if matches!(decompile_options.formatting, Formatting::Compact) {
-                    ""
-                } else {
-                    " "
-                },
-                ast_to_source_code(v, decompile_options)
-            )
-        })
-        .collect();
-    join_elements(elements, &decompile_options.formatting, BraceStyle::Curly)
-}
-
-/// Converts a text string into a properly escaped source code representation
-fn text_to_source_code(text: &str) -> String {
-    // TODO #422: Move this to text (as unescape_text is required in the Display)
-    // escape quotes and backslashes in text
-    let text = text
-        .replace('\\', r#"\\"#)
-        .replace('"', r#"\""#)
-        .replace('\u{0008}', r#"\b"#)
-        .replace('\u{000c}', r#"\f"#)
-        .replace('\r', r#"\r"#)
-        .replace('\t', r#"\t"#)
-        .replace('\u{000b}', r#"\v"#)
-        .replace('\n', r#"\n"#);
-
-    format!("\"{}\"", text)
-}
-
-/// Joins multiple elements into a single string with a comma separator, applying indentation and newlines for multiline formatting
-/// E.g. "1", "2", "3" -> "1,\n 2,\n 3"
-fn join_elements(
-    elements: Vec<String>,
-    formatting: &Formatting,
-    brace_style: BraceStyle,
-) -> String {
-    match formatting {
-        // no spaces or newlines for compact formatting
-        Formatting::Compact => format!(
-            "{}{}{}",
-            brace_style.open(),
-            elements.join(","),
-            brace_style.close()
-        ),
-        // indent each element on a new line for multiline formatting, if the total length exceeds a threshold of 60 characters
-        Formatting::Multiline { .. } => {
-            let total_length: usize = elements.iter().map(|s| s.len()).sum();
-            if total_length <= 60 {
-                format!(
-                    "{}{}{}",
-                    brace_style.open(),
-                    elements.join(", "),
-                    brace_style.close()
-                )
-            } else {
-                format!(
-                    "{}\n{}\n{}",
-                    brace_style.open(),
-                    indent_lines(&elements.join(",\n"), *formatting),
-                    brace_style.close()
-                )
-            }
-        }
-    }
-}
-
-/// Indents each line of the given string by the specified number of spaces if multiline formatting is used
-fn indent_lines(s: &str, formatting: Formatting) -> String {
-    match formatting {
-        Formatting::Compact => s.to_string(),
-        Formatting::Multiline { indent } => s
-            .lines()
-            .map(|line| format!("{}{}", " ".repeat(indent), line))
-            .collect::<Vec<String>>()
-            .join("\n"),
-    }
-}
-
+/// Check if the given string is a valid alphanumeric identifier (a-z, A-Z, 0-9, _ , -), starting with a-z, A-Z, or _
 fn is_alphanumeric_identifier(s: &str) -> bool {
     let mut chars = s.chars();
-
     // First character must be a-z, A-Z, or _
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
         _ => return false,
     }
-
     // Remaining characters: a-z, A-Z, 0-9, _, or -
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-fn key_to_string(key: &str, options: &DecompileOptions) -> String {
-    // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
-    if !options.json_compat && is_alphanumeric_identifier(key) {
-        key.to_string()
-    } else {
-        text_to_source_code(key)
+pub struct AstToSourceCodeFormatter {
+    mode: FormattingMode,
+    json_compat: bool,
+    colorized: bool,
+    indent_level: usize,
+    indent_size: usize,
+    use_spaces: bool,
+    add_variant_suffix: bool,
+}
+
+#[macro_export]
+macro_rules! ast_fmt {
+    ($fmtter:expr, $fmt:expr $(, $args:expr )* $(,)?) => {
+        $fmtter.fmt(std::format_args!($fmt $(, $args )*))
+    };
+}
+impl AstToSourceCodeFormatter {
+    const MAX_INLINE: usize = 60;
+
+    pub fn new(
+        mode: FormattingMode,
+        json_compat: bool,
+        colorized: bool,
+    ) -> Self {
+        let add_variant_suffix = match mode {
+            FormattingMode::Compact => false,
+            FormattingMode::Pretty => !json_compat,
+        };
+        Self {
+            mode,
+            json_compat,
+            colorized,
+            indent_level: 0,
+            indent_size: 2,
+            add_variant_suffix,
+            use_spaces: true,
+        }
+    }
+
+    /// Whether to add type variant suffixes to typed integers and decimals
+    fn add_variant_suffix(&self) -> bool {
+        if self.json_compat {
+            false
+        } else {
+            self.add_variant_suffix
+        }
+    }
+
+    /// Return the character used for indentation
+    fn indent_char(&self) -> &'static char {
+        if self.use_spaces { &' ' } else { &'\t' }
+    }
+
+    /// Return the indentation as a string
+    fn indent(&self) -> String {
+        self.indent_char().to_string().repeat(self.indent_size)
+    }
+
+    /// Return a space or empty string based on formatting mode
+    fn space(&self) -> &'static str {
+        if matches!(self.mode, FormattingMode::Compact) {
+            ""
+        } else {
+            " "
+        }
+    }
+
+    // Return a newline or empty string based on formatting mode
+    fn newline(&self) -> &'static str {
+        if matches!(self.mode, FormattingMode::Compact) {
+            ""
+        } else {
+            "\n"
+        }
+    }
+
+    /// Write formatted output with indentation and optional %s / %n expansion
+    pub fn fmt(&self, args: fmt::Arguments) -> String {
+        let mut intermediate = String::new();
+        fmt::write(&mut intermediate, args).expect("formatting failed");
+        intermediate
+            .replace("%n", self.newline())
+            .replace("%s", self.space())
+    }
+
+    /// Pad the given string with spaces if not in compact mode
+    fn pad(&self, s: &str) -> String {
+        if matches!(self.mode, FormattingMode::Compact) {
+            s.to_string()
+        } else {
+            format!("{}{}{}", self.space(), s, self.space())
+        }
+    }
+
+    /// Escape text to be a valid source code string literal
+    fn text_to_source_code(&self, text: &str) -> String {
+        let text = text
+            .replace('\\', r#"\\"#)
+            .replace('"', r#"\""#)
+            .replace('\u{0008}', r#"\b"#)
+            .replace('\u{000c}', r#"\f"#)
+            .replace('\r', r#"\r"#)
+            .replace('\t', r#"\t"#)
+            .replace('\u{000b}', r#"\v"#)
+            .replace('\n', r#"\n"#);
+
+        format!("\"{}\"", text)
+    }
+
+    /// Convert a key (string) to source code, adding quotes if necessary
+    fn key_to_string(&self, key: &str) -> String {
+        // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
+        if !self.json_compat && is_alphanumeric_identifier(key) {
+            key.to_string()
+        } else {
+            self.text_to_source_code(key)
+        }
+    }
+
+    /// Convert a key (DatexExpression) to source code, adding parentheses if necessary
+    fn key_expression_to_source_code(&self, key: &DatexExpression) -> String {
+        match &key.data {
+            DatexExpressionData::Text(t) => self.key_to_string(t),
+            DatexExpressionData::Integer(i) => i.to_string(),
+            DatexExpressionData::TypedInteger(ti) => {
+                if self.add_variant_suffix() {
+                    ti.to_string_with_suffix()
+                } else {
+                    ti.to_string()
+                }
+            }
+            _ => format!("({})", self.format(key)),
+        }
+    }
+    fn key_type_expression_to_source_code(
+        &self,
+        key: &TypeExpression,
+    ) -> String {
+        match key {
+            TypeExpression::Text(t) => self.key_to_string(t),
+            TypeExpression::Integer(i) => i.to_string(),
+            TypeExpression::TypedInteger(ti) => {
+                if self.add_variant_suffix() {
+                    ti.to_string_with_suffix()
+                } else {
+                    ti.to_string()
+                }
+            }
+            _ => format!("({})", self.type_expression_to_source_code(key)),
+        }
+    }
+
+    /// Convert a TypeExpression to source code
+    fn type_expression_to_source_code(
+        &self,
+        type_expr: &TypeExpression,
+    ) -> String {
+        match type_expr {
+            TypeExpression::Integer(ti) => ti.to_string(),
+            TypeExpression::Decimal(td) => td.to_string(),
+            TypeExpression::Boolean(boolean) => boolean.to_string(),
+            TypeExpression::Text(text) => text.to_string(),
+            TypeExpression::Endpoint(endpoint) => endpoint.to_string(),
+            TypeExpression::Null => "null".to_string(),
+            TypeExpression::Ref(inner) => {
+                format!("&{}", self.type_expression_to_source_code(inner,))
+            }
+            TypeExpression::RefMut(inner) => {
+                format!("&mut {}", self.type_expression_to_source_code(inner,))
+            }
+            TypeExpression::RefFinal(inner) => {
+                format!(
+                    "&final {}",
+                    self.type_expression_to_source_code(inner,)
+                )
+            }
+            TypeExpression::Literal(literal) => literal.to_string(),
+            TypeExpression::Variable(_, name) => name.to_string(),
+            TypeExpression::GetReference(pointer_address) => {
+                format!("{}", pointer_address) // FIXME
+            }
+            TypeExpression::TypedInteger(typed_integer) => {
+                if self.add_variant_suffix() {
+                    typed_integer.to_string_with_suffix()
+                } else {
+                    typed_integer.to_string()
+                }
+            }
+            TypeExpression::TypedDecimal(typed_decimal) => {
+                if self.add_variant_suffix() {
+                    typed_decimal.to_string_with_suffix()
+                } else {
+                    typed_decimal.to_string()
+                }
+            }
+            TypeExpression::StructuralList(type_expressions) => {
+                let elements: Vec<String> = type_expressions
+                    .iter()
+                    .map(|e| self.type_expression_to_source_code(e))
+                    .collect();
+                self.wrap_list_elements(elements)
+            }
+            TypeExpression::FixedSizeList(type_expression, _) => todo!(),
+            TypeExpression::SliceList(type_expression) => todo!(),
+            TypeExpression::Intersection(type_expressions) => {
+                let elements: Vec<String> = type_expressions
+                    .iter()
+                    .map(|e| self.type_expression_to_source_code(e))
+                    .collect();
+                self.wrap_intersection_elements(elements)
+            }
+            TypeExpression::Union(type_expressions) => {
+                let elements: Vec<String> = type_expressions
+                    .iter()
+                    .map(|e| self.type_expression_to_source_code(e))
+                    .collect();
+                self.wrap_union_elements(elements)
+            }
+            TypeExpression::Generic(_, type_expressions) => todo!(),
+            TypeExpression::Function {
+                parameters,
+                return_type,
+            } => {
+                let params_code: Vec<String> = parameters
+                    .iter()
+                    .map(|(param_name, param_type)| {
+                        ast_fmt!(
+                            &self,
+                            "{}:%s{}",
+                            param_name,
+                            self.type_expression_to_source_code(param_type,)
+                        )
+                    })
+                    .collect();
+                let return_type_code = format!(
+                    "{}{}",
+                    self.pad("->"),
+                    self.type_expression_to_source_code(return_type)
+                );
+                ast_fmt!(
+                    &self,
+                    "({}){}",
+                    params_code.join(&ast_fmt!(&self, ",%s")),
+                    return_type_code
+                )
+            }
+            TypeExpression::StructuralMap(items) => {
+                let elements: Vec<String> = items
+                    .iter()
+                    .map(|(k, v)| {
+                        format!(
+                            "{}:{}{}",
+                            self.key_type_expression_to_source_code(k),
+                            if matches!(self.mode, FormattingMode::Compact) {
+                                ""
+                            } else {
+                                " "
+                            },
+                            self.type_expression_to_source_code(v)
+                        )
+                    })
+                    .collect();
+                self.wrap_map_elements(elements)
+            }
+        }
+    }
+
+    fn wrap_map_elements(&self, elements: Vec<String>) -> String {
+        self.wrap_elements(elements, BraceStyle::Curly, Some(","))
+    }
+    fn wrap_list_elements(&self, elements: Vec<String>) -> String {
+        self.wrap_elements(elements, BraceStyle::Square, Some(","))
+    }
+    fn wrap_union_elements(&self, elements: Vec<String>) -> String {
+        self.wrap_elements(elements, BraceStyle::None, Some("|"))
+    }
+    fn wrap_intersection_elements(&self, elements: Vec<String>) -> String {
+        self.wrap_elements(elements, BraceStyle::None, Some("&"))
+    }
+
+    /// Wrap elements with commas and appropriate braces, handling pretty/compact modes
+    fn wrap_elements(
+        &self,
+        elements: Vec<String>,
+        brace_style: BraceStyle,
+        separator: Option<&str>,
+    ) -> String {
+        let separator = separator.unwrap_or("");
+
+        // Compact mode
+        if matches!(self.mode, FormattingMode::Compact) {
+            return format!(
+                "{}{}{}",
+                brace_style.open(),
+                elements.join(separator),
+                brace_style.close()
+            );
+        }
+
+        // Pretty mode
+        // decide separator in pretty mode
+        let sep = format!("{}{}", separator, self.space());
+
+        // If any element contains newline, force multiline
+        let has_newline = elements.iter().any(|e| e.contains('\n'));
+
+        let joined_inline = elements.join(&sep);
+        let inline_len = brace_style.open().len()
+            + joined_inline.len()
+            + brace_style.close().len();
+
+        if !has_newline && inline_len <= Self::MAX_INLINE {
+            // single-line
+            return format!(
+                "{}{}{}",
+                brace_style.open(),
+                joined_inline,
+                brace_style.close()
+            );
+        }
+
+        // Multiline: build relative representation
+        let unit = self.indent(); // one indent unit (e.g. "  ")
+
+        let mut out = String::new();
+        out.push_str(brace_style.open());
+        out.push_str(self.newline());
+
+        let elems_len = elements.len();
+        for (i, elem) in elements.into_iter().enumerate() {
+            // indent every line of the element by ONE unit inside this returned string
+            // so inner multi-line elements keep their local structure.
+            let indented = elem.replace("\n", &format!("\n{}", unit));
+            out.push_str(unit.as_str());
+            out.push_str(&indented);
+
+            if i + 1 < elems_len {
+                out.push_str(separator);
+            }
+            out.push_str(self.newline());
+        }
+
+        // closing brace at column 0 of this returned string (no base indent)
+        out.push_str(brace_style.close());
+        out
+    }
+
+    /// Convert a map (key/value pairs) to source code using join_elements.
+    fn map_to_source_code(
+        &self,
+        map: &Map,
+    ) -> String {
+        let elements: Vec<String> = map
+            .entries
+            .iter()
+            .map(|(k, v)| {
+                // key -> source, colon, optional space (handled via self.space()), then formatted value
+                format!(
+                    "{}:{}{}",
+                    self.key_expression_to_source_code(k),
+                    if matches!(self.mode, FormattingMode::Compact) {
+                        ""
+                    } else {
+                        " "
+                    },
+                    self.format(v)
+                )
+            })
+            .collect();
+        self.wrap_map_elements(elements)
+    }
+
+    /// Convert a list/array to source code.
+    fn list_to_source_code(&self, list: &List) -> String {
+        let elements: Vec<String> =
+            list.items.iter().map(|v| self.format(v)).collect();
+        self.wrap_list_elements(elements)
+    }
+
+    pub fn format(&self, ast: &DatexExpression) -> String {
+        match &ast.data {
+            DatexExpressionData::Integer(i) => i.to_string(),
+            DatexExpressionData::TypedInteger(ti) => {
+                if self.add_variant_suffix() {
+                    ti.to_string_with_suffix()
+                } else {
+                    ti.to_string()
+                }
+            }
+            DatexExpressionData::Decimal(d) => d.to_string(),
+            DatexExpressionData::TypedDecimal(td) => {
+                if self.add_variant_suffix() {
+                    td.to_string_with_suffix()
+                } else {
+                    td.to_string()
+                }
+            }
+            DatexExpressionData::Boolean(b) => b.to_string(),
+            DatexExpressionData::Text(t) => self.text_to_source_code(t),
+            DatexExpressionData::Endpoint(e) => e.to_string(),
+            DatexExpressionData::Null => "null".to_string(),
+            DatexExpressionData::Identifier(l) => l.to_string(),
+            DatexExpressionData::Map(map) => self.map_to_source_code(map),
+            DatexExpressionData::List(list) => {
+                self.list_to_source_code(list)
+            }
+            DatexExpressionData::CreateRef(expr) => {
+                format!("&{}", self.format(expr))
+            }
+            DatexExpressionData::CreateRefMut(expr) => {
+                format!("&mut {}", self.format(expr))
+            }
+            DatexExpressionData::CreateRefFinal(expr) => {
+                format!("&final {}", self.format(expr))
+            }
+            DatexExpressionData::BinaryOperation(
+                operator,
+                left,
+                right,
+                _type,
+            ) => {
+                let left_code = self.key_expression_to_source_code(left);
+                let right_code = self.key_expression_to_source_code(right);
+                ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
+            }
+            DatexExpressionData::ApplyChain(operand, applies) => {
+                let mut applies_code = vec![];
+                for apply in applies {
+                    match apply {
+                        ApplyOperation::FunctionCall(args) => {
+                            let args_code = self.format(args);
+                            // apply()
+                            if args_code.starts_with('(')
+                                && args_code.ends_with(')')
+                            {
+                                applies_code.push(args_code);
+                            }
+                            // apply x
+                            else {
+                                applies_code.push(format!(" {}", args_code));
+                            }
+                        }
+                        ApplyOperation::PropertyAccess(prop) => {
+                            applies_code.push(format!(
+                                ".{}",
+                                self.key_expression_to_source_code(prop)
+                            ));
+                        }
+                        _ => todo!("#419 Undescribed by author."),
+                    }
+                }
+                format!("{}{}", self.format(operand), applies_code.join(""))
+            }
+            DatexExpressionData::TypeExpression(type_expr) => {
+                format!(
+                    "type({})",
+                    self.type_expression_to_source_code(type_expr)
+                )
+            }
+            DatexExpressionData::Recover => unreachable!(
+                "DatexExpressionData::Recover should not appear in a valid AST"
+            ),
+            DatexExpressionData::Statements(statements) => {
+                let statements_code: Vec<String> = statements
+                    .statements
+                    .iter()
+                    .map(|stmt| {
+                        let code = self.format(stmt);
+                        ast_fmt!(&self, "{};%n", code)
+                    })
+                    .collect();
+                statements_code.join("")
+            }
+            DatexExpressionData::GetReference(pointer_address) => {
+                format!("{}", pointer_address) // FIXME
+            }
+            DatexExpressionData::Conditional {
+                condition,
+                then_branch,
+                else_branch,
+            } => todo!(),
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                id: _,
+                kind,
+                name,
+                init_expression,
+                type_annotation,
+            }) => {
+                let mut code = String::new();
+                code.push_str(&kind.to_string());
+                code.push(' ');
+                code.push_str(name);
+                if let Some(type_annotation) = type_annotation {
+                    code.push_str(&ast_fmt!(&self, ":%s"));
+                    code.push_str(
+                        &self.type_expression_to_source_code(type_annotation),
+                    );
+                }
+                code.push_str(&self.pad("="));
+                code.push_str(&self.format(init_expression));
+                code
+            }
+            DatexExpressionData::VariableAssignment(VariableAssignment {
+                id: _,
+                expression,
+                name,
+                operator,
+            }) => {
+                let mut code = String::new();
+                code.push_str(name);
+                code.push_str(&self.pad(&operator.to_string()));
+                code.push_str(&self.format(expression));
+                code
+            }
+            DatexExpressionData::VariableAccess(VariableAccess {
+                name,
+                ..
+            }) => name.to_string(),
+            DatexExpressionData::TypeDeclaration {
+                id: _,
+                name,
+                value,
+                hoisted: _,
+            } => {
+                ast_fmt!(
+                    &self,
+                    "type {}%s=%s{}",
+                    name,
+                    self.type_expression_to_source_code(value)
+                )
+            }
+            DatexExpressionData::Type(type_expression) => {
+                self.type_expression_to_source_code(type_expression)
+            }
+            DatexExpressionData::FunctionDeclaration {
+                name,
+                parameters,
+                return_type,
+                body,
+            } => {
+                let params_code: Vec<String> = parameters
+                    .iter()
+                    .map(|(param_name, param_type)| {
+                        ast_fmt!(
+                            &self,
+                            "{}:%s{}",
+                            param_name,
+                            self.type_expression_to_source_code(param_type,)
+                        )
+                    })
+                    .collect();
+                let return_type_code = if let Some(return_type) = return_type {
+                    format!(
+                        "{}{}",
+                        self.pad("->"),
+                        self.type_expression_to_source_code(return_type)
+                    )
+                } else {
+                    "".to_string()
+                };
+                let body_code = self.format(body);
+                ast_fmt!(
+                    &self,
+                    "fn {}({}){}%s(%n{}%n)",
+                    name,
+                    params_code.join(", "),
+                    return_type_code,
+                    body_code
+                )
+            }
+            DatexExpressionData::Deref(datex_expression) => {
+                format!("*{}", self.format(datex_expression))
+            }
+            DatexExpressionData::Slot(slot) => slot.to_string(),
+            DatexExpressionData::SlotAssignment(slot, datex_expression) => {
+                format!("{}%s=%s{}", slot, self.format(datex_expression))
+            }
+            DatexExpressionData::PointerAddress(pointer_address) => {
+                pointer_address.to_string()
+            }
+            DatexExpressionData::ComparisonOperation(
+                comparison_operator,
+                datex_expression,
+                datex_expression1,
+            ) => {
+                ast_fmt!(
+                    &self,
+                    "{}%s{comparison_operator}%s{}",
+                    self.format(datex_expression),
+                    self.format(datex_expression1)
+                )
+            }
+            DatexExpressionData::DerefAssignment {
+                operator,
+                deref_count,
+                deref_expression,
+                assigned_expression,
+            } => {
+                let deref_prefix = "*".repeat(*deref_count);
+                ast_fmt!(
+                    &self,
+                    "{}{}%s{operator}%s{}",
+                    deref_prefix,
+                    self.format(deref_expression),
+                    self.format(assigned_expression)
+                )
+            }
+            DatexExpressionData::UnaryOperation(unary_operation) => {
+                format!(
+                    "{}{}",
+                    unary_operation.operator,
+                    self.format(&unary_operation.expression)
+                )
+            }
+            DatexExpressionData::Placeholder => "?".to_string(),
+            DatexExpressionData::RemoteExecution(
+                datex_expression,
+                datex_expression1,
+            ) => {
+                format!(
+                    "{}%s::%s{}",
+                    self.format(datex_expression),
+                    self.format(datex_expression1)
+                )
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
+
     use super::*;
-    use crate::values::core_values::decimal::Decimal;
+    use crate::{
+        ast::{
+            assignment_operation::AssignmentOperator, parse, tree::VariableKind,
+        },
+        values::core_values::decimal::Decimal,
+    };
+
+    fn compact() -> AstToSourceCodeFormatter {
+        AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)
+    }
+
+    fn pretty() -> AstToSourceCodeFormatter {
+        AstToSourceCodeFormatter::new(FormattingMode::Pretty, false, false)
+    }
+
+    fn json() -> AstToSourceCodeFormatter {
+        AstToSourceCodeFormatter::new(FormattingMode::Pretty, true, false)
+    }
+
+    fn to_expression(s: &str) -> DatexExpression {
+        parse(s).unwrap().ast
+    }
 
     #[test]
-    fn test_primitives() {
-        let int_ast = DatexExpression::Integer(42.into());
+    fn nested_list() {
+        let src = to_expression("[1, 2, 3]");
+        assert_eq!(compact().format(&src), "[1,2,3]");
+        assert_eq!(pretty().format(&src), "[1, 2, 3]");
+        assert_eq!(json().format(&src), "[1, 2, 3]");
+
+        let src = to_expression(
+            "[1, [2, 3, 100, 200, 300, 400, 100, 200, 300, 100000000000000000000000000000000], 4]",
+        );
         assert_eq!(
-            ast_to_source_code(&int_ast, &DecompileOptions::default()),
-            "42"
+            compact().format(&src),
+            "[1,[2,3,100,200,300,400,100,200,300,100000000000000000000000000000000],4]"
+        );
+        assert_eq!(
+            pretty().format(&src),
+            indoc! {
+            "[
+			   1,
+			   [
+			     2,
+			     3,
+			     100,
+			     200,
+			     300,
+			     400,
+			     100,
+			     200,
+			     300,
+			     100000000000000000000000000000000
+			   ],
+			   4
+			 ]"}
         );
 
-        let typed_int_ast = DatexExpression::TypedInteger(42i8.into());
-        assert_eq!(
-            ast_to_source_code(&typed_int_ast, &DecompileOptions::default()),
-            "42i8"
-        );
-
-        let decimal_ast = DatexExpression::Decimal(
-            Decimal::from_string("1.23").unwrap().into(),
+        let src = to_expression(
+            "[1, {a: 42, b: 100000000000, c: [1,2,3,1000000000000000000000000000]}, 3]",
         );
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
-            "1.23"
+            compact().format(&src),
+            "[1,{a:42,b:100000000000,c:[1,2,3,1000000000000000000000000000]},3]"
         );
-
-        let decimal_ast = DatexExpression::Decimal(Decimal::Infinity.into());
         assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
-            "infinity"
-        );
-
-        let decimal_ast = DatexExpression::Decimal(Decimal::NegInfinity.into());
-        assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
-            "-infinity"
-        );
-
-        let decimal_ast = DatexExpression::Decimal(Decimal::NaN.into());
-        assert_eq!(
-            ast_to_source_code(&decimal_ast, &DecompileOptions::default()),
-            "nan"
-        );
-
-        let typed_decimal_ast = DatexExpression::TypedDecimal(2.71f32.into());
-        assert_eq!(
-            ast_to_source_code(
-                &typed_decimal_ast,
-                &DecompileOptions::default()
-            ),
-            "2.71f32"
-        );
-
-        let bool_ast = DatexExpression::Boolean(true);
-        assert_eq!(
-            ast_to_source_code(&bool_ast, &DecompileOptions::default()),
-            "true"
-        );
-
-        let text_ast = DatexExpression::Text("Hello".to_string());
-        assert_eq!(
-            ast_to_source_code(&text_ast, &DecompileOptions::default()),
-            "\"Hello\""
-        );
-
-        let null_ast = DatexExpression::Null;
-        assert_eq!(
-            ast_to_source_code(&null_ast, &DecompileOptions::default()),
-            "null"
+            pretty().format(&src),
+            indoc! {
+            "[
+			   1,
+			   {
+			     a: 42,
+			     b: 100000000000,
+			     c: [1, 2, 3, 1000000000000000000000000000]
+			   },
+			   3
+			 ]"}
         );
     }
 
     #[test]
-    fn test_list() {
-        let list_ast = DatexExpression::List(vec![
-            DatexExpression::Integer(1.into()),
-            DatexExpression::Integer(2.into()),
-            DatexExpression::Integer(3.into()),
-        ]);
+    fn test_primitives() {
+        let int_ast = DatexExpressionData::Integer(42.into());
+        assert_eq!(compact().format(&int_ast.with_default_span()), "42");
+
+        let typed_int_ast = DatexExpressionData::TypedInteger(42i8.into());
+        assert_eq!(compact().format(&typed_int_ast.with_default_span()), "42");
+
+        let decimal_ast =
+            DatexExpressionData::Decimal(Decimal::from_string("1.23").unwrap());
+        assert_eq!(compact().format(&decimal_ast.with_default_span()), "1.23");
+
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::Infinity);
         assert_eq!(
-            ast_to_source_code(&list_ast, &DecompileOptions::default()),
-            "[1,2,3]"
+            compact().format(&decimal_ast.with_default_span()),
+            "infinity"
         );
 
-        let compile_options_multiline = DecompileOptions {
-            formatting: Formatting::multiline(),
-            ..Default::default()
-        };
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::NegInfinity);
+        assert_eq!(
+            compact().format(&decimal_ast.with_default_span()),
+            "-infinity"
+        );
+
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::NaN);
+        assert_eq!(compact().format(&decimal_ast.with_default_span()), "nan");
+
+        let typed_decimal_ast =
+            DatexExpressionData::TypedDecimal(2.71f32.into());
+        assert_eq!(
+            pretty().format(&typed_decimal_ast.with_default_span()),
+            "2.71f32"
+        );
+
+        let bool_ast = DatexExpressionData::Boolean(true);
+        assert_eq!(compact().format(&bool_ast.with_default_span()), "true");
+
+        let text_ast = DatexExpressionData::Text("Hello".to_string());
+        assert_eq!(
+            compact().format(&text_ast.with_default_span()),
+            "\"Hello\""
+        );
+
+        let null_ast = DatexExpressionData::Null;
+        assert_eq!(compact().format(&null_ast.with_default_span()), "null");
+    }
+
+    #[test]
+    fn test_list() {
+        let list_ast = DatexExpressionData::List(List::new(vec![
+            DatexExpressionData::Integer(1.into()).with_default_span(),
+            DatexExpressionData::Integer(2.into()).with_default_span(),
+            DatexExpressionData::Integer(3.into()).with_default_span(),
+        ]));
+        assert_eq!(compact().format(&list_ast.with_default_span()), "[1,2,3]");
 
         // long list should be multi-line
-        let long_list_ast = DatexExpression::List(vec![
-            DatexExpression::Text("This is a long string".to_string()),
-            DatexExpression::Text("Another long string".to_string()),
-            DatexExpression::Text("Yet another long string".to_string()),
-            DatexExpression::Text(
+        let long_list_ast = DatexExpressionData::List(List::new(vec![
+            DatexExpressionData::Text("This is a long string".to_string())
+                .with_default_span(),
+            DatexExpressionData::Text("Another long string".to_string())
+                .with_default_span(),
+            DatexExpressionData::Text("Yet another long string".to_string())
+                .with_default_span(),
+            DatexExpressionData::Text(
                 "More long strings to increase length".to_string(),
-            ),
-            DatexExpression::Text("Final long string in the list".to_string()),
-        ]);
+            )
+            .with_default_span(),
+            DatexExpressionData::Text(
+                "Final long string in the list".to_string(),
+            )
+            .with_default_span(),
+        ]));
 
         assert_eq!(
-            ast_to_source_code(&long_list_ast, &compile_options_multiline),
-            "[\n    \"This is a long string\",\n    \"Another long string\",\n    \"Yet another long string\",\n    \"More long strings to increase length\",\n    \"Final long string in the list\"\n]"
+            pretty().format(&long_list_ast.with_default_span()),
+            indoc! {
+            "[
+			   \"This is a long string\",
+			   \"Another long string\",
+			   \"Yet another long string\",
+			   \"More long strings to increase length\",
+			   \"Final long string in the list\"
+			 ]"}
         );
     }
 
     #[test]
     fn test_map() {
-        let map_ast = DatexExpression::Map(vec![
+        let map_ast = DatexExpressionData::Map(Map::new(vec![
             (
-                DatexExpression::Text("key1".to_string()),
-                DatexExpression::Integer(1.into()),
+                DatexExpressionData::Text("key1".to_string())
+                    .with_default_span(),
+                DatexExpressionData::Integer(1.into()).with_default_span(),
             ),
             (
-                DatexExpression::Text("key2".to_string()),
-                DatexExpression::Text("two".to_string()),
+                DatexExpressionData::Text("key2".to_string())
+                    .with_default_span(),
+                DatexExpressionData::Text("two".to_string())
+                    .with_default_span(),
             ),
             (
-                DatexExpression::Integer(42.into()),
-                DatexExpression::Boolean(true),
+                DatexExpressionData::Integer(42.into()).with_default_span(),
+                DatexExpressionData::Boolean(true).with_default_span(),
             ),
-        ]);
+            (
+                DatexExpressionData::Text("x".repeat(30).to_string())
+                    .with_default_span(),
+                DatexExpressionData::Integer(42.into()).with_default_span(),
+            ),
+        ]))
+        .with_default_span();
         assert_eq!(
-            ast_to_source_code(&map_ast, &DecompileOptions::default()),
-            "{key1:1,key2:\"two\",42:true}"
+            compact().format(&map_ast),
+            "{key1:1,key2:\"two\",42:true,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:42}"
         );
+        assert_eq!(
+            pretty().format(&map_ast),
+            indoc! {
+            "{
+			   key1: 1,
+			   key2: \"two\",
+			   42: true,
+			   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 42
+			 }"}
+        );
+    }
+
+    #[test]
+    fn test_deref() {
+        let deref_ast = DatexExpressionData::Deref(Box::new(
+            DatexExpressionData::VariableAccess(VariableAccess {
+                id: 0,
+                name: "ptr".to_string(),
+            })
+            .with_default_span(),
+        ));
+        assert_eq!(compact().format(&deref_ast.with_default_span()), "*ptr");
+    }
+
+    #[test]
+    fn test_deref_assignment() {
+        let deref_assign_ast = DatexExpressionData::DerefAssignment {
+            operator: AssignmentOperator::Assign,
+            deref_count: 2,
+            deref_expression: Box::new(
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 0,
+                    name: "ptr".to_string(),
+                })
+                .with_default_span(),
+            ),
+            assigned_expression: Box::new(
+                DatexExpressionData::Integer(42.into()).with_default_span(),
+            ),
+        };
+        assert_eq!(
+            compact().format(&deref_assign_ast.with_default_span()),
+            "**ptr=42"
+        );
+    }
+
+    #[test]
+    fn test_variable_declaration() {
+        let var_decl_ast =
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                id: Some(0),
+                kind: VariableKind::Const,
+                name: "x".to_string(),
+                init_expression: Box::new(
+                    DatexExpressionData::TypedInteger(10u8.into())
+                        .with_default_span(),
+                ),
+                type_annotation: Some(TypeExpression::RefMut(Box::new(
+                    TypeExpression::Literal("integer/u8".to_owned()),
+                ))),
+            })
+            .with_default_span();
+        assert_eq!(
+            compact().format(&var_decl_ast),
+            "const x:&mut integer/u8=10"
+        );
+        assert_eq!(
+            pretty().format(&var_decl_ast),
+            "const x: &mut integer/u8 = 10u8"
+        );
+    }
+
+    #[test]
+    fn typed_variants() {
+        let typed_int_ast =
+            DatexExpressionData::TypedInteger(42i8.into()).with_default_span();
+        assert_eq!(pretty().format(&typed_int_ast), "42i8");
+        assert_eq!(json().format(&typed_int_ast), "42");
+
+        let typed_decimal_ast =
+            DatexExpressionData::TypedDecimal(2.71f32.into())
+                .with_default_span();
+        assert_eq!(pretty().format(&typed_decimal_ast), "2.71f32");
+        assert_eq!(json().format(&typed_decimal_ast), "2.71");
     }
 }

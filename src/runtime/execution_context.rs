@@ -1,4 +1,4 @@
-use crate::compiler::error::CompilerError;
+use crate::compiler::error::SpannedCompilerError;
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::{CompileOptions, compile_template};
 use crate::decompiler::{DecompileOptions, decompile_body};
@@ -16,12 +16,12 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
-    CompilerError(CompilerError),
+    CompilerError(SpannedCompilerError),
     ExecutionError(ExecutionError),
 }
 
-impl From<CompilerError> for ScriptExecutionError {
-    fn from(err: CompilerError) -> Self {
+impl From<SpannedCompilerError> for ScriptExecutionError {
+    fn from(err: SpannedCompilerError) -> Self {
         ScriptExecutionError::CompilerError(err)
     }
 }
@@ -226,7 +226,7 @@ impl ExecutionContext {
         &mut self,
         script: &str,
         inserted_values: &[ValueContainer],
-    ) -> Result<Vec<u8>, CompilerError> {
+    ) -> Result<Vec<u8>, SpannedCompilerError> {
         let compile_scope = self.compile_scope();
         // TODO #107: don't clone compile_scope if possible
         let res = compile_template(

@@ -1,8 +1,10 @@
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
-use crate::ast::{DatexExpression, DatexParserTrait};
+use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
+use datex_core::ast::tree::List;
+use crate::ast::tree::Map;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {
@@ -41,11 +43,11 @@ pub fn chain_without_whitespace_apply<'a>(
             .collect::<Vec<_>>(),
         )
         .labelled(Pattern::Custom("chain_no_whitespace_atom"))
-        .map(|(val, args)| {
+        .map_with(|(val, args), e| {
             if args.is_empty() {
                 val
             } else {
-                DatexExpression::ApplyChain(Box::new(val), args)
+                DatexExpressionData::ApplyChain(Box::new(val), args).with_span(e.span())
             }
         })
 }
@@ -63,7 +65,7 @@ pub fn keyed_parameters<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
-        .map(DatexExpression::Map)
+        .map_with(|vec, e| DatexExpressionData::Map(Map::new(vec)).with_span(e.span()))
 }
 
 pub fn indexed_parameters<'a>(
@@ -78,7 +80,7 @@ pub fn indexed_parameters<'a>(
         .padded_by(whitespace())
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
-        .map(DatexExpression::List)
+        .map_with(|vec, e| DatexExpressionData::List(List::new(vec)).with_span(e.span()))
 }
 
 pub fn chain<'a>(
@@ -129,12 +131,12 @@ pub fn chain<'a>(
             .collect::<Vec<_>>(),
         )
         .labelled(Pattern::Custom("chain"))
-        .map(|(val, args)| {
+        .map_with(|(val, args), e| {
             // if only single value, return it directly
             if args.is_empty() {
                 val
             } else {
-                DatexExpression::ApplyChain(Box::new(val), args)
+                DatexExpressionData::ApplyChain(Box::new(val), args).with_span(e.span())
             }
         })
 }
