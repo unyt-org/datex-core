@@ -12,8 +12,8 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::tree::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
-    DerefAssignment, Slot, Statements, UnaryOperation, VariableAccess,
-    VariableAssignment, VariableDeclaration, VariableKind,
+    DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
+    VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
@@ -687,7 +687,7 @@ fn compile_expression(
         }
 
         // apply
-        DatexExpressionData::ApplyChain(val, operands) => {
+        DatexExpressionData::ApplyChain(_) => {
             compilation_context.mark_has_non_static_value();
             // TODO #150
         }
@@ -917,7 +917,10 @@ fn compile_expression(
         }
 
         // remote execution
-        DatexExpressionData::RemoteExecution(caller, script) => {
+        DatexExpressionData::RemoteExecution(RemoteExecution {
+            left: caller,
+            right: script,
+        }) => {
             compilation_context.mark_has_non_static_value();
 
             // insert remote execution code

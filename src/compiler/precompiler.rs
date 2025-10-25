@@ -1,10 +1,10 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tree::{
-    BinaryOperation, ComparisonOperation, Conditional, DatexExpression,
-    DatexExpressionData, DerefAssignment, FunctionDeclaration, TypeDeclaration,
-    TypeExpressionData, UnaryOperation, VariableAssignment,
-    VariableDeclaration, VariableKind,
+    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+    DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
+    RemoteExecution, SlotAssignment, TypeDeclaration, TypeExpressionData,
+    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -634,7 +634,10 @@ fn visit_expression(
                 collected_errors,
             )?;
         }
-        DatexExpressionData::ApplyChain(expr, applies) => {
+        DatexExpressionData::ApplyChain(ApplyChain {
+            base: expr,
+            operations: applies,
+        }) => {
             visit_expression(
                 expr,
                 metadata,
@@ -692,7 +695,10 @@ fn visit_expression(
                 )?;
             }
         }
-        DatexExpressionData::RemoteExecution(callee, expr) => {
+        DatexExpressionData::RemoteExecution(RemoteExecution {
+            left: callee,
+            right: expr,
+        }) => {
             visit_expression(
                 callee,
                 metadata,
@@ -882,9 +888,12 @@ fn visit_expression(
                 collected_errors,
             )?;
         }
-        DatexExpressionData::SlotAssignment(_slot, expr) => {
+        DatexExpressionData::SlotAssignment(SlotAssignment {
+            expression,
+            ..
+        }) => {
             visit_expression(
-                expr,
+                expression,
                 metadata,
                 scope_stack,
                 NewScopeType::NewScope,

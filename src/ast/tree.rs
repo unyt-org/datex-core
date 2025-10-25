@@ -214,7 +214,9 @@ impl Visitable for DatexExpression {
             DatexExpressionData::CreateRefMut(datex_expression) => {
                 visitor.visit_create_mut(datex_expression, self.span)
             }
-            DatexExpressionData::CreateRefFinal(datex_expression) => todo!(),
+            DatexExpressionData::CreateRefFinal(datex_expression) => {
+                unimplemented!()
+            }
             DatexExpressionData::Deref(datex_expression) => {
                 visitor.visit_deref(datex_expression, self.span)
             }

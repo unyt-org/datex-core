@@ -1,8 +1,9 @@
 use std::fmt::{self};
 
 use crate::ast::tree::{
-    BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
-    Map, TypeDeclaration,
+    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+    DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
+    TypeDeclaration,
 };
 use crate::{
     ast::{
@@ -477,9 +478,12 @@ impl AstToSourceCodeFormatter {
                 let right_code = self.key_expression_to_source_code(right);
                 ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
             }
-            DatexExpressionData::ApplyChain(operand, applies) => {
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base,
+                operations,
+            }) => {
                 let mut applies_code = vec![];
-                for apply in applies {
+                for apply in operations {
                     match apply {
                         ApplyOperation::FunctionCall(args) => {
                             let args_code = self.format(args);
@@ -503,7 +507,7 @@ impl AstToSourceCodeFormatter {
                         _ => todo!("#419 Undescribed by author."),
                     }
                 }
-                format!("{}{}", self.format(operand), applies_code.join(""))
+                format!("{}{}", self.format(base), applies_code.join(""))
             }
             DatexExpressionData::TypeExpression(type_expr) => {
                 format!(
@@ -626,8 +630,11 @@ impl AstToSourceCodeFormatter {
                 format!("*{}", self.format(datex_expression))
             }
             DatexExpressionData::Slot(slot) => slot.to_string(),
-            DatexExpressionData::SlotAssignment(slot, datex_expression) => {
-                format!("{}%s=%s{}", slot, self.format(datex_expression))
+            DatexExpressionData::SlotAssignment(SlotAssignment {
+                slot,
+                expression,
+            }) => {
+                format!("{}%s=%s{}", slot, self.format(expression))
             }
             DatexExpressionData::PointerAddress(pointer_address) => {
                 pointer_address.to_string()
@@ -667,15 +674,11 @@ impl AstToSourceCodeFormatter {
                 )
             }
             DatexExpressionData::Placeholder => "?".to_string(),
-            DatexExpressionData::RemoteExecution(
-                datex_expression,
-                datex_expression1,
-            ) => {
-                format!(
-                    "{}%s::%s{}",
-                    self.format(datex_expression),
-                    self.format(datex_expression1)
-                )
+            DatexExpressionData::RemoteExecution(RemoteExecution {
+                left,
+                right,
+            }) => {
+                format!("{}%s::%s{}", self.format(left), self.format(right))
             }
         }
     }
