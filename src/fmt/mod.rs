@@ -69,14 +69,11 @@ pub enum BracketStyle {
     /// Keep original bracketing as is.
     KeepAll,
 
-    /// Remove only redundant or duplicate outer brackets, e.g. `((42))` → `(42)`.
+    /// Remove only redundant or duplicate outer brackets, e.g. `((42))` -> `(42)`.
     RemoveDuplicate,
 
     /// Remove all unnecessary brackets based purely on operator precedence.
     Minimal,
-
-    /// Don’t use brackets at all unless absolutely required for syntactic validity.
-    None,
 }
 
 /// Formatting styles for enum variants.
@@ -141,16 +138,24 @@ impl FormattingOptions {
             spaces_around_operators: false,
             type_declaration_formatting: TypeDeclarationFormatting::Compact,
             statement_formatting: StatementFormatting::Compact,
-            bracket_style: BracketStyle::None,
+            bracket_style: BracketStyle::Minimal,
         }
     }
+}
+
+#[derive(Debug)]
+/// Represents a parent operation for formatting decisions.
+enum Operation<'a> {
+    Binary(&'a BinaryOperator),
+    Comparison(&'a ComparisonOperator),
+    Unary(&'a UnaryOperator),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Assoc {
     Left,
     Right,
-    NoneAssoc,
+    None,
 }
 
 pub struct Formatter<'a> {
@@ -227,6 +232,7 @@ impl<'a> Formatter<'a> {
         self.options.indent as isize
     }
 
+    /// Formats a typed integer into source code representation based on variant formatting options.
     fn typed_integer_to_source_code(
         &'a self,
         ti: &'a TypedInteger,
@@ -242,74 +248,55 @@ impl<'a> Formatter<'a> {
 
     fn maybe_wrap_by_parent(
         &'a self,
-        expr: &'a DatexExpression,
+        expression: &'a DatexExpression,
         inner: Format<'a>,
-        parent_op: Option<(u8, Assoc, &'a BinaryOperator)>,
+        parent_ctx: Option<(u8, Assoc, Operation<'a>)>,
         is_left_child_of_parent: bool,
     ) -> Format<'a> {
-        // no parent -> nothing to force
-        if parent_op.is_none() {
+        // If there's no parent context, nothing forces parentheses.
+        if parent_ctx.is_none() {
             return inner;
         }
-        let (parent_prec, parent_assoc, parent_op_enum) = parent_op.unwrap();
 
-        // If child is a binary op we need to inspect its operator
-        match &expr.data {
-            DatexExpressionData::BinaryOperation(
-                child_op,
-                _left,
-                _right,
-                _,
-            ) => {
-                // If KeepAll would have kept original wraps - but here we're working Minimal/RemoveDuplicate
-                let need = self.needs_parens_for_binary_child(
-                    child_op,
-                    parent_prec,
-                    parent_assoc,
-                    is_left_child_of_parent,
-                    parent_op_enum,
-                );
-                if need {
-                    self.wrap_in_parens(inner)
-                } else {
-                    inner
-                }
-            }
-            // If child is non-binary but still had original parentheses and some contexts require them:
-            _ => {
-                // usually atoms/primary expressions don't need parens
-                // but still respect cases where expr.wrapped is > 0 and parent is something that would require.
-                // conservative choice: if parent precedence is > child precedence -> need parens
-                let child_prec = self.expr_precedence(expr);
-                if child_prec < parent_prec {
-                    self.wrap_in_parens(inner)
-                } else {
-                    inner
-                }
-            }
+        let (parent_prec, parent_assoc, parent_op) = parent_ctx.unwrap();
+
+        let need = self.needs_parens_for_child_expr(
+            expression,
+            parent_prec,
+            parent_assoc,
+            is_left_child_of_parent,
+            &parent_op,
+        );
+
+        if need {
+            self.wrap_in_parens(inner)
+        } else {
+            inner
         }
     }
 
+    /// Returns information about a binary operator: (precedence, associativity, is_associative)
     fn binary_operator_info(&self, op: &BinaryOperator) -> (u8, Assoc, bool) {
         match op {
-            BinaryOperator::Arithmetic(op) => match op {
-                &ArithmeticOperator::Multiply | &ArithmeticOperator::Divide => {
-                    (20, Assoc::Left, false)
-                }
-                ArithmeticOperator::Add | ArithmeticOperator::Subtract => {
-                    (10, Assoc::Left, false)
-                }
+            BinaryOperator::Arithmetic(aop) => match aop {
+                ArithmeticOperator::Multiply
+                | ArithmeticOperator::Divide
+                | ArithmeticOperator::Modulo => (20, Assoc::Left, false),
+                ArithmeticOperator::Add => (10, Assoc::Left, true), // + is associative
+                ArithmeticOperator::Subtract => (10, Assoc::Left, false), // - is not associative
                 ArithmeticOperator::Power => (30, Assoc::Right, false),
-                _ => unimplemented!(),
+                _ => (10, Assoc::Left, false),
             },
-            BinaryOperator::Logical(op) => match op {
-                LogicalOperator::And | LogicalOperator::Or => {
-                    (5, Assoc::Left, false)
-                }
+            BinaryOperator::Logical(lop) => match lop {
+                LogicalOperator::And => (5, Assoc::Left, false),
+                LogicalOperator::Or => (4, Assoc::Left, false),
             },
-            _ => unimplemented!(),
+            // fallback
+            _ => (1, Assoc::None, false),
         }
     }
+
+    /// Returns information about a comparison operator: (precedence, associativity, is_associative)
     fn comparison_operator_info(
         &self,
         op: &ComparisonOperator,
@@ -320,33 +307,26 @@ impl<'a> Formatter<'a> {
             | ComparisonOperator::LessThan
             | ComparisonOperator::LessThanOrEqual
             | ComparisonOperator::GreaterThan
-            | ComparisonOperator::GreaterThanOrEqual => {
-                (7, Assoc::NoneAssoc, false)
-            }
-            _ => (1, Assoc::NoneAssoc, false),
-        }
-    }
-    fn unary_operator_info(&self, op: &UnaryOperator) -> (u8, Assoc, bool) {
-        match op {
-            UnaryOperator::Arithmetic(op) => match op {
-                _ => unimplemented!(),
-            },
-            UnaryOperator::Logical(op) => match op {
-                LogicalUnaryOperator::Not => (35, Assoc::Right, false),
-            },
-            UnaryOperator::Reference(op) => match op {
-                _ => unimplemented!(),
-            },
-            UnaryOperator::Bitwise(op) => match op {
-                _ => unimplemented!(),
-            },
+            | ComparisonOperator::GreaterThanOrEqual => (7, Assoc::None, false),
+            _ => (7, Assoc::None, false),
         }
     }
 
-    /// precedence of an expression (used when child is not a binary op).
-    /// For atoms (identifiers, literals) return very large so they never need parentheses.
-    fn expr_precedence(&self, expr: &DatexExpression) -> u8 {
-        match &expr.data {
+    /// Returns information about a unary operator: (precedence, associativity, is_associative)
+    fn unary_operator_info(&self, op: &UnaryOperator) -> (u8, Assoc, bool) {
+        match op {
+            UnaryOperator::Arithmetic(_) => (35, Assoc::Right, false),
+            UnaryOperator::Logical(LogicalUnaryOperator::Not) => {
+                (35, Assoc::Right, false)
+            }
+            UnaryOperator::Reference(_) => (40, Assoc::Right, false),
+            UnaryOperator::Bitwise(_) => (35, Assoc::Right, false),
+        }
+    }
+
+    // precedence of an expression (used for children that are not binary/comparison)
+    fn expression_precedence(&self, expression: &DatexExpression) -> u8 {
+        match &expression.data {
             DatexExpressionData::BinaryOperation(op, _, _, _) => {
                 let (prec, _, _) = self.binary_operator_info(op);
                 prec
@@ -362,54 +342,95 @@ impl<'a> Formatter<'a> {
                 let (prec, _, _) = self.unary_operator_info(op);
                 prec
             }
-            // unary/prefix: give them higher precedence than binary
             DatexExpressionData::CreateRef(_)
             | DatexExpressionData::CreateRefMut(_)
             | DatexExpressionData::CreateRefFinal(_) => 40,
-            // atomic
-            _ => 255,
+            _ => 255, // never need parens
         }
     }
 
     /// Decide if a child binary expression needs parentheses when placed under a parent operator.
     /// `parent_prec` is precedence of parent operator, `parent_assoc` its associativity.
     /// `is_left_child` indicates whether the child is the left operand.
-    fn needs_parens_for_binary_child(
+    fn needs_parens_for_child_expr(
         &self,
-        child_op: &BinaryOperator,
+        child: &DatexExpression,
         parent_prec: u8,
         parent_assoc: Assoc,
         is_left_child: bool,
-        parent_op: &BinaryOperator,
+        parent_op: &Operation<'_>,
     ) -> bool {
-        let (child_prec, _, _) = self.binary_operator_info(child_op);
+        // compute child's precedence (based on its expression kind)
+        let child_prec = self.expression_precedence(child);
 
         if child_prec < parent_prec {
-            return true; // child binds weaker -> needs parens
+            return true; // child binds weaker -> parens required
         }
         if child_prec > parent_prec {
-            return false; // child binds tighter -> safe
+            return false; // child binds stronger -> safe without parens
         }
 
-        // equal precedence: associativity & position decide
-        if parent_assoc == Assoc::Left {
-            // left-assoc: the right child with same precedence needs parens
-            !is_left_child
-        } else if parent_assoc == Assoc::Right {
-            // right-assoc: the left child with same precedence needs parens
-            is_left_child
-        } else {
-            // non-assoc -> always need parens if precedence equal
-            true
+        // equal precedence, need to inspect operator identity & associativity
+        // If both child and parent are binary/comparison/unary, we can check operator identity
+        // and whether that operator is associative (so we can drop parens for same-op associative cases).
+
+        // check if same operator and is associative
+        let same_op_and_assoc = match (&child.data, parent_op) {
+            (
+                DatexExpressionData::BinaryOperation(child_op, _, _, _),
+                Operation::Binary(parent_op),
+            ) => {
+                let (_, _, c_is_assoc) = self.binary_operator_info(child_op);
+                child_op == *parent_op && c_is_assoc
+            }
+            (
+                DatexExpressionData::ComparisonOperation(child_op, _, _),
+                Operation::Comparison(parent_op),
+            ) => {
+                let (_, _, c_is_assoc) =
+                    self.comparison_operator_info(child_op);
+                child_op == *parent_op && c_is_assoc
+            }
+            (
+                DatexExpressionData::UnaryOperation(UnaryOperation {
+                    operator: child_op,
+                    ..
+                }),
+                Operation::Unary(parent_op),
+            ) => {
+                let (_, _, c_is_assoc) = self.unary_operator_info(child_op);
+                child_op == *parent_op && c_is_assoc
+            }
+            _ => false,
+        };
+
+        if same_op_and_assoc {
+            // associative same op and precedence -> safe without parens
+            return false;
+        }
+
+        // fallback to parent associativity + which side the child is on
+        match parent_assoc {
+            Assoc::Left => {
+                // left-assoc: right child with equal precedence needs parens
+                !is_left_child
+            }
+            Assoc::Right => {
+                // right-assoc: left child with equal precedence needs parens
+                is_left_child
+            }
+            Assoc::None => {
+                // non-associative -> always need parens for equal-precedence children
+                true
+            }
         }
     }
 
-    // Example of the small public wrapper you already have:
+    // Formats a DatexExpression into a DocBuilder for pretty printing.
     pub fn format_datex_expression(
         &'a self,
         expr: &'a DatexExpression,
     ) -> Format<'a> {
-        // top-level: no parent context
         self.format_datex_expression_with_parent(expr, None, false)
     }
 
@@ -417,12 +438,11 @@ impl<'a> Formatter<'a> {
     fn format_datex_expression_with_parent(
         &'a self,
         expr: &'a DatexExpression,
-        parent_op: Option<(u8, Assoc, &'a BinaryOperator)>,
+        parent_ctx: Option<(u8, Assoc, Operation<'a>)>,
         is_left_child_of_parent: bool,
     ) -> Format<'a> {
         let a = &self.alloc;
-
-        let mut inner_doc = match &expr.data {
+        let inner_doc = match &expr.data {
             DatexExpressionData::Integer(i) => a.as_string(i),
             DatexExpressionData::TypedInteger(ti) => {
                 self.typed_integer_to_source_code(ti, &expr.span)
@@ -447,28 +467,22 @@ impl<'a> Formatter<'a> {
             DatexExpressionData::CreateRefFinal(expr) => {
                 a.text("&final ") + self.format_datex_expression(expr)
             }
-            // DatexExpressionData::BinaryOperation(op, left, right, _) => {
-            //     let a = &self.alloc;
-            //     (self.format_datex_expression(left)
-            //         + self.operator_with_spaces(a.text(op.to_string()))
-            //         + self.format_datex_expression(right))
-            //     .group()
-            // }
             DatexExpressionData::BinaryOperation(op, left, right, _) => {
-                let (prec, assoc, _assoc_flag) = self.binary_operator_info(op);
-                // format children with this op as parent context
+                let (prec, assoc, _is_assoc) = self.binary_operator_info(op);
+
+                // format children with parent context so they can decide about parens themselves
                 let left_doc = self.format_datex_expression_with_parent(
                     left,
-                    Some((prec, assoc, op)),
+                    Some((prec, assoc, Operation::Binary(op))),
                     true,
                 );
                 let right_doc = self.format_datex_expression_with_parent(
                     right,
-                    Some((prec, assoc, op)),
+                    Some((prec, assoc, Operation::Binary(op))),
                     false,
                 );
 
-                // combine with operator doc
+                let a = &self.alloc;
                 (left_doc
                     + self.operator_with_spaces(a.text(op.to_string()))
                     + right_doc)
@@ -529,7 +543,6 @@ impl<'a> Formatter<'a> {
         // Handle bracketing based on options
         match self.options.bracket_style {
             BracketStyle::KeepAll => {
-                // re-insert the exact # of wraps recorded by the parser
                 let wraps = expr.wrapped.unwrap_or(0);
                 let mut doc = inner_doc;
                 for _ in 0..wraps {
@@ -538,64 +551,41 @@ impl<'a> Formatter<'a> {
                 doc
             }
 
-            BracketStyle::None => {
-                // never use parentheses; returns possibly incorrect code if they were needed
-                inner_doc
-            }
-
-            BracketStyle::RemoveDuplicate => {
-                // If the parser saw wrapping > 0, keep *one* wrap unless precedence rules force more/less.
-                let original_wraps = expr.wrapped.unwrap_or(0);
-                if original_wraps == 0 {
-                    // no original brackets and we're not force-inserting
-                    // but we still must respect precedence rules *if* the parent requires them.
-                    self.maybe_wrap_by_parent(
-                        expr,
-                        inner_doc,
-                        parent_op,
-                        is_left_child_of_parent,
-                    )
-                } else {
-                    // parser had brackets — keep at most one pair if not required to remove
-                    let maybe_wrapped = self.maybe_wrap_by_parent(
-                        expr,
-                        inner_doc.clone(),
-                        parent_op,
-                        is_left_child_of_parent,
-                    );
-                    // If maybe_wrap_by_parent decided NOT to wrap and the user wanted RemoveDuplicate,
-                    // we can still decide to keep a single pair if you want (policy choice).
-                    // Here: keep one pair only if parentheses are required OR originally present
-                    // but do NOT keep multiple duplicate pairs.
-                    // We'll choose: keep one if original present OR required by precedence.
-                    let kept = match &maybe_wrapped {
-                        doc if expr.wrapped.unwrap_or(0) > 0 => {
-                            // wrap once (ensure single)
-                            self.wrap_in_parens(inner_doc)
-                        }
-                        _ => maybe_wrapped,
-                    };
-                    kept
-                }
-            }
-
             BracketStyle::Minimal => {
-                // Remove parens unless required by operator precedence/associativity
+                // only wrap if required by precedence
                 self.maybe_wrap_by_parent(
                     expr,
                     inner_doc,
-                    parent_op,
+                    parent_ctx,
                     is_left_child_of_parent,
                 )
+            }
+
+            BracketStyle::RemoveDuplicate => {
+                // keep at most one original wrap if the user had any, but still don't violate precedence:
+                let doc = self.maybe_wrap_by_parent(
+                    expr,
+                    inner_doc,
+                    parent_ctx,
+                    is_left_child_of_parent,
+                );
+                if expr.wrapped.unwrap_or(0) > 0 {
+                    // FIXME: this may double-wrap in some cases; a more precise check would be needed
+                    self.wrap_in_parens(doc)
+                } else {
+                    doc
+                }
             }
         }
     }
 
+    /// Wraps a DocBuilder in parentheses with proper line breaks.
     fn wrap_in_parens(&'a self, doc: Format<'a>) -> Format<'a> {
         let a = &self.alloc;
         (a.text("(") + a.line_() + doc + a.line_() + a.text(")")).group()
     }
 
+    /// Formats a TypeExpression into a DocBuilder for pretty printing.
     fn format_type_expression(
         &'a self,
         type_expr: &'a TypeExpression,
@@ -696,6 +686,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Wraps a collection of type expressions with a specified operator.
     fn wrap_type_collection(
         &'a self,
         list: &'a [TypeExpression],
@@ -719,6 +710,7 @@ impl<'a> Formatter<'a> {
         )
     }
 
+    /// Returns a DocBuilder for the colon in type declarations based on formatting options.
     fn type_declaration_colon(&'a self) -> Format<'a> {
         let a = &self.alloc;
         match self.options.type_declaration_formatting {
@@ -785,10 +777,6 @@ impl<'a> Formatter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{
-        CompileOptions, parse_datex_script_to_rich_ast_simple_error,
-        precompiler::RichAst,
-    };
     use indoc::indoc;
 
     #[test]
@@ -796,7 +784,7 @@ mod tests {
         let expr = "((42))";
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     bracket_style: BracketStyle::KeepAll,
                     ..Default::default()
@@ -806,7 +794,7 @@ mod tests {
         );
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     bracket_style: BracketStyle::RemoveDuplicate,
                     ..Default::default()
@@ -816,9 +804,9 @@ mod tests {
         );
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
-                    bracket_style: BracketStyle::None,
+                    bracket_style: BracketStyle::Minimal,
                     ..Default::default()
                 }
             ),
@@ -922,8 +910,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn binary_operations_wrapped() {
+        // (1 + 2) * 3 requires parentheses around (1 + 2)
         let expr = "(1 + 2) * 3 - 4 / 5";
         assert_eq!(
             to_string(
@@ -936,6 +924,7 @@ mod tests {
             "(1 + 2) * 3 - 4 / 5"
         );
 
+        // 1 + (2 * 3) doesn't require parentheses
         let expr = "1 + (2 * 3) - 4 / 5";
         assert_eq!(
             to_string(
@@ -950,7 +939,176 @@ mod tests {
     }
 
     #[test]
-    fn strings() {
+    fn associative_operations_no_parens_needed() {
+        // (1 + 2) + 3  ->  1 + 2 + 3
+        let expr = "(1 + 2) + 3";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 + 3"
+        );
+
+        // 1 + (2 + 3)  ->  1 + 2 + 3
+        let expr = "1 + (2 + 3)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 + 3"
+        );
+    }
+
+    #[test]
+    fn non_associative_operations_keep_parens() {
+        // 1 - (2 - 3) must keep parentheses
+        let expr = "1 - (2 - 3)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 - (2 - 3)"
+        );
+
+        // (1 - 2) - 3 may drop parentheses
+        let expr = "(1 - 2) - 3";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 - 2 - 3"
+        );
+    }
+
+    #[test]
+    fn power_operator_right_associative() {
+        // Power is right-associative: 2 ^ (3 ^ 4) -> no parens needed
+        let expr = "2 ^ (3 ^ 4)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "2 ^ 3 ^ 4"
+        );
+
+        // (2 ^ 3) ^ 4 -> needs parens to preserve grouping
+        let expr = "(2 ^ 3) ^ 4";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "(2 ^ 3) ^ 4"
+        );
+    }
+
+    #[test]
+    fn logical_and_or_precedence() {
+        // (a && b) || c -> we don't need parentheses
+        let expr = "(true && false) || true";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "true && false || true"
+        );
+
+        // a && (b || c) -> parentheses required
+        let expr = "true && (false || true)";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "true && (false || true)"
+        );
+    }
+
+    #[test]
+    fn remove_duplicate_brackets() {
+        // (((1 + 2))) -> (1 + 2)
+        let expr = "(((1 + 2)))";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::RemoveDuplicate,
+                    ..Default::default()
+                }
+            ),
+            "(1 + 2)"
+        );
+    }
+
+    #[test]
+    fn keep_all_brackets_exactly() {
+        // Keep exactly what the user wrote
+        let expr = "(((1 + 2)))";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::KeepAll,
+                    ..Default::default()
+                }
+            ),
+            "(((1 + 2)))"
+        );
+    }
+
+    #[test]
+    fn minimal_vs_keepall_equivalence_for_simple() {
+        let expr = "1 + 2 * 3";
+        let minimal = to_string(
+            expr,
+            FormattingOptions {
+                bracket_style: BracketStyle::Minimal,
+                ..Default::default()
+            },
+        );
+        let keep_all = to_string(
+            expr,
+            FormattingOptions {
+                bracket_style: BracketStyle::KeepAll,
+                ..Default::default()
+            },
+        );
+        assert_eq!(minimal, keep_all);
+        assert_eq!(minimal, "1 + 2 * 3");
+    }
+
+    #[test]
+    fn text() {
         let expr = r#""Hello, \"World\"!""#;
         assert_eq!(
             to_string(expr, FormattingOptions::default()),
@@ -1042,14 +1200,6 @@ mod tests {
         print(expr, FormattingOptions::default());
     }
 
-    // fn to_expression(s: &str) -> DatexExpression {
-    //     parse(s).unwrap().ast
-    // }
-
-    // fn to_string(expr: &DatexExpression, options: FormattingOptions) -> String {
-    //     let formatter = Formatter::new(options);
-    //     formatter.render(expr)
-    // }
     fn to_string(script: &str, options: FormattingOptions) -> String {
         let formatter = Formatter::new(script, options);
         formatter.render()
