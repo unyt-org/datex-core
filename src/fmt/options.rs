@@ -10,7 +10,7 @@ pub struct FormattingOptions {
     /// E.g., `[1, 2, 3,]` instead of `[1, 2, 3]`.
     pub trailing_comma: bool,
 
-    /// Whether to add spaces inside collections like lists and maps.
+    /// Whether to add spaces inside brackets of collections like lists and maps.
     /// E.g., `[ 1,2,3 ]` instead of `[1,2,3]`.
     pub spaced_collections: bool,
 
