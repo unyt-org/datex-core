@@ -4,10 +4,17 @@ use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 use crate::{
     ast::tree::{
         DatexExpression, DatexExpressionData, List, Map, TypeExpression,
-        VariableDeclaration,
+        VariableAccess, VariableDeclaration,
     },
-    compiler::precompiler::RichAst,
-    values::core_values::integer::{Integer, typed_integer::TypedInteger},
+    compiler::{
+        CompileOptions, parse_datex_script_to_rich_ast_simple_error,
+        precompiler::RichAst,
+    },
+    libs::core::CoreLibPointerId,
+    values::{
+        core_values::integer::{Integer, typed_integer::TypedInteger},
+        pointer::PointerAddress,
+    },
 };
 
 type Format<'a> = DocBuilder<'a, RcAllocator, ()>;
@@ -132,18 +139,29 @@ impl FormattingOptions {
     }
 }
 pub struct Formatter<'a> {
-    ast: &'a RichAst,
+    ast: RichAst,
+    script: &'a str,
     options: FormattingOptions,
     alloc: RcAllocator,
 }
 
 impl<'a> Formatter<'a> {
-    pub fn new(ast: &'a RichAst, options: FormattingOptions) -> Self {
+    pub fn new(script: &'a str, options: FormattingOptions) -> Self {
+        let ast = parse_datex_script_to_rich_ast_simple_error(
+            script,
+            &mut CompileOptions::default(),
+        )
+        .expect("Failed to parse Datex script");
         Self {
             ast,
+            script,
             options,
             alloc: RcAllocator,
         }
+    }
+
+    fn tokens_at(&self, span: &SimpleSpan) -> &'a str {
+        &self.script[span.start..span.end]
     }
 
     pub fn render(&self) -> String {
@@ -201,10 +219,7 @@ impl<'a> Formatter<'a> {
     ) -> Format<'a> {
         let a = &self.alloc;
         match self.options.variant_formatting {
-            VariantFormatting::KeepAll => {
-                println!("TODO span: {:?}", span);
-                todo!("TODO")
-            }
+            VariantFormatting::KeepAll => a.text(self.tokens_at(span)),
             VariantFormatting::WithSuffix => a.text(ti.to_string_with_suffix()),
             VariantFormatting::WithoutSuffix => a.text(ti.to_string()),
         }
@@ -295,12 +310,16 @@ impl<'a> Formatter<'a> {
                 (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))
                     .group()
             }
+            DatexExpressionData::VariableAccess(VariableAccess {
+                name,
+                ..
+            }) => a.text(name),
             e => panic!("Formatter not implemented for {:?}", e),
         };
         // Handle bracketing based on options
         match self.options.bracket_style {
             BracketStyle::RemoveDuplicate | BracketStyle::Minimal => {
-                if let Some(wrapping) = expr.wrapped {
+                if let Some(_) = expr.wrapped {
                     self.wrap_in_parens(inner)
                 } else {
                     inner
@@ -353,7 +372,13 @@ impl<'a> Formatter<'a> {
             TypeExpression::Literal(lit) => a.text(lit.to_string()),
             TypeExpression::Variable(_, name) => a.text(name.clone()),
 
-            TypeExpression::GetReference(ptr) => a.text(ptr.to_string()),
+            TypeExpression::GetReference(ptr) => {
+                if let Ok(core_lib) = CoreLibPointerId::try_from(ptr) {
+                    a.text(core_lib.to_string())
+                } else {
+                    a.text(ptr.to_string())
+                }
+            }
 
             TypeExpression::TypedInteger(typed_integer) => {
                 a.text(typed_integer.to_string())
@@ -508,18 +533,15 @@ impl<'a> Formatter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        ast::parse,
-        compiler::{
-            CompileOptions, parse_datex_script_to_rich_ast_simple_error,
-            precompiler::RichAst,
-        },
+    use crate::compiler::{
+        CompileOptions, parse_datex_script_to_rich_ast_simple_error,
+        precompiler::RichAst,
     };
     use indoc::indoc;
 
     #[test]
     fn bracketing() {
-        let expr = to_ast("((42))");
+        let expr = "((42))";
         assert_eq!(
             to_string(
                 &expr,
@@ -554,10 +576,10 @@ mod tests {
 
     #[test]
     fn variant_formatting() {
-        let expr = to_ast("42u8");
+        let expr = "42u8";
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     variant_formatting: VariantFormatting::WithoutSuffix,
                     ..Default::default()
@@ -567,7 +589,7 @@ mod tests {
         );
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     variant_formatting: VariantFormatting::WithSuffix,
                     ..Default::default()
@@ -577,7 +599,7 @@ mod tests {
         );
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     variant_formatting: VariantFormatting::KeepAll,
                     ..Default::default()
@@ -589,9 +611,9 @@ mod tests {
 
     #[test]
     fn statements() {
-        let expr = to_ast("1 + 2; var x: integer/u8 = 42; x * 10;");
+        let expr = "1 + 2; var x: integer/u8 = 42; x * 10;";
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             indoc! {"
             1 + 2;
             var x: integer/u8 = 42;
@@ -599,59 +621,86 @@ mod tests {
             }
         );
         assert_eq!(
-            to_string(&expr, FormattingOptions::compact()),
+            to_string(expr, FormattingOptions::compact()),
             "1+2;var x:integer/u8=42;x*10;"
         );
     }
 
     #[test]
     fn type_declarations() {
-        let expr = to_ast("type(&mut integer/u8)");
+        let expr = "type(&mut integer/u8)";
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             "type(&mut integer/u8)"
         );
 
-        let expr = to_ast("type(text | integer/u16 | decimal/f32)");
+        let expr = "type(text | integer/u16 | decimal/f32)";
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             "type(text | integer/u16 | decimal/f32)"
         );
         assert_eq!(
-            to_string(&expr, FormattingOptions::compact()),
+            to_string(expr, FormattingOptions::compact()),
             "type(text|integer/u16|decimal/f32)"
         );
     }
 
     #[test]
     fn variable_declaration() {
-        let expr = to_ast("var x: &mut integer/u8 = 42;");
+        let expr = "var x: &mut integer/u8 = 42;";
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             "var x: &mut integer/u8 = 42;"
         );
 
         assert_eq!(
-            to_string(&expr, FormattingOptions::compact()),
+            to_string(expr, FormattingOptions::compact()),
             "var x:&mut integer/u8=42;"
         );
     }
 
     #[test]
     fn binary_operations() {
-        let expr = to_ast("1 + 2 * 3 - 4 / 5");
+        let expr = "1 + 2 * 3 - 4 / 5";
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             "1 + 2 * 3 - 4 / 5"
         );
-        assert_eq!(to_string(&expr, FormattingOptions::compact()), "1+2*3-4/5");
+        assert_eq!(to_string(expr, FormattingOptions::compact()), "1+2*3-4/5");
+    }
+
+    #[test]
+    fn binary_operations_wrapped() {
+        let expr = "(1 + 2) * 3 - 4 / 5";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "(1 + 2) * 3 - 4 / 5"
+        );
+
+        let expr = "1 + (2 * 3) - 4 / 5";
+        assert_eq!(
+            to_string(
+                expr,
+                FormattingOptions {
+                    bracket_style: BracketStyle::Minimal,
+                    ..Default::default()
+                }
+            ),
+            "1 + 2 * 3 - 4 / 5"
+        );
     }
 
     #[test]
     fn strings() {
-        let expr = to_ast(r#""Hello, \"World\"!""#);
+        let expr = r#""Hello, \"World\"!""#;
         assert_eq!(
-            to_string(&expr, FormattingOptions::default()),
+            to_string(expr, FormattingOptions::default()),
             r#""Hello, \"World\"!""#
         );
     }
@@ -659,10 +708,10 @@ mod tests {
     #[test]
     fn lists() {
         // simple list
-        let expr = to_ast("[1,2,3,4,5,6,7]");
+        let expr = "[1,2,3,4,5,6,7]";
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     max_width: 40,
                     space_in_collection: false,
@@ -677,7 +726,7 @@ mod tests {
         // spaced list
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     max_width: 40,
                     space_in_collection: true,
@@ -692,7 +741,7 @@ mod tests {
         // spaced list with trailing comma
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     max_width: 40,
                     space_in_collection: true,
@@ -707,7 +756,7 @@ mod tests {
         // wrapped list
         assert_eq!(
             to_string(
-                &expr,
+                expr,
                 FormattingOptions {
                     indent: 4,
                     max_width: 10,
@@ -732,35 +781,28 @@ mod tests {
 
     #[test]
     fn test_format_integer() {
-        let expr = to_ast(
-            "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x",
-        );
-        print(&expr, FormattingOptions::default());
-        print(&expr, FormattingOptions::compact());
+        let expr = "const x: &mut integer/u8 | text = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
+        print(expr, FormattingOptions::default());
+        print(expr, FormattingOptions::compact());
 
-        let expr = to_ast("const x = [1,2,3,4,5,6,7]");
-        print(&expr, FormattingOptions::default());
+        let expr = "const x = [1,2,3,4,5,6,7]";
+        print(expr, FormattingOptions::default());
     }
 
     // fn to_expression(s: &str) -> DatexExpression {
     //     parse(s).unwrap().ast
     // }
-    fn to_ast(s: &str) -> RichAst {
-        let mut opts = CompileOptions::default();
-        parse_datex_script_to_rich_ast_simple_error(s, &mut opts)
-            .expect("Failed to parse Datex script")
-    }
 
     // fn to_string(expr: &DatexExpression, options: FormattingOptions) -> String {
     //     let formatter = Formatter::new(options);
     //     formatter.render(expr)
     // }
-    fn to_string(ast: &RichAst, options: FormattingOptions) -> String {
-        let formatter = Formatter::new(ast, options);
+    fn to_string(script: &str, options: FormattingOptions) -> String {
+        let formatter = Formatter::new(script, options);
         formatter.render()
     }
 
-    fn print(expr: &RichAst, options: FormattingOptions) {
-        println!("{}", to_string(expr, options));
+    fn print(script: &str, options: FormattingOptions) {
+        println!("{}", to_string(script, options));
     }
 }
