@@ -1,7 +1,8 @@
 use std::fmt::{self};
 
 use crate::ast::tree::{
-    BinaryOperation, ComparisonOperation, DerefAssignment, List, Map,
+    BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
+    Map,
 };
 use crate::{
     ast::{
@@ -527,11 +528,11 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::GetReference(pointer_address) => {
                 format!("{}", pointer_address) // FIXME #475
             }
-            DatexExpressionData::Conditional {
+            DatexExpressionData::Conditional(Conditional {
                 condition,
                 then_branch,
                 else_branch,
-            } => todo!("#476 Undescribed by author."),
+            }) => todo!("#476 Undescribed by author."),
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: _,
                 kind,

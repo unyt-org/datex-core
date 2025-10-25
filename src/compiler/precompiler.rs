@@ -1,9 +1,9 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
 use crate::ast::tree::{
-    BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
-    DerefAssignment, FunctionDeclaration, TypeExpression, UnaryOperation,
-    VariableAssignment, VariableDeclaration, VariableKind,
+    BinaryOperation, ComparisonOperation, Conditional, DatexExpression,
+    DatexExpressionData, DerefAssignment, FunctionDeclaration, TypeExpression,
+    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -445,11 +445,11 @@ fn visit_expression(
                 spans,
             )?;
         }
-        DatexExpressionData::Conditional {
+        DatexExpressionData::Conditional(Conditional {
             condition,
             then_branch,
             else_branch,
-        } => {
+        }) => {
             visit_expression(
                 condition,
                 metadata,

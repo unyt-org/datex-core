@@ -33,6 +33,7 @@ use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::list::*;
 use crate::ast::map::*;
+use crate::ast::tree::Conditional;
 use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
 use crate::ast::utils::*;
@@ -214,13 +215,13 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                     .or_not(),
             )
             .map_with(|((cond, then_branch), else_opt), e| {
-                DatexExpressionData::Conditional {
+                DatexExpressionData::Conditional(Conditional {
                     condition: Box::new(cond),
                     then_branch: Box::new(unwrap_single_statement(then_branch)),
                     else_branch: else_opt
                         .map(unwrap_single_statement)
                         .map(Box::new),
-                }
+                })
                 .with_span(e.span())
             })
             .boxed()
@@ -1188,7 +1189,7 @@ mod tests {
             let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
-                DatexExpressionData::Conditional {
+                DatexExpressionData::Conditional(Conditional {
                     condition: Box::new(
                         DatexExpressionData::Boolean(true).with_default_span()
                     ),
@@ -1200,7 +1201,7 @@ mod tests {
                         DatexExpressionData::Integer(Integer::from(2))
                             .with_default_span()
                     )),
-                }
+                })
             );
         }
 
@@ -1217,7 +1218,7 @@ mod tests {
             let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
-                DatexExpressionData::Conditional {
+                DatexExpressionData::Conditional(Conditional {
                     condition: Box::new(
                         DatexExpressionData::ComparisonOperation(
                             ComparisonOperation {
@@ -1264,7 +1265,7 @@ mod tests {
                         DatexExpressionData::Integer(Integer::from(2))
                             .with_default_span()
                     )),
-                }
+                })
             );
         }
 
@@ -1277,7 +1278,7 @@ mod tests {
             let val = parse_unwrap_data(s);
             assert_eq!(
                 val,
-                DatexExpressionData::Conditional {
+                DatexExpressionData::Conditional(Conditional {
                     condition: Box::new(
                         DatexExpressionData::ComparisonOperation(
                             ComparisonOperation {
@@ -1345,7 +1346,7 @@ mod tests {
                         .with_default_span()
                     ),
                     else_branch: None,
-                }
+                })
             );
         }
     }
@@ -1363,7 +1364,7 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::Conditional {
+            DatexExpressionData::Conditional(Conditional {
                 condition: Box::new(
                     DatexExpressionData::ComparisonOperation(
                         ComparisonOperation {
@@ -1387,7 +1388,7 @@ mod tests {
                         .with_default_span()
                 ),
                 else_branch: Some(Box::new(
-                    DatexExpressionData::Conditional {
+                    DatexExpressionData::Conditional(Conditional {
                         condition: Box::new(
                             DatexExpressionData::ComparisonOperation(
                                 ComparisonOperation {
@@ -1416,10 +1417,10 @@ mod tests {
                         else_branch: Some(Box::new(
                             DatexExpressionData::Null.with_default_span()
                         ))
-                    }
+                    })
                     .with_default_span()
                 )),
-            }
+            })
         );
     }
 

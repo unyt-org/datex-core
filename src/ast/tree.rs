@@ -176,11 +176,25 @@ pub struct BinaryOperation {
     pub r#type: Option<Type>,
 }
 
+impl Visitable for BinaryOperation {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.left);
+        visitor.visit_expression(&self.right);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ComparisonOperation {
     pub operator: ComparisonOperator,
     pub left: Box<DatexExpression>,
     pub right: Box<DatexExpression>,
+}
+
+impl Visitable for ComparisonOperation {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.left);
+        visitor.visit_expression(&self.right);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -189,6 +203,29 @@ pub struct DerefAssignment {
     pub deref_count: usize,
     pub deref_expression: Box<DatexExpression>,
     pub assigned_expression: Box<DatexExpression>,
+}
+
+impl Visitable for DerefAssignment {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.deref_expression);
+        visitor.visit_expression(&self.assigned_expression);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Conditional {
+    pub condition: Box<DatexExpression>,
+    pub then_branch: Box<DatexExpression>,
+    pub else_branch: Option<Box<DatexExpression>>,
+}
+impl Visitable for Conditional {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.condition);
+        visitor.visit_expression(&self.then_branch);
+        if let Some(else_branch) = &self.else_branch {
+            visitor.visit_expression(else_branch);
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -230,11 +267,7 @@ pub enum DatexExpressionData {
     GetReference(PointerAddress),
 
     /// Conditional expression, e.g. if (true) { 1 } else { 2 }
-    Conditional {
-        condition: Box<DatexExpression>,
-        then_branch: Box<DatexExpression>,
-        else_branch: Option<Box<DatexExpression>>,
-    },
+    Conditional(Conditional),
 
     // TODO #465: Give information on type kind (nominal & structural)
     /// Variable declaration, e.g. const x = 1, const mut x = 1, or var y = 2. VariableId is always set to 0 by the ast parser.
@@ -535,6 +568,30 @@ pub trait Visit: Sized {
     }
     fn visit_unary_operation(&mut self, op: &UnaryOperation, span: SimpleSpan) {
         op.visit_children_with(self);
+    }
+    fn visit_conditional(&mut self, cond: &Conditional, span: SimpleSpan) {
+        cond.visit_children_with(self);
+    }
+    fn visit_binary_operation(
+        &mut self,
+        op: &BinaryOperation,
+        span: SimpleSpan,
+    ) {
+        op.visit_children_with(self);
+    }
+    fn visit_comparison_operation(
+        &mut self,
+        op: &ComparisonOperation,
+        span: SimpleSpan,
+    ) {
+        op.visit_children_with(self);
+    }
+    fn visit_deref_assignment(
+        &mut self,
+        deref_assign: &DerefAssignment,
+        span: SimpleSpan,
+    ) {
+        deref_assign.visit_children_with(self);
     }
     fn visit_function_declaration(
         &mut self,
