@@ -1,17 +1,19 @@
 use std::fmt::{self};
 
-use crate::ast::tree::{
+use crate::ast::data::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
     TypeDeclaration,
 };
+use crate::ast::data::r#type::{
+    FunctionType, TypeExpression, TypeExpressionData,
+};
 use crate::{
     ast::{
         chain::ApplyOperation,
-        tree::{
+        data::expression::{
             DatexExpression, DatexExpressionData, FunctionDeclaration,
-            TypeExpressionData, VariableAccess, VariableAssignment,
-            VariableDeclaration,
+            VariableAccess, VariableAssignment, VariableDeclaration,
         },
     },
     decompiler::FormattingMode,
@@ -194,9 +196,9 @@ impl AstToSourceCodeFormatter {
     }
     fn key_type_expression_to_source_code(
         &self,
-        key: &TypeExpressionData,
+        key: &TypeExpression,
     ) -> String {
-        match key {
+        match &key.data {
             TypeExpressionData::Text(t) => self.key_to_string(t),
             TypeExpressionData::Integer(i) => i.to_string(),
             TypeExpressionData::TypedInteger(ti) => {
@@ -213,9 +215,9 @@ impl AstToSourceCodeFormatter {
     /// Convert a TypeExpression to source code
     fn type_expression_to_source_code(
         &self,
-        type_expr: &TypeExpressionData,
+        type_expr: &TypeExpression,
     ) -> String {
-        match type_expr {
+        match &type_expr.data {
             TypeExpressionData::Integer(ti) => ti.to_string(),
             TypeExpressionData::Decimal(td) => td.to_string(),
             TypeExpressionData::Boolean(boolean) => boolean.to_string(),
@@ -257,15 +259,17 @@ impl AstToSourceCodeFormatter {
             }
             TypeExpressionData::StructuralList(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpressionData::FixedSizeList(type_expression, _) => todo!("#472 Undescribed by author."),
+            TypeExpressionData::FixedSizeList(fixed_size_list) => todo!("#472 Undescribed by author."),
             TypeExpressionData::SliceList(type_expression) => todo!("#473 Undescribed by author."),
             TypeExpressionData::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
@@ -273,16 +277,17 @@ impl AstToSourceCodeFormatter {
             }
             TypeExpressionData::Union(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpressionData::GenericAccess(_, type_expressions) => todo!("#474 Undescribed by author."),
-            TypeExpressionData::Function {
+            TypeExpressionData::GenericAccess(generic_access) => todo!("#474 Undescribed by author."),
+            TypeExpressionData::Function(FunctionType {
                 parameters,
                 return_type,
-            } => {
+            }) => {
                 let params_code: Vec<String> = parameters
                     .iter()
                     .map(|(param_name, param_type)| {
@@ -308,6 +313,7 @@ impl AstToSourceCodeFormatter {
             }
             TypeExpressionData::StructuralMap(items) => {
                 let elements: Vec<String> = items
+                    .0
                     .iter()
                     .map(|(k, v)| {
                         format!(
@@ -693,7 +699,9 @@ mod tests {
     use super::*;
     use crate::{
         ast::{
-            assignment_operation::AssignmentOperator, parse, tree::VariableKind,
+            assignment_operation::AssignmentOperator,
+            data::{expression::VariableKind, spanned::Spanned},
+            parse,
         },
         values::core_values::decimal::Decimal,
     };
@@ -945,9 +953,13 @@ mod tests {
                     DatexExpressionData::TypedInteger(10u8.into())
                         .with_default_span(),
                 ),
-                type_annotation: Some(TypeExpressionData::RefMut(Box::new(
-                    TypeExpressionData::Literal("integer/u8".to_owned()),
-                ))),
+                type_annotation: Some(
+                    TypeExpressionData::RefMut(Box::new(
+                        TypeExpressionData::Literal("integer/u8".to_owned())
+                            .with_default_span(),
+                    ))
+                    .with_default_span(),
+                ),
             })
             .with_default_span();
         assert_eq!(

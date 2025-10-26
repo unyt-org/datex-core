@@ -2,7 +2,10 @@ use crate::{
     ast::{
         binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
-        tree::{DatexExpression, TypeExpressionData, VariableAccess},
+        data::{
+            expression::{DatexExpression, VariableAccess},
+            r#type::{FunctionType, TypeExpression, TypeExpressionData},
+        },
         unary_operation::UnaryOperator,
     },
     compiler::{
@@ -12,7 +15,7 @@ use crate::{
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,
 };
-use chumsky::span::SimpleSpan;
+use chumsky::{prelude::todo, span::SimpleSpan};
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;
 mod formatting;
@@ -119,10 +122,10 @@ impl<'a> Formatter<'a> {
     /// Formats a TypeExpression into a DocBuilder for pretty printing.
     fn format_type_expression(
         &'a self,
-        type_expr: &'a TypeExpressionData,
+        type_expr: &'a TypeExpression,
     ) -> Format<'a> {
         let a = &self.alloc;
-        match type_expr {
+        match &type_expr.data {
             TypeExpressionData::Integer(ti) => a.text(ti.to_string()),
             TypeExpressionData::Decimal(td) => a.text(td.to_string()),
             TypeExpressionData::Boolean(b) => a.text(b.to_string()),
@@ -167,32 +170,32 @@ impl<'a> Formatter<'a> {
             // Lists — `[T, U, V]` or multiline depending on settings
             TypeExpressionData::StructuralList(elements) => {
                 let docs =
-                    elements.iter().map(|e| self.format_type_expression(e));
+                    elements.0.iter().map(|e| self.format_type_expression(e));
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpressionData::FixedSizeList(_, _) => todo!(),
+            TypeExpressionData::FixedSizeList(list) => todo!(),
             TypeExpressionData::SliceList(_) => todo!(),
 
             // Intersection: `A & B & C`
             TypeExpressionData::Intersection(items) => {
-                self.wrap_type_collection(items, "&")
+                self.wrap_type_collection(&items.0, "&")
             }
 
             // Union: `A | B | C`
             TypeExpressionData::Union(items) => {
-                self.wrap_type_collection(items, "|")
+                self.wrap_type_collection(&items.0, "|")
             }
 
-            TypeExpressionData::GenericAccess(_, _) => {
-                a.text("/* generic TODO */")
+            TypeExpressionData::GenericAccess(access) => {
+                todo!()
             }
 
             // Function type: `(x: Int, y: Text) -> Bool`
-            TypeExpressionData::Function {
+            TypeExpressionData::Function(FunctionType {
                 parameters,
                 return_type,
-            } => {
+            }) => {
                 let params = parameters.iter().map(|(name, ty)| {
                     a.text(name.clone())
                         + self.type_declaration_colon()
@@ -210,7 +213,7 @@ impl<'a> Formatter<'a> {
             }
 
             TypeExpressionData::StructuralMap(items) => {
-                let pairs = items.iter().map(|(k, v)| {
+                let pairs = items.0.iter().map(|(k, v)| {
                     let key_doc = self.format_type_expression(k);
                     key_doc
                         + self.type_declaration_colon()
@@ -224,7 +227,7 @@ impl<'a> Formatter<'a> {
     /// Wraps a collection of type expressions with a specified operator.
     fn wrap_type_collection(
         &'a self,
-        list: &'a [TypeExpressionData],
+        list: &'a [TypeExpression],
         op: &'a str,
     ) -> Format<'a> {
         let a = &self.alloc;

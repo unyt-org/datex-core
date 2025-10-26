@@ -2,7 +2,7 @@ use chumsky::span::SimpleSpan;
 use pretty::DocAllocator;
 
 use crate::{
-    ast::tree::{
+    ast::data::expression::{
         BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
         VariableAccess, VariableDeclaration,
     },

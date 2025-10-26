@@ -4,7 +4,7 @@ use crate::{
             ArithmeticOperator, BinaryOperator, LogicalOperator,
         },
         comparison_operation::ComparisonOperator,
-        tree::{
+        data::expression::{
             BinaryOperation, ComparisonOperation, DatexExpression,
             DatexExpressionData, UnaryOperation,
         },

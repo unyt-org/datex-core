@@ -1,4 +1,6 @@
-use crate::ast::tree::{DatexExpressionData, List, Map, TypeExpressionData};
+use crate::ast::data::expression::{DatexExpressionData, List, Map};
+use crate::ast::data::spanned::Spanned;
+use crate::ast::data::r#type::TypeExpressionData;
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -86,6 +88,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                 TypeDefinition::Structural(struct_type) => match struct_type {
                     StructuralTypeDefinition::Integer(integer) => {
                         TypeExpressionData::Integer(integer.clone())
+                            .with_default_span()
                     }
                     _ => todo!("#416 Undescribed by author."),
                 },
@@ -97,7 +100,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::tree::{DatexExpressionData, List};
+    use crate::ast::data::expression::{DatexExpressionData, List};
+    use crate::ast::data::spanned::Spanned;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
