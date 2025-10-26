@@ -151,11 +151,11 @@ impl Visitable for TypeExpression {
             TypeExpressionData::RefMut(type_ref_mut) => {
                 visitor.visit_type_ref_mut(type_ref_mut, self.span)
             }
+            TypeExpressionData::Literal(literal) => {
+                visitor.visit_literal_type(literal, self.span)
+            }
             TypeExpressionData::RefFinal(type_ref_final) => {
                 unimplemented!("RefFinal is going to be deprecated")
-            }
-            TypeExpressionData::Literal(_) => {
-                unreachable!("Literal types should not be visited")
             }
         }
     }

@@ -128,9 +128,14 @@ impl Visitable for DatexExpression {
             DatexExpressionData::CreateRefFinal(datex_expression) => {
                 unimplemented!("CreateRefFinal is going to be deprecated")
             }
-            DatexExpressionData::Placeholder
-            | DatexExpressionData::Recover
-            | DatexExpressionData::Identifier(_) => {}
+            DatexExpressionData::Identifier(identifier) => {
+                visitor.visit_identifier(identifier, self.span)
+            }
+            DatexExpressionData::Placeholder | DatexExpressionData::Recover => {
+                unreachable!(
+                    "Placeholder and Recover expressions should not be visited"
+                )
+            }
         }
     }
 }
@@ -497,6 +502,9 @@ pub struct VariableDeclaration {
 
 impl Visitable for VariableDeclaration {
     fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        if let Some(type_annotation) = &mut self.type_annotation {
+            visitor.visit_type_expression(type_annotation);
+        }
         visitor.visit_expression(&mut self.init_expression);
     }
 }

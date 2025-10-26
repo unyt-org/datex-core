@@ -35,6 +35,10 @@ pub trait Visit: Sized {
         type_expr.visit_children_with(self);
     }
 
+    /// Visit literal type expression
+    fn visit_literal_type(&mut self, _literal: &mut String, _span: SimpleSpan) {
+    }
+
     /// Visit structural list type expression
     fn visit_structural_list(
         &mut self,
@@ -303,6 +307,9 @@ pub trait Visit: Sized {
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit identifier
+    fn visit_identifier(&mut self, _value: &mut String, _span: SimpleSpan) {}
 
     /// Visit text literal
     fn visit_text(&mut self, _value: &mut String, _span: SimpleSpan) {}
