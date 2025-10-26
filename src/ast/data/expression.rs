@@ -31,8 +31,8 @@ pub struct DatexExpression {
 }
 
 impl Visitable for DatexExpression {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        match &self.data {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        match &mut self.data {
             DatexExpressionData::UnaryOperation(op) => {
                 visitor.visit_unary_operation(op, self.span)
             }
@@ -62,7 +62,7 @@ impl Visitable for DatexExpression {
             }
             DatexExpressionData::Text(s) => visitor.visit_text(s, self.span),
             DatexExpressionData::Boolean(b) => {
-                visitor.visit_boolean(*b, self.span)
+                visitor.visit_boolean(b, self.span)
             }
             DatexExpressionData::Endpoint(e) => {
                 visitor.visit_endpoint(e, self.span)
@@ -342,9 +342,9 @@ pub struct BinaryOperation {
 }
 
 impl Visitable for BinaryOperation {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.left);
+        visitor.visit_expression(&mut self.right);
     }
 }
 
@@ -356,9 +356,9 @@ pub struct ComparisonOperation {
 }
 
 impl Visitable for ComparisonOperation {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.left);
+        visitor.visit_expression(&mut self.right);
     }
 }
 
@@ -371,9 +371,9 @@ pub struct DerefAssignment {
 }
 
 impl Visitable for DerefAssignment {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.deref_expression);
-        visitor.visit_expression(&self.assigned_expression);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.deref_expression);
+        visitor.visit_expression(&mut self.assigned_expression);
     }
 }
 
@@ -384,10 +384,10 @@ pub struct Conditional {
     pub else_branch: Option<Box<DatexExpression>>,
 }
 impl Visitable for Conditional {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.condition);
-        visitor.visit_expression(&self.then_branch);
-        if let Some(else_branch) = &self.else_branch {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.condition);
+        visitor.visit_expression(&mut self.then_branch);
+        if let Some(else_branch) = &mut self.else_branch {
             visitor.visit_expression(else_branch);
         }
     }
@@ -401,8 +401,8 @@ pub struct TypeDeclaration {
     pub hoisted: bool,
 }
 impl Visitable for TypeDeclaration {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        todo!()
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_type_expression(&mut self.value);
     }
 }
 
@@ -412,8 +412,8 @@ pub struct UnaryOperation {
     pub expression: Box<DatexExpression>,
 }
 impl Visitable for UnaryOperation {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.expression);
     }
 }
 
@@ -423,9 +423,9 @@ pub struct ApplyChain {
     pub operations: Vec<ApplyOperation>,
 }
 impl Visitable for ApplyChain {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.base);
-        for op in &self.operations {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.base);
+        for op in &mut self.operations {
             match op {
                 ApplyOperation::FunctionCall(expression) => {
                     visitor.visit_expression(expression);
@@ -447,9 +447,9 @@ pub struct RemoteExecution {
     pub right: Box<DatexExpression>,
 }
 impl Visitable for RemoteExecution {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.left);
+        visitor.visit_expression(&mut self.right);
     }
 }
 
@@ -479,8 +479,8 @@ impl Statements {
     }
 }
 impl Visitable for Statements {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for stmt in &self.statements {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for stmt in &mut self.statements {
             visitor.visit_expression(stmt);
         }
     }
@@ -496,8 +496,8 @@ pub struct VariableDeclaration {
 }
 
 impl Visitable for VariableDeclaration {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.init_expression);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.init_expression);
     }
 }
 
@@ -510,8 +510,8 @@ pub struct VariableAssignment {
 }
 
 impl Visitable for VariableAssignment {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.expression);
     }
 }
 
@@ -530,8 +530,8 @@ pub struct FunctionDeclaration {
 }
 
 impl Visitable for FunctionDeclaration {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.body);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.body);
     }
 }
 
@@ -547,8 +547,8 @@ impl List {
 }
 
 impl Visitable for List {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for item in &self.items {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for item in &mut self.items {
             visitor.visit_expression(item);
         }
     }
@@ -566,8 +566,8 @@ impl Map {
 }
 
 impl Visitable for Map {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for (key, value) in &self.entries {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for (key, value) in &mut self.entries {
             visitor.visit_expression(key);
             visitor.visit_expression(value);
         }
@@ -610,7 +610,7 @@ pub struct SlotAssignment {
     pub expression: Box<DatexExpression>,
 }
 impl Visitable for SlotAssignment {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&mut self.expression);
     }
 }

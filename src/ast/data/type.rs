@@ -91,8 +91,8 @@ pub struct TypeExpression {
 }
 
 impl Visitable for TypeExpression {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        match &self.data {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        match &mut self.data {
             TypeExpressionData::GetReference(pointer_address) => {
                 visitor.visit_get_reference(pointer_address, self.span)
             }
@@ -113,7 +113,7 @@ impl Visitable for TypeExpression {
                 visitor.visit_typed_decimal(typed_decimal, self.span)
             }
             TypeExpressionData::Boolean(boolean) => {
-                visitor.visit_boolean(*boolean, self.span)
+                visitor.visit_boolean(boolean, self.span)
             }
             TypeExpressionData::Text(text) => {
                 visitor.visit_text(text, self.span)
@@ -171,8 +171,8 @@ impl PartialEq for TypeExpression {
 pub struct StructuralList(pub Vec<TypeExpression>);
 
 impl Visitable for StructuralList {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for item in &self.0 {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for item in &mut self.0 {
             visitor.visit_type_expression(item);
         }
     }
@@ -184,8 +184,8 @@ pub struct FixedSizeList {
     pub size: usize,
 }
 impl Visitable for FixedSizeList {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_type_expression(&self.r#type);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_type_expression(&mut self.r#type);
     }
 }
 
@@ -193,8 +193,8 @@ impl Visitable for FixedSizeList {
 pub struct SliceList(pub Box<TypeExpression>);
 
 impl Visitable for SliceList {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_type_expression(&self.0);
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        visitor.visit_type_expression(&mut self.0);
     }
 }
 
@@ -202,8 +202,8 @@ impl Visitable for SliceList {
 pub struct Intersection(pub Vec<TypeExpression>);
 
 impl Visitable for Intersection {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for item in &self.0 {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for item in &mut self.0 {
             visitor.visit_type_expression(item);
         }
     }
@@ -212,8 +212,8 @@ impl Visitable for Intersection {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Union(pub Vec<TypeExpression>);
 impl Visitable for Union {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for item in &self.0 {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for item in &mut self.0 {
             visitor.visit_type_expression(item);
         }
     }
@@ -225,8 +225,8 @@ pub struct GenericAccess {
     pub access: Vec<TypeExpression>,
 }
 impl Visitable for GenericAccess {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for arg in &self.access {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for arg in &mut self.access {
             visitor.visit_type_expression(arg);
         }
     }
@@ -238,11 +238,11 @@ pub struct FunctionType {
     pub return_type: Box<TypeExpression>,
 }
 impl Visitable for FunctionType {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for (_, param_type) in &self.parameters {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for (_, param_type) in &mut self.parameters {
             visitor.visit_type_expression(param_type);
         }
-        visitor.visit_type_expression(&self.return_type);
+        visitor.visit_type_expression(&mut self.return_type);
     }
 }
 
@@ -250,8 +250,8 @@ impl Visitable for FunctionType {
 pub struct StructuralMap(pub Vec<(TypeExpression, TypeExpression)>);
 
 impl Visitable for StructuralMap {
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for (key, value) in &self.0 {
+    fn visit_children_with(&mut self, visitor: &mut impl Visit) {
+        for (key, value) in &mut self.0 {
             visitor.visit_type_expression(key);
             visitor.visit_type_expression(value);
         }
