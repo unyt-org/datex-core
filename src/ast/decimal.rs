@@ -1,11 +1,11 @@
+use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::lexer::{DecimalLiteral, Token};
-use crate::ast::DatexExpressionData;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use chumsky::prelude::*;
-
 pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalLiteral(DecimalLiteral { value, variant }) => {

@@ -1,3 +1,4 @@
+use crate::ast::data::spanned::Spanned;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;

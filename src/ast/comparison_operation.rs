@@ -1,13 +1,13 @@
-use std::fmt::Display;
-
 use crate::ast::DatexParserTrait;
 use crate::ast::data::expression::ComparisonOperation;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::lexer::Token;
 use crate::ast::utils::operation;
 use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
+use std::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {

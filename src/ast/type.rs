@@ -1,9 +1,11 @@
 use std::{str::FromStr, vec};
 
-use crate::ast::tree::{DatexExpressionData, TypeExpressionData};
+use crate::ast::data::expression::DatexExpressionData;
+use crate::ast::data::r#type::TypeExpressionData;
 use crate::{
     ast::{
         DatexParserTrait,
+        data::expression::TypeDeclaration,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
@@ -11,7 +13,6 @@ use crate::{
         lexer::{DecimalLiteral, IntegerLiteral, Token},
         literal::literal,
         text::unescape_text,
-        tree::TypeDeclaration,
         utils::whitespace,
     },
     references::reference::ReferenceMutability,

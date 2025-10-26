@@ -5,6 +5,7 @@ use crate::ast::data::expression::VariableDeclaration;
 use crate::ast::data::expression::{
     DerefAssignment, VariableAssignment, VariableKind,
 };
+use crate::ast::data::spanned::Spanned;
 use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;

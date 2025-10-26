@@ -1,12 +1,12 @@
-use std::str::FromStr;
-
 use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::error::error::ParseError;
 use crate::ast::lexer::Token;
 use crate::values::core_values::endpoint::Endpoint;
 use chumsky::prelude::*;
+use std::str::FromStr;
 
 pub fn endpoint<'a>() -> impl DatexParserTrait<'a> {
     select! {
