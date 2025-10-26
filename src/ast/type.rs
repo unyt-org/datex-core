@@ -708,18 +708,23 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(StructuralMap(vec![
                 (
-                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Text("name".to_string())
+                        .with_default_span(),
                     TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span()
                 ),
                 (
-                    TypeExpressionData::Text("age".to_string()),
+                    TypeExpressionData::Text("age".to_string())
+                        .with_default_span(),
                     TypeExpressionData::RefMut(Box::new(
                         TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span()
                     ))
+                    .with_default_span()
                 ),
-            ])
+            ]))
         );
     }
 
@@ -729,36 +734,44 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Union(vec![
-                TypeExpressionData::Text("hello world".to_owned()),
-                TypeExpressionData::Integer(Integer::from(42)),
-            ])
+            TypeExpressionData::Union(Union(vec![
+                TypeExpressionData::Text("hello world".to_owned())
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(42))
+                    .with_default_span(),
+            ]))
         );
 
         let src = "1 | 2 | 3 | 4";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Union(vec![
-                TypeExpressionData::Integer(Integer::from(1)),
-                TypeExpressionData::Integer(Integer::from(2)),
-                TypeExpressionData::Integer(Integer::from(3)),
-                TypeExpressionData::Integer(Integer::from(4)),
-            ])
+            TypeExpressionData::Union(Union(vec![
+                TypeExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(2))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(3))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(4))
+                    .with_default_span(),
+            ]))
         );
 
         let src = "@jonas | @bene";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Union(vec![
+            TypeExpressionData::Union(Union(vec![
                 TypeExpressionData::Endpoint(
                     Endpoint::from_str("@jonas").unwrap()
-                ),
+                )
+                .with_default_span(),
                 TypeExpressionData::Endpoint(
                     Endpoint::from_str("@bene").unwrap()
-                ),
-            ])
+                )
+                .with_default_span(),
+            ]))
         );
     }
 
@@ -768,14 +781,19 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Union(vec![
-                TypeExpressionData::Union(vec![
-                    TypeExpressionData::Integer(Integer::from(1)),
-                    TypeExpressionData::Integer(Integer::from(2)),
-                ]),
-                TypeExpressionData::Integer(Integer::from(3)),
-                TypeExpressionData::Integer(Integer::from(4)),
-            ])
+            TypeExpressionData::Union(Union(vec![
+                TypeExpressionData::Union(Union(vec![
+                    TypeExpressionData::Integer(Integer::from(1))
+                        .with_default_span(),
+                    TypeExpressionData::Integer(Integer::from(2))
+                        .with_default_span(),
+                ]))
+                .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(3))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(4))
+                    .with_default_span(),
+            ]))
         );
     }
 
@@ -785,28 +803,38 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Union(vec![
-                TypeExpressionData::Integer(Integer::from(1)),
-                TypeExpressionData::Intersection(vec![
-                    TypeExpressionData::Integer(Integer::from(2)),
-                    TypeExpressionData::Integer(Integer::from(3)),
-                ]),
-                TypeExpressionData::Integer(Integer::from(4)),
-            ])
+            TypeExpressionData::Union(Union(vec![
+                TypeExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+                TypeExpressionData::Intersection(Intersection(vec![
+                    TypeExpressionData::Integer(Integer::from(2))
+                        .with_default_span(),
+                    TypeExpressionData::Integer(Integer::from(3))
+                        .with_default_span(),
+                ]))
+                .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(4))
+                    .with_default_span(),
+            ]))
         );
 
         let src = "(1 | 2) & 3 & 4";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Intersection(vec![
-                TypeExpressionData::Union(vec![
-                    TypeExpressionData::Integer(Integer::from(1)),
-                    TypeExpressionData::Integer(Integer::from(2)),
-                ]),
-                TypeExpressionData::Integer(Integer::from(3)),
-                TypeExpressionData::Integer(Integer::from(4)),
-            ])
+            TypeExpressionData::Intersection(Intersection(vec![
+                TypeExpressionData::Union(Union(vec![
+                    TypeExpressionData::Integer(Integer::from(1))
+                        .with_default_span(),
+                    TypeExpressionData::Integer(Integer::from(2))
+                        .with_default_span(),
+                ]))
+                .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(3))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(4))
+                    .with_default_span(),
+            ]))
         );
     }
 
@@ -816,35 +844,45 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralList(vec![
-                TypeExpressionData::Integer(Integer::from(1)),
-                TypeExpressionData::Integer(Integer::from(2)),
-                TypeExpressionData::Integer(Integer::from(3)),
-                TypeExpressionData::Integer(Integer::from(4)),
-            ])
+            TypeExpressionData::StructuralList(StructuralList(vec![
+                TypeExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(2))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(3))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(4))
+                    .with_default_span(),
+            ]))
         );
 
         let src = "[1,2,text]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralList(vec![
-                TypeExpressionData::Integer(Integer::from(1)),
-                TypeExpressionData::Integer(Integer::from(2)),
-                TypeExpressionData::Literal("text".to_owned()),
-            ])
+            TypeExpressionData::StructuralList(StructuralList(vec![
+                TypeExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+                TypeExpressionData::Integer(Integer::from(2))
+                    .with_default_span(),
+                TypeExpressionData::Literal("text".to_owned())
+                    .with_default_span(),
+            ]))
         );
 
         let src = "[integer|text]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralList(vec![
-                TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned()),
-                    TypeExpressionData::Literal("text".to_owned()),
-                ])
-            ])
+            TypeExpressionData::StructuralList(StructuralList(vec![
+                TypeExpressionData::Union(Union(vec![
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
+                ]))
+                .with_default_span(),
+            ]))
         );
     }
 
@@ -854,23 +892,31 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::FixedSizeList(
-                Box::new(TypeExpressionData::Literal("integer".to_owned())),
-                10
-            )
+            TypeExpressionData::FixedSizeList(FixedSizeList {
+                r#type: Box::new(
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span()
+                ),
+                size: 10
+            })
         );
 
         let src = "(integer | string)[10]";
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::FixedSizeList(
-                Box::new(TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned()),
-                    TypeExpressionData::Literal("string".to_owned()),
-                ])),
-                10
-            )
+            TypeExpressionData::FixedSizeList(FixedSizeList {
+                r#type: Box::new(
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span(),
+                        TypeExpressionData::Literal("string".to_owned())
+                            .with_default_span(),
+                    ]))
+                    .with_default_span()
+                ),
+                size: 10
+            })
         );
     }
 
@@ -881,7 +927,8 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(
-                Box::new(TypeExpressionData::Literal("text".to_owned())),
+                Box::new(TypeExpressionData::Literal("text".to_owned()))
+                    .with_default_span(),
                 4
             )
         );
@@ -891,7 +938,8 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(
-                Box::new(TypeExpressionData::Literal("text".to_owned())),
+                Box::new(TypeExpressionData::Literal("text".to_owned()))
+                    .with_default_span(),
                 42
             )
         );
@@ -901,7 +949,8 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(
-                Box::new(TypeExpressionData::Literal("text".to_owned())),
+                Box::new(TypeExpressionData::Literal("text".to_owned()))
+                    .with_default_span(),
                 10
             )
         );
@@ -915,6 +964,7 @@ mod tests {
             val,
             TypeExpressionData::SliceList(Box::new(
                 TypeExpressionData::Literal("text".to_owned())
+                    .with_default_span()
             ))
         );
 
@@ -926,6 +976,7 @@ mod tests {
                 TypeExpressionData::SliceList(Box::new(
                     TypeExpressionData::SliceList(Box::new(
                         TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span()
                     ))
                 ))
             ))
@@ -940,7 +991,10 @@ mod tests {
             val,
             TypeExpressionData::GenericAccess(
                 "List".to_owned(),
-                vec![TypeExpressionData::Literal("integer".to_owned())],
+                vec![
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span()
+                ],
             )
         );
 
@@ -951,8 +1005,10 @@ mod tests {
             TypeExpressionData::GenericAccess(
                 "List".to_owned(),
                 vec![TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned()),
-                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
                 ]),],
             )
         );
@@ -967,8 +1023,10 @@ mod tests {
             TypeExpressionData::GenericAccess(
                 "Map".to_owned(),
                 vec![
-                    TypeExpressionData::Literal("text".to_owned()),
-                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
                 ],
             )
         );
@@ -983,8 +1041,10 @@ mod tests {
             TypeExpressionData::GenericAccess(
                 "User".to_owned(),
                 vec![
-                    TypeExpressionData::Literal("text".to_owned()),
-                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
                 ],
             )
         );
@@ -996,8 +1056,10 @@ mod tests {
             TypeExpressionData::GenericAccess(
                 "User".to_owned(),
                 vec![TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("text".to_owned()),
-                    TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
                 ]),],
             )
         );
@@ -1014,20 +1076,26 @@ mod tests {
                     (
                         "x".to_string(),
                         TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span()
                     ),
                     (
                         "y".to_string(),
                         TypeExpressionData::Union(vec![
-                            TypeExpressionData::Literal("text".to_owned()),
+                            TypeExpressionData::Literal("text".to_owned())
+                                .with_default_span(),
                             TypeExpressionData::Decimal(
-                                Decimal::from_string("4.5").unwrap()
+                                Decimal::from_string("4.5")
+                                    .unwrap()
+                                    .with_default_span()
                             )
                         ])
                     )
                 ],
                 return_type: Box::new(TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
                     TypeExpressionData::Integer(Integer::from(52))
+                        .with_default_span()
                 ])),
             }
         );
@@ -1042,21 +1110,27 @@ mod tests {
                         "x".to_string(),
                         TypeExpressionData::RefMut(Box::new(
                             TypeExpressionData::Literal("text".to_owned())
+                                .with_default_span()
                         ))
+                        .with_default_span()
                     ),
                     (
                         "y".to_string(),
                         TypeExpressionData::Union(vec![
-                            TypeExpressionData::Literal("text".to_owned()),
+                            TypeExpressionData::Literal("text".to_owned())
+                                .with_default_span(),
                             TypeExpressionData::Decimal(
                                 Decimal::from_string("4.5").unwrap()
                             )
+                            .with_default_span()
                         ])
                     )
                 ],
                 return_type: Box::new(TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("text".to_owned()),
+                    TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span(),
                     TypeExpressionData::Integer(Integer::from(52))
+                        .with_default_span()
                 ])),
             }
         );
@@ -1072,10 +1146,14 @@ mod tests {
                 TypeExpressionData::StructuralList(vec![
                     TypeExpressionData::RefMut(Box::new(
                         TypeExpressionData::Literal("text".to_owned())
-                    )),
+                            .with_default_span()
+                    ))
+                    .with_default_span(),
                     TypeExpressionData::RefMut(Box::new(
                         TypeExpressionData::Literal("integer/u8".to_owned())
-                    )),
+                            .with_default_span()
+                    ))
+                    .with_default_span(),
                 ])
             ))
         );
