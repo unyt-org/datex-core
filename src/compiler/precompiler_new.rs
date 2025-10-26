@@ -5,10 +5,9 @@ use log::info;
 
 use crate::{
     ast::{
-        binary_operation::{ArithmeticOperator, BinaryOperator},
         data::{
             expression::{
-                BinaryOperation, DatexExpression, DatexExpressionData,
+                DatexExpression, DatexExpressionData,
                 Statements, TypeDeclaration, VariableAccess,
                 VariableAssignment, VariableDeclaration, VariableKind,
             },
@@ -169,7 +168,7 @@ impl Precompiler {
         // If variable exist
         if let Ok(id) = self.scope_stack.get_variable_and_update_metadata(
             name,
-            &mut self.metadata.as_mut().unwrap(),
+            self.metadata.as_mut().unwrap(),
         ) {
             info!("Visiting variable: {name}");
             Ok(ResolvedVariable::VariableId(id))
