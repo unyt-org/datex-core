@@ -1119,7 +1119,10 @@ fn visit_type_expression(
                 resolve_variable(name, metadata, scope_stack)?;
             *type_expr = match resolved_variable {
                 ResolvedVariable::VariableId(id) => {
-                    TypeExpressionData::Variable(id, name.clone())
+                    TypeExpressionData::VariableAccess(VariableAccess {
+                        id,
+                        name: name.to_string(),
+                    })
                 }
                 ResolvedVariable::PointerAddress(pointer_address) => {
                     TypeExpressionData::GetReference(pointer_address)
@@ -1563,9 +1566,11 @@ mod tests {
                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "x".to_string(),
-                            value: TypeExpressionData::Variable(
-                                1,
-                                "MyInt".to_string()
+                            value: TypeExpressionData::VariableAccess(
+                                VariableAccess {
+                                    id: 1,
+                                    name: "MyInt".to_string()
+                                }
                             ),
                             hoisted: true,
                         })
@@ -1573,9 +1578,11 @@ mod tests {
                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(1),
                             name: "MyInt".to_string(),
-                            value: TypeExpressionData::Variable(
-                                0,
-                                "x".to_string()
+                            value: TypeExpressionData::VariableAccess(
+                                VariableAccess {
+                                    id: 0,
+                                    name: "x".to_string()
+                                }
                             ),
                             hoisted: true,
                         })
@@ -1623,10 +1630,13 @@ mod tests {
                                     TypeDeclaration {
                                         id: Some(1),
                                         name: "NestedVar".to_string(),
-                                        value: TypeExpressionData::Variable(
-                                            0,
-                                            "x".to_string()
-                                        ),
+                                        value:
+                                            TypeExpressionData::VariableAccess(
+                                                VariableAccess {
+                                                    id: 0,
+                                                    name: "x".to_string()
+                                                }
+                                            ),
                                         hoisted: true,
                                     }
                                 )

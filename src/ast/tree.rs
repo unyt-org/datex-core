@@ -70,7 +70,7 @@ pub enum TypeExpressionData {
     // a type name or variable, e.g. integer, string, User, MyType, T
     Literal(String),
 
-    Variable(VariableId, String),
+    VariableAccess(VariableAccess),
     GetReference(PointerAddress),
 
     // literals
@@ -131,7 +131,36 @@ impl Visitable for TypeExpression {
             TypeExpressionData::GetReference(pointer_address) => {
                 visitor.visit_get_reference(pointer_address, self.span)
             }
-            _ => unimplemented!(),
+            TypeExpressionData::Null => visitor.visit_null(self.span),
+            TypeExpressionData::Literal(_) => todo!(),
+            TypeExpressionData::VariableAccess(variable_access) => {
+                visitor.visit_variable_access(variable_access, self.span)
+            }
+            TypeExpressionData::Integer(integer) => todo!(),
+            TypeExpressionData::TypedInteger(typed_integer) => todo!(),
+            TypeExpressionData::Decimal(decimal) => todo!(),
+            TypeExpressionData::TypedDecimal(typed_decimal) => todo!(),
+            TypeExpressionData::Boolean(_) => todo!(),
+            TypeExpressionData::Text(_) => todo!(),
+            TypeExpressionData::Endpoint(endpoint) => todo!(),
+            TypeExpressionData::StructuralList(type_expression_datas) => {
+                todo!()
+            }
+            TypeExpressionData::FixedSizeList(type_expression_data, _) => {
+                todo!()
+            }
+            TypeExpressionData::SliceList(type_expression_data) => todo!(),
+            TypeExpressionData::Intersection(type_expression_datas) => todo!(),
+            TypeExpressionData::Union(type_expression_datas) => todo!(),
+            TypeExpressionData::Generic(_, type_expression_datas) => todo!(),
+            TypeExpressionData::Function {
+                parameters,
+                return_type,
+            } => todo!(),
+            TypeExpressionData::StructuralMap(items) => todo!(),
+            TypeExpressionData::Ref(type_expression_data) => todo!(),
+            TypeExpressionData::RefMut(type_expression_data) => todo!(),
+            TypeExpressionData::RefFinal(type_expression_data) => todo!(),
         }
     }
 }

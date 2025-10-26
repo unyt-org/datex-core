@@ -548,7 +548,7 @@ fn resolve_type_expression_type(
 
     // handle more complex type expressions
     Ok(match ast {
-        TypeExpressionData::Variable(id, _) => {
+        TypeExpressionData::VariableAccess(VariableAccess { id, .. }) => {
             let var_id = *id;
             let metadata = metadata.borrow();
             metadata

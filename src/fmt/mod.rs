@@ -2,7 +2,7 @@ use crate::{
     ast::{
         binary_operation::BinaryOperator,
         comparison_operation::ComparisonOperator,
-        tree::{DatexExpression, TypeExpressionData},
+        tree::{DatexExpression, TypeExpressionData, VariableAccess},
         unary_operation::UnaryOperator,
     },
     compiler::{
@@ -143,7 +143,9 @@ impl<'a> Formatter<'a> {
             }
 
             TypeExpressionData::Literal(lit) => a.text(lit.to_string()),
-            TypeExpressionData::Variable(_, name) => a.text(name.clone()),
+            TypeExpressionData::VariableAccess(VariableAccess {
+                name, ..
+            }) => a.text(name.clone()),
 
             TypeExpressionData::GetReference(ptr) => {
                 if let Ok(core_lib) = CoreLibPointerId::try_from(ptr) {

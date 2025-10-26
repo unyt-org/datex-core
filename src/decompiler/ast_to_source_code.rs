@@ -235,7 +235,9 @@ impl AstToSourceCodeFormatter {
                 )
             }
             TypeExpressionData::Literal(literal) => literal.to_string(),
-            TypeExpressionData::Variable(_, name) => name.to_string(),
+            TypeExpressionData::VariableAccess(VariableAccess {
+                name, ..
+            }) => name.to_string(),
             TypeExpressionData::GetReference(pointer_address) => {
                 format!("{}", pointer_address) // FIXME #471
             }
