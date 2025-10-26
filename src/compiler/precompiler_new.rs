@@ -2,11 +2,9 @@ use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use chumsky::span::SimpleSpan;
 use log::info;
-use uuid::fmt::Simple;
 
 use crate::{
     ast::{
-        self,
         data::{
             expression::{
                 DatexExpression, DatexExpressionData, Statements,
@@ -15,7 +13,7 @@ use crate::{
             },
             spanned::Spanned,
             r#type::TypeExpression,
-            visitor::{self, Visit, Visitable},
+            visitor::{Visit, Visitable},
         },
         parse_result::ValidDatexParseResult,
     },
