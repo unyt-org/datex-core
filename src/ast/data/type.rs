@@ -214,11 +214,13 @@ impl Visitable for Union {
 #[derive(Clone, Debug, PartialEq)]
 pub struct GenericAccess {
     pub base: String,
-    pub access: Box<TypeExpression>,
+    pub access: Vec<TypeExpression>,
 }
 impl Visitable for GenericAccess {
     fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_type_expression(&self.access);
+        for arg in &self.access {
+            visitor.visit_type_expression(arg);
+        }
     }
 }
 

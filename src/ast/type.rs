@@ -3,8 +3,8 @@ use std::{str::FromStr, vec};
 use crate::ast::data::expression::DatexExpressionData;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::r#type::{
-    FixedSizeList, StructuralList, StructuralMap, TypeExpression,
-    TypeExpressionData, Union,
+    FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
+    StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
 use crate::{
     ast::{
@@ -95,13 +95,10 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
 
 pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
-        let paren_group = ty
-            .clone()
-            .delimited_by(
-                just(Token::LeftParen).padded_by(whitespace()),
-                just(Token::RightParen).padded_by(whitespace()),
-            )
-            .map_with(|t, e| t.with_span(e.span()));
+        let paren_group = ty.clone().delimited_by(
+            just(Token::LeftParen).padded_by(whitespace()),
+            just(Token::RightParen).padded_by(whitespace()),
+        );
 
         // Parse a type reference, e.g. `integer`, `text`, `User` etc.
         let type_reference = choice((
@@ -146,7 +143,8 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 				integer(),
 				decimal()
 			))
-			.padded_by(whitespace());
+			.padded_by(whitespace())
+            .map_with(|data, e| data.with_span(e.span()));
 
         let list_inline = ty
             .clone()
@@ -245,8 +243,11 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                         just(Token::RightAngle),
                     ),
             )
-            .map(|(name, args): (String, Vec<TypeExpressionData>)| {
-                TypeExpressionData::GenericAccess(name.to_owned(), args)
+            .map(|(name, args): (String, Vec<TypeExpression>)| {
+                TypeExpressionData::GenericAccess(GenericAccess {
+                    base: name,
+                    access: args,
+                })
             });
 
         let func = key_ident
@@ -261,15 +262,17 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             )
             .then_ignore(just(Token::Arrow).padded_by(whitespace()))
             .then(ty.clone())
-            .map(
+            .map_with(
                 |(params, ret): (
-                    Vec<(String, TypeExpressionData)>,
-                    TypeExpressionData,
-                )| {
-                    TypeExpressionData::Function {
+                    Vec<(String, TypeExpression)>,
+                    TypeExpression,
+                ),
+                 e| {
+                    TypeExpressionData::Function(FunctionType {
                         parameters: params,
                         return_type: Box::new(ret),
-                    }
+                    })
+                    .with_span(e.span())
                 },
             );
 
@@ -277,25 +280,28 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .ignore_then(just(Token::Mutable).or(just(Token::Final)).or_not())
             .then_ignore(whitespace())
             .then(ty.clone())
-            .map(|(maybe_mut, inner): (Option<Token>, TypeExpressionData)| {
-                let mutability = match maybe_mut {
-                    Some(Token::Mutable) => ReferenceMutability::Mutable,
-                    Some(Token::Final) => ReferenceMutability::Final,
-                    None => ReferenceMutability::Immutable,
-                    _ => unreachable!(),
-                };
-                match mutability {
-                    ReferenceMutability::Mutable => {
-                        TypeExpressionData::RefMut(Box::new(inner))
+            .map_with(
+                |(maybe_mut, inner): (Option<Token>, TypeExpression), e| {
+                    let mutability = match maybe_mut {
+                        Some(Token::Mutable) => ReferenceMutability::Mutable,
+                        Some(Token::Final) => ReferenceMutability::Final,
+                        None => ReferenceMutability::Immutable,
+                        _ => unreachable!(),
+                    };
+                    match mutability {
+                        ReferenceMutability::Mutable => {
+                            TypeExpressionData::RefMut(Box::new(inner))
+                        }
+                        ReferenceMutability::Immutable => {
+                            TypeExpressionData::Ref(Box::new(inner))
+                        }
+                        ReferenceMutability::Final => {
+                            TypeExpressionData::RefFinal(Box::new(inner))
+                        }
                     }
-                    ReferenceMutability::Immutable => {
-                        TypeExpressionData::Ref(Box::new(inner))
-                    }
-                    ReferenceMutability::Final => {
-                        TypeExpressionData::RefFinal(Box::new(inner))
-                    }
-                }
-            });
+                    .with_span(e.span())
+                },
+            );
 
         let base = choice((
             reference.clone(),
@@ -373,16 +379,22 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 
         let array_postfix = base
             .then(postfix_array.repeated().collect::<Vec<_>>())
-            .try_map(|(mut t, arrs), _| {
+            .try_map_with(|(mut t, arrs), e| {
                 for arr in arrs {
                     t = match arr {
-                        None => TypeExpressionData::SliceList(Box::new(t)),
+                        None => TypeExpressionData::SliceList(SliceList(
+                            Box::new(t),
+                        ))
+                        .with_span(e.span()),
                         Some(n) => match integer_to_usize(&n) {
                             Some(size) if size > 0 => {
                                 TypeExpressionData::FixedSizeList(
-                                    Box::new(t),
-                                    size,
+                                    FixedSizeList {
+                                        r#type: Box::new(t),
+                                        size,
+                                    },
                                 )
+                                .with_span(e.span())
                             }
                             _ => {
                                 return Err(ParseError::new(
@@ -407,16 +419,15 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(
-                |(first, mut rest): (
-                    TypeExpressionData,
-                    Vec<TypeExpressionData>,
-                )| {
+            .map_with(
+                |(first, mut rest): (TypeExpression, Vec<TypeExpression>),
+                 e| {
                     if rest.is_empty() {
                         return first;
                     }
                     rest.insert(0, first);
-                    TypeExpressionData::Intersection(rest)
+                    TypeExpressionData::Intersection(Intersection(rest))
+                        .with_span(e.span())
                 },
             );
 
@@ -429,16 +440,14 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     .repeated()
                     .collect(),
             )
-            .map(
-                |(first, mut rest): (
-                    TypeExpressionData,
-                    Vec<TypeExpressionData>,
-                )| {
+            .map_with(
+                |(first, mut rest): (TypeExpression, Vec<TypeExpression>),
+                 e| {
                     if rest.is_empty() {
                         return first;
                     }
                     rest.insert(0, first);
-                    TypeExpressionData::Union(rest)
+                    TypeExpressionData::Union(Union(rest)).with_span(e.span())
                 },
             )
     })
@@ -480,6 +489,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .labelled(Pattern::Declaration)
         .as_context()
 }
+
 pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
     just(Token::Identifier("typedef".to_string()))
         .padded_by(whitespace())
@@ -519,10 +529,12 @@ mod tests {
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
+    use crate::ast::data::expression::{
+        DatexExpression, DatexExpressionData, Statements,
+    };
     use crate::ast::parse_result::{
         InvalidDatexParseResult, ValidDatexParseResult,
     };
-    use crate::ast::tree::{DatexExpressionData, Statements};
     use std::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
@@ -551,7 +563,7 @@ mod tests {
             ..
         }) = value
         {
-            value
+            value.data
         } else if let DatexExpressionData::Statements(Statements {
             statements,
             ..
@@ -562,7 +574,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     value,
                     ..
-                }) => value.clone(),
+                }) => value.data.clone(),
                 _ => {
                     panic!("Expected TypeDeclaration, got {:?}", statements[0])
                 }
@@ -590,22 +602,29 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(StructuralMap(vec![
                 (
-                    TypeExpressionData::Text("name".to_string()),
-                    TypeExpressionData::Union(vec![
-                        TypeExpressionData::Literal("text".to_owned()),
-                        TypeExpressionData::Null
-                    ])
+                    TypeExpressionData::Text("name".to_string())
+                        .with_default_span(),
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span(),
+                        TypeExpressionData::Null.with_default_span()
+                    ]))
+                    .with_default_span()
                 ),
                 (
-                    TypeExpressionData::Text("age".to_string()),
-                    TypeExpressionData::Union(vec![
-                        TypeExpressionData::Literal("integer".to_owned()),
+                    TypeExpressionData::Text("age".to_string())
+                        .with_default_span(),
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span(),
                         TypeExpressionData::Literal("text".to_owned())
-                    ])
+                            .with_default_span()
+                    ]))
+                    .with_default_span()
                 )
-            ])
+            ]))
         );
 
         let src = r#"
@@ -617,24 +636,33 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(StructuralMap(vec![
                 (
-                    TypeExpressionData::Text("name".to_string()),
-                    TypeExpressionData::Union(vec![
-                        TypeExpressionData::Literal("text".to_owned()),
-                        TypeExpressionData::Null
-                    ])
+                    TypeExpressionData::Text("name".to_string())
+                        .with_default_span(),
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span(),
+                        TypeExpressionData::Null.with_default_span()
+                    ]))
+                    .with_default_span()
                 ),
                 (
-                    TypeExpressionData::Text("friends".to_string()),
-                    TypeExpressionData::GenericAccess(
-                        "List".to_owned(),
-                        vec![TypeExpressionData::Ref(Box::new(
-                            TypeExpressionData::Literal("text".to_owned())
-                        ))]
-                    )
+                    TypeExpressionData::Text("friends".to_string())
+                        .with_default_span(),
+                    TypeExpressionData::GenericAccess(GenericAccess {
+                        base: "List".to_owned(),
+                        access: vec![
+                            TypeExpressionData::Ref(Box::new(
+                                TypeExpressionData::Literal("text".to_owned())
+                                    .with_default_span()
+                            ))
+                            .with_default_span()
+                        ]
+                    })
+                    .with_default_span()
                 ),
-            ])
+            ]))
         );
 
         let src = r#"
@@ -646,21 +674,29 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::StructuralMap(vec![
+            TypeExpressionData::StructuralMap(StructuralMap(vec![
                 (
-                    TypeExpressionData::Text("name".to_string()),
+                    TypeExpressionData::Text("name".to_string())
+                        .with_default_span(),
                     TypeExpressionData::Literal("text".to_owned())
+                        .with_default_span()
                 ),
                 (
-                    TypeExpressionData::Text("friends".to_string()),
-                    TypeExpressionData::GenericAccess(
-                        "List".to_owned(),
-                        vec![TypeExpressionData::Ref(Box::new(
-                            TypeExpressionData::Literal("text".to_owned())
-                        ))]
-                    )
+                    TypeExpressionData::Text("friends".to_string())
+                        .with_default_span(),
+                    TypeExpressionData::GenericAccess(GenericAccess {
+                        base: "List".to_owned(),
+                        access: vec![
+                            TypeExpressionData::Ref(Box::new(
+                                TypeExpressionData::Literal("text".to_owned())
+                                    .with_default_span()
+                            ))
+                            .with_default_span()
+                        ]
+                    })
+                    .with_default_span()
                 ),
-            ])
+            ]))
         );
 
         let src = r#"
