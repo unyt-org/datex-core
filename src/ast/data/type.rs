@@ -2,7 +2,7 @@ use chumsky::span::SimpleSpan;
 
 use crate::ast::data::expression::VariableAccess;
 use crate::ast::data::spanned::Spanned;
-use crate::ast::data::visitable::{Visit, Visitable};
+use crate::ast::data::visitor::{Visit, Visitable};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -95,7 +95,6 @@ impl Visitable for TypeExpression {
                 visitor.visit_get_reference(pointer_address, self.span)
             }
             TypeExpressionData::Null => visitor.visit_null(self.span),
-            TypeExpressionData::Literal(_) => todo!(),
             TypeExpressionData::VariableAccess(variable_access) => {
                 visitor.visit_variable_access(variable_access, self.span)
             }
@@ -120,23 +119,42 @@ impl Visitable for TypeExpression {
             TypeExpressionData::Endpoint(endpoint) => {
                 visitor.visit_endpoint(endpoint, self.span)
             }
-            TypeExpressionData::StructuralList(type_expression_datas) => {
-                todo!()
+            TypeExpressionData::StructuralList(structual_list) => {
+                visitor.visit_structural_list(structual_list, self.span)
             }
             TypeExpressionData::FixedSizeList(fixed_size_list) => {
-                todo!()
+                visitor.visit_fixed_size_list(fixed_size_list, self.span)
             }
-            TypeExpressionData::SliceList(type_expression_data) => todo!(),
-            TypeExpressionData::Intersection(type_expression_datas) => todo!(),
-            TypeExpressionData::Union(type_expression_datas) => todo!(),
+            TypeExpressionData::SliceList(slice_list) => {
+                visitor.visit_slice_list(slice_list, self.span)
+            }
+            TypeExpressionData::Intersection(intersection) => {
+                visitor.visit_intersection(intersection, self.span)
+            }
+            TypeExpressionData::Union(union) => {
+                visitor.visit_union(union, self.span)
+            }
             TypeExpressionData::GenericAccess(generic_access) => {
-                todo!()
+                visitor.visit_generic_access(generic_access, self.span)
             }
-            TypeExpressionData::Function(function) => todo!(),
-            TypeExpressionData::StructuralMap(items) => todo!(),
-            TypeExpressionData::Ref(type_expression_data) => todo!(),
-            TypeExpressionData::RefMut(type_expression_data) => todo!(),
-            TypeExpressionData::RefFinal(type_expression_data) => todo!(),
+            TypeExpressionData::Function(function) => {
+                visitor.visit_function_type(function, self.span)
+            }
+            TypeExpressionData::StructuralMap(structural_map) => {
+                visitor.visit_structural_map(structural_map, self.span)
+            }
+            TypeExpressionData::Ref(type_ref) => {
+                visitor.visit_type_ref(type_ref, self.span)
+            }
+            TypeExpressionData::RefMut(type_ref_mut) => {
+                visitor.visit_type_ref_mut(type_ref_mut, self.span)
+            }
+            TypeExpressionData::RefFinal(type_ref_final) => {
+                unimplemented!("RefFinal is going to be deprecated")
+            }
+            TypeExpressionData::Literal(_) => {
+                unreachable!("Literal types should not be visited")
+            }
         }
     }
 }

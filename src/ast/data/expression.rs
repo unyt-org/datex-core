@@ -7,7 +7,7 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::comparison_operation::ComparisonOperator;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::r#type::TypeExpression;
-use crate::ast::data::visitable::{Visit, Visitable};
+use crate::ast::data::visitor::{Visit, Visitable};
 use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
