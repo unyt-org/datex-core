@@ -17,7 +17,6 @@ pub mod literal;
 pub mod map;
 pub mod parse_result;
 pub mod text;
-pub mod tree;
 pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
