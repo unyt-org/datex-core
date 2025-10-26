@@ -1,3 +1,4 @@
+use crate::ast::data::spanned::Spanned;
 use crate::ast::lexer::Token;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
@@ -13,7 +14,13 @@ pub fn operation<'a>(c: Token) -> impl DatexParserTrait<'a, Token> {
         .then_ignore(just(Token::Whitespace).repeated())
 }
 pub fn is_identifier(expr: &DatexExpression) -> bool {
-    matches!(expr, DatexExpression { data: DatexExpressionData::Identifier { .. }, .. })
+    matches!(
+        expr,
+        DatexExpression {
+            data: DatexExpressionData::Identifier { .. },
+            ..
+        }
+    )
 }
 pub fn unwrap_single_statement(expr: DatexExpression) -> DatexExpression {
     match expr.data {

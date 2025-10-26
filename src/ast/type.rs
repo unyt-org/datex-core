@@ -1,6 +1,7 @@
 use std::{str::FromStr, vec};
 
 use crate::ast::data::expression::DatexExpressionData;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::data::r#type::TypeExpressionData;
 use crate::{
     ast::{
@@ -91,10 +92,13 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
 
 pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     recursive(|ty| {
-        let paren_group = ty.clone().delimited_by(
-            just(Token::LeftParen).padded_by(whitespace()),
-            just(Token::RightParen).padded_by(whitespace()),
-        );
+        let paren_group = ty
+            .clone()
+            .delimited_by(
+                just(Token::LeftParen).padded_by(whitespace()),
+                just(Token::RightParen).padded_by(whitespace()),
+            )
+            .map_with(|t, e| t.with_span(e.span()));
 
         // Parse a type reference, e.g. `integer`, `text`, `User` etc.
         let type_reference = choice((
@@ -104,16 +108,20 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
                         .ignore_then(select! { Token::Identifier(s) => s })
                         .or_not(),
                 )
-                .map(|(base, sub): (String, Option<String>)| {
-                    match sub.as_deref() {
-                        None => TypeExpressionData::Literal(base),
-                        Some(variant) => TypeExpressionData::Literal(format!(
-                            "{}/{}",
-                            base, variant
-                        )),
+                .map_with(|(base, sub): (String, Option<String>), e| match sub
+                    .as_deref()
+                {
+                    None => {
+                        TypeExpressionData::Literal(base).with_span(e.span())
                     }
+                    Some(variant) => TypeExpressionData::Literal(format!(
+                        "{}/{}",
+                        base, variant
+                    ))
+                    .with_span(e.span()),
                 }),
-            just(Token::Null).map(|_| TypeExpressionData::Null),
+            just(Token::Null)
+                .map_with(|_, e| TypeExpressionData::Null.with_span(e.span())),
         ));
 
         let literal =

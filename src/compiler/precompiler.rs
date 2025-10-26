@@ -1,11 +1,13 @@
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::ast::tree::{
+use crate::ast::data::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    RemoteExecution, SlotAssignment, TypeDeclaration, TypeExpressionData,
-    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
+    RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
+    VariableAssignment, VariableDeclaration, VariableKind,
 };
+use crate::ast::data::spanned::Spanned;
+use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
     SpannedCompilerError, collect_or_pass_error,
@@ -25,8 +27,8 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use chumsky::prelude::SimpleSpan;
+use datex_core::ast::data::expression::VariableAccess;
 use datex_core::ast::parse_result::ValidDatexParseResult;
-use datex_core::ast::tree::VariableAccess;
 use log::info;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -1107,13 +1109,13 @@ fn resolve_variable(
 
 // FIXME #489: use tree visitor once fully implemented instead of custom visit function
 fn visit_type_expression(
-    type_expr: &mut TypeExpressionData,
+    type_expr: &mut TypeExpression,
     metadata: &mut AstMetadata,
     scope_stack: &mut PrecompilerScopeStack,
     new_scope: NewScopeType,
     spans: &Vec<Range<usize>>,
 ) -> Result<(), CompilerError> {
-    match type_expr {
+    match &mut type_expr.data {
         TypeExpressionData::Literal(name) => {
             let resolved_variable =
                 resolve_variable(name, metadata, scope_stack)?;
@@ -1123,9 +1125,11 @@ fn visit_type_expression(
                         id,
                         name: name.to_string(),
                     })
+                    .with_default_span() // FIXME what is the span here, shall we use empty?
                 }
                 ResolvedVariable::PointerAddress(pointer_address) => {
                     TypeExpressionData::GetReference(pointer_address)
+                        .with_default_span() // FIXME what is the span here, shall we use empty?
                 }
             };
             Ok(())
@@ -1140,7 +1144,7 @@ fn visit_type_expression(
         | TypeExpressionData::TypedInteger(_)
         | TypeExpressionData::GetReference(_) => Ok(()),
         TypeExpressionData::StructuralList(inner_type) => {
-            for ty in inner_type {
+            for ty in inner_type.0.iter_mut() {
                 visit_type_expression(
                     ty,
                     metadata,
@@ -1152,7 +1156,7 @@ fn visit_type_expression(
             Ok(())
         }
         TypeExpressionData::StructuralMap(properties) => {
-            for (_, ty) in properties {
+            for (_, ty) in properties.0.iter_mut() {
                 visit_type_expression(
                     ty,
                     metadata,
@@ -1164,7 +1168,7 @@ fn visit_type_expression(
             Ok(())
         }
         TypeExpressionData::Union(types) => {
-            for ty in types {
+            for ty in types.0.iter_mut() {
                 visit_type_expression(
                     ty,
                     metadata,
@@ -1176,7 +1180,7 @@ fn visit_type_expression(
             Ok(())
         }
         TypeExpressionData::Intersection(types) => {
-            for ty in types {
+            for ty in types.0.iter_mut() {
                 visit_type_expression(
                     ty,
                     metadata,
@@ -1210,8 +1214,9 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::data::expression::Statements;
+    use crate::ast::data::r#type::StructuralMap;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
-    use crate::ast::tree::Statements;
     use crate::ast::{error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
@@ -1370,14 +1375,20 @@ mod tests {
                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(0),
                             name: "User".to_string(),
-                            value: TypeExpressionData::StructuralMap(vec![]),
+                            value: TypeExpressionData::StructuralMap(
+                                StructuralMap(vec![])
+                            )
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
                             id: Some(1),
                             name: "User/admin".to_string(),
-                            value: TypeExpressionData::StructuralMap(vec![]),
+                            value: TypeExpressionData::StructuralMap(
+                                StructuralMap(vec![])
+                            )
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1478,7 +1489,8 @@ mod tests {
                             name: "MyInt".to_string(),
                             value: TypeExpressionData::Integer(Integer::from(
                                 1
-                            )),
+                            ))
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1542,7 +1554,8 @@ mod tests {
                             name: "MyInt".to_string(),
                             value: TypeExpressionData::Integer(Integer::from(
                                 1
-                            )),
+                            ))
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1571,7 +1584,8 @@ mod tests {
                                     id: 1,
                                     name: "MyInt".to_string()
                                 }
-                            ),
+                            )
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1583,7 +1597,8 @@ mod tests {
                                     id: 0,
                                     name: "x".to_string()
                                 }
-                            ),
+                            )
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1618,7 +1633,8 @@ mod tests {
                             name: "x".to_string(),
                             value: TypeExpressionData::Integer(
                                 Integer::from(10).into()
-                            ),
+                            )
+                            .with_default_span(),
                             hoisted: true,
                         })
                         .with_default_span(),
@@ -1636,7 +1652,8 @@ mod tests {
                                                     id: 0,
                                                     name: "x".to_string()
                                                 }
-                                            ),
+                                            )
+                                            .with_default_span(),
                                         hoisted: true,
                                     }
                                 )
@@ -1664,7 +1681,8 @@ mod tests {
                     name: "x".to_string(),
                     value: TypeExpressionData::GetReference(
                         PointerAddress::from(CoreLibPointerId::Integer(None))
-                    ),
+                    )
+                    .with_default_span(),
                     hoisted: false,
                 })
                 .with_default_span()

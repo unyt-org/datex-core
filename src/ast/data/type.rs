@@ -68,9 +68,9 @@ pub enum TypeExpressionData {
     StructuralMap(StructuralMap),
 
     // modifiers
-    Ref(Box<TypeExpressionData>),
-    RefMut(Box<TypeExpressionData>),
-    RefFinal(Box<TypeExpressionData>),
+    Ref(Box<TypeExpression>),
+    RefMut(Box<TypeExpression>),
+    RefFinal(Box<TypeExpression>),
 }
 
 impl Spanned for TypeExpressionData {
