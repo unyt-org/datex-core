@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use chumsky::span::SimpleSpan;
 use log::info;
@@ -9,8 +9,9 @@ use crate::{
         self,
         data::{
             expression::{
-                DatexExpression, DatexExpressionData, TypeDeclaration,
-                VariableAccess, VariableDeclaration,
+                DatexExpression, DatexExpressionData, Statements,
+                TypeDeclaration, VariableAccess, VariableAssignment,
+                VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
             r#type::TypeExpression,
@@ -20,7 +21,7 @@ use crate::{
     },
     compiler::{
         error::{
-            CompilerError, DetailedCompilerErrors, MaybeAction,
+            CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
             SpannedCompilerError, collect_or_pass_error,
         },
         precompiler::{
@@ -29,7 +30,12 @@ use crate::{
         },
     },
     libs::core::CoreLibPointerId,
-    values::{pointer::PointerAddress, value_container::ValueContainer},
+    references::type_reference::{NominalTypeDeclaration, TypeReference},
+    types::type_container::TypeContainer,
+    values::{
+        core_values::r#type::Type, pointer::PointerAddress,
+        value_container::ValueContainer,
+    },
 };
 
 pub struct Precompiler {
@@ -144,6 +150,33 @@ impl Visit for Precompiler {
         if let Some(span) = self.span(expression.span) {
             expression.span = span;
         }
+
+        if let DatexExpressionData::Identifier(name) = &expression.data {
+            let result = self.resolve_variable(name).map_err(|error| {
+                SpannedCompilerError::new_with_simple_span(
+                    error,
+                    expression.span,
+                )
+            });
+            let action =
+                collect_or_pass_error(&mut self.errors, result).unwrap(); // FIXME: handle error properly
+            if let MaybeAction::Do(resolved_variable) = action {
+                *expression = match resolved_variable {
+                    ResolvedVariable::VariableId(id) => {
+                        DatexExpressionData::VariableAccess(VariableAccess {
+                            id,
+                            name: name.clone(),
+                        })
+                        .with_span(expression.span)
+                    }
+                    ResolvedVariable::PointerAddress(pointer_address) => {
+                        DatexExpressionData::GetReference(pointer_address)
+                            .with_span(expression.span)
+                    }
+                };
+            }
+        }
+
         println!("Visiting expression: {:?}", expression);
         expression.visit_children_with(self);
     }
@@ -165,28 +198,6 @@ impl Visit for Precompiler {
             VariableShape::Value(var_decl.kind),
         ));
         var_decl.visit_children_with(self);
-    }
-
-    fn visit_identifier(&mut self, name: &mut String, span: SimpleSpan) {
-        let result = self.resolve_variable(name).map_err(|error| {
-            SpannedCompilerError::new_with_simple_span(error, span)
-        });
-        let action = collect_or_pass_error(&mut self.errors, result).unwrap(); // FIXME: handle error properly
-        if let MaybeAction::Do(resolved_variable) = action {
-            let expression = match resolved_variable {
-                ResolvedVariable::VariableId(id) => {
-                    DatexExpressionData::VariableAccess(VariableAccess {
-                        id,
-                        name: name.clone(),
-                    })
-                    .with_span(span)
-                }
-                ResolvedVariable::PointerAddress(pointer_address) => {
-                    DatexExpressionData::GetReference(pointer_address)
-                        .with_span(span)
-                }
-            };
-        }
     }
 
     fn visit_type_declaration(
@@ -211,6 +222,87 @@ impl Visit for Precompiler {
                 ));
         }
         type_decl.visit_children_with(self);
+    }
+
+    fn visit_variable_assignment(
+        &mut self,
+        var_assign: &mut VariableAssignment,
+        span: SimpleSpan,
+    ) {
+        let new_id = self
+            .scope_stack
+            .get_variable_and_update_metadata(
+                &var_assign.name,
+                &mut self.metadata,
+            )
+            .unwrap(); // FIXME: handle error properly
+        // check if variable is const
+        let var_metadata = self
+            .metadata
+            .variable_metadata(new_id)
+            .expect("Variable must have metadata");
+        if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
+            let error = SpannedCompilerError::new_with_simple_span(
+                CompilerError::AssignmentToConst(var_assign.name.clone()),
+                span,
+            );
+            match &mut self.errors {
+                Some(collected_errors) => {
+                    collected_errors.record_error(error);
+                }
+                None => return, // FIXME return error
+            }
+        }
+        var_assign.id = Some(new_id);
+        var_assign.visit_children_with(self);
+    }
+
+    fn visit_statements(&mut self, stmts: &mut Statements, _span: SimpleSpan) {
+        // hoist type declarations first
+        let mut registered_names = HashSet::new();
+        for stmt in stmts.statements.iter_mut() {
+            if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                name,
+                hoisted,
+                ..
+            }) = &mut stmt.data
+            {
+                // set hoisted to true
+                *hoisted = true;
+                if registered_names.contains(name) {
+                    let error = SpannedCompilerError::new_with_simple_span(
+                        CompilerError::InvalidRedeclaration(name.clone()),
+                        stmt.span,
+                    );
+                    match &mut self.errors {
+                        Some(collected_errors) => {
+                            collected_errors.record_error(error);
+                        }
+                        None => return, // FIXME return error
+                    }
+                }
+                registered_names.insert(name.clone());
+
+                // register variable
+                let type_id =
+                    self.add_new_variable(name.clone(), VariableShape::Type);
+
+                // register placeholder ref in metadata
+                let reference = Rc::new(RefCell::new(TypeReference::nominal(
+                    Type::UNIT,
+                    NominalTypeDeclaration::from(name.to_string()),
+                    None,
+                )));
+                let type_def = TypeContainer::TypeReference(reference.clone());
+                {
+                    self.metadata
+                        .variable_metadata_mut(type_id)
+                        .expect("TypeDeclaration should have variable metadata")
+                        .var_type = Some(type_def.clone());
+                }
+            }
+        }
+        stmts.visit_children_with(self);
     }
 }
 
