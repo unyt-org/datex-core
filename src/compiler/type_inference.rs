@@ -1,10 +1,10 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
-use crate::ast::tree::{
+use crate::ast::data::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
-    TypeExpressionData, VariableAccess, VariableAssignment,
-    VariableDeclaration,
+    VariableAccess, VariableAssignment, VariableDeclaration,
 };
+use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -481,14 +481,14 @@ pub fn infer_expression_type_inner(
 /// This is used in type declarations and type annotations.
 /// e.g. `integer/u8`, `{ a: integer, b: decimal }`, `integer | decimal`, etc.
 fn resolve_type_expression_type(
-    ast: &mut TypeExpressionData,
+    ast: &mut TypeExpression,
     metadata: Rc<RefCell<AstMetadata>>,
     collected_errors: &mut Option<DetailedTypeErrors>,
 ) -> Result<TypeContainer, SpannedTypeError> {
     // First, try to directly match the type expression to a structural type definition.
     // This covers literals and composite types like maps and lists.
     // If that fails, handle more complex type expressions like variables, unions, and intersections.
-    if let Some(res) = match ast {
+    if let Some(res) = match &ast.data {
         TypeExpressionData::Integer(value) => {
             Some(StructuralTypeDefinition::Integer(value.clone()))
         }
@@ -511,6 +511,7 @@ fn resolve_type_expression_type(
         }
         TypeExpressionData::StructuralMap(fields) => {
             let entries = fields
+                .0
                 .iter_mut()
                 .map(|(k, v)| {
                     let value = resolve_type_expression_type(
@@ -530,6 +531,7 @@ fn resolve_type_expression_type(
         }
         TypeExpressionData::StructuralList(members) => {
             let member_types = members
+                .0
                 .iter_mut()
                 .map(|m| {
                     resolve_type_expression_type(
@@ -547,7 +549,7 @@ fn resolve_type_expression_type(
     }
 
     // handle more complex type expressions
-    Ok(match ast {
+    Ok(match &ast.data {
         TypeExpressionData::VariableAccess(VariableAccess { id, .. }) => {
             let var_id = *id;
             let metadata = metadata.borrow();
@@ -570,6 +572,7 @@ fn resolve_type_expression_type(
         }
         TypeExpressionData::Union(members) => {
             let member_types = members
+                .0
                 .iter_mut()
                 .map(|m| {
                     resolve_type_expression_type(
@@ -583,6 +586,7 @@ fn resolve_type_expression_type(
         }
         TypeExpressionData::Intersection(members) => {
             let member_types = members
+                .0
                 .iter_mut()
                 .map(|m| {
                     resolve_type_expression_type(
@@ -657,11 +661,12 @@ mod tests {
 
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
+    use crate::ast::data::expression::{List, Map, VariableKind};
+    use crate::ast::data::spanned::Spanned;
     use crate::ast::parse;
     use crate::ast::parse_result::{
         DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
     };
-    use crate::ast::tree::{List, Map, VariableKind};
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
     use crate::compiler::precompiler::{
         PrecompilerScopeStack, RichAst, precompile_ast_simple_error,
