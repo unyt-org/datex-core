@@ -1,10 +1,9 @@
-use crate::ast::data::expression::{ApplyChain, List};
+use crate::ast::data::expression::{ApplyChain, List, Map};
 use crate::ast::data::spanned::Spanned;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
-use crate::values::core_values::map::Map;
 use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,7 +70,7 @@ pub fn keyed_parameters<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .padded_by(whitespace())
         .map_with(|vec, e| {
-            DatexExpressionData::Map(Map::new(vec)).with_span(e.span())
+            DatexExpressionData::Map(Map { entries: vec }).with_span(e.span())
         })
 }
 

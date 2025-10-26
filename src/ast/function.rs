@@ -10,7 +10,6 @@ fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
         .ignore_then(r#type().padded_by(whitespace()))
-        .map_with(|ty, e| ty.with_span(e.span()))
         .or_not()
 }
 
@@ -29,7 +28,7 @@ fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
                 .padded_by(whitespace())
                 .ignore_then(r#type().padded_by(whitespace())),
         )
-        .map(|(name, ty)| (name, ty.with_span(ty.span())))
+        .map(|(name, ty)| (name, ty))
 }
 
 fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpression)>>

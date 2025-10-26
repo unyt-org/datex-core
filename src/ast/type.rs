@@ -2,7 +2,10 @@ use std::{str::FromStr, vec};
 
 use crate::ast::data::expression::DatexExpressionData;
 use crate::ast::data::spanned::Spanned;
-use crate::ast::data::r#type::TypeExpressionData;
+use crate::ast::data::r#type::{
+    FixedSizeList, StructuralList, StructuralMap, TypeExpression,
+    TypeExpressionData, Union,
+};
 use crate::{
     ast::{
         DatexParserTrait,
@@ -90,7 +93,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
 	})
 }
 
-pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
+pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty
             .clone()
@@ -155,8 +158,9 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
                 just(Token::LeftBracket).padded_by(whitespace()),
                 just(Token::RightBracket).padded_by(whitespace()),
             )
-            .map(|elems: Vec<TypeExpressionData>| {
-                TypeExpressionData::StructuralList(elems)
+            .map(|elems: Vec<TypeExpression>| {
+                TypeExpressionData::StructuralList(StructuralList(elems))
+                    .with_default_span() // FIXME span handling
             });
 
         let list_fixed_inline = ty
@@ -171,7 +175,11 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
                 if let Some(n) = integer_to_usize(&size)
                     && n > 0
                 {
-                    Ok(TypeExpressionData::FixedSizeList(Box::new(t), n))
+                    Ok(TypeExpressionData::FixedSizeList(FixedSizeList {
+                        r#type: Box::new(t),
+                        size: n,
+                    })
+                    .with_default_span())
                 } else {
                     Err(ParseError::new(ErrorKind::InvalidListSize(format!(
                         "{size:?}"
@@ -206,7 +214,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
         .then(ty.clone())
         .map(|((name, opt), typ)| {
             if opt.is_some() {
-                (name, TypeExpressionData::Union(vec![typ, TypeExpressionData::Null]))
+                (name, TypeExpressionData::Union(Union(vec![typ, TypeExpressionData::Null.with_default_span()])).with_default_span())
             } else {
                 (name, typ)
             }
@@ -220,8 +228,9 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
                 just(Token::LeftCurly).padded_by(whitespace()),
                 just(Token::RightCurly).padded_by(whitespace()),
             )
-            .map(|fields: Vec<(TypeExpressionData, TypeExpressionData)>| {
-                TypeExpressionData::StructuralMap(fields)
+            .map(|fields: Vec<(TypeExpression, TypeExpression)>| {
+                TypeExpressionData::StructuralMap(StructuralMap(fields))
+                    .with_default_span()
             });
 
         let generic = select! { Token::Identifier(name) => name }
