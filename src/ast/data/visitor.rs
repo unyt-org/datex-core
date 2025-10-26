@@ -34,6 +34,8 @@ pub trait Visit: Sized {
     fn visit_type_expression(&mut self, type_expr: &TypeExpression) {
         type_expr.visit_children_with(self);
     }
+
+    /// Visit structural list type expression
     fn visit_structural_list(
         &mut self,
         structural_list: &StructuralList,
@@ -41,6 +43,8 @@ pub trait Visit: Sized {
     ) {
         structural_list.visit_children_with(self);
     }
+
+    /// Visit fixed size list type expression
     fn visit_fixed_size_list(
         &mut self,
         fixed_size_list: &FixedSizeList,
@@ -48,9 +52,13 @@ pub trait Visit: Sized {
     ) {
         fixed_size_list.visit_children_with(self);
     }
+
+    /// Visit slice list type expression
     fn visit_slice_list(&mut self, slice_list: &SliceList, _span: SimpleSpan) {
         slice_list.visit_children_with(self);
     }
+
+    /// Visit intersection type expression
     fn visit_intersection(
         &mut self,
         intersection: &Intersection,
@@ -58,9 +66,13 @@ pub trait Visit: Sized {
     ) {
         intersection.visit_children_with(self);
     }
+
+    /// Visit union type expression
     fn visit_union(&mut self, union: &Union, _span: SimpleSpan) {
         union.visit_children_with(self);
     }
+
+    /// Visit generic access type expression
     fn visit_generic_access(
         &mut self,
         generic_access: &GenericAccess,
@@ -68,6 +80,8 @@ pub trait Visit: Sized {
     ) {
         generic_access.visit_children_with(self);
     }
+
+    /// Visit function type expression
     fn visit_function_type(
         &mut self,
         function_type: &FunctionType,
@@ -75,6 +89,8 @@ pub trait Visit: Sized {
     ) {
         function_type.visit_children_with(self);
     }
+
+    /// Visit structural map type expression
     fn visit_structural_map(
         &mut self,
         structural_map: &StructuralMap,
@@ -82,9 +98,13 @@ pub trait Visit: Sized {
     ) {
         structural_map.visit_children_with(self);
     }
+
+    /// Visit type reference expression
     fn visit_type_ref(&mut self, type_ref: &TypeExpression, _span: SimpleSpan) {
         type_ref.visit_children_with(self);
     }
+
+    /// Visit mutable type reference expression
     fn visit_type_ref_mut(
         &mut self,
         type_ref_mut: &TypeExpression,
@@ -94,12 +114,18 @@ pub trait Visit: Sized {
     }
 
     // Expressions
+
+    /// Visit datex expression
     fn visit_expression(&mut self, expr: &DatexExpression) {
         expr.visit_children_with(self);
     }
+
+    /// Visit statements
     fn visit_statements(&mut self, stmts: &Statements, _span: SimpleSpan) {
         stmts.visit_children_with(self);
     }
+
+    /// Visit unary operation
     fn visit_unary_operation(
         &mut self,
         op: &UnaryOperation,
@@ -107,9 +133,13 @@ pub trait Visit: Sized {
     ) {
         op.visit_children_with(self);
     }
+
+    /// Visit conditional expression
     fn visit_conditional(&mut self, cond: &Conditional, _span: SimpleSpan) {
         cond.visit_children_with(self);
     }
+
+    /// Visit type declaration
     fn visit_type_declaration(
         &mut self,
         type_decl: &TypeDeclaration,
@@ -117,6 +147,8 @@ pub trait Visit: Sized {
     ) {
         type_decl.visit_children_with(self);
     }
+
+    /// Visit binary operation
     fn visit_binary_operation(
         &mut self,
         op: &BinaryOperation,
@@ -124,6 +156,8 @@ pub trait Visit: Sized {
     ) {
         op.visit_children_with(self);
     }
+
+    /// Visit comparison operation
     fn visit_comparison_operation(
         &mut self,
         op: &ComparisonOperation,
@@ -131,6 +165,8 @@ pub trait Visit: Sized {
     ) {
         op.visit_children_with(self);
     }
+
+    /// Visit dereference assignment
     fn visit_deref_assignment(
         &mut self,
         deref_assign: &DerefAssignment,
@@ -138,6 +174,8 @@ pub trait Visit: Sized {
     ) {
         deref_assign.visit_children_with(self);
     }
+
+    /// Visit apply chain
     fn visit_apply_chain(
         &mut self,
         apply_chain: &ApplyChain,
@@ -145,6 +183,8 @@ pub trait Visit: Sized {
     ) {
         apply_chain.visit_children_with(self);
     }
+
+    /// Visit remote execution
     fn visit_remote_execution(
         &mut self,
         remote_execution: &RemoteExecution,
@@ -152,6 +192,8 @@ pub trait Visit: Sized {
     ) {
         remote_execution.visit_children_with(self);
     }
+
+    /// Visit function declaration
     fn visit_function_declaration(
         &mut self,
         func_decl: &FunctionDeclaration,
@@ -159,6 +201,8 @@ pub trait Visit: Sized {
     ) {
         func_decl.visit_children_with(self);
     }
+
+    /// Visit slot assignment
     fn visit_slot_assignment(
         &mut self,
         slot_assign: &SlotAssignment,
@@ -166,6 +210,8 @@ pub trait Visit: Sized {
     ) {
         slot_assign.visit_children_with(self);
     }
+
+    /// Visit variable declaration
     fn visit_variable_declaration(
         &mut self,
         var_decl: &VariableDeclaration,
@@ -173,6 +219,8 @@ pub trait Visit: Sized {
     ) {
         var_decl.visit_children_with(self);
     }
+
+    /// Visit variable assignment
     fn visit_variable_assignment(
         &mut self,
         var_assign: &VariableAssignment,
@@ -180,12 +228,16 @@ pub trait Visit: Sized {
     ) {
         var_assign.visit_children_with(self);
     }
+
+    /// Visit variable access
     fn visit_variable_access(
         &mut self,
         _var_access: &VariableAccess,
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit create reference expression
     fn visit_create_ref(
         &mut self,
         datex_expression: &DatexExpression,
@@ -193,6 +245,8 @@ pub trait Visit: Sized {
     ) {
         datex_expression.visit_children_with(self);
     }
+
+    /// Visit create mutable reference expression
     fn visit_create_mut(
         &mut self,
         datex_expression: &DatexExpression,
@@ -200,6 +254,8 @@ pub trait Visit: Sized {
     ) {
         datex_expression.visit_children_with(self);
     }
+
+    /// Visit dereference expression
     fn visit_deref(
         &mut self,
         datex_expression: &DatexExpression,
@@ -207,41 +263,67 @@ pub trait Visit: Sized {
     ) {
         datex_expression.visit_children_with(self);
     }
+
+    /// Visit list expression
     fn visit_list(&mut self, list: &List, _span: SimpleSpan) {
         list.visit_children_with(self);
     }
+
+    /// Visit map expression
     fn visit_map(&mut self, map: &Map, _span: SimpleSpan) {
         map.visit_children_with(self);
     }
+
+    /// Visit integer literal
     fn visit_integer(&mut self, _value: &Integer, _span: SimpleSpan) {}
+
+    /// Visit typed integer literal
     fn visit_typed_integer(
         &mut self,
         _value: &TypedInteger,
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit decimal literal
     fn visit_decimal(&mut self, _value: &Decimal, _span: SimpleSpan) {}
+
+    /// Visit typed decimal literal
     fn visit_typed_decimal(
         &mut self,
         _value: &TypedDecimal,
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit text literal
     fn visit_text(&mut self, _value: &String, _span: SimpleSpan) {}
+
+    /// Visit get reference expression
     fn visit_get_reference(
         &mut self,
         _pointer_address: &PointerAddress,
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit boolean literal
     fn visit_boolean(&mut self, _value: bool, _span: SimpleSpan) {}
+
+    /// Visit endpoint expression
     fn visit_endpoint(&mut self, _value: &Endpoint, _span: SimpleSpan) {}
+
+    /// Visit null literal
     fn visit_null(&mut self, _span: SimpleSpan) {}
+
+    /// Visit pointer address expression
     fn visit_pointer_address(
         &mut self,
         _pointer_address: &PointerAddress,
         _span: SimpleSpan,
     ) {
     }
+
+    /// Visit slot expression
     fn visit_slot(&mut self, _slot: &Slot, _span: SimpleSpan) {}
 }
