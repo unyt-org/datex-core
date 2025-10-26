@@ -1,26 +1,14 @@
 use chumsky::span::SimpleSpan;
 
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::binding::VariableId;
-use crate::ast::chain::ApplyOperation;
-use crate::ast::comparison_operation::ComparisonOperator;
 use crate::ast::data::expression::VariableAccess;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::visitable::{Visit, Visitable};
-use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
-use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
-use std::fmt::Display;
-use std::ops::Neg;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpressionData {

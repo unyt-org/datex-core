@@ -1,6 +1,6 @@
 use crate::ast::data::expression::FunctionDeclaration;
 use crate::ast::data::spanned::Spanned;
-use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::data::r#type::TypeExpression;
 use crate::ast::lexer::Token;
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;

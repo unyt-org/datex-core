@@ -15,7 +15,7 @@ use crate::{
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,
 };
-use chumsky::{prelude::todo, span::SimpleSpan};
+use chumsky::span::SimpleSpan;
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;
 mod formatting;
