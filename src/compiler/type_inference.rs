@@ -488,7 +488,7 @@ fn resolve_type_expression_type(
     // First, try to directly match the type expression to a structural type definition.
     // This covers literals and composite types like maps and lists.
     // If that fails, handle more complex type expressions like variables, unions, and intersections.
-    if let Some(res) = match &ast.data {
+    if let Some(res) = match &mut ast.data {
         TypeExpressionData::Integer(value) => {
             Some(StructuralTypeDefinition::Integer(value.clone()))
         }
@@ -549,7 +549,7 @@ fn resolve_type_expression_type(
     }
 
     // handle more complex type expressions
-    Ok(match &ast.data {
+    Ok(match &mut ast.data {
         TypeExpressionData::VariableAccess(VariableAccess { id, .. }) => {
             let var_id = *id;
             let metadata = metadata.borrow();
