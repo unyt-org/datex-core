@@ -278,7 +278,7 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpressionData::Generic(_, type_expressions) => todo!("#474 Undescribed by author."),
+            TypeExpressionData::GenericAccess(_, type_expressions) => todo!("#474 Undescribed by author."),
             TypeExpressionData::Function {
                 parameters,
                 return_type,

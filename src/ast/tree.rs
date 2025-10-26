@@ -65,6 +65,95 @@ impl Visitable for SlotAssignment {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct StructuralList(pub Vec<TypeExpression>);
+
+impl Visitable for StructuralList {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for item in &self.0 {
+            visitor.visit_type_expression(item);
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FixedSizeList {
+    pub r#type: Box<TypeExpression>,
+    pub size: usize,
+}
+impl Visitable for FixedSizeList {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_type_expression(&self.r#type);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SliceList(Box<TypeExpression>);
+
+impl Visitable for SliceList {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_type_expression(&self.0);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Intersection(pub Vec<TypeExpression>);
+
+impl Visitable for Intersection {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for item in &self.0 {
+            visitor.visit_type_expression(item);
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Union(pub Vec<TypeExpression>);
+impl Visitable for Union {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for item in &self.0 {
+            visitor.visit_type_expression(item);
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericAccess {
+    pub base: String,
+    pub access: Box<DatexExpression>,
+}
+impl Visitable for GenericAccess {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        visitor.visit_expression(&self.access);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FunctionType {
+    pub parameters: Vec<(String, TypeExpression)>,
+    pub return_type: Box<TypeExpression>,
+}
+impl Visitable for FunctionType {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for (_, param_type) in &self.parameters {
+            visitor.visit_type_expression(param_type);
+        }
+        visitor.visit_type_expression(&self.return_type);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct StructuralMap(pub Vec<(TypeExpression, TypeExpression)>);
+
+impl Visitable for StructuralMap {
+    fn visit_children_with(&self, visitor: &mut impl Visit) {
+        for (key, value) in &self.0 {
+            visitor.visit_type_expression(key);
+            visitor.visit_type_expression(value);
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum TypeExpressionData {
     Null,
     // a type name or variable, e.g. integer, string, User, MyType, T
@@ -84,33 +173,30 @@ pub enum TypeExpressionData {
 
     // [integer, text, endpoint]
     // size known to compile time, arbitrary types
-    StructuralList(Vec<TypeExpressionData>),
+    StructuralList(StructuralList),
 
     // [text; 3], integer[10]
     // fixed size and known to compile time, only one type
-    FixedSizeList(Box<TypeExpressionData>, usize),
+    FixedSizeList(FixedSizeList),
 
     // text[], integer[]
     // size not known to compile time, only one type
-    SliceList(Box<TypeExpressionData>),
+    SliceList(SliceList),
 
     // text & "test"
-    Intersection(Vec<TypeExpressionData>),
+    Intersection(Intersection),
 
     // text | integer
-    Union(Vec<TypeExpressionData>),
+    Union(Union),
 
     // User<text, integer>
-    Generic(String, Vec<TypeExpressionData>),
+    GenericAccess(GenericAccess),
 
     // (x: text) -> text
-    Function {
-        parameters: Vec<(String, TypeExpressionData)>,
-        return_type: Box<TypeExpressionData>,
-    },
+    Function(FunctionType),
 
     // structurally typed map, e.g. { x: integer, y: text }
-    StructuralMap(Vec<(TypeExpressionData, TypeExpressionData)>),
+    StructuralMap(StructuralMap),
 
     // modifiers
     Ref(Box<TypeExpressionData>),
@@ -136,27 +222,40 @@ impl Visitable for TypeExpression {
             TypeExpressionData::VariableAccess(variable_access) => {
                 visitor.visit_variable_access(variable_access, self.span)
             }
-            TypeExpressionData::Integer(integer) => todo!(),
-            TypeExpressionData::TypedInteger(typed_integer) => todo!(),
-            TypeExpressionData::Decimal(decimal) => todo!(),
-            TypeExpressionData::TypedDecimal(typed_decimal) => todo!(),
-            TypeExpressionData::Boolean(_) => todo!(),
-            TypeExpressionData::Text(_) => todo!(),
-            TypeExpressionData::Endpoint(endpoint) => todo!(),
+            TypeExpressionData::Integer(integer) => {
+                visitor.visit_integer(integer, self.span)
+            }
+            TypeExpressionData::TypedInteger(typed_integer) => {
+                visitor.visit_typed_integer(typed_integer, self.span)
+            }
+            TypeExpressionData::Decimal(decimal) => {
+                visitor.visit_decimal(decimal, self.span)
+            }
+            TypeExpressionData::TypedDecimal(typed_decimal) => {
+                visitor.visit_typed_decimal(typed_decimal, self.span)
+            }
+            TypeExpressionData::Boolean(boolean) => {
+                visitor.visit_boolean(*boolean, self.span)
+            }
+            TypeExpressionData::Text(text) => {
+                visitor.visit_text(text, self.span)
+            }
+            TypeExpressionData::Endpoint(endpoint) => {
+                visitor.visit_endpoint(endpoint, self.span)
+            }
             TypeExpressionData::StructuralList(type_expression_datas) => {
                 todo!()
             }
-            TypeExpressionData::FixedSizeList(type_expression_data, _) => {
+            TypeExpressionData::FixedSizeList(fixed_size_list) => {
                 todo!()
             }
             TypeExpressionData::SliceList(type_expression_data) => todo!(),
             TypeExpressionData::Intersection(type_expression_datas) => todo!(),
             TypeExpressionData::Union(type_expression_datas) => todo!(),
-            TypeExpressionData::Generic(_, type_expression_datas) => todo!(),
-            TypeExpressionData::Function {
-                parameters,
-                return_type,
-            } => todo!(),
+            TypeExpressionData::GenericAccess(generic_access) => {
+                todo!()
+            }
+            TypeExpressionData::Function(function) => todo!(),
             TypeExpressionData::StructuralMap(items) => todo!(),
             TypeExpressionData::Ref(type_expression_data) => todo!(),
             TypeExpressionData::RefMut(type_expression_data) => todo!(),

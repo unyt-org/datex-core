@@ -184,7 +184,9 @@ impl<'a> Formatter<'a> {
                 self.wrap_type_collection(items, "|")
             }
 
-            TypeExpressionData::Generic(_, _) => a.text("/* generic TODO */"),
+            TypeExpressionData::GenericAccess(_, _) => {
+                a.text("/* generic TODO */")
+            }
 
             // Function type: `(x: Int, y: Text) -> Bool`
             TypeExpressionData::Function {

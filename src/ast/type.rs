@@ -228,7 +228,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
                     ),
             )
             .map(|(name, args): (String, Vec<TypeExpressionData>)| {
-                TypeExpressionData::Generic(name.to_owned(), args)
+                TypeExpressionData::GenericAccess(name.to_owned(), args)
             });
 
         let func = key_ident
@@ -609,7 +609,7 @@ mod tests {
                 ),
                 (
                     TypeExpressionData::Text("friends".to_string()),
-                    TypeExpressionData::Generic(
+                    TypeExpressionData::GenericAccess(
                         "List".to_owned(),
                         vec![TypeExpressionData::Ref(Box::new(
                             TypeExpressionData::Literal("text".to_owned())
@@ -635,7 +635,7 @@ mod tests {
                 ),
                 (
                     TypeExpressionData::Text("friends".to_string()),
-                    TypeExpressionData::Generic(
+                    TypeExpressionData::GenericAccess(
                         "List".to_owned(),
                         vec![TypeExpressionData::Ref(Box::new(
                             TypeExpressionData::Literal("text".to_owned())
@@ -884,7 +884,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Generic(
+            TypeExpressionData::GenericAccess(
                 "List".to_owned(),
                 vec![TypeExpressionData::Literal("integer".to_owned())],
             )
@@ -894,7 +894,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Generic(
+            TypeExpressionData::GenericAccess(
                 "List".to_owned(),
                 vec![TypeExpressionData::Union(vec![
                     TypeExpressionData::Literal("integer".to_owned()),
@@ -910,7 +910,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Generic(
+            TypeExpressionData::GenericAccess(
                 "Map".to_owned(),
                 vec![
                     TypeExpressionData::Literal("text".to_owned()),
@@ -926,7 +926,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Generic(
+            TypeExpressionData::GenericAccess(
                 "User".to_owned(),
                 vec![
                     TypeExpressionData::Literal("text".to_owned()),
@@ -939,7 +939,7 @@ mod tests {
         let val = parse_type_unwrap(src);
         assert_eq!(
             val,
-            TypeExpressionData::Generic(
+            TypeExpressionData::GenericAccess(
                 "User".to_owned(),
                 vec![TypeExpressionData::Union(vec![
                     TypeExpressionData::Literal("text".to_owned()),
