@@ -4,6 +4,7 @@ pub mod binary_operation;
 pub mod binding;
 pub mod chain;
 pub mod comparison_operation;
+pub mod data;
 pub mod decimal;
 pub mod endpoint;
 pub mod error;
@@ -21,7 +22,6 @@ pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
-
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
 use crate::ast::binding::*;
@@ -338,7 +338,7 @@ mod tests {
             error::{error::ErrorKind, pattern::Pattern, src::SrcId},
             tree::{
                 ApplyChain, BinaryOperation, ComparisonOperation,
-                FunctionDeclaration, TypeDeclaration,
+                FunctionDeclaration, TypeDeclaration, Union,
             },
             unary_operation::{
                 ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
@@ -858,10 +858,12 @@ mod tests {
                     "x".to_string(),
                     TypeExpressionData::Literal("integer".to_owned())
                 ),],
-                return_type: Some(TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned()),
+                return_type: Some(TypeExpressionData::Union(Union(vec![
+                    TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span(),
                     TypeExpressionData::Literal("text".to_owned())
-                ])),
+                        .with_default_span()
+                ]))),
                 body: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
                         .with_default_span()
