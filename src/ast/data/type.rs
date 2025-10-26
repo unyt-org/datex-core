@@ -182,7 +182,7 @@ impl Visitable for FixedSizeList {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SliceList(Box<TypeExpression>);
+pub struct SliceList(pub Box<TypeExpression>);
 
 impl Visitable for SliceList {
     fn visit_children_with(&self, visitor: &mut impl Visit) {

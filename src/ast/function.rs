@@ -1,5 +1,6 @@
+use crate::ast::data::expression::FunctionDeclaration;
+use crate::ast::data::r#type::TypeExpressionData;
 use crate::ast::lexer::Token;
-use crate::ast::tree::{FunctionDeclaration, TypeExpressionData};
 use crate::ast::r#type::r#type;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
@@ -31,8 +32,8 @@ fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpressionData)> {
         .map(|(name, ty)| (name, ty))
 }
 
-fn parameters<'a>() -> impl DatexParserTrait<'a, Vec<(String, TypeExpressionData)>>
-{
+fn parameters<'a>()
+-> impl DatexParserTrait<'a, Vec<(String, TypeExpressionData)>> {
     parameter()
         .padded_by(whitespace())
         .separated_by(just(Token::Comma).padded_by(whitespace()))

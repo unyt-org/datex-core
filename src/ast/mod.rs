@@ -27,22 +27,25 @@ use crate::ast::binary_operation::*;
 use crate::ast::binding::*;
 use crate::ast::chain::*;
 use crate::ast::comparison_operation::*;
+use crate::ast::data::expression::Conditional;
+use crate::ast::data::expression::RemoteExecution;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::function::*;
 use crate::ast::key::*;
 use crate::ast::list::*;
 use crate::ast::map::*;
-use crate::ast::tree::Conditional;
-use crate::ast::tree::RemoteExecution;
 use crate::ast::r#type::type_expression;
 use crate::ast::unary::*;
 use crate::ast::utils::*;
 
+use crate::ast::data::expression::{
+    DatexExpression, DatexExpressionData, Statements,
+};
 use crate::ast::parse_result::{
     DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
 };
-use crate::ast::tree::{DatexExpression, DatexExpressionData, Statements};
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use lexer::Token;
@@ -335,11 +338,18 @@ mod tests {
     use crate::{
         ast::{
             assignment_operation::AssignmentOperator,
-            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            tree::{
-                ApplyChain, BinaryOperation, ComparisonOperation,
-                FunctionDeclaration, TypeDeclaration, Union,
+            data::{
+                expression::{
+                    ApplyChain, BinaryOperation, ComparisonOperation,
+                    FunctionDeclaration, TypeDeclaration,
+                },
+                spanned::Spanned,
+                r#type::{
+                    Intersection, SliceList, StructuralMap, TypeExpression,
+                    TypeExpressionData, Union,
+                },
             },
+            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
             unary_operation::{
                 ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
             },
@@ -356,11 +366,11 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::tree::{
-        DatexExpressionData, List, Map, Slot, TypeExpressionData,
-        UnaryOperation, VariableDeclaration, VariableKind,
+    use crate::ast::data::expression::{
+        DatexExpressionData, List, Map, Slot, UnaryOperation,
+        VariableDeclaration, VariableKind,
     };
-    use datex_core::ast::tree::VariableAssignment;
+    use datex_core::ast::data::expression::VariableAssignment;
     use std::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
@@ -504,7 +514,10 @@ mod tests {
         let expr = result.unwrap().data;
         assert_matches!(
             expr,
-            DatexExpressionData::Type(TypeExpressionData::Union(_))
+            DatexExpressionData::Type(TypeExpression {
+                data: TypeExpressionData::Union(_),
+                ..
+            })
         );
 
         let src = "var a = type(1,2,3)";
@@ -518,9 +531,10 @@ mod tests {
             assert_matches!(
                 *value,
                 DatexExpression {
-                    data: DatexExpressionData::Type(
-                        TypeExpressionData::StructuralList(_)
-                    ),
+                    data: DatexExpressionData::Type(TypeExpression {
+                        data: TypeExpressionData::StructuralList(_),
+                        ..
+                    }),
                     ..
                 }
             );
@@ -780,6 +794,7 @@ mod tests {
                 parameters: vec![(
                     "x".to_string(),
                     TypeExpressionData::Literal("integer".to_owned())
+                        .with_default_span()
                 )],
                 return_type: None,
                 body: Box::new(
@@ -803,10 +818,12 @@ mod tests {
                     (
                         "x".to_string(),
                         TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span()
                     ),
                     (
                         "y".to_string(),
                         TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span()
                     )
                 ],
                 return_type: None,
@@ -857,13 +874,17 @@ mod tests {
                 parameters: vec![(
                     "x".to_string(),
                     TypeExpressionData::Literal("integer".to_owned())
-                ),],
-                return_type: Some(TypeExpressionData::Union(Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned())
-                        .with_default_span(),
-                    TypeExpressionData::Literal("text".to_owned())
                         .with_default_span()
-                ]))),
+                ),],
+                return_type: Some(
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span(),
+                        TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span()
+                    ]))
+                    .with_default_span()
+                ),
                 body: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
                         .with_default_span()
@@ -882,7 +903,8 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
-                    TypeExpressionData::Integer(Integer::from(5)).into()
+                    TypeExpressionData::Integer(Integer::from(5))
+                        .with_default_span()
                 ),
                 name: "x".to_string(),
                 init_expression: Box::new(
@@ -899,9 +921,10 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Literal(
-                    "integer/u8".to_owned()
-                )),
+                type_annotation: Some(
+                    TypeExpressionData::Literal("integer/u8".to_owned())
+                        .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1506,9 +1529,10 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Literal(
-                    "integer".to_string()
-                )),
+                type_annotation: Some(
+                    TypeExpressionData::Literal("integer".to_string())
+                        .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1524,9 +1548,10 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Literal(
-                    "User".to_string()
-                )),
+                type_annotation: Some(
+                    TypeExpressionData::Literal("User".to_string())
+                        .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1542,9 +1567,10 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Literal(
-                    "integer/u8".to_owned()
-                )),
+                type_annotation: Some(
+                    TypeExpressionData::Literal("integer/u8".to_owned())
+                        .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1563,10 +1589,15 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Union(vec![
-                    TypeExpressionData::Literal("integer/u8".to_owned()),
-                    TypeExpressionData::Literal("text".to_owned())
-                ])),
+                type_annotation: Some(
+                    TypeExpressionData::Union(Union(vec![
+                        TypeExpressionData::Literal("integer/u8".to_owned())
+                            .with_default_span(),
+                        TypeExpressionData::Literal("text".to_owned())
+                            .with_default_span()
+                    ]))
+                    .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1585,10 +1616,15 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::Intersection(vec![
-                    TypeExpressionData::Integer(Integer::from(5)),
-                    TypeExpressionData::Integer(Integer::from(6))
-                ])),
+                type_annotation: Some(
+                    TypeExpressionData::Intersection(Intersection(vec![
+                        TypeExpressionData::Integer(Integer::from(5))
+                            .with_default_span(),
+                        TypeExpressionData::Integer(Integer::from(6))
+                            .with_default_span()
+                    ]))
+                    .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -1607,9 +1643,13 @@ mod tests {
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: None,
                 kind: VariableKind::Var,
-                type_annotation: Some(TypeExpressionData::SliceList(Box::new(
-                    TypeExpressionData::Literal("integer".to_owned())
-                ))),
+                type_annotation: Some(
+                    TypeExpressionData::SliceList(SliceList(Box::new(
+                        TypeExpressionData::Literal("integer".to_owned())
+                            .with_default_span()
+                    )))
+                    .with_default_span()
+                ),
                 name: "x".to_string(),
                 init_expression: Box::new(
                     DatexExpressionData::Integer(Integer::from(42))
@@ -3070,16 +3110,23 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: None,
                     name: "User".to_string(),
-                    value: TypeExpressionData::StructuralMap(vec![
-                        (
-                            TypeExpressionData::Text("age".to_string()),
-                            TypeExpressionData::Integer(Integer::from(42))
-                        ),
-                        (
-                            TypeExpressionData::Text("name".to_string()),
-                            TypeExpressionData::Text("John".to_string())
-                        ),
-                    ]),
+                    value: TypeExpressionData::StructuralMap(StructuralMap(
+                        vec![
+                            (
+                                TypeExpressionData::Text("age".to_string())
+                                    .with_default_span(),
+                                TypeExpressionData::Integer(Integer::from(42))
+                                    .with_default_span()
+                            ),
+                            (
+                                TypeExpressionData::Text("name".to_string())
+                                    .with_default_span(),
+                                TypeExpressionData::Text("John".to_string())
+                                    .with_default_span()
+                            ),
+                        ]
+                    ))
+                    .with_default_span(),
                     hoisted: false,
                 })
                 .with_default_span()

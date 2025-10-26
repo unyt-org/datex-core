@@ -1,9 +1,9 @@
+use crate::ast::data::expression::List;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
-use crate::ast::tree::List;
 
 pub fn list<'a>(
     expression: impl DatexParserTrait<'a>,

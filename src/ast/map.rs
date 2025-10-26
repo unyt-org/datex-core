@@ -3,8 +3,8 @@ use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 
+use crate::ast::data::expression::Map;
 use chumsky::prelude::*;
-use crate::ast::tree::Map;
 
 pub fn map<'a>(
     key: impl DatexParserTrait<'a>,

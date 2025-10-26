@@ -1,5 +1,5 @@
+use crate::ast::data::expression::Slot;
 use crate::ast::lexer::Token;
-use crate::ast::tree::Slot;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use crate::values::pointer::PointerAddress;
 use chumsky::prelude::*;
