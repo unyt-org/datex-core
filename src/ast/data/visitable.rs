@@ -1,5 +1,24 @@
-use crate::ast::tree::{DatexExpression, TypeExpression};
+use chumsky::span::SimpleSpan;
 
+use crate::{
+    ast::data::{
+        expression::{
+            ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+            DatexExpression, DerefAssignment, FunctionDeclaration, List, Map,
+            RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration,
+            UnaryOperation, VariableAccess, VariableAssignment,
+            VariableDeclaration,
+        },
+        r#type::TypeExpression,
+    },
+    values::core_values::{
+        decimal::{Decimal, typed_decimal::TypedDecimal},
+        endpoint::Endpoint,
+        integer::{Integer, typed_integer::TypedInteger},
+    },
+};
+
+use crate::values::pointer::PointerAddress;
 pub trait Visitable {
     fn visit_children_with(&self, visitor: &mut impl Visit);
 }

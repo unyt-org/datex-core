@@ -5,8 +5,9 @@ use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::binding::VariableId;
 use crate::ast::chain::ApplyOperation;
 use crate::ast::comparison_operation::ComparisonOperator;
+use crate::ast::data::expression::VariableAccess;
+use crate::ast::data::spanned::Spanned;
 use crate::ast::data::visitable::{Visit, Visitable};
-use crate::ast::tree::{DatexExpression, VariableAccess};
 use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
@@ -70,6 +71,26 @@ pub enum TypeExpressionData {
     Ref(Box<TypeExpressionData>),
     RefMut(Box<TypeExpressionData>),
     RefFinal(Box<TypeExpressionData>),
+}
+
+impl Spanned for TypeExpressionData {
+    type Output = TypeExpression;
+
+    fn with_span(self, span: SimpleSpan) -> Self::Output {
+        TypeExpression {
+            data: self,
+            span,
+            wrapped: None,
+        }
+    }
+
+    fn with_default_span(self) -> Self::Output {
+        TypeExpression {
+            data: self,
+            span: SimpleSpan::from(0..0),
+            wrapped: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -1,10 +1,10 @@
+use crate::ast::data::expression::{ApplyChain, List};
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
-use crate::ast::tree::{ApplyChain, Map};
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
+use crate::values::core_values::map::Map;
 use chumsky::prelude::*;
-use datex_core::ast::tree::List;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {

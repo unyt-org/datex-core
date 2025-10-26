@@ -1,26 +1,27 @@
 use crate::ast::assignment_operation::{
     AssignmentOperator, assignment_operation,
 };
+use crate::ast::data::expression::VariableDeclaration;
+use crate::ast::data::expression::{
+    DerefAssignment, VariableAssignment, VariableKind,
+};
+use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
-use crate::ast::tree::{
-    DerefAssignment, TypeExpressionData, VariableAssignment, VariableKind,
-};
 use crate::ast::r#type::{r#type, type_declaration};
 use crate::ast::utils::whitespace;
 use crate::ast::{
     DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,
 };
 use chumsky::prelude::*;
-use datex_core::ast::tree::VariableDeclaration;
 
 pub type VariableId = usize;
 
 fn create_variable_declaration(
     name: String,
     value: DatexExpression,
-    type_annotation: Option<TypeExpressionData>,
+    type_annotation: Option<TypeExpression>,
     kind: VariableKind,
 ) -> DatexExpressionData {
     DatexExpressionData::VariableDeclaration(VariableDeclaration {

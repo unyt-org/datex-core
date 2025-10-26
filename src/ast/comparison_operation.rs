@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use crate::ast::DatexParserTrait;
+use crate::ast::data::expression::ComparisonOperation;
 use crate::ast::lexer::Token;
-use crate::ast::tree::ComparisonOperation;
 use crate::ast::utils::operation;
 use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::instruction_codes::InstructionCode;
