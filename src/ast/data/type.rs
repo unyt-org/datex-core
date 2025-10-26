@@ -11,6 +11,7 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 
 #[derive(Clone, Debug, PartialEq)]
+/// The different kinds of type expressions in the AST
 pub enum TypeExpressionData {
     Null,
     // a type name or variable, e.g. integer, string, User, MyType, T
@@ -82,6 +83,7 @@ impl Spanned for TypeExpressionData {
 }
 
 #[derive(Clone, Debug)]
+/// A type expression in the AST
 pub struct TypeExpression {
     pub data: TypeExpressionData,
     pub span: SimpleSpan,

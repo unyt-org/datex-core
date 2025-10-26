@@ -23,6 +23,7 @@ use std::fmt::Display;
 use std::ops::Neg;
 
 #[derive(Clone, Debug)]
+/// An expression in the AST
 pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: SimpleSpan,
@@ -140,6 +141,7 @@ impl PartialEq for DatexExpression {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// The different kinds of type expressions in the AST
 pub enum DatexExpressionData {
     /// This is a marker for recovery from parse errors.
     /// We should never use this manually.
@@ -491,7 +493,6 @@ pub struct VariableDeclaration {
     pub init_expression: Box<DatexExpression>,
 }
 
-// TODO: visitor for type expressions
 impl Visitable for VariableDeclaration {
     fn visit_children_with(&self, visitor: &mut impl Visit) {
         visitor.visit_expression(&self.init_expression);
