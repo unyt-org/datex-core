@@ -5,11 +5,12 @@ use log::info;
 
 use crate::{
     ast::{
+        binary_operation::{ArithmeticOperator, BinaryOperator},
         data::{
             expression::{
-                DatexExpression, DatexExpressionData, Statements,
-                TypeDeclaration, VariableAccess, VariableAssignment,
-                VariableDeclaration, VariableKind,
+                BinaryOperation, DatexExpression, DatexExpressionData,
+                Statements, TypeDeclaration, VariableAccess,
+                VariableAssignment, VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
             r#type::TypeExpression,
@@ -19,13 +20,16 @@ use crate::{
     },
     compiler::{
         error::{
-            CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
+            CompilerError, DetailedCompilerErrors,
+            DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
             SpannedCompilerError, collect_or_pass_error,
         },
         precompiler::{
-            AstMetadata, PrecompilerOptions, PrecompilerScopeStack,
+            AstMetadata, PrecompilerOptions, PrecompilerScopeStack, RichAst,
             VariableShape,
         },
+        type_inference::infer_expression_type_detailed_errors,
     },
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
@@ -39,7 +43,7 @@ use crate::{
 pub struct Precompiler {
     options: PrecompilerOptions,
     spans: Vec<Range<usize>>,
-    metadata: AstMetadata,
+    metadata: Option<AstMetadata>,
     scope_stack: PrecompilerScopeStack,
     errors: Option<DetailedCompilerErrors>,
 }
@@ -55,13 +59,30 @@ impl Precompiler {
         Self {
             options,
             spans: Vec::new(),
-            metadata: AstMetadata::default(),
+            metadata: None,
             scope_stack: PrecompilerScopeStack::default(),
             errors: None,
         }
     }
-    pub fn precompile(&mut self, ast: &mut ValidDatexParseResult) {
-        self.metadata = AstMetadata::default();
+
+    fn metadata(&self) -> &AstMetadata {
+        self.metadata
+            .as_ref()
+            .expect("Metadata must be initialized")
+    }
+    fn metadata_mut(&mut self) -> &mut AstMetadata {
+        self.metadata
+            .as_mut()
+            .expect("Metadata must be initialized")
+    }
+
+    /// Precompile the AST by resolving variable references and collecting metadata.
+    pub fn precompile(
+        &mut self,
+        ast: &mut ValidDatexParseResult,
+    ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
+    {
+        self.metadata = Some(AstMetadata::default());
         self.scope_stack = PrecompilerScopeStack::default();
         self.spans = ast.spans.clone();
 
@@ -72,8 +93,48 @@ impl Precompiler {
         };
 
         self.visit_expression(&mut ast.ast);
+
+        let mut rich_ast = RichAst {
+            metadata: Rc::new(RefCell::new(self.metadata.take().unwrap())),
+            ast: Some(ast.ast.clone()), // FIXME store as ref and avoid clone
+        };
+
+        // type inference - currently only if detailed errors are enabled
+        // FIXME: always do type inference here, not only for detailed errors
+        if self.options.detailed_errors {
+            let type_res = infer_expression_type_detailed_errors(
+                rich_ast.ast.as_mut().unwrap(),
+                rich_ast.metadata.clone(),
+            );
+
+            // append type errors to collected_errors if any
+            if let Some(collected_errors) = self.errors.as_mut()
+                && let Err(type_errors) = type_res
+            {
+                collected_errors.append(type_errors.into());
+            }
+        }
+
+        // if collecting detailed errors and an error occurred, return
+        if let Some(errors) = self.errors.take()
+            && errors.has_errors()
+        {
+            Err(
+                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+                    DetailedCompilerErrorsWithRichAst {
+                        errors,
+                        ast: rich_ast,
+                    },
+                ),
+            )
+        } else {
+            Ok(rich_ast)
+        }
     }
 
+    /// Get the full span from start and end token indices
+    /// Returns None if the span is the default (0..0)
+    /// Used to convert token indices to actual spans in the source code
     fn span(&self, span: SimpleSpan) -> Option<SimpleSpan> {
         // skip if both zero (default span used for testing)
         // TODO: improve this
@@ -87,12 +148,14 @@ impl Precompiler {
         }
     }
 
+    /// Adds a new variable to the current scope and metadata
+    /// Returns the new variable ID
     fn add_new_variable(&mut self, name: String, kind: VariableShape) -> usize {
-        let new_id = self.metadata.variables.len();
+        let new_id = self.metadata_mut().variables.len();
         let var_metadata =
             self.scope_stack
                 .add_new_variable(name.clone(), new_id, kind);
-        self.metadata.variables.push(var_metadata);
+        self.metadata_mut().variables.push(var_metadata);
         new_id
     }
 
@@ -104,19 +167,19 @@ impl Precompiler {
         name: &str,
     ) -> Result<ResolvedVariable, CompilerError> {
         // If variable exist
-        if let Ok(id) = self
-            .scope_stack
-            .get_variable_and_update_metadata(name, &mut self.metadata)
-        {
+        if let Ok(id) = self.scope_stack.get_variable_and_update_metadata(
+            name,
+            &mut self.metadata.as_mut().unwrap(),
+        ) {
             info!("Visiting variable: {name}");
             Ok(ResolvedVariable::VariableId(id))
         }
         // try to resolve core variable
-        else if let Some(core) = self.metadata
+        else if let Some(core) = self.metadata()
         .runtime
         .memory()
         .borrow()
-        .get_reference(&CoreLibPointerId::Core.into()) // FIXME #444: don't use core struct here, but better access with one of our mappings already present
+        .get_reference(&CoreLibPointerId::Core.into()) // FIXME don't use core struct here, but better access with one of our mappings already present
         && let Some(core_variable) = core
             .collapse_to_value()
             .borrow()
@@ -143,12 +206,141 @@ impl Precompiler {
         }
     }
 }
+
 impl Visit for Precompiler {
     fn visit_expression(&mut self, expression: &mut DatexExpression) {
         if let Some(span) = self.span(expression.span) {
             expression.span = span;
         }
+        /* FIXME
+               if let DatexExpressionData::BinaryOperation(BinaryOperation {
+                   left,
+                   right,
+                   operator,
+                   ..
+               }) = &mut expression.data
+               {
+                   if matches!(operator, BinaryOperator::VariantAccess) {
+                       let lit_left =
+                           if let DatexExpressionData::Identifier(name) = &left.data {
+                               name.clone()
+                           } else {
+                               unreachable!(
+                                   "Left side of variant access must be a literal"
+                               );
+                           };
 
+                       let lit_right = if let DatexExpressionData::Identifier(name) =
+                           &right.data
+                       {
+                           name.clone()
+                       } else {
+                           unreachable!(
+                               "Right side of variant access must be a literal"
+                           );
+                       };
+                       let full_name = format!("{lit_left}/{lit_right}");
+                       // if get_variable_kind(lhs) == Value
+                       // 1. user value lhs, whatever rhs -> division
+
+                       // if get_variable_kind(lhs) == Type
+                       // 2. lhs is a user defined type, so
+                       // lhs/rhs should be also, otherwise
+                       // this throws VariantNotFound
+
+                       // if resolve_variable(lhs)
+                       // this must be a core type
+                       // if resolve_variable(lhs/rhs) has
+                       // and error, this throws VariantNotFound
+
+                       // Check if the left literal is a variable (value or type, but no core type)
+                       if self.scope_stack.has_variable(lit_left.as_str()) {
+                           match self
+                               .scope_stack
+                               .variable_kind(lit_left.as_str(), &self.metadata)
+                               .unwrap()
+                           {
+                               VariableShape::Type => {
+                                   // user defined type, continue to variant access
+                                   let resolved_variable = self
+                                       .resolve_variable(&full_name)
+                                       .map_err(|_| {
+                                           CompilerError::SubvariantNotFound(
+                                               lit_left.to_string(),
+                                               lit_right.to_string(),
+                                           )
+                                       })
+                                       .unwrap(); // FIXME: handle error properly
+                                   *expression = match resolved_variable {
+                                       ResolvedVariable::VariableId(id) => {
+                                           DatexExpressionData::VariableAccess(
+                                               VariableAccess {
+                                                   id,
+                                                   name: full_name.to_string(),
+                                               },
+                                           )
+                                           .with_span(expression.span)
+                                       }
+                                       _ => unreachable!(
+                                           "Variant access must resolve to a core library type"
+                                       ),
+                                   };
+                               }
+                               VariableShape::Value(_) => {
+                                   // user defined value, this is a division
+
+                                   *expression = DatexExpressionData::BinaryOperation(
+                                       BinaryOperation {
+                                           operator: BinaryOperator::Arithmetic(
+                                               ArithmeticOperator::Divide,
+                                           ),
+                                           left: left.to_owned(),
+                                           right: right.to_owned(),
+                                           r#type: None,
+                                       },
+                                   )
+                                   .with_span(expression.span);
+                               }
+                           }
+                           return Ok(());
+                       }
+                       // can be either a core type or a undeclared variable
+
+                       // check if left part is a core value / type
+                       // otherwise throw the error
+                       self.resolve_variable(lit_left.as_str())?;
+
+                       let resolved_variable = self
+                           .resolve_variable(
+                               format!("{lit_left}/{lit_right}").as_str(),
+                           )
+                           .map_err(|error| {
+                               SpannedCompilerError::new_with_simple_span(
+                                   CompilerError::SubvariantNotFound(
+                                       lit_left, lit_right,
+                                   ),
+                                   expression.span,
+                               )
+                           });
+                       let action =
+                           collect_or_pass_error(collected_errors, resolved_variable)?;
+                       if let MaybeAction::Do(resolved_variable) = action {
+                           *expression = match resolved_variable {
+                               ResolvedVariable::PointerAddress(pointer_address) => {
+                                   DatexExpressionData::GetReference(pointer_address)
+                                       .with_span(expression.span)
+                               }
+                               // FIXME #442 is variable User/whatever allowed here, or
+                               // will this always be a reference to the type?
+                               _ => unreachable!(
+                                   "Variant access must resolve to a core library type"
+                               ),
+                           };
+                           return Ok(());
+                       }
+                   }
+               }
+        */
         if let DatexExpressionData::Identifier(name) = &expression.data {
             let result = self.resolve_variable(name).map_err(|error| {
                 SpannedCompilerError::new_with_simple_span(
@@ -175,14 +367,13 @@ impl Visit for Precompiler {
             }
         }
 
-        println!("Visiting expression: {:?}", expression);
         expression.visit_children_with(self);
     }
+
     fn visit_type_expression(&mut self, type_expr: &mut TypeExpression) {
         if let Some(span) = self.span(type_expr.span) {
             type_expr.span = span;
         }
-        println!("Visiting type expression: {:?}", type_expr);
         type_expr.visit_children_with(self);
     }
 
@@ -208,7 +399,7 @@ impl Visit for Precompiler {
                 .scope_stack
                 .get_variable_and_update_metadata(
                     &type_decl.name.clone(),
-                    &mut self.metadata,
+                    self.metadata.as_mut().unwrap(),
                 )
                 .ok();
             type_decl.id = id;
@@ -231,12 +422,12 @@ impl Visit for Precompiler {
             .scope_stack
             .get_variable_and_update_metadata(
                 &var_assign.name,
-                &mut self.metadata,
+                self.metadata.as_mut().unwrap(),
             )
             .unwrap(); // FIXME: handle error properly
         // check if variable is const
         let var_metadata = self
-            .metadata
+            .metadata()
             .variable_metadata(new_id)
             .expect("Variable must have metadata");
         if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
@@ -293,7 +484,7 @@ impl Visit for Precompiler {
                 )));
                 let type_def = TypeContainer::TypeReference(reference.clone());
                 {
-                    self.metadata
+                    self.metadata_mut()
                         .variable_metadata_mut(type_id)
                         .expect("TypeDeclaration should have variable metadata")
                         .var_type = Some(type_def.clone());
@@ -314,6 +505,6 @@ mod tests {
         let options = PrecompilerOptions::default();
         let mut precompiler = Precompiler::new(options);
         let mut ast = parse("var x: integer = 34; x").unwrap();
-        precompiler.precompile(&mut ast);
+        let _ = precompiler.precompile(&mut ast);
     }
 }
