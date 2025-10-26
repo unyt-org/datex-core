@@ -81,10 +81,12 @@ impl Visitable for DatexExpression {
             DatexExpressionData::TypeDeclaration(type_declaration) => {
                 visitor.visit_type_declaration(type_declaration, self.span)
             }
-            DatexExpressionData::TypeExpression(type_expression_data) => {
-                todo!()
+            DatexExpressionData::TypeExpression(type_expression) => {
+                visitor.visit_type_expression(type_expression)
             }
-            DatexExpressionData::Type(type_expression_data) => todo!(),
+            DatexExpressionData::Type(type_expression) => {
+                visitor.visit_type_expression(type_expression)
+            }
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 visitor
                     .visit_function_declaration(function_declaration, self.span)
@@ -95,11 +97,8 @@ impl Visitable for DatexExpression {
             DatexExpressionData::CreateRefMut(datex_expression) => {
                 visitor.visit_create_mut(datex_expression, self.span)
             }
-            DatexExpressionData::CreateRefFinal(datex_expression) => {
-                unimplemented!()
-            }
-            DatexExpressionData::Deref(datex_expression) => {
-                visitor.visit_deref(datex_expression, self.span)
+            DatexExpressionData::Deref(deref) => {
+                visitor.visit_deref(deref, self.span)
             }
             DatexExpressionData::Slot(slot) => {
                 visitor.visit_slot(slot, self.span)
@@ -125,6 +124,9 @@ impl Visitable for DatexExpression {
             }
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 visitor.visit_remote_execution(remote_execution, self.span)
+            }
+            DatexExpressionData::CreateRefFinal(datex_expression) => {
+                unimplemented!("CreateRefFinal is going to be deprecated")
             }
             DatexExpressionData::Placeholder
             | DatexExpressionData::Recover
