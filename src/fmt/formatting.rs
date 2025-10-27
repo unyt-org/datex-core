@@ -1,4 +1,5 @@
-use chumsky::span::SimpleSpan;
+use std::ops::Range;
+
 use pretty::DocAllocator;
 
 use crate::{
@@ -151,7 +152,7 @@ impl<'a> Formatter<'a> {
     fn typed_integer_to_source_code(
         &'a self,
         ti: &'a TypedInteger,
-        span: &'a SimpleSpan,
+        span: &'a Range<usize>,
     ) -> Format<'a> {
         let a = &self.alloc;
         match self.options.variant_formatting {
@@ -165,7 +166,7 @@ impl<'a> Formatter<'a> {
     fn typed_decimal_to_source_code(
         &'a self,
         td: &'a TypedDecimal,
-        span: &'a SimpleSpan,
+        span: &'a Range<usize>,
     ) -> Format<'a> {
         let a = &self.alloc;
         match self.options.variant_formatting {

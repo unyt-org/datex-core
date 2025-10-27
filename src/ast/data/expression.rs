@@ -20,13 +20,13 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
-use std::ops::Neg;
+use std::ops::{Neg, Range};
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
 pub struct DatexExpression {
     pub data: DatexExpressionData,
-    pub span: SimpleSpan,
+    pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
 }
 
@@ -34,52 +34,52 @@ impl Visitable for DatexExpression {
     fn visit_children_with(&mut self, visitor: &mut impl Visit) {
         match &mut self.data {
             DatexExpressionData::UnaryOperation(op) => {
-                visitor.visit_unary_operation(op, self.span)
+                visitor.visit_unary_operation(op, &self.span)
             }
             DatexExpressionData::Statements(stmts) => {
-                visitor.visit_statements(stmts, self.span)
+                visitor.visit_statements(stmts, &self.span)
             }
             DatexExpressionData::VariableDeclaration(var_decl) => {
-                visitor.visit_variable_declaration(var_decl, self.span)
+                visitor.visit_variable_declaration(var_decl, &self.span)
             }
             DatexExpressionData::VariableAssignment(var_assign) => {
-                visitor.visit_variable_assignment(var_assign, self.span)
+                visitor.visit_variable_assignment(var_assign, &self.span)
             }
             DatexExpressionData::VariableAccess(var_access) => {
-                visitor.visit_variable_access(var_access, self.span)
+                visitor.visit_variable_access(var_access, &self.span)
             }
             DatexExpressionData::Integer(i) => {
-                visitor.visit_integer(i, self.span)
+                visitor.visit_integer(i, &self.span)
             }
             DatexExpressionData::TypedInteger(ti) => {
-                visitor.visit_typed_integer(ti, self.span)
+                visitor.visit_typed_integer(ti, &self.span)
             }
             DatexExpressionData::Decimal(d) => {
-                visitor.visit_decimal(d, self.span)
+                visitor.visit_decimal(d, &self.span)
             }
             DatexExpressionData::TypedDecimal(td) => {
-                visitor.visit_typed_decimal(td, self.span)
+                visitor.visit_typed_decimal(td, &self.span)
             }
-            DatexExpressionData::Text(s) => visitor.visit_text(s, self.span),
+            DatexExpressionData::Text(s) => visitor.visit_text(s, &self.span),
             DatexExpressionData::Boolean(b) => {
-                visitor.visit_boolean(b, self.span)
+                visitor.visit_boolean(b, &self.span)
             }
             DatexExpressionData::Endpoint(e) => {
-                visitor.visit_endpoint(e, self.span)
+                visitor.visit_endpoint(e, &self.span)
             }
-            DatexExpressionData::Null => visitor.visit_null(self.span),
+            DatexExpressionData::Null => visitor.visit_null(&self.span),
             DatexExpressionData::List(list) => {
-                visitor.visit_list(list, self.span)
+                visitor.visit_list(list, &self.span)
             }
-            DatexExpressionData::Map(map) => visitor.visit_map(map, self.span),
+            DatexExpressionData::Map(map) => visitor.visit_map(map, &self.span),
             DatexExpressionData::GetReference(pointer_address) => {
-                visitor.visit_get_reference(pointer_address, self.span)
+                visitor.visit_get_reference(pointer_address, &self.span)
             }
             DatexExpressionData::Conditional(conditional) => {
-                visitor.visit_conditional(conditional, self.span)
+                visitor.visit_conditional(conditional, &self.span)
             }
             DatexExpressionData::TypeDeclaration(type_declaration) => {
-                visitor.visit_type_declaration(type_declaration, self.span)
+                visitor.visit_type_declaration(type_declaration, &self.span)
             }
             DatexExpressionData::TypeExpression(type_expression) => {
                 visitor.visit_type_expression(type_expression)
@@ -88,48 +88,52 @@ impl Visitable for DatexExpression {
                 visitor.visit_type_expression(type_expression)
             }
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
-                visitor
-                    .visit_function_declaration(function_declaration, self.span)
+                visitor.visit_function_declaration(
+                    function_declaration,
+                    &self.span,
+                )
             }
             DatexExpressionData::CreateRef(datex_expression) => {
-                visitor.visit_create_ref(datex_expression, self.span)
+                visitor.visit_create_ref(datex_expression, &self.span)
             }
             DatexExpressionData::CreateRefMut(datex_expression) => {
-                visitor.visit_create_mut(datex_expression, self.span)
+                visitor.visit_create_mut(datex_expression, &self.span)
             }
             DatexExpressionData::Deref(deref) => {
-                visitor.visit_deref(deref, self.span)
+                visitor.visit_deref(deref, &self.span)
             }
             DatexExpressionData::Slot(slot) => {
-                visitor.visit_slot(slot, self.span)
+                visitor.visit_slot(slot, &self.span)
             }
             DatexExpressionData::SlotAssignment(slot_assignment) => {
-                visitor.visit_slot_assignment(slot_assignment, self.span)
+                visitor.visit_slot_assignment(slot_assignment, &self.span)
             }
             DatexExpressionData::PointerAddress(pointer_address) => {
-                visitor.visit_pointer_address(pointer_address, self.span)
+                visitor.visit_pointer_address(pointer_address, &self.span)
             }
             DatexExpressionData::BinaryOperation(binary_operation) => {
-                visitor.visit_binary_operation(binary_operation, self.span)
+                visitor.visit_binary_operation(binary_operation, &self.span)
             }
             DatexExpressionData::ComparisonOperation(comparison_operation) => {
-                visitor
-                    .visit_comparison_operation(comparison_operation, self.span)
+                visitor.visit_comparison_operation(
+                    comparison_operation,
+                    &self.span,
+                )
             }
             DatexExpressionData::DerefAssignment(deref_assignment) => {
-                visitor.visit_deref_assignment(deref_assignment, self.span)
+                visitor.visit_deref_assignment(deref_assignment, &self.span)
             }
             DatexExpressionData::ApplyChain(apply_chain) => {
-                visitor.visit_apply_chain(apply_chain, self.span)
+                visitor.visit_apply_chain(apply_chain, &self.span)
             }
             DatexExpressionData::RemoteExecution(remote_execution) => {
-                visitor.visit_remote_execution(remote_execution, self.span)
+                visitor.visit_remote_execution(remote_execution, &self.span)
             }
             DatexExpressionData::CreateRefFinal(datex_expression) => {
                 unimplemented!("CreateRefFinal is going to be deprecated")
             }
             DatexExpressionData::Identifier(identifier) => {
-                visitor.visit_identifier(identifier, self.span)
+                visitor.visit_identifier(identifier, &self.span)
             }
             DatexExpressionData::Placeholder | DatexExpressionData::Recover => {
                 unreachable!(
@@ -257,10 +261,10 @@ pub enum DatexExpressionData {
 impl Spanned for DatexExpressionData {
     type Output = DatexExpression;
 
-    fn with_span(self, span: SimpleSpan) -> Self::Output {
+    fn with_span<T: Into<Range<usize>>>(self, span: T) -> Self::Output {
         DatexExpression {
             data: self,
-            span,
+            span: span.into(),
             wrapped: None,
         }
     }
@@ -268,7 +272,7 @@ impl Spanned for DatexExpressionData {
     fn with_default_span(self) -> Self::Output {
         DatexExpression {
             data: self,
-            span: SimpleSpan::from(0..0),
+            span: Range::from(0..0),
             wrapped: None,
         }
     }

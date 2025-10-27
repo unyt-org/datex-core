@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     ast::{
         binary_operation::BinaryOperator,
@@ -15,7 +17,6 @@ use crate::{
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,
 };
-use chumsky::span::SimpleSpan;
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;
 mod formatting;
@@ -66,7 +67,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    fn tokens_at(&self, span: &SimpleSpan) -> &'a str {
+    fn tokens_at(&self, span: &Range<usize>) -> &'a str {
         &self.script[span.start..span.end]
     }
 

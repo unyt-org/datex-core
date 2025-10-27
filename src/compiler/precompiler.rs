@@ -419,8 +419,7 @@ fn visit_expression(
     if span_start != 0 || span_end != 0 {
         let start_token = spans.get(span_start).cloned().unwrap();
         let end_token = spans.get(span_end - 1).cloned().unwrap();
-        let full_span = start_token.start..end_token.end;
-        expression.span = SimpleSpan::from(full_span);
+        expression.span = start_token.start..end_token.end;
     }
 
     // Important: always make sure all expressions are visited recursively
@@ -545,9 +544,9 @@ fn visit_expression(
                 collected_errors,
                 resolve_variable(name, metadata, scope_stack).map_err(
                     |error| {
-                        SpannedCompilerError::new_with_simple_span(
+                        SpannedCompilerError::new_with_span(
                             error,
-                            expression.span,
+                            expression.span.clone(),
                         )
                     },
                 ),
@@ -559,11 +558,11 @@ fn visit_expression(
                             id,
                             name: name.clone(),
                         })
-                        .with_span(expression.span)
+                        .with_span(expression.span.clone())
                     }
                     ResolvedVariable::PointerAddress(pointer_address) => {
                         DatexExpressionData::GetReference(pointer_address)
-                            .with_span(expression.span)
+                            .with_span(expression.span.clone())
                     }
                 };
             }
@@ -591,9 +590,9 @@ fn visit_expression(
             if let VariableShape::Value(VariableKind::Const) =
                 var_metadata.shape
             {
-                let error = SpannedCompilerError::new_with_simple_span(
+                let error = SpannedCompilerError::new_with_span(
                     CompilerError::AssignmentToConst(name.clone()),
-                    expression.span,
+                    expression.span.clone(),
                 );
                 match collected_errors {
                     Some(collected_errors) => {
@@ -784,7 +783,7 @@ fn visit_expression(
                                             name: full_name.to_string(),
                                         },
                                     )
-                                    .with_span(expression.span)
+                                    .with_span(expression.span.clone())
                                 }
                                 _ => unreachable!(
                                     "Variant access must resolve to a core library type"
@@ -820,7 +819,7 @@ fn visit_expression(
                                     r#type: None,
                                 },
                             )
-                            .with_span(expression.span);
+                            .with_span(expression.span.clone());
                         }
                     }
                     return Ok(());
@@ -837,9 +836,9 @@ fn visit_expression(
                     scope_stack,
                 )
                 .map_err(|error| {
-                    SpannedCompilerError::new_with_simple_span(
+                    SpannedCompilerError::new_with_span(
                         CompilerError::SubvariantNotFound(lit_left, lit_right),
-                        expression.span,
+                        expression.span.clone(),
                     )
                 });
                 let action =
@@ -848,7 +847,7 @@ fn visit_expression(
                     *expression = match resolved_variable {
                         ResolvedVariable::PointerAddress(pointer_address) => {
                             DatexExpressionData::GetReference(pointer_address)
-                                .with_span(expression.span)
+                                .with_span(expression.span.clone())
                         }
                         // FIXME #442 is variable User/whatever allowed here, or
                         // will this always be a reference to the type?
@@ -919,9 +918,9 @@ fn visit_expression(
                     // set hoisted to true
                     *hoisted = true;
                     if registered_names.contains(name) {
-                        let error = SpannedCompilerError::new_with_simple_span(
+                        let error = SpannedCompilerError::new_with_span(
                             CompilerError::InvalidRedeclaration(name.clone()),
-                            stmt.span,
+                            stmt.span.clone(),
                         );
                         match collected_errors {
                             Some(collected_errors) => {

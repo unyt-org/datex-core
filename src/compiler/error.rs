@@ -39,13 +39,13 @@ pub struct SpannedCompilerError {
 }
 
 impl SpannedCompilerError {
-    pub fn new_with_simple_span(
+    pub fn new_with_span(
         error: CompilerError,
-        span: SimpleSpan,
+        span: Range<usize>,
     ) -> SpannedCompilerError {
         SpannedCompilerError {
             error,
-            span: Some(span.start..span.end),
+            span: Some(span),
         }
     }
 }

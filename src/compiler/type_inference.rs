@@ -62,13 +62,13 @@ pub struct SpannedTypeError {
 }
 
 impl SpannedTypeError {
-    pub fn new_with_simple_span(
+    pub fn new_with_span(
         error: TypeError,
-        span: SimpleSpan,
+        span: Range<usize>,
     ) -> SpannedTypeError {
         SpannedTypeError {
             error,
-            span: Some(span.start..span.end),
+            span: Some(span),
         }
     }
 }
@@ -250,7 +250,7 @@ pub fn infer_expression_type_inner(
             ..
         }) => infer_binary_expression_type(
             operator,
-            ast.span,
+            &ast.span,
             left,
             right,
             metadata,
@@ -339,12 +339,12 @@ pub fn infer_expression_type_inner(
                 //     annotated_type, init_type
                 // );
                 if !annotated_type.matches_type(&init_type) {
-                    let error = SpannedTypeError::new_with_simple_span(
+                    let error = SpannedTypeError::new_with_span(
                         TypeError::AssignmentTypeMismatch {
                             annotated_type: annotated_type.clone(),
                             assigned_type: init_type,
                         },
-                        ast.span,
+                        ast.span.clone(),
                     );
                     if let Some(collected_errors) = collected_errors {
                         collected_errors.record_error(error);
@@ -402,12 +402,12 @@ pub fn infer_expression_type_inner(
                 AssignmentOperator::Assign => {
                     // simple assignment, types must match
                     if !var_type.matches_type(&value_type) {
-                        let error = SpannedTypeError::new_with_simple_span(
+                        let error = SpannedTypeError::new_with_span(
                             TypeError::AssignmentTypeMismatch {
                                 annotated_type: var_type,
                                 assigned_type: value_type.clone(),
                             },
-                            ast.span,
+                            ast.span.clone(),
                         );
                         if let Some(collected_errors) = collected_errors {
                             collected_errors.record_error(error);
@@ -607,7 +607,7 @@ fn resolve_type_expression_type(
 
 fn infer_binary_expression_type(
     operator: &BinaryOperator,
-    span: SimpleSpan,
+    span: &Range<usize>,
     lhs: &mut Box<DatexExpression>,
     rhs: &mut Box<DatexExpression>,
     metadata: Rc<RefCell<AstMetadata>>,
@@ -638,9 +638,9 @@ fn infer_binary_expression_type(
             }
             // otherwise, return type error
             else {
-                let error = SpannedTypeError::new_with_simple_span(
+                let error = SpannedTypeError::new_with_span(
                     TypeError::MismatchedOperands(*op, lhs_type, rhs_type),
-                    span,
+                    span.clone(),
                 );
                 if let Some(collected_errors) = collected_errors {
                     collected_errors.record_error(error);

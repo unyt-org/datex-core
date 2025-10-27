@@ -7,9 +7,9 @@ use crate::{
     ast::{
         data::{
             expression::{
-                DatexExpression, DatexExpressionData,
-                Statements, TypeDeclaration, VariableAccess,
-                VariableAssignment, VariableDeclaration, VariableKind,
+                DatexExpression, DatexExpressionData, Statements,
+                TypeDeclaration, VariableAccess, VariableAssignment,
+                VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
             r#type::TypeExpression,
@@ -134,14 +134,13 @@ impl Precompiler {
     /// Get the full span from start and end token indices
     /// Returns None if the span is the default (0..0)
     /// Used to convert token indices to actual spans in the source code
-    fn span(&self, span: SimpleSpan) -> Option<SimpleSpan> {
+    fn span(&self, span: &Range<usize>) -> Option<Range<usize>> {
         // skip if both zero (default span used for testing)
         // TODO: improve this
         if span.start != 0 || span.end != 0 {
             let start_token = self.spans.get(span.start).cloned().unwrap();
             let end_token = self.spans.get(span.end - 1).cloned().unwrap();
-            let full_span = start_token.start..end_token.end;
-            Some(SimpleSpan::from(full_span))
+            Some(start_token.start..end_token.end)
         } else {
             None
         }
@@ -208,7 +207,7 @@ impl Precompiler {
 
 impl Visit for Precompiler {
     fn visit_expression(&mut self, expression: &mut DatexExpression) {
-        if let Some(span) = self.span(expression.span) {
+        if let Some(span) = self.span(&expression.span) {
             expression.span = span;
         }
         /* FIXME
@@ -342,9 +341,9 @@ impl Visit for Precompiler {
         */
         if let DatexExpressionData::Identifier(name) = &expression.data {
             let result = self.resolve_variable(name).map_err(|error| {
-                SpannedCompilerError::new_with_simple_span(
+                SpannedCompilerError::new_with_span(
                     error,
-                    expression.span,
+                    expression.span.clone(),
                 )
             });
             let action =
@@ -356,11 +355,11 @@ impl Visit for Precompiler {
                             id,
                             name: name.clone(),
                         })
-                        .with_span(expression.span)
+                        .with_span(expression.span.clone())
                     }
                     ResolvedVariable::PointerAddress(pointer_address) => {
                         DatexExpressionData::GetReference(pointer_address)
-                            .with_span(expression.span)
+                            .with_span(expression.span.clone())
                     }
                 };
             }
@@ -370,7 +369,7 @@ impl Visit for Precompiler {
     }
 
     fn visit_type_expression(&mut self, type_expr: &mut TypeExpression) {
-        if let Some(span) = self.span(type_expr.span) {
+        if let Some(span) = self.span(&type_expr.span) {
             type_expr.span = span;
         }
         type_expr.visit_children_with(self);
@@ -379,7 +378,7 @@ impl Visit for Precompiler {
     fn visit_variable_declaration(
         &mut self,
         var_decl: &mut VariableDeclaration,
-        _span: SimpleSpan,
+        _span: &Range<usize>,
     ) {
         var_decl.id = Some(self.add_new_variable(
             var_decl.name.clone(),
@@ -391,7 +390,7 @@ impl Visit for Precompiler {
     fn visit_type_declaration(
         &mut self,
         type_decl: &mut TypeDeclaration,
-        _span: SimpleSpan,
+        _span: &Range<usize>,
     ) {
         if type_decl.hoisted {
             let id = self
@@ -415,7 +414,7 @@ impl Visit for Precompiler {
     fn visit_variable_assignment(
         &mut self,
         var_assign: &mut VariableAssignment,
-        span: SimpleSpan,
+        span: &Range<usize>,
     ) {
         let new_id = self
             .scope_stack
@@ -430,9 +429,9 @@ impl Visit for Precompiler {
             .variable_metadata(new_id)
             .expect("Variable must have metadata");
         if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
-            let error = SpannedCompilerError::new_with_simple_span(
+            let error = SpannedCompilerError::new_with_span(
                 CompilerError::AssignmentToConst(var_assign.name.clone()),
-                span,
+                span.clone(),
             );
             match &mut self.errors {
                 Some(collected_errors) => {
@@ -445,7 +444,11 @@ impl Visit for Precompiler {
         var_assign.visit_children_with(self);
     }
 
-    fn visit_statements(&mut self, stmts: &mut Statements, _span: SimpleSpan) {
+    fn visit_statements(
+        &mut self,
+        stmts: &mut Statements,
+        _span: &Range<usize>,
+    ) {
         // hoist type declarations first
         let mut registered_names = HashSet::new();
         for stmt in stmts.statements.iter_mut() {
@@ -458,9 +461,9 @@ impl Visit for Precompiler {
                 // set hoisted to true
                 *hoisted = true;
                 if registered_names.contains(name) {
-                    let error = SpannedCompilerError::new_with_simple_span(
+                    let error = SpannedCompilerError::new_with_span(
                         CompilerError::InvalidRedeclaration(name.clone()),
-                        stmt.span,
+                        stmt.span.clone(),
                     );
                     match &mut self.errors {
                         Some(collected_errors) => {
