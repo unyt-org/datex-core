@@ -23,10 +23,12 @@ pub enum VisitAction {
     VisitChildren,
     /// Skip visiting child nodes
     SkipChildren,
-    /// Replace the current node with a new one
+    /// Replace the current node with a new one, skipping child nodes
     Replace(DatexExpression),
     /// Recurse into child nodes, then replace the current node with a new one
-    RecurseThenReplace(DatexExpression),
+    ReplaceRecurseChildNodes(DatexExpression),
+    /// Replace the current node with a new one, and recurse into it
+    ReplaceRecurse(DatexExpression),
     /// Convert the current node to a no-op
     ToNoop,
 }
@@ -346,9 +348,13 @@ pub trait ExpressionVisitor: Sized {
             }
             VisitAction::VisitChildren => expr.walk_children(self),
             VisitAction::Replace(new_expr) => *expr = new_expr,
-            VisitAction::RecurseThenReplace(new_expr) => {
+            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
                 expr.walk_children(self);
                 *expr = new_expr;
+            }
+            VisitAction::ReplaceRecurse(new_expr) => {
+                *expr = new_expr;
+                self.visit_datex_expression(expr);
             }
         }
     }
@@ -491,7 +497,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit create mutable reference expression
     fn visit_create_mut(
         &mut self,
-        datex_expression: &mut DatexExpression,
+        _datex_expression: &mut DatexExpression,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::VisitChildren
@@ -500,7 +506,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit dereference expression
     fn visit_deref(
         &mut self,
-        datex_expression: &mut DatexExpression,
+        _datex_expression: &mut DatexExpression,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::VisitChildren
@@ -509,7 +515,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit list expression
     fn visit_list(
         &mut self,
-        list: &mut List,
+        _list: &mut List,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::VisitChildren
@@ -518,7 +524,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit map expression
     fn visit_map(
         &mut self,
-        map: &mut Map,
+        _map: &mut Map,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::VisitChildren
@@ -527,7 +533,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit integer literal
     fn visit_integer(
         &mut self,
-        _value: &mut Integer,
+        _integer: &mut Integer,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -536,7 +542,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit typed integer literal
     fn visit_typed_integer(
         &mut self,
-        _value: &TypedInteger,
+        _typed_integer: &TypedInteger,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -545,7 +551,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit decimal literal
     fn visit_decimal(
         &mut self,
-        _value: &mut Decimal,
+        _decimal: &mut Decimal,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -554,7 +560,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit typed decimal literal
     fn visit_typed_decimal(
         &mut self,
-        _value: &TypedDecimal,
+        _typed_decimal: &TypedDecimal,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -563,7 +569,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit identifier
     fn visit_identifier(
         &mut self,
-        _value: &mut String,
+        _identifier: &mut String,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -572,7 +578,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit text literal
     fn visit_text(
         &mut self,
-        _value: &mut String,
+        _text: &mut String,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -590,7 +596,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit boolean literal
     fn visit_boolean(
         &mut self,
-        _value: &mut bool,
+        _boolean: &mut bool,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -599,7 +605,7 @@ pub trait ExpressionVisitor: Sized {
     /// Visit endpoint expression
     fn visit_endpoint(
         &mut self,
-        _value: &mut Endpoint,
+        _endpoint: &mut Endpoint,
         _span: &Range<usize>,
     ) -> VisitAction {
         VisitAction::SkipChildren
@@ -633,16 +639,25 @@ struct MyAst;
 impl ExpressionVisitor for MyAst {
     fn visit_identifier(
         &mut self,
-        _identifier: &mut String,
+        identifier: &mut String,
+        span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::Replace(DatexExpression {
+            data: DatexExpressionData::VariableAccess(VariableAccess {
+                id: 0,
+                name: identifier.clone(),
+            }),
+            span: span.clone(),
+            wrapped: None,
+        })
+    }
+    fn visit_create_ref(
+        &mut self,
+        datex_expression: &mut DatexExpression,
         _span: &Range<usize>,
     ) -> VisitAction {
-        VisitAction::Replace(DatexExpression::new(
-            DatexExpressionData::VariableAccess(VariableAccess {
-                id: 0,
-                name: _identifier.clone(),
-            }),
-            _span.clone(),
-        ))
+        println!("visit create ref {:?}", datex_expression);
+        VisitAction::VisitChildren
     }
     fn visit_statements(
         &mut self,
@@ -663,7 +678,6 @@ mod tests {
     fn simple_test() {
         let mut ast =
             parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap().ast;
-        // Transform the AST
         MyAst.visit_datex_expression(&mut ast);
         println!("{:#?}", ast);
     }
