@@ -1,26 +1,9 @@
 use std::ops::Range;
 
-use crate::{
-    ast::data::{
-        expression::{
-            ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
-            DatexExpression, DatexExpressionData, DerefAssignment,
-            FunctionDeclaration, List, Map, RemoteExecution, Slot,
-            SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
-            VariableAccess, VariableAssignment, VariableDeclaration,
-        },
-        r#type::{
-            FixedSizeList, FunctionType, GenericAccess, Intersection,
-            SliceList, StructuralList, StructuralMap, TypeExpression,
-            TypeExpressionData, Union,
-        },
-    },
-    values::core_values::{
-        decimal::{Decimal, typed_decimal::TypedDecimal},
-        endpoint::Endpoint,
-        integer::{Integer, typed_integer::TypedInteger},
-    },
-};
+use crate::ast::data::expression::{
+            BinaryOperation,
+            DatexExpression, DatexExpressionData, Statements,
+        };
 
 pub enum VisitAction {
     VisitChildren,

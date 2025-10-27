@@ -158,17 +158,14 @@ impl PartialEq for DatexExpression {
     }
 }
 
-impl Default for DatexExpressionData {
-    fn default() -> Self {
-        DatexExpressionData::Recover
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 /// The different kinds of type expressions in the AST
+#[derive(Default)]
 pub enum DatexExpressionData {
     /// This is a marker for recovery from parse errors.
     /// We should never use this manually.
+    #[default]
     Recover,
 
     /// null
