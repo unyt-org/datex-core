@@ -40,6 +40,7 @@ impl DatexExpression {
 impl Visitable for DatexExpression {
     fn visit_children_with(&mut self, visitor: &mut impl Visit) {
         match &mut self.data {
+            DatexExpressionData::Noop => {}
             DatexExpressionData::UnaryOperation(op) => {
                 visitor.visit_unary_operation(op, &self.span)
             }
@@ -158,7 +159,6 @@ impl PartialEq for DatexExpression {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 /// The different kinds of type expressions in the AST
 #[derive(Default)]
@@ -166,6 +166,8 @@ pub enum DatexExpressionData {
     /// This is a marker for recovery from parse errors.
     /// We should never use this manually.
     #[default]
+    Noop,
+
     Recover,
 
     /// null
