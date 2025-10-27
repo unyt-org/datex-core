@@ -437,6 +437,7 @@ fn visit_expression(
         //         NewScopeType::NewScope,
         //     )?;
         // }
+        DatexExpressionData::Noop => {}
         DatexExpressionData::TypeExpression(type_expr) => {
             visit_type_expression(
                 type_expr,

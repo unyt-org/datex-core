@@ -444,6 +444,7 @@ impl AstToSourceCodeFormatter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
+            DatexExpressionData::Noop => "".to_string(),
             DatexExpressionData::Integer(i) => i.to_string(),
             DatexExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
