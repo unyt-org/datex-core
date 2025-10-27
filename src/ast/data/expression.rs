@@ -1,4 +1,3 @@
-use chumsky::span::SimpleSpan;
 
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
@@ -272,7 +271,7 @@ impl Spanned for DatexExpressionData {
     fn with_default_span(self) -> Self::Output {
         DatexExpression {
             data: self,
-            span: Range::from(0..0),
+            span: (0..0),
             wrapped: None,
         }
     }

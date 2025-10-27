@@ -26,7 +26,6 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use chumsky::prelude::SimpleSpan;
 use datex_core::ast::data::expression::VariableAccess;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use log::info;

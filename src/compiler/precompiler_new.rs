@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
-use chumsky::span::SimpleSpan;
 use log::info;
 
 use crate::{

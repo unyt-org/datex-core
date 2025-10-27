@@ -3,7 +3,6 @@ use crate::ast::error::error::{ParseError, SpanOrToken};
 use crate::compiler::precompiler::RichAst;
 use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::serde::error::DeserializationError;
-use chumsky::prelude::SimpleSpan;
 use datex_core::compiler::type_inference::SpannedTypeError;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;

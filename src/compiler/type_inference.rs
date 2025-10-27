@@ -14,7 +14,6 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use chumsky::prelude::SimpleSpan;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::ops::Range;
