@@ -1,4 +1,3 @@
-
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::BinaryOperator;
 use crate::ast::binding::VariableId;
@@ -147,6 +146,12 @@ impl Visitable for DatexExpression {
 impl PartialEq for DatexExpression {
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data
+    }
+}
+
+impl Default for DatexExpressionData {
+    fn default() -> Self {
+        DatexExpressionData::Recover
     }
 }
 
