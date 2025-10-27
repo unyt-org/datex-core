@@ -13,7 +13,7 @@
 #![feature(try_trait_v2)]
 // FIXME #228: remove in the future, not required in edition 2024, but RustRover complains
 #![allow(unused_parens)]
-
+#![feature(associated_type_defaults)]
 #[macro_use]
 extern crate mopa;
 
