@@ -22,141 +22,130 @@ use crate::{
     },
 };
 
-pub trait VisitableExpression {
-    fn visit_children_with(&mut self, visitor: &mut impl ExpressionVisitor);
+pub enum VisitAction {
+    VisitChildren,
+    SkipChildren,
+    Replace(DatexExpression),
+    RecurseThenReplace(DatexExpression),
 }
-pub trait TransformableExpression {
-    fn transform_children_with(
-        &mut self,
-        transformer: &mut impl ExpressionTransformer,
-    );
+pub trait VisitableExpression {
+    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor);
 }
 
 impl VisitableExpression for BinaryOperation {
-    fn visit_children_with(&mut self, visitor: &mut impl ExpressionVisitor) {
+    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor) {
         visitor.visit_datex_expression(&mut self.left);
         visitor.visit_datex_expression(&mut self.right);
     }
 }
 
-pub trait ExpressionTransformer: Sized {
-    fn transform_expression(
-        &mut self,
-        mut expr: DatexExpression,
-    ) -> DatexExpression {
-        expr.transform_children_with(self);
-        expr
-    }
-
-    fn transform_binary_operation(
-        &mut self,
-        op: BinaryOperation,
-    ) -> DatexExpressionData {
-        DatexExpressionData::BinaryOperation(op)
-    }
-}
-
-impl TransformableExpression for DatexExpression {
-    fn transform_children_with(
-        &mut self,
-        transformer: &mut impl ExpressionTransformer,
-    ) {
-        self.data = match std::mem::take(&mut self.data) {
-            DatexExpressionData::BinaryOperation(op) => {
-                transformer.transform_binary_operation(op)
-            }
-            other => other,
-        };
+impl VisitableExpression for Statements {
+    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor) {
+        for item in &mut self.statements {
+            visitor.visit_datex_expression(item);
+        }
     }
 }
 
 impl VisitableExpression for DatexExpression {
-    fn visit_children_with(&mut self, visitor: &mut impl ExpressionVisitor) {
+    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor) {
         match &mut self.data {
-            DatexExpressionData::Identifier(id) => {
-                visitor.visit_identifier(id, &self.span)
-            }
             DatexExpressionData::BinaryOperation(op) => {
-                visitor.visit_binary_operation(op, &self.span);
+                op.walk_children(visitor)
             }
-            _ => unreachable!(),
+            DatexExpressionData::Statements(s) => s.walk_children(visitor),
+            _ => {}
         }
     }
 }
 
 pub trait ExpressionVisitor: Sized {
     fn visit_datex_expression(&mut self, expr: &mut DatexExpression) {
-        expr.visit_children_with(self);
+        let action = match &mut expr.data {
+            DatexExpressionData::Statements(s) => {
+                self.visit_statements(s, &expr.span)
+            }
+            DatexExpressionData::Identifier(id) => {
+                self.visit_identifier(id, &expr.span)
+            }
+            DatexExpressionData::BinaryOperation(op) => {
+                self.visit_binary_operation(op, &expr.span)
+            }
+            DatexExpressionData::Boolean(_) => {
+                self.visit_boolean(&mut expr.data, &expr.span)
+            }
+            _ => unreachable!(
+                "Visitor method not implemented for this expression type"
+            ),
+        };
+
+        match action {
+            VisitAction::VisitChildren => expr.walk_children(self),
+            VisitAction::SkipChildren => {}
+            VisitAction::Replace(new_expr) => *expr = new_expr,
+            VisitAction::RecurseThenReplace(new_expr) => {
+                expr.walk_children(self);
+                *expr = new_expr;
+            }
+        }
     }
-    fn visit_identifier(&mut self, _identifier: &String, _span: &Range<usize>) {
+
+    fn visit_statements(
+        &mut self,
+        _statements: &mut Statements,
+        _span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::VisitChildren
     }
-    fn visit_literal(&mut self, _lit: &mut String, _span: &Range<usize>) {}
+    fn visit_identifier(
+        &mut self,
+        _identifier: &mut String,
+        _span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::SkipChildren
+    }
+    fn visit_literal(
+        &mut self,
+        _lit: &mut String,
+        _span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::SkipChildren
+    }
     fn visit_binary_operation(
         &mut self,
-        op: &mut BinaryOperation,
+        _op: &mut BinaryOperation,
         _span: &Range<usize>,
-    ) {
-        op.visit_children_with(self);
+    ) -> VisitAction {
+        VisitAction::VisitChildren
+    }
+    fn visit_boolean(
+        &mut self,
+        _data: &mut DatexExpressionData,
+        _span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::SkipChildren
     }
 }
 
-pub trait TypeExpressionVisitor: Sized {
-    fn visit_type_expression(&mut self, expr: &mut TypeExpression) {
-        expr.visit_children_with(self);
-    }
-    fn visit_type_literal(&mut self, _lit: &mut String, _span: &Range<usize>) {}
-    fn visit_fixed_size_list(
-        &mut self,
-        list: &mut FixedSizeList,
-        _span: &Range<usize>,
-    ) {
-        list.visit_children_with(self);
-    }
-}
-
-impl ExpressionTransformer for MyAst {
-    fn transform_binary_operation(
-        &mut self,
-        op: BinaryOperation,
-    ) -> DatexExpressionData {
-        DatexExpressionData::Boolean(true)
-    }
-}
-pub struct MyAst;
+struct MyAst;
 impl ExpressionVisitor for MyAst {
     fn visit_binary_operation(
         &mut self,
-        op: &mut BinaryOperation,
+        _op: &mut BinaryOperation,
+        span: &Range<usize>,
+    ) -> VisitAction {
+        VisitAction::Replace(DatexExpression::new(
+            DatexExpressionData::Boolean(true),
+            span.clone(),
+        ))
+    }
+    fn visit_statements(
+        &mut self,
+        _statements: &mut Statements,
         _span: &Range<usize>,
-    ) {
-        op.visit_children_with(self);
-    }
-}
-
-// TypeExpression
-pub trait VisitableTypeExpression {
-    fn visit_children_with(&mut self, visitor: &mut impl TypeExpressionVisitor);
-}
-impl VisitableTypeExpression for FixedSizeList {
-    fn visit_children_with(
-        &mut self,
-        visitor: &mut impl TypeExpressionVisitor,
-    ) {
-        visitor.visit_type_expression(&mut self.r#type);
-    }
-}
-impl VisitableTypeExpression for TypeExpression {
-    fn visit_children_with(
-        &mut self,
-        visitor: &mut impl TypeExpressionVisitor,
-    ) {
-        match &mut self.data {
-            TypeExpressionData::Literal(_) => {}
-            TypeExpressionData::FixedSizeList(f) => {
-                f.visit_children_with(visitor)
-            }
-            _ => unreachable!(),
-        }
+    ) -> VisitAction {
+        println!("Visiting statements at span: {:?}", _span);
+        VisitAction::VisitChildren
     }
 }
 
@@ -168,7 +157,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let ast = DatexExpression {
+        let mut ast = DatexExpression {
             data: DatexExpressionData::Statements(Statements {
                 statements: vec![DatexExpression {
                     data: DatexExpressionData::BinaryOperation(
@@ -199,8 +188,8 @@ mod tests {
             span: 1..2,
             wrapped: None,
         };
-        let mut transformer = MyAst;
-        let transformed = transformer.transform_expression(ast);
-        println!("{:?}", transformed);
+        let transformer = &mut MyAst;
+        transformer.visit_datex_expression(&mut ast);
+        println!("{:?}", ast);
     }
 }

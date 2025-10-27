@@ -27,6 +27,15 @@ pub struct DatexExpression {
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
 }
+impl DatexExpression {
+    pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
+        DatexExpression {
+            data,
+            span,
+            wrapped: None,
+        }
+    }
+}
 
 impl Visitable for DatexExpression {
     fn visit_children_with(&mut self, visitor: &mut impl Visit) {
