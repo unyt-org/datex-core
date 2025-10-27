@@ -1,26 +1,15 @@
-use std::ops::Range;
 
 use crate::ast::chain::ApplyOperation;
 use crate::ast::data::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    List, Map, RemoteExecution, Slot, SlotAssignment, Statements,
-    TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
+    List, Map, RemoteExecution, SlotAssignment, Statements,
+    TypeDeclaration, UnaryOperation, VariableAssignment,
     VariableDeclaration,
-};
-use crate::ast::data::r#type::{
-    FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
 use crate::ast::visitor::VisitAction;
 use crate::ast::visitor::expression::ExpressionVisitor;
 use crate::ast::visitor::type_expression::visitable::VisitableTypeExpression;
-use crate::values::core_values::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::Integer;
-use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::pointer::PointerAddress;
 
 pub type ExpressionVisitAction = VisitAction<DatexExpression>;
 

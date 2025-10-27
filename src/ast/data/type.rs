@@ -1,6 +1,5 @@
 use std::ops::Range;
 
-use crate::ast::data;
 use crate::ast::data::expression::VariableAccess;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::visitor::{Visit, Visitable};

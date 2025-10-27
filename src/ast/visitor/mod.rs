@@ -1,17 +1,4 @@
-use std::ops::Range;
 
-use crate::ast::{
-    data::{
-        expression::{DatexExpression, DatexExpressionData, VariableAccess},
-        r#type::{TypeExpression, TypeExpressionData},
-    },
-    visitor::{
-        expression::{ExpressionVisitor, visitable::ExpressionVisitAction},
-        type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
-        },
-    },
-};
 
 pub mod expression;
 pub mod type_expression;
