@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-
+use crate::ast::data;
 use crate::ast::data::expression::VariableAccess;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::visitor::{Visit, Visitable};
@@ -89,6 +89,15 @@ pub struct TypeExpression {
     pub data: TypeExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
+}
+impl TypeExpression {
+    pub fn new(data: TypeExpressionData, span: Range<usize>) -> Self {
+        Self {
+            data,
+            span,
+            wrapped: None,
+        }
+    }
 }
 
 impl Visitable for TypeExpression {
