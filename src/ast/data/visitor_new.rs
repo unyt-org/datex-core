@@ -1,32 +1,20 @@
 use std::ops::Range;
 
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::binding::VariableId;
 use crate::ast::chain::ApplyOperation;
-use crate::ast::comparison_operation::ComparisonOperator;
 use crate::ast::data::expression::{
-    self, ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     List, Map, RemoteExecution, Slot, SlotAssignment, Statements,
     TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };
-use crate::ast::data::spanned::Spanned;
-use crate::ast::data::r#type::TypeExpression;
-use crate::ast::data::visitor::{Visit, Visitable};
-use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
-use crate::values::core_value::CoreValue;
+use crate::ast::data::visitor::Visit;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
-use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 /// Actions that can be taken when visiting an expression
