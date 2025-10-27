@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use log::info;
-
+// TODO: Refactor to use the new visitor module
 use crate::{
     ast::{
         data::{
