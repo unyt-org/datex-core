@@ -21,6 +21,7 @@ pub mod r#type;
 pub mod unary;
 pub mod unary_operation;
 pub mod utils;
+pub mod visitor;
 use crate::ast::atom::*;
 use crate::ast::binary_operation::*;
 use crate::ast::binding::*;
