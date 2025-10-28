@@ -16,7 +16,6 @@ use crate::{
                 VariableDeclaration, VariableKind,
             },
             operator::{BinaryOperator, binary::ArithmeticOperator},
-            r#type::{TypeExpression, TypeExpressionData},
         },
     },
     compiler::{
@@ -43,9 +42,7 @@ use crate::{
     visitor::{
         VisitAction,
         expression::{ExpressionVisitor, visitable::ExpressionVisitAction},
-        type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
-        },
+        type_expression::TypeExpressionVisitor,
     },
 };
 
