@@ -3,21 +3,9 @@ use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{ApplyChain, List, Map};
+use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum ApplyOperation {
-    /// Apply a function to an argument
-    FunctionCall(DatexExpression),
-
-    // TODO #356: Implement MultiFunctionCall(Vec<DatexExpression>),
-    /// Apply a property access to an argument
-    PropertyAccess(DatexExpression),
-
-    /// Generic property access, e.g. `a<b>`
-    GenericAccess(DatexExpression),
-}
 
 pub fn chain_without_whitespace_apply<'a>(
     unary: impl DatexParserTrait<'a>,

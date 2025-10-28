@@ -1,4 +1,3 @@
-use crate::ast::grammar::chain::ApplyOperation;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
@@ -6,6 +5,7 @@ use crate::ast::structs::expression::{
     RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
+use crate::ast::structs::operator::ApplyOperation;
 /// deprecated: use precompiler mod instead
 use crate::ast::structs::operator::BinaryOperator;
 use crate::ast::structs::operator::binary::ArithmeticOperator;

@@ -10,11 +10,11 @@ use crate::ast::structs::r#type::{
 };
 use crate::{
     ast::{
-        grammar::chain::ApplyOperation,
         structs::expression::{
             DatexExpression, DatexExpressionData, FunctionDeclaration,
             VariableAccess, VariableAssignment, VariableDeclaration,
         },
+        structs::operator::ApplyOperation,
     },
     decompiler::FormattingMode,
 };

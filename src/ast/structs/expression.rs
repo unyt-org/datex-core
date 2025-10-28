@@ -1,10 +1,10 @@
 use crate::ast::grammar::binding::VariableId;
-use crate::ast::grammar::chain::ApplyOperation;
 use crate::ast::grammar::comparison_operation::ComparisonOperator;
 use crate::ast::grammar::unary_operation::{
     ArithmeticUnaryOperator, UnaryOperator,
 };
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::structs::operator::BinaryOperator;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::ast::structs::r#type::TypeExpression;

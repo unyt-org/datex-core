@@ -329,7 +329,7 @@ mod tests {
                     FunctionDeclaration, TypeDeclaration,
                 },
                 operator::{
-                    AssignmentOperator, BinaryOperator,
+                    ApplyOperation, AssignmentOperator, BinaryOperator,
                     binary::{ArithmeticOperator, BitwiseOperator},
                 },
                 r#type::{

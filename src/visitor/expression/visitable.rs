@@ -1,4 +1,4 @@
-use crate::ast::grammar::chain::ApplyOperation;
+use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
