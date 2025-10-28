@@ -29,7 +29,6 @@ use crate::precompiler::scope_stack::PrecompilerScopeStack;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
-use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
@@ -38,8 +37,8 @@ use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::structs::expression::VariableAccess;
 use log::info;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display};
+use std::collections::HashSet;
+use std::fmt::Debug;
 use std::ops::Range;
 use std::rc::Rc;
 
