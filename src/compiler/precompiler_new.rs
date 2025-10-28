@@ -12,7 +12,7 @@ use crate::{
             },
             spanned::Spanned,
             r#type::TypeExpression,
-            visitor::{Visit, Visitable},
+            visitor::{VisitMut, Visitable},
         },
         parse_result::ValidDatexParseResult,
     },
@@ -204,7 +204,7 @@ impl Precompiler {
     }
 }
 
-impl Visit for Precompiler {
+impl VisitMut for Precompiler {
     fn visit_expression(&mut self, expression: &mut DatexExpression) {
         if let Some(span) = self.span(&expression.span) {
             expression.span = span;
@@ -364,14 +364,14 @@ impl Visit for Precompiler {
             }
         }
 
-        expression.visit_children_with(self);
+        expression.visit_children_mut_with(self);
     }
 
     fn visit_type_expression(&mut self, type_expr: &mut TypeExpression) {
         if let Some(span) = self.span(&type_expr.span) {
             type_expr.span = span;
         }
-        type_expr.visit_children_with(self);
+        type_expr.visit_children_mut_with(self);
     }
 
     fn visit_variable_declaration(
@@ -383,7 +383,7 @@ impl Visit for Precompiler {
             var_decl.name.clone(),
             VariableShape::Value(var_decl.kind),
         ));
-        var_decl.visit_children_with(self);
+        var_decl.visit_children_mut_with(self);
     }
 
     fn visit_type_declaration(
@@ -407,7 +407,7 @@ impl Visit for Precompiler {
                     VariableShape::Type,
                 ));
         }
-        type_decl.visit_children_with(self);
+        type_decl.visit_children_mut_with(self);
     }
 
     fn visit_variable_assignment(
@@ -440,7 +440,7 @@ impl Visit for Precompiler {
             }
         }
         var_assign.id = Some(new_id);
-        var_assign.visit_children_with(self);
+        var_assign.visit_children_mut_with(self);
     }
 
     fn visit_statements(
@@ -492,7 +492,7 @@ impl Visit for Precompiler {
                 }
             }
         }
-        stmts.visit_children_with(self);
+        stmts.visit_children_mut_with(self);
     }
 }
 
