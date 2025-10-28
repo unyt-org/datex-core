@@ -320,7 +320,7 @@ mod tests {
     use crate::{
         ast::{
             error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            grammar::unary_operation::{
+            structs::operator::{
                 ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
             },
             structs::{

@@ -1,6 +1,6 @@
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::grammar::unary_operation::UnaryOperator;
 use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::ComparisonOperator;
+use crate::ast::structs::operator::UnaryOperator;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;

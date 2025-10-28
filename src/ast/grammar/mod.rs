@@ -15,5 +15,4 @@ pub mod map;
 pub mod text;
 pub mod r#type;
 pub mod unary;
-pub mod unary_operation;
 pub mod utils;
