@@ -4,8 +4,7 @@ use crate::{
     ast::structs::{
         expression::{DatexExpression, VariableAccess},
         operator::{
-            ArithmeticUnaryOperator, BinaryOperator, ComparisonOperator,
-            LogicalUnaryOperator, UnaryOperator,
+            BinaryOperator, ComparisonOperator, UnaryOperator,
         },
         r#type::{FunctionType, TypeExpression, TypeExpressionData},
     },

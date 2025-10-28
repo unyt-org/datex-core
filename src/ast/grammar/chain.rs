@@ -4,7 +4,7 @@ use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{ApplyChain, List, Map};
 use crate::ast::structs::operator::ApplyOperation;
-use crate::ast::{DatexExpression, DatexExpressionData, DatexParserTrait};
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 
 pub fn chain_without_whitespace_apply<'a>(

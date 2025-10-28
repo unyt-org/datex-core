@@ -5,10 +5,7 @@ use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::ComparisonOperation;
 use crate::ast::structs::operator::ComparisonOperator;
 use crate::ast::{DatexExpression, DatexExpressionData};
-use crate::global::instruction_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
-use std::fmt::Display;
 
 fn comparison_op(
     op: ComparisonOperator,

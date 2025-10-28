@@ -1,10 +1,7 @@
 use std::fmt::Display;
 
 use crate::ast::DatexParserTrait;
-use crate::ast::grammar::utils::whitespace;
-use crate::ast::lexer::Token;
 use crate::global::instruction_codes::InstructionCode;
-use chumsky::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {

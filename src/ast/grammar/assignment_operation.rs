@@ -1,10 +1,8 @@
-use std::fmt::Display;
 
 use crate::ast::DatexParserTrait;
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::structs::operator::AssignmentOperator;
-use crate::global::instruction_codes::InstructionCode;
 use chumsky::prelude::*;
 
 pub fn assignment_operation<'a>()

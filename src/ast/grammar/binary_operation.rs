@@ -9,10 +9,7 @@ use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::operator::binary::BitwiseOperator;
 use crate::ast::structs::operator::binary::LogicalOperator;
 use crate::ast::{DatexExpression, DatexExpressionData};
-use crate::global::instruction_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::Instruction;
 use chumsky::prelude::*;
-use std::fmt::Display;
 
 /// Generic helper for left-associative infix chains
 fn infix_left_chain<'a>(
