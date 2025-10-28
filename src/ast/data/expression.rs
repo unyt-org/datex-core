@@ -5,7 +5,6 @@ use crate::ast::chain::ApplyOperation;
 use crate::ast::comparison_operation::ComparisonOperator;
 use crate::ast::data::spanned::Spanned;
 use crate::ast::data::r#type::TypeExpression;
-use crate::ast::data::visitor::{Visit, VisitMut, Visitable};
 use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
@@ -33,233 +32,6 @@ impl DatexExpression {
             data,
             span,
             wrapped: None,
-        }
-    }
-}
-
-impl Visitable for DatexExpression {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        match &mut self.data {
-            DatexExpressionData::Noop => {}
-            DatexExpressionData::UnaryOperation(op) => {
-                visitor.visit_unary_operation(op, &self.span)
-            }
-            DatexExpressionData::Statements(stmts) => {
-                visitor.visit_statements(stmts, &self.span)
-            }
-            DatexExpressionData::VariableDeclaration(var_decl) => {
-                visitor.visit_variable_declaration(var_decl, &self.span)
-            }
-            DatexExpressionData::VariableAssignment(var_assign) => {
-                visitor.visit_variable_assignment(var_assign, &self.span)
-            }
-            DatexExpressionData::VariableAccess(var_access) => {
-                visitor.visit_variable_access(var_access, &self.span)
-            }
-            DatexExpressionData::Integer(i) => {
-                visitor.visit_integer(i, &self.span)
-            }
-            DatexExpressionData::TypedInteger(ti) => {
-                visitor.visit_typed_integer(ti, &self.span)
-            }
-            DatexExpressionData::Decimal(d) => {
-                visitor.visit_decimal(d, &self.span)
-            }
-            DatexExpressionData::TypedDecimal(td) => {
-                visitor.visit_typed_decimal(td, &self.span)
-            }
-            DatexExpressionData::Text(s) => visitor.visit_text(s, &self.span),
-            DatexExpressionData::Boolean(b) => {
-                visitor.visit_boolean(b, &self.span)
-            }
-            DatexExpressionData::Endpoint(e) => {
-                visitor.visit_endpoint(e, &self.span)
-            }
-            DatexExpressionData::Null => visitor.visit_null(&self.span),
-            DatexExpressionData::List(list) => {
-                visitor.visit_list(list, &self.span)
-            }
-            DatexExpressionData::Map(map) => visitor.visit_map(map, &self.span),
-            DatexExpressionData::GetReference(pointer_address) => {
-                visitor.visit_get_reference(pointer_address, &self.span)
-            }
-            DatexExpressionData::Conditional(conditional) => {
-                visitor.visit_conditional(conditional, &self.span)
-            }
-            DatexExpressionData::TypeDeclaration(type_declaration) => {
-                visitor.visit_type_declaration(type_declaration, &self.span)
-            }
-            DatexExpressionData::TypeExpression(type_expression) => {
-                visitor.visit_type_expression(type_expression)
-            }
-            DatexExpressionData::Type(type_expression) => {
-                visitor.visit_type_expression(type_expression)
-            }
-            DatexExpressionData::FunctionDeclaration(function_declaration) => {
-                visitor.visit_function_declaration(
-                    function_declaration,
-                    &self.span,
-                )
-            }
-            DatexExpressionData::CreateRef(datex_expression) => {
-                visitor.visit_create_ref(datex_expression, &self.span)
-            }
-            DatexExpressionData::CreateRefMut(datex_expression) => {
-                visitor.visit_create_mut(datex_expression, &self.span)
-            }
-            DatexExpressionData::Deref(deref) => {
-                visitor.visit_deref(deref, &self.span)
-            }
-            DatexExpressionData::Slot(slot) => {
-                visitor.visit_slot(slot, &self.span)
-            }
-            DatexExpressionData::SlotAssignment(slot_assignment) => {
-                visitor.visit_slot_assignment(slot_assignment, &self.span)
-            }
-            DatexExpressionData::PointerAddress(pointer_address) => {
-                visitor.visit_pointer_address(pointer_address, &self.span)
-            }
-            DatexExpressionData::BinaryOperation(binary_operation) => {
-                visitor.visit_binary_operation(binary_operation, &self.span)
-            }
-            DatexExpressionData::ComparisonOperation(comparison_operation) => {
-                visitor.visit_comparison_operation(
-                    comparison_operation,
-                    &self.span,
-                )
-            }
-            DatexExpressionData::DerefAssignment(deref_assignment) => {
-                visitor.visit_deref_assignment(deref_assignment, &self.span)
-            }
-            DatexExpressionData::ApplyChain(apply_chain) => {
-                visitor.visit_apply_chain(apply_chain, &self.span)
-            }
-            DatexExpressionData::RemoteExecution(remote_execution) => {
-                visitor.visit_remote_execution(remote_execution, &self.span)
-            }
-            DatexExpressionData::CreateRefFinal(datex_expression) => {
-                unimplemented!("CreateRefFinal is going to be deprecated")
-            }
-            DatexExpressionData::Identifier(identifier) => {
-                visitor.visit_identifier(identifier, &self.span)
-            }
-            DatexExpressionData::Placeholder | DatexExpressionData::Recover => {
-                unreachable!(
-                    "Placeholder and Recover expressions should not be visited"
-                )
-            }
-        }
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        match &self.data {
-            DatexExpressionData::Noop => {}
-            DatexExpressionData::UnaryOperation(op) => {
-                visitor.visit_unary_operation(op, &self.span)
-            }
-            DatexExpressionData::Statements(stmts) => {
-                visitor.visit_statements(stmts, &self.span)
-            }
-            DatexExpressionData::VariableDeclaration(var_decl) => {
-                visitor.visit_variable_declaration(var_decl, &self.span)
-            }
-            DatexExpressionData::VariableAssignment(var_assign) => {
-                visitor.visit_variable_assignment(var_assign, &self.span)
-            }
-            DatexExpressionData::VariableAccess(var_access) => {
-                visitor.visit_variable_access(var_access, &self.span)
-            }
-            DatexExpressionData::Integer(i) => {
-                visitor.visit_integer(i, &self.span)
-            }
-            DatexExpressionData::TypedInteger(ti) => {
-                visitor.visit_typed_integer(ti, &self.span)
-            }
-            DatexExpressionData::Decimal(d) => {
-                visitor.visit_decimal(d, &self.span)
-            }
-            DatexExpressionData::TypedDecimal(td) => {
-                visitor.visit_typed_decimal(td, &self.span)
-            }
-            DatexExpressionData::Text(s) => visitor.visit_text(s, &self.span),
-            DatexExpressionData::Boolean(b) => {
-                visitor.visit_boolean(b, &self.span)
-            }
-            DatexExpressionData::Endpoint(e) => {
-                visitor.visit_endpoint(e, &self.span)
-            }
-            DatexExpressionData::Null => visitor.visit_null(&self.span),
-            DatexExpressionData::List(list) => {
-                visitor.visit_list(list, &self.span)
-            }
-            DatexExpressionData::Map(map) => visitor.visit_map(map, &self.span),
-            DatexExpressionData::GetReference(pointer_address) => {
-                visitor.visit_get_reference(pointer_address, &self.span)
-            }
-            DatexExpressionData::Conditional(conditional) => {
-                visitor.visit_conditional(conditional, &self.span)
-            }
-            DatexExpressionData::TypeDeclaration(type_declaration) => {
-                visitor.visit_type_declaration(type_declaration, &self.span)
-            }
-            DatexExpressionData::TypeExpression(type_expression) => {
-                visitor.visit_type_expression(type_expression)
-            }
-            DatexExpressionData::Type(type_expression) => {
-                visitor.visit_type_expression(type_expression)
-            }
-            DatexExpressionData::FunctionDeclaration(function_declaration) => {
-                visitor.visit_function_declaration(
-                    function_declaration,
-                    &self.span,
-                )
-            }
-            DatexExpressionData::CreateRef(datex_expression) => {
-                visitor.visit_create_ref(datex_expression, &self.span)
-            }
-            DatexExpressionData::CreateRefMut(datex_expression) => {
-                visitor.visit_create_mut(datex_expression, &self.span)
-            }
-            DatexExpressionData::Deref(deref) => {
-                visitor.visit_deref(deref, &self.span)
-            }
-            DatexExpressionData::Slot(slot) => {
-                visitor.visit_slot(slot, &self.span)
-            }
-            DatexExpressionData::SlotAssignment(slot_assignment) => {
-                visitor.visit_slot_assignment(slot_assignment, &self.span)
-            }
-            DatexExpressionData::PointerAddress(pointer_address) => {
-                visitor.visit_pointer_address(pointer_address, &self.span)
-            }
-            DatexExpressionData::BinaryOperation(binary_operation) => {
-                visitor.visit_binary_operation(binary_operation, &self.span)
-            }
-            DatexExpressionData::ComparisonOperation(comparison_operation) => {
-                visitor.visit_comparison_operation(
-                    comparison_operation,
-                    &self.span,
-                )
-            }
-            DatexExpressionData::DerefAssignment(deref_assignment) => {
-                visitor.visit_deref_assignment(deref_assignment, &self.span)
-            }
-            DatexExpressionData::ApplyChain(apply_chain) => {
-                visitor.visit_apply_chain(apply_chain, &self.span)
-            }
-            DatexExpressionData::RemoteExecution(remote_execution) => {
-                visitor.visit_remote_execution(remote_execution, &self.span)
-            }
-            DatexExpressionData::CreateRefFinal(datex_expression) => {
-                unimplemented!("CreateRefFinal is going to be deprecated")
-            }
-            DatexExpressionData::Identifier(identifier) => {
-                visitor.visit_identifier(identifier, &self.span)
-            }
-            DatexExpressionData::Placeholder | DatexExpressionData::Recover => {
-                unreachable!(
-                    "Placeholder and Recover expressions should not be visited"
-                )
-            }
         }
     }
 }
@@ -464,8 +236,6 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
     }
 }
 
-// Expressions with visit methods
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct BinaryOperation {
     pub operator: BinaryOperator,
@@ -474,33 +244,11 @@ pub struct BinaryOperation {
     pub r#type: Option<Type>,
 }
 
-impl Visitable for BinaryOperation {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.left);
-        visitor.visit_expression(&mut self.right);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct ComparisonOperation {
     pub operator: ComparisonOperator,
     pub left: Box<DatexExpression>,
     pub right: Box<DatexExpression>,
-}
-
-impl Visitable for ComparisonOperation {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.left);
-        visitor.visit_expression(&mut self.right);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -511,38 +259,11 @@ pub struct DerefAssignment {
     pub assigned_expression: Box<DatexExpression>,
 }
 
-impl Visitable for DerefAssignment {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.deref_expression);
-        visitor.visit_expression(&mut self.assigned_expression);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.deref_expression);
-        visitor.visit_expression(&self.assigned_expression);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Conditional {
     pub condition: Box<DatexExpression>,
     pub then_branch: Box<DatexExpression>,
     pub else_branch: Option<Box<DatexExpression>>,
-}
-impl Visitable for Conditional {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.condition);
-        visitor.visit_expression(&mut self.then_branch);
-        if let Some(else_branch) = &mut self.else_branch {
-            visitor.visit_expression(else_branch);
-        }
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.condition);
-        visitor.visit_expression(&self.then_branch);
-        if let Some(else_branch) = &self.else_branch {
-            visitor.visit_expression(else_branch);
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -552,27 +273,11 @@ pub struct TypeDeclaration {
     pub value: TypeExpression,
     pub hoisted: bool,
 }
-impl Visitable for TypeDeclaration {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_type_expression(&mut self.value);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_type_expression(&self.value);
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryOperation {
     pub operator: UnaryOperator,
     pub expression: Box<DatexExpression>,
-}
-impl Visitable for UnaryOperation {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.expression);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -580,55 +285,11 @@ pub struct ApplyChain {
     pub base: Box<DatexExpression>,
     pub operations: Vec<ApplyOperation>,
 }
-impl Visitable for ApplyChain {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.base);
-        for op in &mut self.operations {
-            match op {
-                ApplyOperation::FunctionCall(expression) => {
-                    visitor.visit_expression(expression);
-                }
-                ApplyOperation::PropertyAccess(property) => {
-                    visitor.visit_expression(property);
-                }
-                ApplyOperation::GenericAccess(access) => {
-                    visitor.visit_expression(access);
-                }
-            }
-        }
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.base);
-        for op in &self.operations {
-            match op {
-                ApplyOperation::FunctionCall(expression) => {
-                    visitor.visit_expression(expression);
-                }
-                ApplyOperation::PropertyAccess(property) => {
-                    visitor.visit_expression(property);
-                }
-                ApplyOperation::GenericAccess(access) => {
-                    visitor.visit_expression(access);
-                }
-            }
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoteExecution {
     pub left: Box<DatexExpression>,
     pub right: Box<DatexExpression>,
-}
-impl Visitable for RemoteExecution {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.left);
-        visitor.visit_expression(&mut self.right);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.left);
-        visitor.visit_expression(&self.right);
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -656,18 +317,6 @@ impl Statements {
         }
     }
 }
-impl Visitable for Statements {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        for stmt in &mut self.statements {
-            visitor.visit_expression(stmt);
-        }
-    }
-    fn visit_children_with(& self, visitor: &mut impl Visit) {
-        for stmt in &self.statements {
-            visitor.visit_expression(stmt);
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct VariableDeclaration {
@@ -678,36 +327,12 @@ pub struct VariableDeclaration {
     pub init_expression: Box<DatexExpression>,
 }
 
-impl Visitable for VariableDeclaration {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        if let Some(type_annotation) = &mut self.type_annotation {
-            visitor.visit_type_expression(type_annotation);
-        }
-        visitor.visit_expression(&mut self.init_expression);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        if let Some(type_annotation) = &self.type_annotation {
-            visitor.visit_type_expression(type_annotation);
-        }
-        visitor.visit_expression(&self.init_expression);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct VariableAssignment {
     pub id: Option<VariableId>,
     pub name: String,
     pub operator: AssignmentOperator,
     pub expression: Box<DatexExpression>,
-}
-
-impl Visitable for VariableAssignment {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.expression);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -724,15 +349,6 @@ pub struct FunctionDeclaration {
     pub body: Box<DatexExpression>,
 }
 
-impl Visitable for FunctionDeclaration {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.body);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.body);
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct List {
     pub items: Vec<DatexExpression>,
@@ -744,19 +360,6 @@ impl List {
     }
 }
 
-impl Visitable for List {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        for item in &mut self.items {
-            visitor.visit_expression(item);
-        }
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for item in &self.items {
-            visitor.visit_expression(item);
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Map {
     pub entries: Vec<(DatexExpression, DatexExpression)>,
@@ -765,21 +368,6 @@ pub struct Map {
 impl Map {
     pub fn new(entries: Vec<(DatexExpression, DatexExpression)>) -> Self {
         Map { entries }
-    }
-}
-
-impl Visitable for Map {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        for (key, value) in &mut self.entries {
-            visitor.visit_expression(key);
-            visitor.visit_expression(value);
-        }
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        for (key, value) in &self.entries {
-            visitor.visit_expression(key);
-            visitor.visit_expression(value);
-        }
     }
 }
 
@@ -817,12 +405,4 @@ impl Display for Slot {
 pub struct SlotAssignment {
     pub slot: Slot,
     pub expression: Box<DatexExpression>,
-}
-impl Visitable for SlotAssignment {
-    fn visit_children_mut_with(&mut self, visitor: &mut impl VisitMut) {
-        visitor.visit_expression(&mut self.expression);
-    }
-    fn visit_children_with(&self, visitor: &mut impl Visit) {
-        visitor.visit_expression(&self.expression);
-    }
 }
