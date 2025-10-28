@@ -6,3 +6,6 @@ pub use binary::BinaryOperator;
 
 pub mod apply;
 pub use apply::ApplyOperation;
+
+pub mod comparison;
+pub use comparison::ComparisonOperator;

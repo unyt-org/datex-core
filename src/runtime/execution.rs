@@ -2,12 +2,12 @@ use super::stack::{Scope, ScopeStack};
 
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 
-use crate::ast::grammar::comparison_operation::ComparisonOperator;
 use crate::ast::grammar::unary_operation::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
 use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::ComparisonOperator;
 use crate::ast::structs::operator::binary::{
     ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };

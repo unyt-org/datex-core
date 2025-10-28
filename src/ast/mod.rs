@@ -330,6 +330,7 @@ mod tests {
                 },
                 operator::{
                     ApplyOperation, AssignmentOperator, BinaryOperator,
+                    ComparisonOperator,
                     binary::{ArithmeticOperator, BitwiseOperator},
                 },
                 r#type::{
