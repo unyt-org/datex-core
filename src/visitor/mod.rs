@@ -1,5 +1,3 @@
-
-
 pub mod expression;
 pub mod type_expression;
 
@@ -28,23 +26,22 @@ mod tests {
             BinaryOperation, DatexExpression, DatexExpressionData, Statements,
         },
         parse,
-        visitor::{VisitAction, expression::visitable::ExpressionVisitAction},
+    };
+    use crate::visitor::{
+        VisitAction, expression::visitable::ExpressionVisitAction,
     };
     use std::ops::Range;
 
-    use crate::ast::{
-        data::{
-            expression::VariableAccess,
-            r#type::{TypeExpression, TypeExpressionData},
-        },
-        visitor::{
-            expression::ExpressionVisitor,
-            type_expression::{
-                TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
-            },
+    use crate::ast::data::{
+        expression::VariableAccess,
+        r#type::{TypeExpression, TypeExpressionData},
+    };
+    use crate::visitor::{
+        expression::ExpressionVisitor,
+        type_expression::{
+            TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
         },
     };
-
     struct MyAst;
     impl TypeExpressionVisitor for MyAst {
         fn visit_literal_type(

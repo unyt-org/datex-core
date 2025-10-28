@@ -43,8 +43,8 @@ pub mod metadata;
 pub mod precompiler;
 pub mod precompiler_new;
 pub mod scope;
-mod type_compiler;
-mod type_inference;
+pub mod type_compiler;
+pub mod type_inference;
 pub mod workspace;
 
 #[derive(Clone, Default)]

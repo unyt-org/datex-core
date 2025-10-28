@@ -1,15 +1,13 @@
-
 use crate::ast::chain::ApplyOperation;
 use crate::ast::data::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    List, Map, RemoteExecution, SlotAssignment, Statements,
-    TypeDeclaration, UnaryOperation, VariableAssignment,
-    VariableDeclaration,
+    List, Map, RemoteExecution, SlotAssignment, Statements, TypeDeclaration,
+    UnaryOperation, VariableAssignment, VariableDeclaration,
 };
-use crate::ast::visitor::VisitAction;
-use crate::ast::visitor::expression::ExpressionVisitor;
-use crate::ast::visitor::type_expression::visitable::VisitableTypeExpression;
+use crate::visitor::VisitAction;
+use crate::visitor::expression::ExpressionVisitor;
+use crate::visitor::type_expression::visitable::VisitableTypeExpression;
 
 pub type ExpressionVisitAction = VisitAction<DatexExpression>;
 

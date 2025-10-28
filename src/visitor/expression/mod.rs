@@ -8,17 +8,17 @@ use crate::ast::data::expression::{
     TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };
-use crate::ast::visitor::VisitAction;
-use crate::ast::visitor::expression::visitable::{
-    ExpressionVisitAction, VisitableExpression,
-};
-use crate::ast::visitor::type_expression::TypeExpressionVisitor;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::visitor::VisitAction;
+use crate::visitor::expression::visitable::{
+    ExpressionVisitAction, VisitableExpression,
+};
+use crate::visitor::type_expression::TypeExpressionVisitor;
 
 pub trait ExpressionVisitor: TypeExpressionVisitor {
     fn visit_datex_expression(&mut self, expr: &mut DatexExpression) {

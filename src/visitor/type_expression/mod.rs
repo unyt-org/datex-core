@@ -5,8 +5,8 @@ use crate::ast::data::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
-use crate::ast::visitor::VisitAction;
-use crate::ast::visitor::type_expression::visitable::{
+use crate::visitor::VisitAction;
+use crate::visitor::type_expression::visitable::{
     TypeExpressionVisitAction, VisitableTypeExpression,
 };
 use crate::values::core_values::decimal::Decimal;

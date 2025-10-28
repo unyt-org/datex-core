@@ -31,8 +31,10 @@ pub mod libs;
 pub mod logger;
 pub mod network;
 pub mod parser;
+pub mod precompiler;
 pub mod references;
 pub mod runtime;
+pub mod visitor;
 
 #[cfg(feature = "serde")]
 pub mod serde;
