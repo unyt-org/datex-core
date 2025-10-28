@@ -1,14 +1,16 @@
 /// deprecated: use precompiler mod instead
-use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
-use crate::ast::chain::ApplyOperation;
+use crate::ast::grammar::binary_operation::{
+    ArithmeticOperator, BinaryOperator,
+};
+use crate::ast::grammar::chain::ApplyOperation;
+use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
-use crate::ast::spanned::Spanned;
-use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
     SpannedCompilerError, collect_or_pass_error,
@@ -32,8 +34,8 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use datex_core::ast::structs::expression::VariableAccess;
 use datex_core::ast::parse_result::ValidDatexParseResult;
+use datex_core::ast::structs::expression::VariableAccess;
 use log::info;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -982,9 +984,9 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::structs::expression::Statements;
-    use crate::ast::data::r#type::StructuralMap;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
+    use crate::ast::structs::expression::Statements;
+    use crate::ast::structs::r#type::StructuralMap;
     use crate::ast::{error::src::SrcId, parse};
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;

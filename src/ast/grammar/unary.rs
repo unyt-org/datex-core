@@ -1,10 +1,10 @@
-use crate::ast::structs::expression::UnaryOperation;
-use crate::ast::spanned::Spanned;
-use crate::ast::lexer::Token;
-use crate::ast::unary_operation::{
+use crate::ast::grammar::unary_operation::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
 };
-use crate::ast::utils::whitespace;
+use crate::ast::grammar::utils::whitespace;
+use crate::ast::lexer::Token;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::UnaryOperation;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 

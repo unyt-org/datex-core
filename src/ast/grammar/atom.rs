@@ -1,9 +1,9 @@
 use crate::ast::DatexParserTrait;
-use crate::ast::decimal::decimal;
-use crate::ast::endpoint::endpoint;
-use crate::ast::integer::integer;
-use crate::ast::literal::literal;
-use crate::ast::text::text;
+use crate::ast::grammar::decimal::decimal;
+use crate::ast::grammar::endpoint::endpoint;
+use crate::ast::grammar::integer::integer;
+use crate::ast::grammar::literal::literal;
+use crate::ast::grammar::text::text;
 use chumsky::prelude::*;
 
 pub fn atom<'a>(

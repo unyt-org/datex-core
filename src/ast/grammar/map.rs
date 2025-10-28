@@ -1,7 +1,7 @@
-use crate::ast::spanned::Spanned;
 use crate::ast::error::pattern::Pattern;
+use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
-use crate::ast::utils::whitespace;
+use crate::ast::spanned::Spanned;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 
 use crate::ast::structs::expression::Map;

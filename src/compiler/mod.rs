@@ -1,5 +1,5 @@
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binding::VariableId;
+use crate::ast::grammar::assignment_operation::AssignmentOperator;
+use crate::ast::grammar::binding::VariableId;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
@@ -10,12 +10,12 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
+use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::structs::expression::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
     VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
 };
-use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::error::{

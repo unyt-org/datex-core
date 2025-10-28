@@ -1,8 +1,8 @@
 use crate::ast::DatexParserTrait;
-use crate::ast::structs::expression::ComparisonOperation;
-use crate::ast::spanned::Spanned;
+use crate::ast::grammar::utils::operation;
 use crate::ast::lexer::Token;
-use crate::ast::utils::operation;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::ComparisonOperation;
 use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;

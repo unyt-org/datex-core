@@ -1,9 +1,9 @@
-use crate::ast::structs::expression::FunctionDeclaration;
-use crate::ast::spanned::Spanned;
-use crate::ast::data::r#type::TypeExpression;
+use crate::ast::grammar::r#type::r#type;
+use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
-use crate::ast::r#type::r#type;
-use crate::ast::utils::whitespace;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::FunctionDeclaration;
+use crate::ast::structs::r#type::TypeExpression;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {

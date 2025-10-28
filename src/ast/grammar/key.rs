@@ -1,6 +1,6 @@
-use crate::ast::spanned::Spanned;
+use crate::ast::grammar::text::text;
 use crate::ast::lexer::Token;
-use crate::ast::text::text;
+use crate::ast::spanned::Spanned;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 /// A valid map key

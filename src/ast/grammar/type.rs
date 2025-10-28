@@ -1,23 +1,23 @@
 use std::{str::FromStr, vec};
 
-use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::spanned::Spanned;
-use crate::ast::data::r#type::{
+use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
 use crate::{
     ast::{
         DatexParserTrait,
-        data::expression::TypeDeclaration,
         error::{
             error::{ErrorKind, ParseError},
             pattern::Pattern,
         },
+        grammar::literal::literal,
+        grammar::text::unescape_text,
+        grammar::utils::whitespace,
         lexer::{DecimalLiteral, IntegerLiteral, Token},
-        literal::literal,
-        text::unescape_text,
-        utils::whitespace,
+        structs::expression::TypeDeclaration,
     },
     references::reference::ReferenceMutability,
     values::core_values::{
@@ -533,11 +533,11 @@ mod tests {
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
-    use crate::ast::structs::expression::{
-        DatexExpression, DatexExpressionData, Statements,
-    };
     use crate::ast::parse_result::{
         InvalidDatexParseResult, ValidDatexParseResult,
+    };
+    use crate::ast::structs::expression::{
+        DatexExpression, DatexExpressionData, Statements,
     };
     use std::{io, str::FromStr};
 
