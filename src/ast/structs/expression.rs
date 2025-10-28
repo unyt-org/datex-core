@@ -1,5 +1,5 @@
-use crate::ast::grammar::binding::VariableId;
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::VariableId;
 use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::structs::operator::BinaryOperator;
 use crate::ast::structs::operator::ComparisonOperator;

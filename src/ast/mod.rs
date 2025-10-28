@@ -1,5 +1,5 @@
 pub mod error;
-pub mod grammar;
+mod grammar;
 pub mod structs;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;

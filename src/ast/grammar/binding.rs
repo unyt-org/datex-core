@@ -16,8 +16,6 @@ use crate::ast::{
 };
 use chumsky::prelude::*;
 
-pub type VariableId = usize;
-
 fn create_variable_declaration(
     name: String,
     value: DatexExpression,

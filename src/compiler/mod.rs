@@ -1,4 +1,4 @@
-use crate::ast::grammar::binding::VariableId;
+use crate::ast::structs::VariableId;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
