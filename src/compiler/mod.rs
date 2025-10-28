@@ -41,7 +41,6 @@ pub mod context;
 pub mod error;
 pub mod metadata;
 pub mod precompiler;
-pub mod precompiler_new;
 pub mod scope;
 pub mod type_compiler;
 pub mod type_inference;
