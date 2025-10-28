@@ -3,7 +3,7 @@ use std::ops::Range;
 use pretty::DocAllocator;
 
 use crate::{
-    ast::data::expression::{
+    ast::structs::expression::{
         BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
         VariableAccess, VariableDeclaration,
     },

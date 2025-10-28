@@ -1,6 +1,6 @@
 use crate::ast::DatexParserTrait;
-use crate::ast::data::expression::ComparisonOperation;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::ComparisonOperation;
+use crate::ast::spanned::Spanned;
 use crate::ast::lexer::Token;
 use crate::ast::utils::operation;
 use crate::ast::{DatexExpression, DatexExpressionData};

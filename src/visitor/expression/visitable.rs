@@ -1,5 +1,5 @@
 use crate::ast::chain::ApplyOperation;
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     List, Map, RemoteExecution, SlotAssignment, Statements, TypeDeclaration,

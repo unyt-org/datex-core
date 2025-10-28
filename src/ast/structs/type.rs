@@ -1,7 +1,7 @@
 use std::ops::Range;
 
-use crate::ast::data::expression::VariableAccess;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::VariableAccess;
+use crate::ast::spanned::Spanned;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;

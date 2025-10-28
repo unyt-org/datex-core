@@ -1,6 +1,6 @@
 use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::lexer::Token;
 use chumsky::prelude::*;
 

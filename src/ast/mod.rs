@@ -1,49 +1,32 @@
-pub mod assignment_operation;
-pub mod atom;
-pub mod binary_operation;
-pub mod binding;
-pub mod chain;
-pub mod comparison_operation;
-pub mod data;
-pub mod decimal;
-pub mod endpoint;
 pub mod error;
-pub mod function;
-pub mod integer;
-pub mod key;
-pub mod lexer;
-pub mod list;
-pub mod literal;
-pub mod map;
-pub mod parse_result;
-pub mod text;
-pub mod r#type;
-pub mod unary;
-pub mod unary_operation;
-pub mod utils;
-use crate::ast::atom::*;
-use crate::ast::binary_operation::*;
-use crate::ast::binding::*;
-use crate::ast::chain::*;
-use crate::ast::comparison_operation::*;
-use crate::ast::data::expression::Conditional;
-use crate::ast::data::expression::RemoteExecution;
-use crate::ast::data::spanned::Spanned;
+pub mod grammar;
+pub mod structs;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
-use crate::ast::function::*;
-use crate::ast::key::*;
-use crate::ast::list::*;
-use crate::ast::map::*;
-use crate::ast::r#type::type_expression;
-use crate::ast::unary::*;
-use crate::ast::utils::*;
+use crate::ast::grammar::atom::*;
+use crate::ast::grammar::binary_operation::*;
+use crate::ast::grammar::binding::*;
+use crate::ast::grammar::chain::*;
+use crate::ast::grammar::comparison_operation::*;
+use crate::ast::grammar::function::*;
+use crate::ast::grammar::key::*;
+use crate::ast::grammar::list::*;
+use crate::ast::grammar::map::*;
+use crate::ast::grammar::unary::*;
+use crate::ast::grammar::utils::*;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::Conditional;
+use crate::ast::structs::expression::RemoteExecution;
 
-use crate::ast::data::expression::{
-    DatexExpression, DatexExpressionData, Statements,
-};
+use crate::ast::grammar::r#type::type_expression;
+pub mod lexer;
+pub mod parse_result;
+pub mod spanned;
 use crate::ast::parse_result::{
     DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
+};
+use crate::ast::structs::expression::{
+    DatexExpression, DatexExpressionData, Statements,
 };
 use chumsky::extra::Err;
 use chumsky::prelude::*;
@@ -336,21 +319,17 @@ pub fn parse(mut src: &str) -> DatexParseResult {
 mod tests {
     use crate::{
         ast::{
-            assignment_operation::AssignmentOperator,
-            data::{
+            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
+            grammar::assignment_operation::AssignmentOperator,
+            structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
                     FunctionDeclaration, TypeDeclaration,
                 },
-                spanned::Spanned,
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
                     TypeExpressionData, Union,
                 },
-            },
-            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            unary_operation::{
-                ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
             },
         },
         values::{
@@ -365,11 +344,11 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::data::expression::{
+    use crate::ast::structs::expression::{
         DatexExpressionData, List, Map, Slot, UnaryOperation,
         VariableDeclaration, VariableKind,
     };
-    use datex_core::ast::data::expression::VariableAssignment;
+    use datex_core::ast::structs::expression::VariableAssignment;
     use std::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,

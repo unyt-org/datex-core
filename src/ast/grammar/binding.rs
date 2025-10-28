@@ -1,11 +1,11 @@
 use crate::ast::assignment_operation::{
     AssignmentOperator, assignment_operation,
 };
-use crate::ast::data::expression::VariableDeclaration;
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::VariableDeclaration;
+use crate::ast::structs::expression::{
     DerefAssignment, VariableAssignment, VariableKind,
 };
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::data::r#type::TypeExpression;
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;

@@ -1,4 +1,4 @@
-use crate::ast::data::expression::DatexExpressionData;
+use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;

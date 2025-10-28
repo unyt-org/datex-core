@@ -1,5 +1,5 @@
-use crate::ast::data::expression::{ApplyChain, List, Map};
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::{ApplyChain, List, Map};
+use crate::ast::spanned::Spanned;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;

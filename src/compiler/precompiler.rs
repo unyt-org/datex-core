@@ -1,13 +1,13 @@
 /// deprecated: use precompiler mod instead
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
 use crate::ast::chain::ApplyOperation;
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -32,7 +32,7 @@ use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use datex_core::ast::data::expression::VariableAccess;
+use datex_core::ast::structs::expression::VariableAccess;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use log::info;
 use std::cell::RefCell;
@@ -982,7 +982,7 @@ fn visit_type_expression(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::data::expression::Statements;
+    use crate::ast::structs::expression::Statements;
     use crate::ast::data::r#type::StructuralMap;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
     use crate::ast::{error::src::SrcId, parse};

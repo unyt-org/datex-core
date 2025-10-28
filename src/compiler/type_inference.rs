@@ -1,6 +1,6 @@
 use crate::ast::assignment_operation::AssignmentOperator;
 use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
@@ -660,8 +660,8 @@ mod tests {
 
     use super::*;
     use crate::ast::binary_operation::ArithmeticOperator;
-    use crate::ast::data::expression::{List, Map, VariableKind};
-    use crate::ast::data::spanned::Spanned;
+    use crate::ast::structs::expression::{List, Map, VariableKind};
+    use crate::ast::spanned::Spanned;
     use crate::ast::parse;
     use crate::ast::parse_result::{
         DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,

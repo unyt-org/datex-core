@@ -1,7 +1,7 @@
 use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::lexer::{IntegerLiteral, Token};
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;

@@ -1,20 +1,20 @@
 use std::ops::Range;
 
-use crate::ast::data::expression::VariableAccess;
 use crate::ast::data::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
-use crate::visitor::VisitAction;
-use crate::visitor::type_expression::visitable::{
-    TypeExpressionVisitAction, VisitableTypeExpression,
-};
+use crate::ast::structs::expression::VariableAccess;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::visitor::VisitAction;
+use crate::visitor::type_expression::visitable::{
+    TypeExpressionVisitAction, VisitableTypeExpression,
+};
 pub mod visitable;
 pub trait TypeExpressionVisitor: Sized {
     fn visit_type_expression(&mut self, expr: &mut TypeExpression) {

@@ -1,6 +1,6 @@
 use std::fmt::{self};
 
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
     TypeDeclaration,

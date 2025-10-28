@@ -10,7 +10,7 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
     VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,

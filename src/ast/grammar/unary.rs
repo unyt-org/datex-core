@@ -1,5 +1,5 @@
-use crate::ast::data::expression::UnaryOperation;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::UnaryOperation;
+use crate::ast::spanned::Spanned;
 use crate::ast::lexer::Token;
 use crate::ast::unary_operation::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,

@@ -1,4 +1,4 @@
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::lexer::Token;
 use crate::ast::text::text;
 use crate::ast::{DatexExpressionData, DatexParserTrait};

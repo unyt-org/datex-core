@@ -1,7 +1,7 @@
 use std::{str::FromStr, vec};
 
-use crate::ast::data::expression::DatexExpressionData;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::spanned::Spanned;
 use crate::ast::data::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
@@ -533,7 +533,7 @@ mod tests {
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
-    use crate::ast::data::expression::{
+    use crate::ast::structs::expression::{
         DatexExpression, DatexExpressionData, Statements,
     };
     use crate::ast::parse_result::{

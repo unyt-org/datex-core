@@ -1,11 +1,13 @@
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::binding::VariableId;
-use crate::ast::chain::ApplyOperation;
-use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::data::spanned::Spanned;
-use crate::ast::data::r#type::TypeExpression;
-use crate::ast::unary_operation::{ArithmeticUnaryOperator, UnaryOperator};
+use crate::ast::grammar::assignment_operation::AssignmentOperator;
+use crate::ast::grammar::binary_operation::BinaryOperator;
+use crate::ast::grammar::binding::VariableId;
+use crate::ast::grammar::chain::ApplyOperation;
+use crate::ast::grammar::comparison_operation::ComparisonOperator;
+use crate::ast::grammar::r#type::TypeExpression;
+use crate::ast::grammar::unary_operation::{
+    ArithmeticUnaryOperator, UnaryOperator,
+};
+use crate::ast::spanned::Spanned;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;

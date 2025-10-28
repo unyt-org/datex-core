@@ -1,7 +1,7 @@
 use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::error::error::ParseError;
 use crate::ast::lexer::Token;
 use crate::values::core_values::endpoint::Endpoint;

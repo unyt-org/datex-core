@@ -1,4 +1,4 @@
-use crate::ast::data::expression::DatexExpression;
+use crate::ast::structs::expression::DatexExpression;
 use crate::ast::error::error::{ParseError, SpanOrToken};
 use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::precompiler::precompiled_ast::RichAst;

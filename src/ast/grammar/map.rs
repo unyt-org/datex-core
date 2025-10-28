@@ -1,25 +1,27 @@
-use crate::ast::data::expression::List;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::spanned::Spanned;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::lexer::Token;
 use crate::ast::utils::whitespace;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
+
+use crate::ast::structs::expression::Map;
 use chumsky::prelude::*;
 
-pub fn list<'a>(
+pub fn map<'a>(
+    key: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    expression
-        .clone()
+    key.then_ignore(just(Token::Colon).padded_by(whitespace()))
+        .then(expression.clone())
         .separated_by(just(Token::Comma).padded_by(whitespace()))
         .at_least(0)
         .allow_trailing()
         .collect()
         .padded_by(whitespace())
-        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map_with(|elements, e| {
-            DatexExpressionData::List(List::new(elements)).with_span(e.span())
+        .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
+        .map_with(|entries, e| {
+            DatexExpressionData::Map(Map::new(entries)).with_span(e.span())
         })
-        .labelled(Pattern::List)
+        .labelled(Pattern::Custom("map"))
         .as_context()
 }

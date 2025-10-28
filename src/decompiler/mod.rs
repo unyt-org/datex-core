@@ -8,8 +8,8 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
-use crate::ast::data::expression::DatexExpressionData;
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::spanned::Spanned;
 use crate::decompiler::ast_to_source_code::AstToSourceCodeFormatter;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;

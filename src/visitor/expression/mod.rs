@@ -1,7 +1,7 @@
 pub mod visitable;
 use std::ops::Range;
 
-use crate::ast::data::expression::{
+use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     List, Map, RemoteExecution, Slot, SlotAssignment, Statements,

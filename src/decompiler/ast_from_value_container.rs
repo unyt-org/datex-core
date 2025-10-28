@@ -1,5 +1,5 @@
-use crate::ast::data::expression::{DatexExpressionData, List, Map};
-use crate::ast::data::spanned::Spanned;
+use crate::ast::structs::expression::{DatexExpressionData, List, Map};
+use crate::ast::spanned::Spanned;
 use crate::ast::data::r#type::TypeExpressionData;
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
@@ -100,8 +100,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::data::expression::{DatexExpressionData, List};
-    use crate::ast::data::spanned::Spanned;
+    use crate::ast::structs::expression::{DatexExpressionData, List};
+    use crate::ast::spanned::Spanned;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
