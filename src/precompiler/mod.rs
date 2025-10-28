@@ -1,15 +1,18 @@
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use log::info;
-
+pub mod options;
+pub mod precompiled_ast;
+pub mod scope;
+pub mod scope_stack;
 use crate::{
     ast::{
         binary_operation::{ArithmeticOperator, BinaryOperator},
         data::{
             expression::{
-                BinaryOperation, DatexExpressionData,
-                Statements, TypeDeclaration, VariableAccess,
-                VariableAssignment, VariableDeclaration, VariableKind,
+                BinaryOperation, DatexExpressionData, Statements,
+                TypeDeclaration, VariableAccess, VariableAssignment,
+                VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
             r#type::{TypeExpression, TypeExpressionData},
@@ -23,13 +26,14 @@ use crate::{
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
             SpannedCompilerError, collect_or_pass_error,
         },
-        precompiler::{
-            AstMetadata, PrecompilerOptions, PrecompilerScopeStack, RichAst,
-            VariableShape,
-        },
         type_inference::infer_expression_type_detailed_errors,
     },
     libs::core::CoreLibPointerId,
+    precompiler::{
+        options::PrecompilerOptions,
+        precompiled_ast::{AstMetadata, RichAst, VariableShape},
+        scope_stack::PrecompilerScopeStack,
+    },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
     values::{

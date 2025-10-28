@@ -1,8 +1,7 @@
 use crate::ast::data::expression::VariableKind;
-use crate::compiler::precompiler::PrecompilerScopeStack;
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
-use datex_core::compiler::precompiler::RichAst;
-use itertools::Itertools;
+use crate::precompiler::precompiled_ast::RichAst;
+use crate::precompiler::scope_stack::PrecompilerScopeStack;
 use std::cell::RefCell;
 use std::collections::HashMap;
 

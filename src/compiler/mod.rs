@@ -4,6 +4,7 @@ use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
 };
+use crate::compiler::precompiler::precompile_ast;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -22,14 +23,16 @@ use crate::compiler::error::{
     SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
 };
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{
-    AstMetadata, PrecompilerOptions, RichAst, VariableMetadata, precompile_ast,
-};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
+
+use crate::precompiler::options::PrecompilerOptions;
+use crate::precompiler::precompiled_ast::{
+    AstMetadata, RichAst, VariableMetadata,
+};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;

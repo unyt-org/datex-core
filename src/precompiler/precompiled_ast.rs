@@ -1,0 +1,88 @@
+use std::{cell::RefCell, fmt::Display, rc::Rc};
+
+use crate::{
+    ast::data::expression::{DatexExpression, VariableKind},
+    runtime::Runtime,
+    types::type_container::TypeContainer,
+};
+
+#[derive(Clone, Debug)]
+pub struct VariableMetadata {
+    pub original_realm_index: usize,
+    pub is_cross_realm: bool,
+    pub shape: VariableShape,
+    pub var_type: Option<TypeContainer>,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VariableShape {
+    Type,
+    Value(VariableKind),
+}
+
+impl From<VariableKind> for VariableShape {
+    fn from(value: VariableKind) -> Self {
+        VariableShape::Value(value)
+    }
+}
+
+impl Display for VariableShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableShape::Type => write!(f, "type"),
+            VariableShape::Value(kind) => write!(f, "{kind}"),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct AstMetadata {
+    pub variables: Vec<VariableMetadata>,
+    // TODO #441: move runtime somewhere else, not in AstMetadata?
+    pub runtime: Runtime,
+}
+
+impl AstMetadata {
+    pub fn new(runtime: Runtime) -> Self {
+        AstMetadata {
+            variables: Vec::new(),
+            runtime,
+        }
+    }
+    pub fn variable_metadata(&self, id: usize) -> Option<&VariableMetadata> {
+        self.variables.get(id)
+    }
+
+    pub fn variable_metadata_mut(
+        &mut self,
+        id: usize,
+    ) -> Option<&mut VariableMetadata> {
+        self.variables.get_mut(id)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RichAst {
+    pub ast: Option<DatexExpression>,
+    pub metadata: Rc<RefCell<AstMetadata>>,
+}
+
+impl RichAst {
+    pub fn new(
+        ast: DatexExpression,
+        metadata: &Rc<RefCell<AstMetadata>>,
+    ) -> Self {
+        RichAst {
+            ast: Some(ast),
+            metadata: metadata.clone(),
+        }
+    }
+
+    pub fn new_without_metadata(ast: DatexExpression) -> Self {
+        RichAst {
+            ast: Some(ast),
+            metadata: Rc::new(RefCell::new(AstMetadata::default())),
+        }
+    }
+}

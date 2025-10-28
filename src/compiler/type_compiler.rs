@@ -3,8 +3,8 @@ use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::values::core_values::integer::Integer;
-use datex_core::compiler::precompiler::AstMetadata;
 use std::cell::RefCell;
 use std::rc::Rc;
 

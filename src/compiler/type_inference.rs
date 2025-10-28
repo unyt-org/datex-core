@@ -6,8 +6,8 @@ use crate::ast::data::expression::{
 };
 use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
-use crate::compiler::precompiler::AstMetadata;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -667,12 +667,13 @@ mod tests {
         DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
     };
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
-    use crate::compiler::precompiler::{
-        PrecompilerScopeStack, RichAst, precompile_ast_simple_error,
-    };
+
+    use crate::compiler::precompiler::precompile_ast_simple_error;
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
+    use crate::precompiler::precompiled_ast::{AstMetadata, RichAst};
+    use crate::precompiler::scope_stack::PrecompilerScopeStack;
     use crate::references::type_reference::{
         NominalTypeDeclaration, TypeReference,
     };
