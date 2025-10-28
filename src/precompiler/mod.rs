@@ -7,13 +7,12 @@ use crate::{
         binary_operation::{ArithmeticOperator, BinaryOperator},
         data::{
             expression::{
-                BinaryOperation, DatexExpression, DatexExpressionData,
+                BinaryOperation, DatexExpressionData,
                 Statements, TypeDeclaration, VariableAccess,
                 VariableAssignment, VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
             r#type::{TypeExpression, TypeExpressionData},
-            visitor::{VisitMut, Visitable},
         },
         parse_result::ValidDatexParseResult,
     },
