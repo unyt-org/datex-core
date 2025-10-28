@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use crate::{
     ast::{
-        binary_operation::BinaryOperator,
-        comparison_operation::ComparisonOperator,
-        data::{
+        grammar::binary_operation::BinaryOperator,
+        grammar::comparison_operation::ComparisonOperator,
+        grammar::unary_operation::UnaryOperator,
+        structs::{
             expression::{DatexExpression, VariableAccess},
             r#type::{FunctionType, TypeExpression, TypeExpressionData},
         },
-        unary_operation::UnaryOperator,
     },
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},

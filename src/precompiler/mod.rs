@@ -7,17 +7,17 @@ pub mod scope;
 pub mod scope_stack;
 use crate::{
     ast::{
-        binary_operation::{ArithmeticOperator, BinaryOperator},
-        data::{
+        grammar::binary_operation::{ArithmeticOperator, BinaryOperator},
+        parse_result::ValidDatexParseResult,
+        spanned::Spanned,
+        structs::{
             expression::{
                 BinaryOperation, DatexExpressionData, Statements,
                 TypeDeclaration, VariableAccess, VariableAssignment,
                 VariableDeclaration, VariableKind,
             },
-            spanned::Spanned,
             r#type::{TypeExpression, TypeExpressionData},
         },
-        parse_result::ValidDatexParseResult,
     },
     compiler::{
         error::{

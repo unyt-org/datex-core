@@ -1,11 +1,11 @@
 use super::stack::{Scope, ScopeStack};
 
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::{
+use crate::ast::grammar::assignment_operation::AssignmentOperator;
+use crate::ast::grammar::binary_operation::{
     ArithmeticOperator, BinaryOperator, BitwiseOperator, LogicalOperator,
 };
-use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::unary_operation::{
+use crate::ast::grammar::comparison_operation::ComparisonOperator;
+use crate::ast::grammar::unary_operation::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };

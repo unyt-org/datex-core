@@ -21,18 +21,18 @@ pub enum VisitAction<T: Sized> {
 #[cfg(test)]
 mod tests {
     use crate::ast::{
-        binary_operation::BinaryOperator,
-        data::expression::{
+        grammar::binary_operation::BinaryOperator,
+        parse,
+        structs::expression::{
             BinaryOperation, DatexExpression, DatexExpressionData, Statements,
         },
-        parse,
     };
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitAction,
     };
     use std::ops::Range;
 
-    use crate::ast::data::{
+    use crate::ast::structs::{
         expression::VariableAccess,
         r#type::{TypeExpression, TypeExpressionData},
     };

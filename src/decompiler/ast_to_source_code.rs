@@ -5,13 +5,13 @@ use crate::ast::structs::expression::{
     DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
     TypeDeclaration,
 };
-use crate::ast::data::r#type::{
+use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData,
 };
 use crate::{
     ast::{
-        chain::ApplyOperation,
-        data::expression::{
+        grammar::chain::ApplyOperation,
+        structs::expression::{
             DatexExpression, DatexExpressionData, FunctionDeclaration,
             VariableAccess, VariableAssignment, VariableDeclaration,
         },
@@ -699,10 +699,10 @@ mod tests {
 
     use super::*;
     use crate::{
+        ast::spanned::Spanned,
         ast::{
-            assignment_operation::AssignmentOperator,
-            data::{expression::VariableKind, spanned::Spanned},
-            parse,
+            grammar::assignment_operation::AssignmentOperator, parse,
+            structs::expression::VariableKind,
         },
         values::core_values::decimal::Decimal,
     };

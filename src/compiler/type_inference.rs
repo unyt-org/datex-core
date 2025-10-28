@@ -1,10 +1,12 @@
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::{ArithmeticOperator, BinaryOperator};
+use crate::ast::grammar::assignment_operation::AssignmentOperator;
+use crate::ast::grammar::binary_operation::{
+    ArithmeticOperator, BinaryOperator,
+};
 use crate::ast::structs::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
-use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::precompiler::precompiled_ast::AstMetadata;
@@ -659,13 +661,13 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::*;
-    use crate::ast::binary_operation::ArithmeticOperator;
-    use crate::ast::structs::expression::{List, Map, VariableKind};
-    use crate::ast::spanned::Spanned;
+    use crate::ast::grammar::binary_operation::ArithmeticOperator;
     use crate::ast::parse;
     use crate::ast::parse_result::{
         DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
     };
+    use crate::ast::spanned::Spanned;
+    use crate::ast::structs::expression::{List, Map, VariableKind};
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
 
     use crate::compiler::precompiler::precompile_ast_simple_error;

@@ -1,6 +1,6 @@
 use crate::ast::structs::expression::{DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
-use crate::ast::data::r#type::TypeExpressionData;
+use crate::ast::structs::r#type::TypeExpressionData;
 use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;

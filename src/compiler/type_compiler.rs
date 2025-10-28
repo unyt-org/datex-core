@@ -1,4 +1,4 @@
-use crate::ast::data::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
