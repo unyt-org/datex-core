@@ -215,21 +215,7 @@ impl Precompiler {
     }
 }
 
-impl TypeExpressionVisitor for Precompiler {
-    fn visit_literal_type(
-        &mut self,
-        literal: &mut String,
-        span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
-        VisitAction::Replace(TypeExpression::new(
-            TypeExpressionData::VariableAccess(VariableAccess {
-                id: 0,
-                name: "MYTYPE".to_string(),
-            }),
-            span.clone(),
-        ))
-    }
-}
+impl TypeExpressionVisitor for Precompiler {}
 impl ExpressionVisitor for Precompiler {
     fn visit_variable_declaration(
         &mut self,
