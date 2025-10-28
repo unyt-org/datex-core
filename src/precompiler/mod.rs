@@ -1,17 +1,18 @@
-use std::{cell::RefCell, ops::Range, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use log::info;
 
 use crate::{
     ast::{
+        binary_operation::{ArithmeticOperator, BinaryOperator},
         data::{
             expression::{
-                DatexExpression, DatexExpressionData, Statements,
-                TypeDeclaration, VariableAccess, VariableAssignment,
-                VariableDeclaration, VariableKind,
+                BinaryOperation, DatexExpression, DatexExpressionData,
+                Statements, TypeDeclaration, VariableAccess,
+                VariableAssignment, VariableDeclaration, VariableKind,
             },
             spanned::Spanned,
-            r#type::TypeExpression,
+            r#type::{TypeExpression, TypeExpressionData},
             visitor::{VisitMut, Visitable},
         },
         parse_result::ValidDatexParseResult,
@@ -35,6 +36,13 @@ use crate::{
     values::{
         core_values::r#type::Type, pointer::PointerAddress,
         value_container::ValueContainer,
+    },
+    visitor::{
+        VisitAction,
+        expression::{ExpressionVisitor, visitable::ExpressionVisitAction},
+        type_expression::{
+            TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
+        },
     },
 };
 
@@ -90,7 +98,7 @@ impl Precompiler {
             None
         };
 
-        self.visit_expression(&mut ast.ast);
+        self.visit_datex_expression(&mut ast.ast);
 
         let mut rich_ast = RichAst {
             metadata: Rc::new(RefCell::new(self.metadata.take().unwrap())),
@@ -201,5 +209,313 @@ impl Precompiler {
         } else {
             Err(CompilerError::UndeclaredVariable(name.to_string()))
         }
+    }
+}
+
+impl TypeExpressionVisitor for Precompiler {
+    fn visit_literal_type(
+        &mut self,
+        literal: &mut String,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitAction {
+        VisitAction::Replace(TypeExpression::new(
+            TypeExpressionData::VariableAccess(VariableAccess {
+                id: 0,
+                name: "MYTYPE".to_string(),
+            }),
+            span.clone(),
+        ))
+    }
+}
+impl ExpressionVisitor for Precompiler {
+    fn visit_variable_declaration(
+        &mut self,
+        variable_declaration: &mut VariableDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        variable_declaration.id = Some(self.add_new_variable(
+            variable_declaration.name.clone(),
+            VariableShape::Value(variable_declaration.kind),
+        ));
+        VisitAction::VisitChildren
+    }
+
+    fn visit_type_declaration(
+        &mut self,
+        type_declaration: &mut TypeDeclaration,
+        _: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        let name = type_declaration.name.clone();
+        if type_declaration.hoisted {
+            let id = self
+                .scope_stack
+                .get_variable_and_update_metadata(
+                    &type_declaration.name.clone(),
+                    self.metadata.as_mut().unwrap(),
+                )
+                .ok();
+            type_declaration.id = id;
+        } else {
+            type_declaration.id =
+                Some(self.add_new_variable(name, VariableShape::Type));
+        }
+        VisitAction::VisitChildren
+    }
+
+    fn visit_variable_assignment(
+        &mut self,
+        variable_assignment: &mut VariableAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        let new_id = self
+            .scope_stack
+            .get_variable_and_update_metadata(
+                &variable_assignment.name,
+                self.metadata.as_mut().unwrap(),
+            )
+            .unwrap(); // FIXME: handle error properly
+        // check if variable is const
+        let var_metadata = self
+            .metadata()
+            .variable_metadata(new_id)
+            .expect("Variable must have metadata");
+        if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
+            let error = SpannedCompilerError::new_with_span(
+                CompilerError::AssignmentToConst(
+                    variable_assignment.name.clone(),
+                ),
+                span.clone(),
+            );
+            match &mut self.errors {
+                Some(collected_errors) => {
+                    collected_errors.record_error(error);
+                }
+                None => return VisitAction::ToNoop, // FIXME return error
+            }
+        }
+        variable_assignment.id = Some(new_id);
+        VisitAction::VisitChildren
+    }
+
+    fn visit_statements(
+        &mut self,
+        statements: &mut Statements,
+        _: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        let mut registered_names = HashSet::new();
+        for statements in statements.statements.iter_mut() {
+            if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                name,
+                hoisted,
+                ..
+            }) = &mut statements.data
+            {
+                // set hoisted to true
+                *hoisted = true;
+                if registered_names.contains(name) {
+                    let error = SpannedCompilerError::new_with_span(
+                        CompilerError::InvalidRedeclaration(name.clone()),
+                        statements.span.clone(),
+                    );
+                    match &mut self.errors {
+                        Some(collected_errors) => {
+                            collected_errors.record_error(error);
+                        }
+                        None => return VisitAction::ToNoop, // FIXME return error
+                    }
+                }
+                registered_names.insert(name.clone());
+
+                // register variable
+                let type_id =
+                    self.add_new_variable(name.clone(), VariableShape::Type);
+
+                // register placeholder ref in metadata
+                let reference = Rc::new(RefCell::new(TypeReference::nominal(
+                    Type::UNIT,
+                    NominalTypeDeclaration::from(name.to_string()),
+                    None,
+                )));
+                let type_def = TypeContainer::TypeReference(reference.clone());
+                {
+                    self.metadata_mut()
+                        .variable_metadata_mut(type_id)
+                        .expect("TypeDeclaration should have variable metadata")
+                        .var_type = Some(type_def.clone());
+                }
+            }
+        }
+        VisitAction::VisitChildren
+    }
+
+    fn visit_identifier(
+        &mut self,
+        identifier: &mut String,
+        span: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        let result = self.resolve_variable(identifier).map_err(|error| {
+            SpannedCompilerError::new_with_span(error, span.clone())
+        });
+        let action = collect_or_pass_error(&mut self.errors, result).unwrap(); // FIXME: handle error properly
+        if let MaybeAction::Do(resolved_variable) = action {
+            return VisitAction::Replace(match resolved_variable {
+                ResolvedVariable::VariableId(id) => {
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id,
+                        name: identifier.clone(),
+                    })
+                    .with_span(span.clone())
+                }
+                ResolvedVariable::PointerAddress(pointer_address) => {
+                    DatexExpressionData::GetReference(pointer_address)
+                        .with_span(span.clone())
+                }
+            });
+        }
+        VisitAction::SkipChildren
+    }
+
+    fn visit_binary_operation(
+        &mut self,
+        binary_operation: &mut BinaryOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitAction {
+        let operator = &binary_operation.operator;
+        let left = &mut binary_operation.left;
+        let right = &mut binary_operation.right;
+
+        // handle variant access operator
+        if matches!(operator, BinaryOperator::VariantAccess) {
+            let lit_left = if let DatexExpressionData::Identifier(name) =
+                &left.data
+            {
+                name.clone()
+            } else {
+                unreachable!("Left side of variant access must be a literal");
+            };
+
+            let lit_right = if let DatexExpressionData::Identifier(name) =
+                &right.data
+            {
+                name.clone()
+            } else {
+                unreachable!("Right side of variant access must be a literal");
+            };
+            let full_name = format!("{lit_left}/{lit_right}");
+            // if get_variable_kind(lhs) == Value
+            // 1. user value lhs, whatever rhs -> division
+
+            // if get_variable_kind(lhs) == Type
+            // 2. lhs is a user defined type, so
+            // lhs/rhs should be also, otherwise
+            // this throws VariantNotFound
+
+            // if resolve_variable(lhs)
+            // this must be a core type
+            // if resolve_variable(lhs/rhs) has
+            // and error, this throws VariantNotFound
+
+            // Check if the left literal is a variable (value or type, but no core type)
+            if self.scope_stack.has_variable(lit_left.as_str()) {
+                match self
+                    .scope_stack
+                    .variable_kind(lit_left.as_str(), self.metadata())
+                    .unwrap()
+                {
+                    VariableShape::Type => {
+                        // user defined type, continue to variant access
+                        let resolved_variable = self
+                            .resolve_variable(&full_name)
+                            .map_err(|_| {
+                                CompilerError::SubvariantNotFound(
+                                    lit_left.to_string(),
+                                    lit_right.to_string(),
+                                )
+                            })
+                            .unwrap(); // FIXME: handle error properly
+                        return VisitAction::Replace(match resolved_variable {
+                            ResolvedVariable::VariableId(id) => {
+                                DatexExpressionData::VariableAccess(
+                                    VariableAccess {
+                                        id,
+                                        name: full_name.to_string(),
+                                    },
+                                )
+                                .with_span(span.clone())
+                            }
+                            _ => unreachable!(
+                                "Variant access must resolve to a core library type"
+                            ),
+                        });
+                    }
+                    VariableShape::Value(_) => {
+                        // user defined value, this is a division
+                        return VisitAction::ReplaceRecurseChildNodes(
+                            DatexExpressionData::BinaryOperation(
+                                BinaryOperation {
+                                    operator: BinaryOperator::Arithmetic(
+                                        ArithmeticOperator::Divide,
+                                    ),
+                                    left: left.to_owned(),
+                                    right: right.to_owned(),
+                                    r#type: None,
+                                },
+                            )
+                            .with_span(span.clone()),
+                        );
+                    }
+                }
+            }
+            // can be either a core type or a undeclared variable
+
+            // check if left part is a core value / type
+            // otherwise throw the error
+            self.resolve_variable(lit_left.as_str()).unwrap(); // FIXME: handle error properly
+
+            let resolved_variable = self
+                .resolve_variable(format!("{lit_left}/{lit_right}").as_str())
+                .map_err(|error| {
+                    SpannedCompilerError::new_with_span(
+                        CompilerError::SubvariantNotFound(lit_left, lit_right),
+                        span.clone(),
+                    )
+                });
+            let action =
+                collect_or_pass_error(&mut self.errors, resolved_variable)
+                    .unwrap(); // FIXME: handle error properly
+            if let MaybeAction::Do(resolved_variable) = action {
+                VisitAction::ReplaceRecurseChildNodes(match resolved_variable {
+                    ResolvedVariable::PointerAddress(pointer_address) => {
+                        DatexExpressionData::GetReference(pointer_address)
+                            .with_span(span.clone())
+                    }
+                    // FIXME is variable User/whatever allowed here, or
+                    // will this always be a reference to the type?
+                    _ => unreachable!(
+                        "Variant access must resolve to a core library type"
+                    ),
+                })
+            } else {
+                unreachable!("Error must have been handled above");
+            }
+        } else {
+            // continue normal processing
+            VisitAction::VisitChildren
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::parse;
+
+    use super::*;
+    #[test]
+    fn test_precompiler_visit() {
+        let options = PrecompilerOptions::default();
+        let mut precompiler = Precompiler::new(options);
+        let mut ast = parse("var x: integer = 34; var y = 10; x + y").unwrap();
+        let _ = precompiler.precompile(&mut ast);
+        println!("{:#?}", ast);
     }
 }
