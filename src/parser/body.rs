@@ -13,7 +13,7 @@ use crate::stdlib::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
-use datex_core::ast::grammar::assignment_operation::AssignmentOperator;
+use datex_core::ast::structs::operator::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 use std::fmt::Display;
 use std::io::{BufRead, Cursor, Read, Seek};

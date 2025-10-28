@@ -1,7 +1,7 @@
-use crate::ast::grammar::assignment_operation::AssignmentOperator;
-use crate::ast::grammar::binary_operation::BinaryOperator;
 use crate::ast::grammar::comparison_operation::ComparisonOperator;
 use crate::ast::grammar::unary_operation::UnaryOperator;
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use datex_core::references::reference::Reference;

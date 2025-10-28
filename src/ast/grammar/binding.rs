@@ -1,8 +1,6 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
-use crate::ast::grammar::assignment_operation::{
-    AssignmentOperator, assignment_operation,
-};
+use crate::ast::grammar::assignment_operation::assignment_operation;
 use crate::ast::grammar::r#type::{r#type, type_declaration};
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
@@ -11,6 +9,7 @@ use crate::ast::structs::expression::VariableDeclaration;
 use crate::ast::structs::expression::{
     DerefAssignment, VariableAssignment, VariableKind,
 };
+use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::ast::structs::r#type::TypeExpression;
 use crate::ast::{
     DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,

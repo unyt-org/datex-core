@@ -1,13 +1,18 @@
 use crate::{
     ast::{
-        grammar::binary_operation::{
-            ArithmeticOperator, BinaryOperator, LogicalOperator,
+        grammar::{
+            comparison_operation::ComparisonOperator,
+            unary_operation::{LogicalUnaryOperator, UnaryOperator},
         },
-        grammar::comparison_operation::ComparisonOperator,
-        grammar::unary_operation::{LogicalUnaryOperator, UnaryOperator},
-        structs::expression::{
-            BinaryOperation, ComparisonOperation, DatexExpression,
-            DatexExpressionData, UnaryOperation,
+        structs::{
+            expression::{
+                BinaryOperation, ComparisonOperation, DatexExpression,
+                DatexExpressionData, UnaryOperation,
+            },
+            operator::{
+                BinaryOperator,
+                binary::{ArithmeticOperator, LogicalOperator},
+            },
         },
     },
     fmt::{

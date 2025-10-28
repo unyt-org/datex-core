@@ -1,11 +1,10 @@
-use crate::ast::grammar::assignment_operation::AssignmentOperator;
-use crate::ast::grammar::binary_operation::{
-    ArithmeticOperator, BinaryOperator,
-};
 use crate::ast::structs::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -661,7 +660,6 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::*;
-    use crate::ast::grammar::binary_operation::ArithmeticOperator;
     use crate::ast::parse;
     use crate::ast::parse_result::{
         DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,

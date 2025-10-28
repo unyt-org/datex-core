@@ -1,7 +1,3 @@
-/// deprecated: use precompiler mod instead
-use crate::ast::grammar::binary_operation::{
-    ArithmeticOperator, BinaryOperator,
-};
 use crate::ast::grammar::chain::ApplyOperation;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
@@ -10,6 +6,9 @@ use crate::ast::structs::expression::{
     RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
+/// deprecated: use precompiler mod instead
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -987,7 +986,7 @@ mod tests {
     use crate::ast::structs::expression::Statements;
     use crate::ast::structs::r#type::StructuralMap;
     use crate::ast::{error::src::SrcId, parse};
-    use crate::runtime::RuntimeConfig;
+    use crate::runtime::{Runtime, RuntimeConfig};
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use datex_core::values::core_values::integer::Integer;
     use std::assert_matches::assert_matches;

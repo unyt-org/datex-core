@@ -1,4 +1,4 @@
-use crate::ast::grammar::assignment_operation::AssignmentOperator;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::{

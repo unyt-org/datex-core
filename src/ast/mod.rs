@@ -320,17 +320,17 @@ mod tests {
     use crate::{
         ast::{
             error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            grammar::{
-                assignment_operation::AssignmentOperator,
-                unary_operation::{
-                    ArithmeticUnaryOperator, LogicalUnaryOperator,
-                    UnaryOperator,
-                },
+            grammar::unary_operation::{
+                ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
             },
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
                     FunctionDeclaration, TypeDeclaration,
+                },
+                operator::{
+                    AssignmentOperator, BinaryOperator,
+                    binary::{ArithmeticOperator, BitwiseOperator},
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,

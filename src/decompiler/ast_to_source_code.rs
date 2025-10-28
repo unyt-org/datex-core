@@ -701,8 +701,8 @@ mod tests {
     use crate::{
         ast::spanned::Spanned,
         ast::{
-            grammar::assignment_operation::AssignmentOperator, parse,
-            structs::expression::VariableKind,
+            parse, structs::expression::VariableKind,
+            structs::operator::assignment::AssignmentOperator,
         },
         values::core_values::decimal::Decimal,
     };

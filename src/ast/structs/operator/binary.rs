@@ -1,0 +1,247 @@
+use crate::ast::DatexParserTrait;
+use crate::ast::grammar::utils::is_identifier;
+use crate::ast::grammar::utils::operation;
+use crate::ast::lexer::Token;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::BinaryOperation;
+use crate::ast::{DatexExpression, DatexExpressionData};
+use crate::global::instruction_codes::InstructionCode;
+use crate::global::protocol_structures::instructions::Instruction;
+use chumsky::prelude::*;
+use std::fmt::Display;
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum BinaryOperator {
+    Arithmetic(ArithmeticOperator),
+    Logical(LogicalOperator),
+    Bitwise(BitwiseOperator),
+    VariantAccess,
+}
+impl From<ArithmeticOperator> for BinaryOperator {
+    fn from(op: ArithmeticOperator) -> Self {
+        BinaryOperator::Arithmetic(op)
+    }
+}
+impl From<LogicalOperator> for BinaryOperator {
+    fn from(op: LogicalOperator) -> Self {
+        BinaryOperator::Logical(op)
+    }
+}
+impl From<BitwiseOperator> for BinaryOperator {
+    fn from(op: BitwiseOperator) -> Self {
+        BinaryOperator::Bitwise(op)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum ArithmeticOperator {
+    Add,      // +
+    Subtract, // -
+    Multiply, // *
+    Divide,   // /
+    Modulo,   // %
+    Power,    // ^
+}
+impl Display for ArithmeticOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ArithmeticOperator::Add => "+",
+                ArithmeticOperator::Subtract => "-",
+                ArithmeticOperator::Multiply => "*",
+                ArithmeticOperator::Divide => "/",
+                ArithmeticOperator::Modulo => "%",
+                ArithmeticOperator::Power => "^",
+            }
+        )
+    }
+}
+impl From<&ArithmeticOperator> for InstructionCode {
+    fn from(op: &ArithmeticOperator) -> Self {
+        match op {
+            ArithmeticOperator::Add => InstructionCode::ADD,
+            ArithmeticOperator::Subtract => InstructionCode::SUBTRACT,
+            ArithmeticOperator::Multiply => InstructionCode::MULTIPLY,
+            ArithmeticOperator::Divide => InstructionCode::DIVIDE,
+            ArithmeticOperator::Modulo => InstructionCode::MODULO,
+            ArithmeticOperator::Power => InstructionCode::POWER,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum LogicalOperator {
+    And, // and
+    Or,  // or
+}
+
+impl From<&LogicalOperator> for InstructionCode {
+    fn from(op: &LogicalOperator) -> Self {
+        match op {
+            LogicalOperator::And => InstructionCode::AND,
+            LogicalOperator::Or => InstructionCode::OR,
+        }
+    }
+}
+
+impl Display for LogicalOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                LogicalOperator::And => "&&",
+                LogicalOperator::Or => "||",
+            }
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum BitwiseOperator {
+    And, // &
+    Or,  // |
+    Xor, // ^
+    Not, // ~
+}
+
+impl From<&BitwiseOperator> for InstructionCode {
+    fn from(op: &BitwiseOperator) -> Self {
+        match op {
+            BitwiseOperator::And => InstructionCode::AND,
+            BitwiseOperator::Or => InstructionCode::OR,
+            BitwiseOperator::Not => InstructionCode::NOT,
+            _ => {
+                todo!(
+                    "Bitwise operator {:?} not implemented for InstructionCode",
+                    op
+                )
+            }
+        }
+    }
+}
+
+impl Display for BitwiseOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BitwiseOperator::And => "&",
+                BitwiseOperator::Or => "|",
+                BitwiseOperator::Xor => "^",
+                BitwiseOperator::Not => "~",
+            }
+        )
+    }
+}
+
+impl Display for BinaryOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BinaryOperator::Arithmetic(op) => op.to_string(),
+                BinaryOperator::Logical(op) => op.to_string(),
+                BinaryOperator::Bitwise(op) => op.to_string(),
+                BinaryOperator::VariantAccess => "/".to_string(),
+            }
+        )
+    }
+}
+
+impl From<&BinaryOperator> for InstructionCode {
+    fn from(op: &BinaryOperator) -> Self {
+        match op {
+            BinaryOperator::Arithmetic(op) => InstructionCode::from(op),
+            BinaryOperator::Logical(op) => InstructionCode::from(op),
+            BinaryOperator::Bitwise(op) => InstructionCode::from(op),
+            BinaryOperator::VariantAccess => {
+                todo!("#355 VariantAccess not implemented for InstructionCode")
+            }
+            operator => todo!(
+                "Binary operator {:?} not implemented for InstructionCode",
+                operator
+            ),
+        }
+    }
+}
+
+impl From<BinaryOperator> for InstructionCode {
+    fn from(op: BinaryOperator) -> Self {
+        InstructionCode::from(&op)
+    }
+}
+
+impl From<&InstructionCode> for BinaryOperator {
+    fn from(code: &InstructionCode) -> Self {
+        match code {
+            InstructionCode::ADD => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add)
+            }
+            InstructionCode::SUBTRACT => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract)
+            }
+            InstructionCode::MULTIPLY => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Multiply)
+            }
+            InstructionCode::DIVIDE => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
+            }
+            InstructionCode::MODULO => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Modulo)
+            }
+            InstructionCode::POWER => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Power)
+            }
+            InstructionCode::AND => {
+                BinaryOperator::Logical(LogicalOperator::And)
+            }
+            InstructionCode::OR => BinaryOperator::Logical(LogicalOperator::Or),
+            InstructionCode::UNION => {
+                BinaryOperator::Bitwise(BitwiseOperator::And)
+            }
+            _ => todo!("#154 Binary operator for {:?} not implemented", code),
+        }
+    }
+}
+
+impl From<InstructionCode> for BinaryOperator {
+    fn from(code: InstructionCode) -> Self {
+        BinaryOperator::from(&code)
+    }
+}
+
+impl From<&Instruction> for BinaryOperator {
+    fn from(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::Add => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Add)
+            }
+            Instruction::Subtract => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Subtract)
+            }
+            Instruction::Multiply => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Multiply)
+            }
+            Instruction::Divide => {
+                BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
+            }
+            _ => {
+                todo!(
+                    "#155 Binary operator for instruction {:?} not implemented",
+                    instruction
+                );
+            }
+        }
+    }
+}
+
+impl From<Instruction> for BinaryOperator {
+    fn from(instruction: Instruction) -> Self {
+        BinaryOperator::from(&instruction)
+    }
+}

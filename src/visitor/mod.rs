@@ -21,10 +21,13 @@ pub enum VisitAction<T: Sized> {
 #[cfg(test)]
 mod tests {
     use crate::ast::{
-        grammar::binary_operation::BinaryOperator,
         parse,
-        structs::expression::{
-            BinaryOperation, DatexExpression, DatexExpressionData, Statements,
+        structs::{
+            expression::{
+                BinaryOperation, DatexExpression, DatexExpressionData,
+                Statements,
+            },
+            operator::BinaryOperator,
         },
     };
     use crate::visitor::{
