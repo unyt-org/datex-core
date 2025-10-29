@@ -317,7 +317,7 @@ pub (crate) fn precompile_ast(
         collected_errors,
     )
         // no detailed error collection, return no RichAst
-        // TODO: make sure Err result is actually only returned when detailed_errors is set to false
+        // TODO #486: make sure Err result is actually only returned when detailed_errors is set to false
         .map_err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple)?;
 
     let mut rich_ast = RichAst {
@@ -326,7 +326,7 @@ pub (crate) fn precompile_ast(
     };
     
     // type inference - currently only if detailed errors are enabled
-    // FIXME: always do type inference here, not only for detailed errors
+    // FIXME #487: always do type inference here, not only for detailed errors
     if options.detailed_errors {
         let type_res = infer_expression_type_detailed_errors(
             rich_ast.ast.as_mut().unwrap(),
@@ -387,7 +387,7 @@ fn visit_expression(
     let span_start = expression.span.start;
     let span_end = expression.span.end;
     // skip if both zero (default span used for testing)
-    // TODO: improve this
+    // TODO #488: improve this
     if span_start != 0 || span_end != 0 {
         let start_token = spans.get(span_start).cloned().unwrap();
         let end_token = spans.get(span_end - 1).cloned().unwrap();
@@ -1041,7 +1041,7 @@ fn resolve_variable(
     }
 }
 
-// FIXME: use tree visitor once fully implemented instead of custom visit function
+// FIXME #489: use tree visitor once fully implemented instead of custom visit function
 fn visit_type_expression(
     type_expr: &mut TypeExpression,
     metadata: &mut AstMetadata,

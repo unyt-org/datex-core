@@ -13,7 +13,7 @@ pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
     ParseErrors(Vec<ParseError>),
     SerializationError,
-    // TODO: SerializationError(binrw::Error),? has no clone
+    // TODO #478: SerializationError(binrw::Error),? has no clone
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
@@ -213,7 +213,7 @@ impl From<Vec<ParseError>> for DetailedCompilerErrors {
 
 impl From<TypeError> for SimpleOrDetailedCompilerError {
     fn from(value: TypeError) -> Self {
-        // TODO: also store and map span from type error
+        // TODO #479: also store and map span from type error
         SimpleOrDetailedCompilerError::Simple(SpannedCompilerError::from(CompilerError::from(value)))
     }
 }

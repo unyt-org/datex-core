@@ -260,7 +260,7 @@ pub fn compile_script_or_return_static_value<'a>(
         vec![],
         options.compile_scope.once,
     );
-    // FIXME: no clone here
+    // FIXME #480: no clone here
     let scope = compile_ast(ast.clone(), &compilation_context, options)?;
     if *compilation_context.has_non_static_value.borrow() {
         Ok((StaticValueOrDXB::DXB(compilation_context.buffer.take()), scope))
@@ -278,7 +278,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
 ) -> Result<RichAst, SpannedCompilerError> {
-    // TODO: do this (somewhere else)
+    // TODO #481: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value directly
     // if datex_script == "?" {
     //     if inserted_values.len() != 1 {
@@ -326,7 +326,7 @@ pub fn compile_template<'a>(
     )?;
     let compilation_context = CompilationContext::new(
         RefCell::new(Vec::with_capacity(256)),
-        // TODO: no clone here
+        // TODO #482: no clone here
         inserted_values.to_vec(),
         options.compile_scope.once,
     );
@@ -443,7 +443,7 @@ fn compile_expression(
     mut scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = rich_ast.metadata;
-    // TODO: no clone
+    // TODO #483: no clone
     match rich_ast.ast.as_ref().unwrap().clone().data {
         DatexExpressionData::Integer(int) => {
             compilation_context
@@ -743,7 +743,7 @@ fn compile_expression(
                     CompilerError::UndeclaredVariable(name.clone())
                 })?;
 
-            // TODO: check not needed, is already handled in precompiler - can we guarantee this?
+            // TODO #484: check not needed, is already handled in precompiler - can we guarantee this?
             // if const, return error
             if kind == VariableKind::Const {
                 return Err(CompilerError::AssignmentToConst(name.clone()));

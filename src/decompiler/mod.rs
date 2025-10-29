@@ -68,7 +68,7 @@ pub fn decompile_value(
     .format(&ast);
     // add syntax highlighting
 
-    // FIXME remove colorization here
+    // FIXME #477 remove colorization here
     if options.colorized {
         apply_syntax_highlighting(source_code).unwrap()
     } else {

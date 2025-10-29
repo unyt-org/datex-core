@@ -232,7 +232,7 @@ impl AstToSourceCodeFormatter {
             TypeExpression::Literal(literal) => literal.to_string(),
             TypeExpression::Variable(_, name) => name.to_string(),
             TypeExpression::GetReference(pointer_address) => {
-                format!("{}", pointer_address) // FIXME
+                format!("{}", pointer_address) // FIXME #471
             }
             TypeExpression::TypedInteger(typed_integer) => {
                 if self.add_variant_suffix() {
@@ -255,8 +255,8 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpression::FixedSizeList(type_expression, _) => todo!(),
-            TypeExpression::SliceList(type_expression) => todo!(),
+            TypeExpression::FixedSizeList(type_expression, _) => todo!("#472 Undescribed by author."),
+            TypeExpression::SliceList(type_expression) => todo!("#473 Undescribed by author."),
             TypeExpression::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .iter()
@@ -271,7 +271,7 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpression::Generic(_, type_expressions) => todo!(),
+            TypeExpression::Generic(_, type_expressions) => todo!("#474 Undescribed by author."),
             TypeExpression::Function {
                 parameters,
                 return_type,
@@ -527,13 +527,13 @@ impl AstToSourceCodeFormatter {
                 statements_code.join("")
             }
             DatexExpressionData::GetReference(pointer_address) => {
-                format!("{}", pointer_address) // FIXME
+                format!("{}", pointer_address) // FIXME #475
             }
             DatexExpressionData::Conditional {
                 condition,
                 then_branch,
                 else_branch,
-            } => todo!(),
+            } => todo!("#476 Undescribed by author."),
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: _,
                 kind,

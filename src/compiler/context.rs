@@ -71,7 +71,7 @@ pub struct CompilationContext {
     pub index: Cell<usize>,
     pub inserted_value_index: Cell<usize>,
     pub buffer: RefCell<Vec<u8>>,
-    // FIXME: use lifetimes and references here
+    // FIXME #485: use lifetimes and references here
     pub inserted_values: RefCell<Vec<ValueContainer>>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: RefCell<bool>,

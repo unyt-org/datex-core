@@ -260,7 +260,7 @@ impl Type {
                 //reference.value_matches(value)
             }
             TypeDefinition::Type(inner_type) => {
-                // TODO: also check mutability of current type?
+                // TODO #464: also check mutability of current type?
                 inner_type.value_matches(value)
             }
             TypeDefinition::Function {

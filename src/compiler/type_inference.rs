@@ -382,7 +382,7 @@ pub fn infer_expression_type_inner(
                         base_type: None,
                     })
                 },
-                // TODO: check if defined mutability of type reference matches
+                // TODO #490: check if defined mutability of type reference matches
                 TypeContainer::TypeReference(r) => {
                     TypeContainer::Type(Type {
                         type_definition: TypeDefinition::Reference(r.clone()),
@@ -402,7 +402,7 @@ pub fn infer_expression_type_inner(
                         base_type: None,
                     })
                 },
-                // TODO: check if defined mutability of type reference matches
+                // TODO #491: check if defined mutability of type reference matches
                 TypeContainer::TypeReference(r) => {
                     TypeContainer::Type(Type {
                         type_definition: TypeDefinition::Reference(r.clone()),
