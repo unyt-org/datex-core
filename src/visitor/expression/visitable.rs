@@ -18,7 +18,10 @@ pub trait VisitableExpression<
     U: ErrorWithVisitAction<TypeExpression>,
 >
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()>;
 }
 
 impl<
@@ -26,9 +29,13 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for BinaryOperation
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.left);
-        visitor.visit_datex_expression(&mut self.right);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.left)?;
+        visitor.visit_datex_expression(&mut self.right)?;
+        Ok(())
     }
 }
 
@@ -37,10 +44,14 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for Statements
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         for item in &mut self.statements {
-            visitor.visit_datex_expression(item);
+            visitor.visit_datex_expression(item)?;
         }
+        Ok(())
     }
 }
 impl<
@@ -48,10 +59,14 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for List
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         for item in &mut self.items {
-            visitor.visit_datex_expression(item);
+            visitor.visit_datex_expression(item)?;
         }
+        Ok(())
     }
 }
 impl<
@@ -59,10 +74,14 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for Map
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         for (_key, value) in &mut self.entries {
-            visitor.visit_datex_expression(value);
+            visitor.visit_datex_expression(value)?;
         }
+        Ok(())
     }
 }
 impl<
@@ -70,12 +89,16 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for Conditional
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.condition);
-        visitor.visit_datex_expression(&mut self.then_branch);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.condition)?;
+        visitor.visit_datex_expression(&mut self.then_branch)?;
         if let Some(else_branch) = &mut self.else_branch {
-            visitor.visit_datex_expression(else_branch);
+            visitor.visit_datex_expression(else_branch)?;
         }
+        Ok(())
     }
 }
 impl<
@@ -83,11 +106,15 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for VariableDeclaration
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.init_expression);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.init_expression)?;
         if let Some(type_annotation) = &mut self.r#type_annotation {
             visitor.visit_type_expression(type_annotation);
         }
+        Ok(())
     }
 }
 impl<
@@ -95,8 +122,12 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for VariableAssignment
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.expression);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.expression)?;
+        Ok(())
     }
 }
 impl<
@@ -104,8 +135,12 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for UnaryOperation
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.expression);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.expression)?;
+        Ok(())
     }
 }
 impl<
@@ -113,8 +148,12 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for TypeDeclaration
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_type_expression(&mut self.value);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_type_expression(&mut self.value)?;
+        Ok(())
     }
 }
 impl<
@@ -122,9 +161,13 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for ComparisonOperation
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.left);
-        visitor.visit_datex_expression(&mut self.right);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.left)?;
+        visitor.visit_datex_expression(&mut self.right)?;
+        Ok(())
     }
 }
 impl<
@@ -132,9 +175,13 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for DerefAssignment
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.assigned_expression);
-        visitor.visit_datex_expression(&mut self.deref_expression);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.assigned_expression)?;
+        visitor.visit_datex_expression(&mut self.deref_expression)?;
+        Ok(())
     }
 }
 impl<
@@ -142,21 +189,25 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for ApplyChain
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         visitor.visit_datex_expression(&mut self.base);
         for operation in &mut self.operations {
             match operation {
                 ApplyOperation::FunctionCall(arg) => {
-                    visitor.visit_datex_expression(arg);
+                    visitor.visit_datex_expression(arg)?;
                 }
                 ApplyOperation::GenericAccess(arg) => {
-                    visitor.visit_datex_expression(arg);
+                    visitor.visit_datex_expression(arg)?;
                 }
                 ApplyOperation::PropertyAccess(prop) => {
-                    visitor.visit_datex_expression(prop);
+                    visitor.visit_datex_expression(prop)?;
                 }
             }
         }
+        Ok(())
     }
 }
 impl<
@@ -164,9 +215,13 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for RemoteExecution
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.left);
-        visitor.visit_datex_expression(&mut self.right);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.left)?;
+        visitor.visit_datex_expression(&mut self.right)?;
+        Ok(())
     }
 }
 impl<
@@ -174,8 +229,12 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for SlotAssignment
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
-        visitor.visit_datex_expression(&mut self.expression);
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
+        visitor.visit_datex_expression(&mut self.expression)?;
+        Ok(())
     }
 }
 impl<
@@ -183,11 +242,15 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for FunctionDeclaration
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         for (_, param_type) in &mut self.parameters {
-            visitor.visit_type_expression(param_type);
+            visitor.visit_type_expression(param_type)?;
         }
-        visitor.visit_datex_expression(&mut self.body);
+        visitor.visit_datex_expression(&mut self.body)?;
+        Ok(())
     }
 }
 
@@ -196,7 +259,10 @@ impl<
     U: ErrorWithVisitAction<TypeExpression>,
 > VisitableExpression<T, U> for DatexExpression
 {
-    fn walk_children(&mut self, visitor: &mut impl ExpressionVisitor<T, U>) {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<T, U>,
+    ) -> Result<(), ()> {
         match &mut self.data {
             DatexExpressionData::BinaryOperation(op) => {
                 op.walk_children(visitor)
@@ -273,7 +339,7 @@ impl<
             | DatexExpressionData::Integer(_)
             | DatexExpressionData::TypedInteger(_)
             | DatexExpressionData::Identifier(_)
-            | DatexExpressionData::Endpoint(_) => {}
+            | DatexExpressionData::Endpoint(_) => Ok(()),
         }
     }
 }

@@ -16,6 +16,9 @@ pub enum VisitAction<T: Sized> {
     ReplaceRecurse(T),
     /// Convert the current node to a no-op
     ToNoop,
+
+    /// Abort the entire visiting process
+    Abort,
 }
 
 pub trait ErrorWithVisitAction<T: Sized> {
@@ -145,8 +148,11 @@ mod tests {
             error: &'a MyAstExpressionError,
             expr: &DatexExpression,
         ) -> Option<&'a VisitAction<DatexExpression>> {
-            println!("Expression error: {:?} at {:?}", error, expr.span);
-            None
+            println!(
+                "Expression error: {:?} at {:?}. Aborting...",
+                error, expr.span
+            );
+            Some(&VisitAction::Abort)
         }
     }
 

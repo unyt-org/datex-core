@@ -47,7 +47,10 @@ pub trait ExpressionVisitor<
     }
 
     /// Visit datex expression
-    fn visit_datex_expression(&mut self, expr: &mut DatexExpression) {
+    fn visit_datex_expression(
+        &mut self,
+        expr: &mut DatexExpression,
+    ) -> Result<(), ()> {
         let visit_result = match &mut expr.data {
             DatexExpressionData::UnaryOperation(op) => {
                 self.visit_unary_operation(op, &expr.span)
@@ -168,20 +171,30 @@ pub trait ExpressionVisitor<
                 .unwrap_or(error.visit_action()),
         };
         match action {
-            VisitAction::SkipChildren => {}
+            VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = DatexExpressionData::Noop;
+                Ok(())
             }
-            VisitAction::VisitChildren => expr.walk_children(self),
-            VisitAction::Replace(new_expr) => *expr = new_expr.to_owned(),
-            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
-                expr.walk_children(self);
+            VisitAction::VisitChildren => {
+                expr.walk_children(self)?;
+                Ok(())
+            }
+            VisitAction::Replace(new_expr) => {
                 *expr = new_expr.to_owned();
+                Ok(())
+            }
+            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
+                expr.walk_children(self)?;
+                *expr = new_expr.to_owned();
+                Ok(())
             }
             VisitAction::ReplaceRecurse(new_expr) => {
                 *expr = new_expr.to_owned();
-                self.visit_datex_expression(expr);
+                self.visit_datex_expression(expr)?;
+                Ok(())
             }
+            VisitAction::Abort => Err(()),
         }
     }
 

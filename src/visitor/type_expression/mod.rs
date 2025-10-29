@@ -41,7 +41,10 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
     }
 
     /// Visit type expression
-    fn visit_type_expression(&mut self, expr: &mut TypeExpression) {
+    fn visit_type_expression(
+        &mut self,
+        expr: &mut TypeExpression,
+    ) -> Result<(), ()> {
         let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
                 self.visit_get_reference_type(pointer_address, &expr.span)
@@ -116,20 +119,27 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         };
 
         match action {
-            VisitAction::SkipChildren => {}
+            VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = TypeExpressionData::Null;
+                Ok(())
             }
             VisitAction::VisitChildren => expr.walk_children(self),
-            VisitAction::Replace(new_expr) => *expr = new_expr.to_owned(),
-            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
-                expr.walk_children(self);
+            VisitAction::Replace(new_expr) => {
                 *expr = new_expr.to_owned();
+                Ok(())
+            }
+            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
+                expr.walk_children(self)?;
+                *expr = new_expr.to_owned();
+                Ok(())
             }
             VisitAction::ReplaceRecurse(new_expr) => {
                 *expr = new_expr.to_owned();
-                self.visit_type_expression(expr);
+                self.visit_type_expression(expr)?;
+                Ok(())
             }
+            VisitAction::Abort => Err(()),
         }
     }
 
