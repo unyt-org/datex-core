@@ -2,7 +2,7 @@ pub mod visitable;
 use std::ops::Range;
 
 use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+    self, ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     List, Map, RemoteExecution, Slot, SlotAssignment, Statements,
     TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
@@ -34,8 +34,19 @@ pub trait ExpressionVisitor<
     X: ErrorWithVisitAction<TypeExpression>,
 >: TypeExpressionVisitor<X>
 {
-    fn handle_expression_error(&mut self, error: &T, expr: &DatexExpression) {}
+    /// Handle expression error
+    /// Returns an optional visit action to override the error's action
+    /// If no action is provided, the action of the error will be used
+    fn handle_expression_error<'a>(
+        &mut self,
+        error: &'a T,
+        expression: &DatexExpression,
+    ) -> Option<&'a VisitAction<DatexExpression>> {
+        let _ = expression;
+        Some(error.visit_action())
+    }
 
+    /// Visit datex expression
     fn visit_datex_expression(&mut self, expr: &mut DatexExpression) {
         let visit_result = match &mut expr.data {
             DatexExpressionData::UnaryOperation(op) => {
@@ -152,10 +163,9 @@ pub trait ExpressionVisitor<
 
         let action = match &visit_result {
             Ok(act) => act,
-            Err(error) => {
-                self.handle_expression_error(error, expr);
-                error.visit_action()
-            }
+            Err(error) => self
+                .handle_expression_error(error, expr)
+                .unwrap_or(error.visit_action()),
         };
         match action {
             VisitAction::SkipChildren => {}

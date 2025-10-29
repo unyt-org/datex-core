@@ -25,34 +25,22 @@ impl ErrorWithVisitAction<TypeExpression> for EmptyTypeExpressionError {
     }
 }
 
-// impl<E, Expr> ErrorWithVisitAction<Expr> for Result<VisitAction<Expr>, E>
-// where
-//     E: ErrorWithVisitAction<Expr>,
-// {
-//     fn with_visit_action(self, action: &VisitAction<Expr>) {
-//         if let Err(e) = self {
-//             e.with_visit_action(action);
-//         }
-//     }
-
-//     fn visit_action(&self) -> &VisitAction<Expr> {
-//         match self {
-//             Ok(a) => a,
-//             Err(e) => e.visit_action(),
-//         }
-//     }
-// }
-
 pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
     Sized
 {
-    fn handle_type_expression_error(
+    /// Handle type expression error
+    /// Returns an optional visit action to override the error's action
+    /// If no action is provided, the action of the error will be used
+    fn handle_type_expression_error<'a>(
         &mut self,
-        error: &T,
-        expr: &TypeExpression,
-    ) {
+        error: &'a T,
+        expression: &TypeExpression,
+    ) -> Option<&'a VisitAction<TypeExpression>> {
+        let _ = expression;
+        Some(error.visit_action())
     }
 
+    /// Visit type expression
     fn visit_type_expression(&mut self, expr: &mut TypeExpression) {
         let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
@@ -122,10 +110,9 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         };
         let action = match &visit_result {
             Ok(action) => action,
-            Err(e) => {
-                self.handle_type_expression_error(e, &expr);
-                e.visit_action()
-            }
+            Err(e) => self
+                .handle_type_expression_error(e, expr)
+                .unwrap_or(e.visit_action()),
         };
 
         match action {

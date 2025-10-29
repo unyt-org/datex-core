@@ -140,12 +140,13 @@ mod tests {
             Err(MyAstExpressionError::new("Booleans are not allowed"))
         }
 
-        fn handle_expression_error(
+        fn handle_expression_error<'a>(
             &mut self,
-            error: &MyAstExpressionError,
+            error: &'a MyAstExpressionError,
             expr: &DatexExpression,
-        ) {
+        ) -> Option<&'a VisitAction<DatexExpression>> {
             println!("Expression error: {:?} at {:?}", error, expr.span);
+            None
         }
     }
 
