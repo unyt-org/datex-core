@@ -15,19 +15,24 @@ quality gates for contributing to the
 | **Feature branch**             | `feature/<slug>`                  | `feature/tcp-interface` |
 | **Bug-fix branch**             | `fix/<slug>`                      | `fix/handshake-timeout` |
 | **Maintenance / chore branch** | `chore/<slug>`                    | `chore/update-deps`     |
+| **Hotfix branch**              | `hotfix/<slug>`                   | `hotfix/crash-on-start` |
 
-1. **`main` is protected** – direct pushes are disabled.
+> Use **lowercase letters** and **hyphens** (`-`) in branch names. Avoid spaces,
+> underscores (`_`), or other special characters.
+
+1. The default branch **`main` is protected** – direct pushes are disabled.
 2. **All work happens via Pull Requests (PRs).**
 3. **Target branch for every PR is the currently-active release branch** (e.g.
    `release/0.0.4`).
-4. After review & CI success, the feature branch is **squash-merged** into the
-   release branch.
+4. After review & CI success, the feature branch is **merged** into the release
+   branch.
 5. Release branches are merged back to `main` only by a maintainer at version
    cut-time.
 
-> 🔸 **Do not branch from or target `main`** for new work. All development must
+> **Do not branch from or target `main`** for new work. All development must
 > branch from the **latest release branch** (e.g., `release/0.0.4`). The `main`
-> branch reflects only published, production-ready code.
+> branch reflects only published, production-ready code and is not used for
+> active development.
 
 ---
 
@@ -49,7 +54,7 @@ quality gates for contributing to the
   cargo clippy --features debug
   ```
 
-  _We plan to treat all Clippy warnings as errors in the future._ Suppress a
+  _We plan to treat more Clippy warnings as errors in the future._ Suppress a
   lint only with a line-level `#[allow(lint_name)]` and an explanatory comment.
 
 - **Idioms & Practices:**
@@ -115,8 +120,8 @@ quality gates for contributing to the
 
 A pull request is **merge-ready** only when:
 
-1. All unit tests pass: `cargo test --all`.
-2. All integration tests pass: `cargo test --all --tests`.
+1. All unit tests pass: `cargo test --all --features debug`.
+2. All integration tests pass: `cargo test --all --tests --features debug`.
 3. All benchmarks build: `cargo bench --no-run`.
 4. Clippy passes with no errors.
 5. Rustfmt check passes.
@@ -159,7 +164,8 @@ Before requesting review, ensure you have:
 
    - Open a Pull Request (PR) targeting the same **release branch** you based
      your work on.
-   - Select the **“DATEX”** project for the PR in GitHub.
+   - Select the [**"DATEX"**](https://github.com/orgs/unyt-org/projects/12)
+     project for the PR in GitHub.
    - The **maintainers** will assign it to the appropriate **release
      milestone**.
 
@@ -176,7 +182,7 @@ Before requesting review, ensure you have:
 - Use **Conventional Commits** style (e.g. `feat: add TCP interface`,
   `fix: handle timeout`).
 - Keep commit history clean; squash or amend while the PR is open.
-- Reference issues in the PR body (e.g. `Closes #42`).
+- Reference issues in the PR body (e.g. `fix #42`).
 
 ---
 
@@ -184,8 +190,12 @@ Before requesting review, ensure you have:
 
 - Small changes (< 30 LoC) may be approved by one maintainer; larger or
   architectural changes require two approvals.
-- Discuss API-breaking changes in a GitHub Issue before coding.
-- Feel free to draft a PR early (`[WIP]`) to get feedback on direction.
+- Discuss API-breaking changes in a GitHub
+  [Issue](https://github.com/unyt-org/datex-core/issues) or
+  [Discussion](https://github.com/unyt-org/datex-core/discussions) before
+  coding.
+- Feel free to draft a PR early (`[WIP]`) and mark as draft to get feedback on
+  direction.
 
 ---
 
