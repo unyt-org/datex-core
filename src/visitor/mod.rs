@@ -19,13 +19,13 @@ pub enum VisitAction<T: Sized> {
 }
 
 pub trait ErrorWithVisitAction<T: Sized> {
-    fn with_visit_action(self, action: &VisitAction<T>);
+    fn with_visit_action(&mut self, action: VisitAction<T>);
     fn visit_action(&self) -> &VisitAction<T>;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::visitor::expression::EmptyExpressionVisitAction;
+    use crate::visitor::type_expression::EmptyTypeExpressionError;
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitAction,
     };
@@ -40,7 +40,7 @@ mod tests {
                 operator::BinaryOperator,
             },
         },
-        visitor::type_expression::EmptyTypeExpressionVisitAction,
+        visitor::ErrorWithVisitAction,
     };
     use std::ops::Range;
 
@@ -54,13 +54,49 @@ mod tests {
             TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
         },
     };
+
+    pub struct MyAstTypeExpressionError {
+        message: String,
+        action: VisitAction<TypeExpression>,
+    }
+    impl ErrorWithVisitAction<TypeExpression> for MyAstTypeExpressionError {
+        fn visit_action(&self) -> &VisitAction<TypeExpression> {
+            &self.action
+        }
+        fn with_visit_action(&mut self, action: VisitAction<TypeExpression>) {
+            self.action = action;
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct MyAstExpressionError {
+        message: String,
+        action: VisitAction<DatexExpression>,
+    }
+    impl MyAstExpressionError {
+        pub fn new(msg: &str) -> MyAstExpressionError {
+            Self {
+                message: msg.to_string(),
+                action: VisitAction::SkipChildren,
+            }
+        }
+    }
+    impl ErrorWithVisitAction<DatexExpression> for MyAstExpressionError {
+        fn visit_action(&self) -> &VisitAction<DatexExpression> {
+            &self.action
+        }
+        fn with_visit_action(&mut self, action: VisitAction<DatexExpression>) {
+            self.action = action;
+        }
+    }
+
     struct MyAst;
-    impl TypeExpressionVisitor<EmptyTypeExpressionVisitAction> for MyAst {
+    impl TypeExpressionVisitor<EmptyTypeExpressionError> for MyAst {
         fn visit_literal_type(
             &mut self,
             literal: &mut String,
             span: &Range<usize>,
-        ) -> TypeExpressionVisitAction<EmptyTypeExpressionVisitAction> {
+        ) -> TypeExpressionVisitAction<EmptyTypeExpressionError> {
             Ok(VisitAction::Replace(TypeExpression::new(
                 TypeExpressionData::VariableAccess(VariableAccess {
                     id: 0,
@@ -70,17 +106,14 @@ mod tests {
             )))
         }
     }
-    impl
-        ExpressionVisitor<
-            EmptyExpressionVisitAction,
-            EmptyTypeExpressionVisitAction,
-        > for MyAst
+    impl ExpressionVisitor<MyAstExpressionError, EmptyTypeExpressionError>
+        for MyAst
     {
         fn visit_identifier(
             &mut self,
             identifier: &mut String,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction<EmptyExpressionVisitAction> {
+        ) -> ExpressionVisitAction<MyAstExpressionError> {
             Ok(VisitAction::Replace(DatexExpression {
                 data: DatexExpressionData::VariableAccess(VariableAccess {
                     id: 0,
@@ -94,9 +127,25 @@ mod tests {
             &mut self,
             datex_expression: &mut DatexExpression,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction<EmptyExpressionVisitAction> {
+        ) -> ExpressionVisitAction<MyAstExpressionError> {
             println!("visit create ref {:?}", datex_expression);
             Ok(VisitAction::VisitChildren)
+        }
+
+        fn visit_boolean(
+            &mut self,
+            boolean: &mut bool,
+            span: &Range<usize>,
+        ) -> ExpressionVisitAction<MyAstExpressionError> {
+            Err(MyAstExpressionError::new("Booleans are not allowed"))
+        }
+
+        fn handle_expression_error(
+            &mut self,
+            error: &MyAstExpressionError,
+            expr: &DatexExpression,
+        ) {
+            println!("Expression error: {:?} at {:?}", error, expr.span);
         }
     }
 
@@ -105,6 +154,14 @@ mod tests {
         let mut ast =
             parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap().ast;
         MyAst.visit_datex_expression(&mut ast);
+        println!("{:#?}", ast);
+    }
+
+    #[test]
+    fn error() {
+        let mut ast = parse("true + false").unwrap().ast;
+        let mut transformer = MyAst;
+        transformer.visit_datex_expression(&mut ast);
         println!("{:#?}", ast);
     }
 

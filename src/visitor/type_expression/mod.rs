@@ -19,34 +19,40 @@ pub mod visitable;
 
 pub struct EmptyTypeExpressionError;
 impl ErrorWithVisitAction<TypeExpression> for EmptyTypeExpressionError {
-    fn with_visit_action(self, _action: &VisitAction<TypeExpression>) {}
+    fn with_visit_action(&mut self, _action: VisitAction<TypeExpression>) {}
     fn visit_action(&self) -> &VisitAction<TypeExpression> {
         &VisitAction::SkipChildren
     }
 }
-pub type EmptyTypeExpressionVisitAction =
-    TypeExpressionVisitAction<EmptyTypeExpressionError>;
-impl<E, Expr> ErrorWithVisitAction<Expr> for Result<VisitAction<Expr>, E>
-where
-    E: ErrorWithVisitAction<Expr>,
-{
-    fn with_visit_action(self, action: &VisitAction<Expr>) {
-        if let Err(e) = self {
-            e.with_visit_action(action);
-        }
-    }
 
-    fn visit_action(&self) -> &VisitAction<Expr> {
-        match self {
-            Ok(a) => a,
-            Err(e) => e.visit_action(),
-        }
-    }
-}
+// impl<E, Expr> ErrorWithVisitAction<Expr> for Result<VisitAction<Expr>, E>
+// where
+//     E: ErrorWithVisitAction<Expr>,
+// {
+//     fn with_visit_action(self, action: &VisitAction<Expr>) {
+//         if let Err(e) = self {
+//             e.with_visit_action(action);
+//         }
+//     }
+
+//     fn visit_action(&self) -> &VisitAction<Expr> {
+//         match self {
+//             Ok(a) => a,
+//             Err(e) => e.visit_action(),
+//         }
+//     }
+// }
 
 pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
     Sized
 {
+    fn handle_type_expression_error(
+        &mut self,
+        error: &T,
+        expr: &TypeExpression,
+    ) {
+    }
+
     fn visit_type_expression(&mut self, expr: &mut TypeExpression) {
         let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
@@ -116,7 +122,10 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         };
         let action = match &visit_result {
             Ok(action) => action,
-            Err(e) => e.visit_action(),
+            Err(e) => {
+                self.handle_type_expression_error(e, &expr);
+                e.visit_action()
+            }
         };
 
         match action {
