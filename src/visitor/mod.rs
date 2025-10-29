@@ -18,20 +18,29 @@ pub enum VisitAction<T: Sized> {
     ToNoop,
 }
 
+pub trait ErrorWithVisitAction<T: Sized> {
+    fn with_visit_action(self, action: &VisitAction<T>);
+    fn visit_action(&self) -> &VisitAction<T>;
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::ast::{
-        parse,
-        structs::{
-            expression::{
-                BinaryOperation, DatexExpression, DatexExpressionData,
-                Statements,
-            },
-            operator::BinaryOperator,
-        },
-    };
+    use crate::visitor::expression::EmptyExpressionVisitAction;
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitAction,
+    };
+    use crate::{
+        ast::{
+            parse,
+            structs::{
+                expression::{
+                    BinaryOperation, DatexExpression, DatexExpressionData,
+                    Statements,
+                },
+                operator::BinaryOperator,
+            },
+        },
+        visitor::type_expression::EmptyTypeExpressionVisitAction,
     };
     use std::ops::Range;
 
@@ -46,43 +55,48 @@ mod tests {
         },
     };
     struct MyAst;
-    impl TypeExpressionVisitor for MyAst {
+    impl TypeExpressionVisitor<EmptyTypeExpressionVisitAction> for MyAst {
         fn visit_literal_type(
             &mut self,
             literal: &mut String,
             span: &Range<usize>,
-        ) -> TypeExpressionVisitAction {
-            VisitAction::Replace(TypeExpression::new(
+        ) -> TypeExpressionVisitAction<EmptyTypeExpressionVisitAction> {
+            Ok(VisitAction::Replace(TypeExpression::new(
                 TypeExpressionData::VariableAccess(VariableAccess {
                     id: 0,
                     name: "MYTYPE".to_string(),
                 }),
                 span.clone(),
-            ))
+            )))
         }
     }
-    impl ExpressionVisitor for MyAst {
+    impl
+        ExpressionVisitor<
+            EmptyExpressionVisitAction,
+            EmptyTypeExpressionVisitAction,
+        > for MyAst
+    {
         fn visit_identifier(
             &mut self,
             identifier: &mut String,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction {
-            VisitAction::Replace(DatexExpression {
+        ) -> ExpressionVisitAction<EmptyExpressionVisitAction> {
+            Ok(VisitAction::Replace(DatexExpression {
                 data: DatexExpressionData::VariableAccess(VariableAccess {
                     id: 0,
                     name: identifier.clone(),
                 }),
                 span: span.clone(),
                 wrapped: None,
-            })
+            }))
         }
         fn visit_create_ref(
             &mut self,
             datex_expression: &mut DatexExpression,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction {
+        ) -> ExpressionVisitAction<EmptyExpressionVisitAction> {
             println!("visit create ref {:?}", datex_expression);
-            VisitAction::VisitChildren
+            Ok(VisitAction::VisitChildren)
         }
     }
 

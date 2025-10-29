@@ -1,24 +1,54 @@
 use std::ops::Range;
 
+use crate::ast::structs::expression::VariableAccess;
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
-use crate::ast::structs::expression::VariableAccess;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
-use crate::visitor::VisitAction;
 use crate::visitor::type_expression::visitable::{
     TypeExpressionVisitAction, VisitableTypeExpression,
 };
+use crate::visitor::{ErrorWithVisitAction, VisitAction};
 pub mod visitable;
-pub trait TypeExpressionVisitor: Sized {
+
+pub struct EmptyTypeExpressionError;
+impl ErrorWithVisitAction<TypeExpression> for EmptyTypeExpressionError {
+    fn with_visit_action(self, _action: &VisitAction<TypeExpression>) {}
+    fn visit_action(&self) -> &VisitAction<TypeExpression> {
+        &VisitAction::SkipChildren
+    }
+}
+pub type EmptyTypeExpressionVisitAction =
+    TypeExpressionVisitAction<EmptyTypeExpressionError>;
+impl<E, Expr> ErrorWithVisitAction<Expr> for Result<VisitAction<Expr>, E>
+where
+    E: ErrorWithVisitAction<Expr>,
+{
+    fn with_visit_action(self, action: &VisitAction<Expr>) {
+        if let Err(e) = self {
+            e.with_visit_action(action);
+        }
+    }
+
+    fn visit_action(&self) -> &VisitAction<Expr> {
+        match self {
+            Ok(a) => a,
+            Err(e) => e.visit_action(),
+        }
+    }
+}
+
+pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
+    Sized
+{
     fn visit_type_expression(&mut self, expr: &mut TypeExpression) {
-        let action = match &mut expr.data {
+        let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
                 self.visit_get_reference_type(pointer_address, &expr.span)
             }
@@ -84,6 +114,10 @@ pub trait TypeExpressionVisitor: Sized {
                 unimplemented!("RefFinal is going to be deprecated")
             }
         };
+        let action = match &visit_result {
+            Ok(action) => action,
+            Err(e) => e.visit_action(),
+        };
 
         match action {
             VisitAction::SkipChildren => {}
@@ -91,13 +125,13 @@ pub trait TypeExpressionVisitor: Sized {
                 expr.data = TypeExpressionData::Null;
             }
             VisitAction::VisitChildren => expr.walk_children(self),
-            VisitAction::Replace(new_expr) => *expr = new_expr,
+            VisitAction::Replace(new_expr) => *expr = new_expr.to_owned(),
             VisitAction::ReplaceRecurseChildNodes(new_expr) => {
                 expr.walk_children(self);
-                *expr = new_expr;
+                *expr = new_expr.to_owned();
             }
             VisitAction::ReplaceRecurse(new_expr) => {
-                *expr = new_expr;
+                *expr = new_expr.to_owned();
                 self.visit_type_expression(expr);
             }
         }
@@ -108,10 +142,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         literal: &mut String,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = literal;
-        TypeExpressionVisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit structural list type expression
@@ -119,10 +153,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         structural_list: &mut StructuralList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = structural_list;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit fixed size list type expression
@@ -130,10 +164,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         fixed_size_list: &mut FixedSizeList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = fixed_size_list;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit slice list type expression
@@ -141,10 +175,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         slice_list: &mut SliceList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = slice_list;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit intersection type expression
@@ -152,10 +186,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         intersection: &mut Intersection,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = intersection;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit union type expression
@@ -163,10 +197,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         union: &mut Union,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = union;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit generic access type expression
@@ -174,10 +208,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         generic_access: &mut GenericAccess,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = generic_access;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit function type expression
@@ -185,10 +219,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         function_type: &mut FunctionType,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = function_type;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit structural map type expression
@@ -196,10 +230,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         structural_map: &mut StructuralMap,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = structural_map;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit type reference expression
@@ -207,10 +241,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         type_ref: &mut TypeExpression,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = type_ref;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit mutable type reference expression
@@ -218,10 +252,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         type_ref_mut: &mut TypeExpression,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = type_ref_mut;
-        TypeExpressionVisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit integer literal
@@ -229,10 +263,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         integer: &mut Integer,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = integer;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit typed integer literal
@@ -240,10 +274,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         typed_integer: &TypedInteger,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = typed_integer;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit decimal literal
@@ -251,10 +285,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         decimal: &mut Decimal,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = decimal;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit typed decimal literal
@@ -262,10 +296,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         typed_decimal: &TypedDecimal,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = typed_decimal;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit text literal
@@ -273,10 +307,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         text: &mut String,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = text;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit get reference expression
@@ -284,10 +318,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         pointer_address: &mut PointerAddress,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = pointer_address;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit boolean literal
@@ -295,10 +329,10 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         boolean: &mut bool,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = boolean;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit endpoint expression
@@ -306,19 +340,19 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         endpoint: &mut Endpoint,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = endpoint;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit null literal
     fn visit_null_type(
         &mut self,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit variable access
@@ -326,9 +360,9 @@ pub trait TypeExpressionVisitor: Sized {
         &mut self,
         var_access: &mut VariableAccess,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction {
+    ) -> TypeExpressionVisitAction<T> {
         let _ = span;
         let _ = var_access;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 }

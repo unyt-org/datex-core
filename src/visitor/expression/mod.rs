@@ -8,21 +8,36 @@ use crate::ast::structs::expression::{
     TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };
+use crate::ast::structs::r#type::TypeExpression;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
-use crate::visitor::VisitAction;
 use crate::visitor::expression::visitable::{
     ExpressionVisitAction, VisitableExpression,
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
+use crate::visitor::{ErrorWithVisitAction, VisitAction};
 
-pub trait ExpressionVisitor: TypeExpressionVisitor {
+pub struct EmptyExpressionError;
+impl ErrorWithVisitAction<DatexExpression> for EmptyExpressionError {
+    fn with_visit_action(self, _action: &VisitAction<DatexExpression>) {}
+    fn visit_action(&self) -> &VisitAction<DatexExpression> {
+        &VisitAction::SkipChildren
+    }
+}
+pub type EmptyExpressionVisitAction =
+    ExpressionVisitAction<EmptyExpressionError>;
+
+pub trait ExpressionVisitor<
+    T: ErrorWithVisitAction<DatexExpression>,
+    X: ErrorWithVisitAction<TypeExpression>,
+>: TypeExpressionVisitor<X>
+{
     fn visit_datex_expression(&mut self, expr: &mut DatexExpression) {
-        let action = match &mut expr.data {
+        let visit_result = match &mut expr.data {
             DatexExpressionData::UnaryOperation(op) => {
                 self.visit_unary_operation(op, &expr.span)
             }
@@ -73,11 +88,11 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
             }
             DatexExpressionData::TypeExpression(type_expression) => {
                 self.visit_type_expression(type_expression);
-                VisitAction::SkipChildren
+                Ok(VisitAction::SkipChildren)
             }
             DatexExpressionData::Type(type_expression) => {
                 self.visit_type_expression(type_expression);
-                VisitAction::SkipChildren
+                Ok(VisitAction::SkipChildren)
             }
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 self.visit_function_declaration(
@@ -132,22 +147,26 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
                     "Placeholder and Recover expressions should not be visited"
                 )
             }
-            DatexExpressionData::Noop => VisitAction::SkipChildren,
+            DatexExpressionData::Noop => Ok(VisitAction::SkipChildren),
         };
 
+        let action = match &visit_result {
+            Ok(act) => act,
+            Err(error) => error.visit_action(),
+        };
         match action {
             VisitAction::SkipChildren => {}
             VisitAction::ToNoop => {
                 expr.data = DatexExpressionData::Noop;
             }
             VisitAction::VisitChildren => expr.walk_children(self),
-            VisitAction::Replace(new_expr) => *expr = new_expr,
+            VisitAction::Replace(new_expr) => *expr = new_expr.to_owned(),
             VisitAction::ReplaceRecurseChildNodes(new_expr) => {
                 expr.walk_children(self);
-                *expr = new_expr;
+                *expr = new_expr.to_owned();
             }
             VisitAction::ReplaceRecurse(new_expr) => {
-                *expr = new_expr;
+                *expr = new_expr.to_owned();
                 self.visit_datex_expression(expr);
             }
         }
@@ -158,10 +177,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         statements: &mut Statements,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = statements;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit unary operation
@@ -169,10 +188,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         unary_operation: &mut UnaryOperation,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = unary_operation;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit conditional expression
@@ -180,10 +199,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         conditional: &mut Conditional,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = conditional;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit type declaration
@@ -191,10 +210,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         type_declaration: &mut TypeDeclaration,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = type_declaration;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit binary operation
@@ -202,10 +221,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         binary_operation: &mut BinaryOperation,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = binary_operation;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit comparison operation
@@ -213,10 +232,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         comparison_operation: &mut ComparisonOperation,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = comparison_operation;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit dereference assignment
@@ -224,10 +243,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         deref_assignment: &mut DerefAssignment,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = deref_assignment;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit apply chain
@@ -235,10 +254,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         apply_chain: &mut ApplyChain,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = apply_chain;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit remote execution
@@ -246,10 +265,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         remote_execution: &mut RemoteExecution,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = remote_execution;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit function declaration
@@ -257,10 +276,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         function_declaration: &mut FunctionDeclaration,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = function_declaration;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit slot assignment
@@ -268,10 +287,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         slot_assignment: &mut SlotAssignment,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = slot_assignment;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit variable declaration
@@ -279,10 +298,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         variable_declaration: &mut VariableDeclaration,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = variable_declaration;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit variable assignment
@@ -290,10 +309,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         variable_assignment: &mut VariableAssignment,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = variable_assignment;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit variable access
@@ -301,10 +320,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         var_access: &mut VariableAccess,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = var_access;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit create reference expression
@@ -312,10 +331,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         datex_expression: &mut DatexExpression,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = datex_expression;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit create mutable reference expression
@@ -323,10 +342,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         datex_expression: &mut DatexExpression,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = datex_expression;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit dereference expression
@@ -334,10 +353,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         datex_expression: &mut DatexExpression,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = datex_expression;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit list expression
@@ -345,10 +364,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         list: &mut List,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = list;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit map expression
@@ -356,10 +375,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         map: &mut Map,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = map;
         let _ = span;
-        VisitAction::VisitChildren
+        Ok(VisitAction::VisitChildren)
     }
 
     /// Visit integer literal
@@ -367,10 +386,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         integer: &mut Integer,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = integer;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit typed integer literal
@@ -378,10 +397,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         typed_integer: &TypedInteger,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = typed_integer;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit decimal literal
@@ -389,10 +408,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         decimal: &mut Decimal,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = decimal;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit typed decimal literal
@@ -400,10 +419,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         typed_decimal: &TypedDecimal,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = typed_decimal;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit identifier
@@ -411,10 +430,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         identifier: &mut String,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = identifier;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit text literal
@@ -422,10 +441,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         text: &mut String,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = text;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit get reference expression
@@ -433,10 +452,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         pointer_address: &mut PointerAddress,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = pointer_address;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit boolean literal
@@ -444,10 +463,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         boolean: &mut bool,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = boolean;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit endpoint expression
@@ -455,16 +474,16 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         endpoint: &mut Endpoint,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = endpoint;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit null literal
-    fn visit_null(&mut self, span: &Range<usize>) -> ExpressionVisitAction {
+    fn visit_null(&mut self, span: &Range<usize>) -> ExpressionVisitAction<T> {
         let _ = span;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit pointer address expression
@@ -472,10 +491,10 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         pointer_address: &PointerAddress,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = pointer_address;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 
     /// Visit slot expression
@@ -483,9 +502,9 @@ pub trait ExpressionVisitor: TypeExpressionVisitor {
         &mut self,
         slot: &Slot,
         span: &Range<usize>,
-    ) -> ExpressionVisitAction {
+    ) -> ExpressionVisitAction<T> {
         let _ = span;
         let _ = slot;
-        VisitAction::SkipChildren
+        Ok(VisitAction::SkipChildren)
     }
 }
