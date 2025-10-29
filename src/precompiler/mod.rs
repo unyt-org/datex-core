@@ -30,7 +30,9 @@ use crate::{
     libs::core::CoreLibPointerId,
     precompiler::{
         options::PrecompilerOptions,
-        precompiled_ast::{AstMetadata, RichAst, VariableShape},
+        precompiled_ast::{
+            AstMetadata, RichAst, VariableMetadata, VariableShape,
+        },
         scope_stack::PrecompilerScopeStack,
     },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
@@ -80,6 +82,26 @@ impl Precompiler {
         self.metadata
             .as_mut()
             .expect("Metadata must be initialized")
+    }
+
+    fn get_variable_and_update_metadata(
+        &mut self,
+        name: &str,
+    ) -> Result<usize, CompilerError> {
+        self.scope_stack.get_variable_and_update_metadata(
+            name,
+            self.metadata.as_mut().unwrap(),
+        )
+    }
+
+    fn variable_metadata(&self, id: usize) -> Option<&VariableMetadata> {
+        self.metadata().variable_metadata(id)
+    }
+    fn variable_metadata_mut(
+        &mut self,
+        id: usize,
+    ) -> Option<&mut VariableMetadata> {
+        self.metadata_mut().variable_metadata_mut(id)
     }
 
     /// Precompile the AST by resolving variable references and collecting metadata.
@@ -172,10 +194,7 @@ impl Precompiler {
         name: &str,
     ) -> Result<ResolvedVariable, CompilerError> {
         // If variable exist
-        if let Ok(id) = self.scope_stack.get_variable_and_update_metadata(
-            name,
-            self.metadata.as_mut().unwrap(),
-        ) {
+        if let Ok(id) = self.get_variable_and_update_metadata(name) {
             info!("Visiting variable: {name}");
             Ok(ResolvedVariable::VariableId(id))
         }
@@ -234,10 +253,8 @@ impl ExpressionVisitor for Precompiler {
         let name = type_declaration.name.clone();
         if type_declaration.hoisted {
             let id = self
-                .scope_stack
                 .get_variable_and_update_metadata(
                     &type_declaration.name.clone(),
-                    self.metadata.as_mut().unwrap(),
                 )
                 .ok();
             type_declaration.id = id;
@@ -254,17 +271,10 @@ impl ExpressionVisitor for Precompiler {
         span: &Range<usize>,
     ) -> ExpressionVisitAction {
         let new_id = self
-            .scope_stack
-            .get_variable_and_update_metadata(
-                &variable_assignment.name,
-                self.metadata.as_mut().unwrap(),
-            )
+            .get_variable_and_update_metadata(&variable_assignment.name)
             .unwrap(); // FIXME: handle error properly
         // check if variable is const
-        let var_metadata = self
-            .metadata()
-            .variable_metadata(new_id)
-            .expect("Variable must have metadata");
+        let var_metadata = self.variable_metadata(new_id).unwrap();
         if let VariableShape::Value(VariableKind::Const) = var_metadata.shape {
             let error = SpannedCompilerError::new_with_span(
                 CompilerError::AssignmentToConst(
@@ -324,8 +334,7 @@ impl ExpressionVisitor for Precompiler {
                 )));
                 let type_def = TypeContainer::TypeReference(reference.clone());
                 {
-                    self.metadata_mut()
-                        .variable_metadata_mut(type_id)
+                    self.variable_metadata_mut(type_id)
                         .expect("TypeDeclaration should have variable metadata")
                         .var_type = Some(type_def.clone());
                 }
@@ -504,4 +513,16 @@ mod tests {
         let _ = precompiler.precompile(&mut ast);
         println!("{:#?}", ast);
     }
+
+	#[test]
+	fn undeclared_variable_error() {
+		let options = PrecompilerOptions {
+			detailed_errors: true,
+		};
+		let mut precompiler = Precompiler::new(options);
+		let mut ast = parse("x + 10").unwrap();
+		let result = precompiler.precompile(&mut ast);
+		println!("{:#?}", result);
+		
+	}
 }
