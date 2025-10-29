@@ -12,7 +12,7 @@ jobs:
             PROJECT_NAME_UNDERSCORE: datex_core
             CARGO_INCREMENTAL: 0
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
 
             - name: Install libudev-dev and pkg-config
               run: |

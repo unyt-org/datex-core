@@ -19,10 +19,27 @@ jobs:
     Datex-tractor:
         runs-on: ubuntu-latest
         steps:
+
+            - name: Gen app token...
+              id: app-token
+              uses: tibdex/github-app-token@v2
+              with:
+                app_id: ${{ secrets.DATEX_TRACTOR_ID }}
+                private_key: ${{ secrets.DATEX_TRACTOR_PRI_KEY }}
+
             - name: Checkout own repo
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
+              with:
+                token: ${{ steps.app-token.outputs.token }}
+
+            - name: Set up Python...
+              uses: actions/setup-python@v5
+              with:
+                python-version: "3.13"
 
             - name: Run datex_tractor
               uses: unyt-org/datex-tractor@r0.0.3
               with:
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                # github_token: ${{ secrets.GITHUB_TOKEN }}
+                github_token: ${{ steps.app-token.outputs.token }}
+
