@@ -238,6 +238,7 @@ impl Precompiler {
         &mut self,
         name: &str,
     ) -> Result<ResolvedVariable, CompilerError> {
+        println!("Resolving variable: {name}");
         // If variable exist
         if let Ok(id) = self.get_variable_and_update_metadata(name) {
             info!("Visiting variable: {name}");
@@ -630,18 +631,7 @@ mod tests {
             .to_result()
             .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
         Precompiler::new(scope_stack, ast_metadata, runtime)
-            .precompile(
-                ast,
-                PrecompilerOptions {
-                    detailed_errors: false,
-                },
-        )
-            .map_err(|e| match e {
-                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                    error,
-                ) => error,
-                _ => unreachable!(), // because detailed_errors: false
-            })
+            .precompile_ast_simple_error(ast)
     }
 
     fn parse_and_precompile(src: &str) -> Result<RichAst, CompilerError> {
@@ -662,6 +652,7 @@ mod tests {
     #[test]
     fn scoped_variable() {
         let result = parse_and_precompile("(var z = 42;z); z");
+        println!("{:#?}", result);
         assert!(result.is_err());
         assert_matches!(
             result,
