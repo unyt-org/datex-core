@@ -333,7 +333,7 @@ mod tests {
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
-                    TypeExpressionData, Union,
+                    TypeExpressionData, TypeVariantAccess, Union,
                 },
             },
         },
@@ -906,8 +906,12 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
-                    TypeExpressionData::Literal("integer/u8".to_owned())
-                        .with_default_span()
+                    TypeExpressionData::VariantAccess(TypeVariantAccess {
+                        base: None,
+                        name: "integer".to_owned(),
+                        variant: "u8".to_owned(),
+                    })
+                    .with_default_span()
                 ),
                 name: "x".to_string(),
                 init_expression: Box::new(
@@ -1619,7 +1623,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_var_declaration_list() {
+    fn type_var_declaration_list() {
         let src = "var x: integer[] = 42";
         let val = parse_unwrap_data(src);
         assert_eq!(
