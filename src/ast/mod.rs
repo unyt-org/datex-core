@@ -1160,12 +1160,19 @@ mod tests {
             ),
             operations: vec![
                 ApplyOperation::GenericAccess(
-                    DatexExpressionData::VariantAccess(VariantAccess {
-                        base: ResolvedVariable::PointerAddress(
-                            CoreLibPointerId::Integer(None).into(),
+                    DatexExpressionData::BinaryOperation(BinaryOperation {
+                        operator: ArithmeticOperator::Divide.into(),
+                        left: Box::new(
+                            DatexExpressionData::Identifier(
+                                "integer".to_string(),
+                            )
+                            .with_default_span(),
                         ),
-                        name: "integer".to_string(),
-                        variant: "u8".to_string(),
+                        right: Box::new(
+                            DatexExpressionData::Identifier("u8".to_string())
+                                .with_default_span(),
+                        ),
+                        r#type: None,
                     })
                     .with_default_span(),
                 ),
