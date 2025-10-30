@@ -158,7 +158,10 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::Identifier(identifier) => {
                 self.visit_identifier(identifier, &expr.span)
             }
-            DatexExpressionData::Placeholder | DatexExpressionData::Recover => {
+            DatexExpressionData::Placeholder => {
+                self.visit_placeholder(&expr.span)
+            }
+            DatexExpressionData::Recover => {
                 unreachable!(
                     "Placeholder and Recover expressions should not be visited"
                 )
@@ -471,6 +474,14 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> ExpressionVisitResult<E> {
         let _ = span;
         let _ = identifier;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    fn visit_placeholder(
+        &mut self,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
         Ok(VisitAction::SkipChildren)
     }
 

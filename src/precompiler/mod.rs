@@ -579,6 +579,7 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
                 }
             }));
         }
+        println!("Identifier '{}' could not be resolved", identifier);
         Ok(VisitAction::SkipChildren)
     }
 }

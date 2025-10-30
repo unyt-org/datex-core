@@ -1053,7 +1053,8 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        _ => {
+        e => {
+            println!("Unhandled expression in compiler: {:?}", e);
             return Err(CompilerError::UnexpectedTerm(Box::new(
                 rich_ast.ast.unwrap(),
             )));
