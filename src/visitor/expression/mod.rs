@@ -94,14 +94,12 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::TypeDeclaration(type_declaration) => {
                 self.visit_type_declaration(type_declaration, &expr.span)
             }
-            DatexExpressionData::TypeExpression(type_expression) => {
-                self.visit_type_expression(type_expression);
-                Ok(VisitAction::SkipChildren)
-            }
-            DatexExpressionData::Type(type_expression) => {
-                self.visit_type_expression(type_expression);
-                Ok(VisitAction::SkipChildren)
-            }
+            DatexExpressionData::TypeExpression(type_expression) => self
+                .visit_type_expression(type_expression)
+                .map(|_| VisitAction::SkipChildren),
+            DatexExpressionData::Type(type_expression) => self
+                .visit_type_expression(type_expression)
+                .map(|_| VisitAction::SkipChildren),
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 self.visit_function_declaration(
                     function_declaration,

@@ -20,7 +20,7 @@ impl<E> VisitableTypeExpression<E> for StructuralList {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for item in &mut self.0 {
-            item.walk_children(visitor)?;
+            visitor.visit_type_expression(item)?;
         }
         Ok(())
     }
@@ -30,7 +30,8 @@ impl<E> VisitableTypeExpression<E> for FixedSizeList {
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
-        self.r#type.walk_children(visitor)
+        visitor.visit_type_expression(&mut self.r#type)?;
+        Ok(())
     }
 }
 impl<E> VisitableTypeExpression<E> for SliceList {
@@ -38,7 +39,8 @@ impl<E> VisitableTypeExpression<E> for SliceList {
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
-        self.0.walk_children(visitor)
+        visitor.visit_type_expression(&mut self.0)?;
+        Ok(())
     }
 }
 impl<E> VisitableTypeExpression<E> for Intersection {
@@ -47,7 +49,7 @@ impl<E> VisitableTypeExpression<E> for Intersection {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for item in &mut self.0 {
-            item.walk_children(visitor)?;
+            visitor.visit_type_expression(item)?;
         }
         Ok(())
     }
@@ -58,7 +60,7 @@ impl<E> VisitableTypeExpression<E> for Union {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for item in &mut self.0 {
-            item.walk_children(visitor)?;
+            visitor.visit_type_expression(item)?;
         }
         Ok(())
     }
@@ -70,7 +72,7 @@ impl<E> VisitableTypeExpression<E> for GenericAccess {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for arg in &mut self.access {
-            arg.walk_children(visitor)?;
+            visitor.visit_type_expression(arg)?;
         }
         Ok(())
     }
@@ -81,9 +83,9 @@ impl<E> VisitableTypeExpression<E> for FunctionType {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for (_, param_type) in &mut self.parameters {
-            param_type.walk_children(visitor)?;
+            visitor.visit_type_expression(param_type)?;
         }
-        self.return_type.walk_children(visitor)?;
+        visitor.visit_type_expression(&mut self.return_type)?;
         Ok(())
     }
 }
@@ -93,7 +95,7 @@ impl<E> VisitableTypeExpression<E> for StructuralMap {
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
         for (_, value) in &mut self.0 {
-            value.walk_children(visitor)?;
+            visitor.visit_type_expression(value)?;
         }
         Ok(())
     }

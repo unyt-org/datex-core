@@ -10,7 +10,9 @@ use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::{
     DatexExpression, RemoteExecution, VariantAccess,
 };
-use crate::ast::structs::r#type::{TypeExpressionData, TypeVariantAccess};
+use crate::ast::structs::r#type::{
+    TypeExpression, TypeExpressionData, TypeVariantAccess,
+};
 use crate::precompiler::scope::NewScopeType;
 use crate::runtime::Runtime;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
