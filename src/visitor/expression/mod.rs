@@ -33,8 +33,18 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         Err(error)
     }
 
-    fn before_visit_datex_expression(&mut self, _expr: &DatexExpression) {}
-    fn after_visit_datex_expression(&mut self, _expr: &DatexExpression) {}
+    fn before_visit_datex_expression(
+        &mut self,
+        expression: &mut DatexExpression,
+    ) {
+        let _ = expression;
+    }
+    fn after_visit_datex_expression(
+        &mut self,
+        expression: &mut DatexExpression,
+    ) {
+        let _ = expression;
+    }
 
     /// Visit datex expression
     fn visit_datex_expression(

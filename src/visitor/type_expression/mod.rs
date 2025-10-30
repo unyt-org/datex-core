@@ -31,8 +31,15 @@ pub trait TypeExpressionVisitor<E>: Sized {
         Err(error)
     }
 
-    fn before_visit_type_expression(&mut self, _expr: &TypeExpression) {}
-    fn after_visit_type_expression(&mut self, _expr: &TypeExpression) {}
+    fn before_visit_type_expression(
+        &mut self,
+        expression: &mut TypeExpression,
+    ) {
+        let _ = expression;
+    }
+    fn after_visit_type_expression(&mut self, expression: &mut TypeExpression) {
+        let _ = expression;
+    }
 
     /// Visit type expression
     fn visit_type_expression(

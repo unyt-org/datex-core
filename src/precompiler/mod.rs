@@ -63,6 +63,7 @@ pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &'a mut PrecompilerScopeStack,
     collected_errors: Option<DetailedCompilerErrors>,
+    spans: Vec<Range<usize>>, // FIXME make this better
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
@@ -122,6 +123,7 @@ impl<'a> Precompiler<'a> {
             ast_metadata,
             scope_stack,
             collected_errors: None,
+            spans: vec![],
         }
     }
 
@@ -169,6 +171,7 @@ impl<'a> Precompiler<'a> {
         if options.detailed_errors {
             self.collected_errors = Some(DetailedCompilerErrors::default());
         }
+        self.spans = ast.spans.clone(); // FIXME make better
 
         // visit ast recursively
         // returns Error directly if early exit on first error is enabled
@@ -215,16 +218,12 @@ impl<'a> Precompiler<'a> {
     /// Get the full span from start and end token indices
     /// Returns None if the span is the default (0..0)
     /// Used to convert token indices to actual spans in the source code
-    fn span(
-        &self,
-        span: &Range<usize>,
-        spans: &[Range<usize>],
-    ) -> Option<Range<usize>> {
+    fn span(&self, span: &Range<usize>) -> Option<Range<usize>> {
         // skip if both zero (default span used for testing)
         // TODO: improve this
         if span.start != 0 || span.end != 0 {
-            let start_token = spans.get(span.start).cloned().unwrap();
-            let end_token = spans.get(span.end - 1).cloned().unwrap();
+            let start_token = self.spans.get(span.start).cloned().unwrap();
+            let end_token = self.spans.get(span.end - 1).cloned().unwrap();
             Some(start_token.start..end_token.end)
         } else {
             None
@@ -273,6 +272,12 @@ impl<'a> Precompiler<'a> {
 }
 
 impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
+    fn before_visit_type_expression(&mut self, expr: &mut TypeExpression) {
+        if let Some(new_span) = self.span(&expr.span) {
+            expr.span = new_span;
+        }
+    }
+
     fn visit_literal_type(
         &mut self,
         literal: &mut String,
@@ -336,7 +341,11 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         }
     }
 
-    fn before_visit_datex_expression(&mut self, expr: &DatexExpression) {
+    fn before_visit_datex_expression(&mut self, expr: &mut DatexExpression) {
+        if let Some(new_span) = self.span(&expr.span) {
+            expr.span = new_span;
+        }
+
         match self.scope_type_for_expression(expr) {
             NewScopeType::NewScopeWithNewRealm => {
                 self.scope_stack.push_scope();
@@ -349,7 +358,7 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         };
     }
 
-    fn after_visit_datex_expression(&mut self, expr: &DatexExpression) {
+    fn after_visit_datex_expression(&mut self, expr: &mut DatexExpression) {
         match self.scope_type_for_expression(expr) {
             NewScopeType::NewScope | NewScopeType::NewScopeWithNewRealm => {
                 self.scope_stack.pop_scope();
