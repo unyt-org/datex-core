@@ -8,20 +8,16 @@ pub mod scope_stack;
 use crate::ast::structs::expression::{
     DatexExpression, ResolvedVariable, VariantAccess,
 };
-use crate::compiler::precompiler::precompile_ast;
 use crate::runtime::Runtime;
 use crate::{
     ast::{
         parse_result::ValidDatexParseResult,
         spanned::Spanned,
-        structs::{
-            expression::{
+        structs::expression::{
                 BinaryOperation, DatexExpressionData, Statements,
                 TypeDeclaration, VariableAccess, VariableAssignment,
                 VariableDeclaration, VariableKind,
             },
-            operator::{BinaryOperator, binary::ArithmeticOperator},
-        },
     },
     compiler::{
         error::{
@@ -36,14 +32,14 @@ use crate::{
     precompiler::{
         options::PrecompilerOptions,
         precompiled_ast::{
-            AstMetadata, RichAst, VariableMetadata, VariableShape,
+            AstMetadata, RichAst, VariableShape,
         },
         scope_stack::PrecompilerScopeStack,
     },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
     values::{
-        core_values::r#type::Type, pointer::PointerAddress,
+        core_values::r#type::Type,
         value_container::ValueContainer,
     },
     visitor::{
@@ -105,7 +101,7 @@ impl Precompiler {
     ) -> Result<usize, CompilerError> {
         self.scope_stack.get_variable_and_update_metadata(
             name,
-            &mut *self.ast_metadata.borrow_mut(),
+            &mut self.ast_metadata.borrow_mut(),
         )
     }
 

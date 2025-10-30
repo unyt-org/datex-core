@@ -6,9 +6,6 @@ use crate::ast::structs::expression::{
     UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::structs::operator::ApplyOperation;
-/// deprecated: use precompiler mod instead
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -31,14 +28,12 @@ use crate::references::type_reference::{
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
-use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::structs::expression::VariableAccess;
 use log::info;
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::fmt::Debug;
 use std::ops::Range;
 use std::rc::Rc;
 

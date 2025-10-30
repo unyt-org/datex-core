@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::ast::structs::expression::{DatexExpression, VariableAccess};
+use crate::ast::structs::expression::VariableAccess;
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,

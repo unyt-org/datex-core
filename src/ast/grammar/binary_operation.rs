@@ -1,5 +1,4 @@
 use crate::ast::DatexParserTrait;
-use crate::ast::grammar::utils::is_identifier;
 use crate::ast::grammar::utils::operation;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
