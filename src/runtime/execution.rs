@@ -1592,9 +1592,6 @@ fn handle_binary_operation(
             value_container,
             logical_op,
         ),
-        BinaryOperator::VariantAccess => {
-            todo!("#411 Implement variant access operation")
-        }
     }
 }
 

@@ -6,7 +6,7 @@ use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
     List, Map, RemoteExecution, Slot, SlotAssignment, Statements,
     TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
-    VariableDeclaration,
+    VariableDeclaration, VariantAccess,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -14,14 +14,13 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::visitor::VisitAction;
 use crate::visitor::expression::visitable::{
     ExpressionVisitResult, VisitableExpression,
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
-use crate::visitor::{VisitAction};
 
-pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E>
-{
+pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Handle expression error
     /// Can either propagate the error or return a VisitAction to recover
     /// Per default, it just propagates the error
@@ -40,6 +39,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E>
         expr: &mut DatexExpression,
     ) -> Result<(), E> {
         let visit_result = match &mut expr.data {
+            DatexExpressionData::VariantAccess(variant_access) => {
+                self.visit_variant_access(variant_access, &expr.span)
+            }
             DatexExpressionData::UnaryOperation(op) => {
                 self.visit_unary_operation(op, &expr.span)
             }
@@ -154,8 +156,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E>
 
         let action = match visit_result {
             Ok(act) => act,
-            Err(error) => self
-                .handle_expression_error(error, expr)?
+            Err(error) => self.handle_expression_error(error, expr)?,
         };
         match action {
             VisitAction::SkipChildren => Ok(()),
@@ -203,6 +204,17 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E>
     ) -> ExpressionVisitResult<E> {
         let _ = span;
         let _ = unary_operation;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit variant access
+    fn visit_variant_access(
+        &mut self,
+        variant_access: &mut VariantAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = variant_access;
         Ok(VisitAction::VisitChildren)
     }
 

@@ -3,7 +3,7 @@ use std::fmt::{self};
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
-    TypeDeclaration,
+    TypeDeclaration, VariantAccess,
 };
 use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData,
@@ -444,6 +444,13 @@ impl AstToSourceCodeFormatter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
+            DatexExpressionData::VariantAccess(VariantAccess {
+                name,
+                variant,
+                ..
+            }) => {
+                format!("{}/{}", name, variant)
+            }
             DatexExpressionData::Noop => "".to_string(),
             DatexExpressionData::Integer(i) => i.to_string(),
             DatexExpressionData::TypedInteger(ti) => {

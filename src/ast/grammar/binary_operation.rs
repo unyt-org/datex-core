@@ -28,21 +28,7 @@ fn infix_left_chain<'a>(
     base.clone()
         .foldl(
             choices.then(base.clone()).repeated(),
-            move |lhs, (op, rhs)| {
-                // Special handling for division between identifiers
-                let effective_op = match op {
-                    BinaryOperator::Arithmetic(ArithmeticOperator::Divide) => {
-                        if is_identifier(&lhs) && is_identifier(&rhs) {
-                            BinaryOperator::VariantAccess
-                        } else {
-                            op
-                        }
-                    }
-                    _ => op,
-                };
-
-                binary_op(effective_op)(Box::new(lhs), Box::new(rhs))
-            },
+            move |lhs, (op, rhs)| binary_op(op)(Box::new(lhs), Box::new(rhs)),
         )
         .boxed()
 }

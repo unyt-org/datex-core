@@ -20,20 +20,19 @@ pub enum VisitAction<T: Sized> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::structs::operator::binary::ArithmeticOperator;
+    use crate::ast::{
+        parse,
+        structs::{
+            expression::{
+                BinaryOperation, DatexExpression, DatexExpressionData,
+                Statements,
+            },
+            operator::BinaryOperator,
+        },
+    };
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitResult,
-    };
-    use crate::{
-        ast::{
-            parse,
-            structs::{
-                expression::{
-                    BinaryOperation, DatexExpression, DatexExpressionData,
-                    Statements,
-                },
-                operator::BinaryOperator,
-            },
-        },
     };
     use std::ops::Range;
 
@@ -84,8 +83,9 @@ mod tests {
         fn handle_expression_error(
             &mut self,
             error: MyAstExpressionError,
-            expression: &DatexExpression
-        ) -> Result<VisitAction<DatexExpression>, MyAstExpressionError> {
+            expression: &DatexExpression,
+        ) -> Result<VisitAction<DatexExpression>, MyAstExpressionError>
+        {
             println!(
                 "Expression error: {:?} at {:?}. Aborting...",
                 error, expression.span
@@ -137,7 +137,7 @@ mod tests {
     fn error() {
         let mut ast = parse("true + false").unwrap().ast;
         let mut transformer = MyAst;
-        let res =transformer.visit_datex_expression(&mut ast);
+        let res = transformer.visit_datex_expression(&mut ast);
         assert!(res.is_err());
     }
 
@@ -148,7 +148,9 @@ mod tests {
                 statements: vec![DatexExpression {
                     data: DatexExpressionData::BinaryOperation(
                         BinaryOperation {
-                            operator: BinaryOperator::VariantAccess,
+                            operator: BinaryOperator::Arithmetic(
+                                ArithmeticOperator::Add,
+                            ),
                             left: Box::new(DatexExpression {
                                 data: DatexExpressionData::Identifier(
                                     "x".to_string(),

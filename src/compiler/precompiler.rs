@@ -2,8 +2,8 @@ use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
     DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    RemoteExecution, SlotAssignment, TypeDeclaration, UnaryOperation,
-    VariableAssignment, VariableDeclaration, VariableKind,
+    RemoteExecution, ResolvedVariable, SlotAssignment, TypeDeclaration,
+    UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::structs::operator::ApplyOperation;
 /// deprecated: use precompiler mod instead
@@ -28,6 +28,7 @@ use crate::precompiler::scope_stack::PrecompilerScopeStack;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
+use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
@@ -40,7 +41,6 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Range;
 use std::rc::Rc;
-use crate::runtime::Runtime;
 
 pub fn precompile_ast_simple_error(
     parse_result: ValidDatexParseResult,
@@ -193,6 +193,7 @@ fn visit_expression(
 
     // Important: always make sure all expressions are visited recursively
     match &mut expression.data {
+        _ => unreachable!(),
         // DatexExpression::GenericAssessor(left, right) => {
         //     visit_expression(
         //         left,
@@ -493,141 +494,141 @@ fn visit_expression(
             right,
             ..
         }) => {
-            if matches!(operator, BinaryOperator::VariantAccess) {
-                let lit_left =
-                    if let DatexExpressionData::Identifier(name) = &left.data {
-                        name.clone()
-                    } else {
-                        unreachable!(
-                            "Left side of variant access must be a literal"
-                        );
-                    };
+            // if matches!(operator, BinaryOperator::VariantAccess) {
+            //     let lit_left =
+            //         if let DatexExpressionData::Identifier(name) = &left.data {
+            //             name.clone()
+            //         } else {
+            //             unreachable!(
+            //                 "Left side of variant access must be a literal"
+            //             );
+            //         };
 
-                let lit_right = if let DatexExpressionData::Identifier(name) =
-                    &right.data
-                {
-                    name.clone()
-                } else {
-                    unreachable!(
-                        "Right side of variant access must be a literal"
-                    );
-                };
-                let full_name = format!("{lit_left}/{lit_right}");
-                // if get_variable_kind(lhs) == Value
-                // 1. user value lhs, whatever rhs -> division
+            //     let lit_right = if let DatexExpressionData::Identifier(name) =
+            //         &right.data
+            //     {
+            //         name.clone()
+            //     } else {
+            //         unreachable!(
+            //             "Right side of variant access must be a literal"
+            //         );
+            //     };
+            //     let full_name = format!("{lit_left}/{lit_right}");
+            //     // if get_variable_kind(lhs) == Value
+            //     // 1. user value lhs, whatever rhs -> division
 
-                // if get_variable_kind(lhs) == Type
-                // 2. lhs is a user defined type, so
-                // lhs/rhs should be also, otherwise
-                // this throws VariantNotFound
+            //     // if get_variable_kind(lhs) == Type
+            //     // 2. lhs is a user defined type, so
+            //     // lhs/rhs should be also, otherwise
+            //     // this throws VariantNotFound
 
-                // if resolve_variable(lhs)
-                // this must be a core type
-                // if resolve_variable(lhs/rhs) has
-                // and error, this throws VariantNotFound
+            //     // if resolve_variable(lhs)
+            //     // this must be a core type
+            //     // if resolve_variable(lhs/rhs) has
+            //     // and error, this throws VariantNotFound
 
-                // Check if the left literal is a variable (value or type, but no core type)
-                if scope_stack.has_variable(lit_left.as_str()) {
-                    match scope_stack
-                        .variable_kind(lit_left.as_str(), metadata)
-                        .unwrap()
-                    {
-                        VariableShape::Type => {
-                            // user defined type, continue to variant access
-                            let resolved_variable = resolve_variable(
-                                &full_name,
-                                metadata,
-                                scope_stack,
-                            )
-                            .map_err(|_| {
-                                CompilerError::SubvariantNotFound(
-                                    lit_left.to_string(),
-                                    lit_right.to_string(),
-                                )
-                            })?;
-                            *expression = match resolved_variable {
-                                ResolvedVariable::VariableId(id) => {
-                                    DatexExpressionData::VariableAccess(
-                                        VariableAccess {
-                                            id,
-                                            name: full_name.to_string(),
-                                        },
-                                    )
-                                    .with_span(expression.span.clone())
-                                }
-                                _ => unreachable!(
-                                    "Variant access must resolve to a core library type"
-                                ),
-                            };
-                        }
-                        VariableShape::Value(_) => {
-                            // user defined value, this is a division
-                            visit_expression(
-                                left,
-                                metadata,
-                                scope_stack,
-                                NewScopeType::NewScope,
-                                spans,
-                                collected_errors,
-                            )?;
-                            visit_expression(
-                                right,
-                                metadata,
-                                scope_stack,
-                                NewScopeType::NewScope,
-                                spans,
-                                collected_errors,
-                            )?;
+            //     // Check if the left literal is a variable (value or type, but no core type)
+            //     if scope_stack.has_variable(lit_left.as_str()) {
+            //         match scope_stack
+            //             .variable_kind(lit_left.as_str(), metadata)
+            //             .unwrap()
+            //         {
+            //             VariableShape::Type => {
+            //                 // user defined type, continue to variant access
+            //                 let resolved_variable = resolve_variable(
+            //                     &full_name,
+            //                     metadata,
+            //                     scope_stack,
+            //                 )
+            //                 .map_err(|_| {
+            //                     CompilerError::SubvariantNotFound(
+            //                         lit_left.to_string(),
+            //                         lit_right.to_string(),
+            //                     )
+            //                 })?;
+            //                 *expression = match resolved_variable {
+            //                     ResolvedVariable::VariableId(id) => {
+            //                         DatexExpressionData::VariableAccess(
+            //                             VariableAccess {
+            //                                 id,
+            //                                 name: full_name.to_string(),
+            //                             },
+            //                         )
+            //                         .with_span(expression.span.clone())
+            //                     }
+            //                     _ => unreachable!(
+            //                         "Variant access must resolve to a core library type"
+            //                     ),
+            //                 };
+            //             }
+            //             VariableShape::Value(_) => {
+            //                 // user defined value, this is a division
+            //                 visit_expression(
+            //                     left,
+            //                     metadata,
+            //                     scope_stack,
+            //                     NewScopeType::NewScope,
+            //                     spans,
+            //                     collected_errors,
+            //                 )?;
+            //                 visit_expression(
+            //                     right,
+            //                     metadata,
+            //                     scope_stack,
+            //                     NewScopeType::NewScope,
+            //                     spans,
+            //                     collected_errors,
+            //                 )?;
 
-                            *expression = DatexExpressionData::BinaryOperation(
-                                BinaryOperation {
-                                    operator: BinaryOperator::Arithmetic(
-                                        ArithmeticOperator::Divide,
-                                    ),
-                                    left: left.to_owned(),
-                                    right: right.to_owned(),
-                                    r#type: None,
-                                },
-                            )
-                            .with_span(expression.span.clone());
-                        }
-                    }
-                    return Ok(());
-                }
-                // can be either a core type or a undeclared variable
+            //                 *expression = DatexExpressionData::BinaryOperation(
+            //                     BinaryOperation {
+            //                         operator: BinaryOperator::Arithmetic(
+            //                             ArithmeticOperator::Divide,
+            //                         ),
+            //                         left: left.to_owned(),
+            //                         right: right.to_owned(),
+            //                         r#type: None,
+            //                     },
+            //                 )
+            //                 .with_span(expression.span.clone());
+            //             }
+            //         }
+            //         return Ok(());
+            //     }
+            //     // can be either a core type or a undeclared variable
 
-                // check if left part is a core value / type
-                // otherwise throw the error
-                resolve_variable(lit_left.as_str(), metadata, scope_stack)?;
+            //     // check if left part is a core value / type
+            //     // otherwise throw the error
+            //     resolve_variable(lit_left.as_str(), metadata, scope_stack)?;
 
-                let resolved_variable = resolve_variable(
-                    format!("{lit_left}/{lit_right}").as_str(),
-                    metadata,
-                    scope_stack,
-                )
-                .map_err(|error| {
-                    SpannedCompilerError::new_with_span(
-                        CompilerError::SubvariantNotFound(lit_left, lit_right),
-                        expression.span.clone(),
-                    )
-                });
-                let action =
-                    collect_or_pass_error(collected_errors, resolved_variable)?;
-                if let MaybeAction::Do(resolved_variable) = action {
-                    *expression = match resolved_variable {
-                        ResolvedVariable::PointerAddress(pointer_address) => {
-                            DatexExpressionData::GetReference(pointer_address)
-                                .with_span(expression.span.clone())
-                        }
-                        // FIXME #442 is variable User/whatever allowed here, or
-                        // will this always be a reference to the type?
-                        _ => unreachable!(
-                            "Variant access must resolve to a core library type"
-                        ),
-                    };
-                    return Ok(());
-                }
-            }
+            //     let resolved_variable = resolve_variable(
+            //         format!("{lit_left}/{lit_right}").as_str(),
+            //         metadata,
+            //         scope_stack,
+            //     )
+            //     .map_err(|error| {
+            //         SpannedCompilerError::new_with_span(
+            //             CompilerError::SubvariantNotFound(lit_left, lit_right),
+            //             expression.span.clone(),
+            //         )
+            //     });
+            //     let action =
+            //         collect_or_pass_error(collected_errors, resolved_variable)?;
+            //     if let MaybeAction::Do(resolved_variable) = action {
+            //         *expression = match resolved_variable {
+            //             ResolvedVariable::PointerAddress(pointer_address) => {
+            //                 DatexExpressionData::GetReference(pointer_address)
+            //                     .with_span(expression.span.clone())
+            //             }
+            //             // FIXME #442 is variable User/whatever allowed here, or
+            //             // will this always be a reference to the type?
+            //             _ => unreachable!(
+            //                 "Variant access must resolve to a core library type"
+            //             ),
+            //         };
+            //         return Ok(());
+            //     }
+            // }
 
             visit_expression(
                 left,
@@ -822,12 +823,6 @@ fn add_new_variable(
     let var_metadata = scope_stack.add_new_variable(name.clone(), new_id, kind);
     metadata.variables.push(var_metadata);
     new_id
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ResolvedVariable {
-    VariableId(usize),
-    PointerAddress(PointerAddress),
 }
 
 /// Resolves a variable name to either a local variable ID if it was already declared (or hoisted),

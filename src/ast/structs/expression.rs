@@ -152,6 +152,9 @@ pub enum DatexExpressionData {
 
     /// Remote execution, e.g. @example :: 41 + 1
     RemoteExecution(RemoteExecution),
+
+    /// Variant access, e.g. integer/u8
+    VariantAccess(VariantAccess),
 }
 
 impl Spanned for DatexExpressionData {
@@ -405,4 +408,26 @@ impl Display for Slot {
 pub struct SlotAssignment {
     pub slot: Slot,
     pub expression: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VariantAccess {
+    pub name: String,
+    pub base: ResolvedVariable,
+    pub variant: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ResolvedVariable {
+    VariableId(usize),
+    PointerAddress(PointerAddress),
+}
+
+impl Display for ResolvedVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolvedVariable::VariableId(id) => write!(f, "#{}", id),
+            ResolvedVariable::PointerAddress(addr) => write!(f, "{}", addr),
+        }
+    }
 }

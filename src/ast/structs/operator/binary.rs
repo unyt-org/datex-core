@@ -8,7 +8,6 @@ pub enum BinaryOperator {
     Arithmetic(ArithmeticOperator),
     Logical(LogicalOperator),
     Bitwise(BitwiseOperator),
-    VariantAccess,
 }
 impl From<ArithmeticOperator> for BinaryOperator {
     fn from(op: ArithmeticOperator) -> Self {
@@ -140,7 +139,6 @@ impl Display for BinaryOperator {
                 BinaryOperator::Arithmetic(op) => op.to_string(),
                 BinaryOperator::Logical(op) => op.to_string(),
                 BinaryOperator::Bitwise(op) => op.to_string(),
-                BinaryOperator::VariantAccess => "/".to_string(),
             }
         )
     }
@@ -152,13 +150,6 @@ impl From<&BinaryOperator> for InstructionCode {
             BinaryOperator::Arithmetic(op) => InstructionCode::from(op),
             BinaryOperator::Logical(op) => InstructionCode::from(op),
             BinaryOperator::Bitwise(op) => InstructionCode::from(op),
-            BinaryOperator::VariantAccess => {
-                todo!("#355 VariantAccess not implemented for InstructionCode")
-            }
-            operator => todo!(
-                "Binary operator {:?} not implemented for InstructionCode",
-                operator
-            ),
         }
     }
 }

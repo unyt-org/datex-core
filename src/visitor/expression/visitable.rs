@@ -5,23 +5,20 @@ use crate::ast::structs::expression::{
     UnaryOperation, VariableAssignment, VariableDeclaration,
 };
 use crate::ast::structs::operator::ApplyOperation;
+use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
-use crate::visitor::{VisitAction};
 
-pub type ExpressionVisitResult<E> =
-    Result<VisitAction<DatexExpression>, E>;
+pub type ExpressionVisitResult<E> = Result<VisitAction<DatexExpression>, E>;
 
-pub trait VisitableExpression<E>
-{
+pub trait VisitableExpression<E> {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E>;
 }
 
-impl<E> VisitableExpression<E> for BinaryOperation
-{
+impl<E> VisitableExpression<E> for BinaryOperation {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -32,8 +29,7 @@ impl<E> VisitableExpression<E> for BinaryOperation
     }
 }
 
-impl<E> VisitableExpression<E> for Statements
-{
+impl<E> VisitableExpression<E> for Statements {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -44,8 +40,7 @@ impl<E> VisitableExpression<E> for Statements
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for List
-{
+impl<E> VisitableExpression<E> for List {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -56,8 +51,7 @@ impl<E> VisitableExpression<E> for List
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for Map
-{
+impl<E> VisitableExpression<E> for Map {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -68,8 +62,7 @@ impl<E> VisitableExpression<E> for Map
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for Conditional
-{
+impl<E> VisitableExpression<E> for Conditional {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -82,8 +75,7 @@ impl<E> VisitableExpression<E> for Conditional
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for VariableDeclaration
-{
+impl<E> VisitableExpression<E> for VariableDeclaration {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -95,8 +87,7 @@ impl<E> VisitableExpression<E> for VariableDeclaration
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for VariableAssignment
-{
+impl<E> VisitableExpression<E> for VariableAssignment {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -105,8 +96,7 @@ impl<E> VisitableExpression<E> for VariableAssignment
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for UnaryOperation
-{
+impl<E> VisitableExpression<E> for UnaryOperation {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -115,8 +105,7 @@ impl<E> VisitableExpression<E> for UnaryOperation
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for TypeDeclaration
-{
+impl<E> VisitableExpression<E> for TypeDeclaration {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -125,8 +114,7 @@ impl<E> VisitableExpression<E> for TypeDeclaration
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for ComparisonOperation
-{
+impl<E> VisitableExpression<E> for ComparisonOperation {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -136,8 +124,7 @@ impl<E> VisitableExpression<E> for ComparisonOperation
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for DerefAssignment
-{
+impl<E> VisitableExpression<E> for DerefAssignment {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -147,8 +134,7 @@ impl<E> VisitableExpression<E> for DerefAssignment
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for ApplyChain
-{
+impl<E> VisitableExpression<E> for ApplyChain {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -170,8 +156,7 @@ impl<E> VisitableExpression<E> for ApplyChain
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for RemoteExecution
-{
+impl<E> VisitableExpression<E> for RemoteExecution {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -181,8 +166,7 @@ impl<E> VisitableExpression<E> for RemoteExecution
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for SlotAssignment
-{
+impl<E> VisitableExpression<E> for SlotAssignment {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -191,8 +175,7 @@ impl<E> VisitableExpression<E> for SlotAssignment
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for FunctionDeclaration
-{
+impl<E> VisitableExpression<E> for FunctionDeclaration {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -205,8 +188,7 @@ impl<E> VisitableExpression<E> for FunctionDeclaration
     }
 }
 
-impl<E> VisitableExpression<E> for DatexExpression
-{
+impl<E> VisitableExpression<E> for DatexExpression {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -273,6 +255,7 @@ impl<E> VisitableExpression<E> for DatexExpression
             }
 
             DatexExpressionData::Noop
+            | DatexExpressionData::VariantAccess(_)
             | DatexExpressionData::PointerAddress(_)
             | DatexExpressionData::VariableAccess(_)
             | DatexExpressionData::GetReference(_)

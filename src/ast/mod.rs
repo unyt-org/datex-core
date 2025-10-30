@@ -320,17 +320,16 @@ mod tests {
     use crate::{
         ast::{
             error::{error::ErrorKind, pattern::Pattern, src::SrcId},
-            structs::operator::{
-                ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
-            },
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration,
+                    FunctionDeclaration, ResolvedVariable, TypeDeclaration,
+                    VariantAccess,
                 },
                 operator::{
-                    ApplyOperation, AssignmentOperator, BinaryOperator,
-                    ComparisonOperator,
+                    ApplyOperation, ArithmeticUnaryOperator,
+                    AssignmentOperator, BinaryOperator, ComparisonOperator,
+                    LogicalUnaryOperator, UnaryOperator,
                     binary::{ArithmeticOperator, BitwiseOperator},
                 },
                 r#type::{
@@ -339,6 +338,7 @@ mod tests {
                 },
             },
         },
+        libs::core::CoreLibPointerId,
         values::{
             core_values::{
                 decimal::Decimal,
@@ -919,141 +919,141 @@ mod tests {
         );
     }
 
-    #[deprecated(note = "Remove intersection from value syntax")]
-    #[test]
-    fn intersection() {
-        let src = "5 & 6";
-        let val = parse_unwrap_data(src);
-        assert_eq!(
-            val,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Bitwise(BitwiseOperator::And),
-                left: Box::new(
-                    DatexExpressionData::Integer(Integer::from(5))
-                        .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::Integer(Integer::from(6))
-                        .with_default_span()
-                ),
-                r#type: None
-            })
-        );
+    // #[deprecated(note = "Remove intersection from value syntax")]
+    // #[test]
+    // fn intersection() {
+    //     let src = "5 & 6";
+    //     let val = parse_unwrap_data(src);
+    //     assert_eq!(
+    //         val,
+    //         DatexExpressionData::BinaryOperation(BinaryOperation {
+    //             operator: BinaryOperator::Bitwise(BitwiseOperator::And),
+    //             left: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(5))
+    //                     .with_default_span()
+    //             ),
+    //             right: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(6))
+    //                     .with_default_span()
+    //             ),
+    //             r#type: None
+    //         })
+    //     );
 
-        let src = "(integer/u8 & 6) & 2";
-        let val = parse_unwrap_data(src);
-        assert_eq!(
-            val,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Bitwise(BitwiseOperator::And),
-                left: Box::new(
-                    DatexExpressionData::BinaryOperation(BinaryOperation {
-                        operator: BinaryOperator::Bitwise(BitwiseOperator::And),
-                        left: Box::new(
-                            DatexExpressionData::BinaryOperation(
-                                BinaryOperation {
-                                    operator: BinaryOperator::VariantAccess,
-                                    left: Box::new(
-                                        DatexExpressionData::Identifier(
-                                            "integer".to_owned()
-                                        )
-                                        .with_default_span()
-                                    ),
-                                    right: Box::new(
-                                        DatexExpressionData::Identifier(
-                                            "u8".to_owned()
-                                        )
-                                        .with_default_span()
-                                    ),
-                                    r#type: None
-                                }
-                            )
-                            .with_default_span()
-                        ),
-                        right: Box::new(
-                            DatexExpressionData::Integer(Integer::from(6))
-                                .with_default_span()
-                        ),
-                        r#type: None
-                    })
-                    .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::Integer(Integer::from(2))
-                        .with_default_span()
-                ),
-                r#type: None
-            })
-        );
-    }
+    //     let src = "(integer/u8 & 6) & 2";
+    //     let val = parse_unwrap_data(src);
+    //     assert_eq!(
+    //         val,
+    //         DatexExpressionData::BinaryOperation(BinaryOperation {
+    //             operator: BinaryOperator::Bitwise(BitwiseOperator::And),
+    //             left: Box::new(
+    //                 DatexExpressionData::BinaryOperation(BinaryOperation {
+    //                     operator: BinaryOperator::Bitwise(BitwiseOperator::And),
+    //                     left: Box::new(
+    //                         DatexExpressionData::BinaryOperation(
+    //                             BinaryOperation {
+    //                                 operator: BinaryOperator::VariantAccess,
+    //                                 left: Box::new(
+    //                                     DatexExpressionData::Identifier(
+    //                                         "integer".to_owned()
+    //                                     )
+    //                                     .with_default_span()
+    //                                 ),
+    //                                 right: Box::new(
+    //                                     DatexExpressionData::Identifier(
+    //                                         "u8".to_owned()
+    //                                     )
+    //                                     .with_default_span()
+    //                                 ),
+    //                                 r#type: None
+    //                             }
+    //                         )
+    //                         .with_default_span()
+    //                     ),
+    //                     right: Box::new(
+    //                         DatexExpressionData::Integer(Integer::from(6))
+    //                             .with_default_span()
+    //                     ),
+    //                     r#type: None
+    //                 })
+    //                 .with_default_span()
+    //             ),
+    //             right: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(2))
+    //                     .with_default_span()
+    //             ),
+    //             r#type: None
+    //         })
+    //     );
+    // }
 
-    #[deprecated(note = "Remove union from value syntax")]
-    #[test]
-    fn union() {
-        let src = "5 | 6";
-        let val = parse_unwrap_data(src);
-        assert_eq!(
-            val,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
-                left: Box::new(
-                    DatexExpressionData::Integer(Integer::from(5))
-                        .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::Integer(Integer::from(6))
-                        .with_default_span()
-                ),
-                r#type: None
-            })
-        );
+    // #[deprecated(note = "Remove union from value syntax")]
+    // #[test]
+    // fn union() {
+    //     let src = "5 | 6";
+    //     let val = parse_unwrap_data(src);
+    //     assert_eq!(
+    //         val,
+    //         DatexExpressionData::BinaryOperation(BinaryOperation {
+    //             operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
+    //             left: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(5))
+    //                     .with_default_span()
+    //             ),
+    //             right: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(6))
+    //                     .with_default_span()
+    //             ),
+    //             r#type: None
+    //         })
+    //     );
 
-        let src = "(integer/u8 | 6) | 2";
-        let val = parse_unwrap_data(src);
-        assert_eq!(
-            val,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
-                left: Box::new(
-                    DatexExpressionData::BinaryOperation(BinaryOperation {
-                        operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
-                        left: Box::new(
-                            DatexExpressionData::BinaryOperation(
-                                BinaryOperation {
-                                    operator: BinaryOperator::VariantAccess,
-                                    left: Box::new(
-                                        DatexExpressionData::Identifier(
-                                            "integer".to_owned()
-                                        )
-                                        .with_default_span()
-                                    ),
-                                    right: Box::new(
-                                        DatexExpressionData::Identifier(
-                                            "u8".to_owned()
-                                        )
-                                        .with_default_span()
-                                    ),
-                                    r#type: None
-                                }
-                            )
-                            .with_default_span()
-                        ),
-                        right: Box::new(
-                            DatexExpressionData::Integer(Integer::from(6))
-                                .with_default_span()
-                        ),
-                        r#type: None
-                    })
-                    .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::Integer(Integer::from(2))
-                        .with_default_span()
-                ),
-                r#type: None
-            })
-        );
-    }
+    //     let src = "(integer/u8 | 6) | 2";
+    //     let val = parse_unwrap_data(src);
+    //     assert_eq!(
+    //         val,
+    //         DatexExpressionData::BinaryOperation(BinaryOperation {
+    //             operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
+    //             left: Box::new(
+    //                 DatexExpressionData::BinaryOperation(BinaryOperation {
+    //                     operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
+    //                     left: Box::new(
+    //                         DatexExpressionData::BinaryOperation(
+    //                             BinaryOperation {
+    //                                 operator: BinaryOperator::VariantAccess,
+    //                                 left: Box::new(
+    //                                     DatexExpressionData::Identifier(
+    //                                         "integer".to_owned()
+    //                                     )
+    //                                     .with_default_span()
+    //                                 ),
+    //                                 right: Box::new(
+    //                                     DatexExpressionData::Identifier(
+    //                                         "u8".to_owned()
+    //                                     )
+    //                                     .with_default_span()
+    //                                 ),
+    //                                 r#type: None
+    //                             }
+    //                         )
+    //                         .with_default_span()
+    //                     ),
+    //                     right: Box::new(
+    //                         DatexExpressionData::Integer(Integer::from(6))
+    //                             .with_default_span()
+    //                     ),
+    //                     r#type: None
+    //                 })
+    //                 .with_default_span()
+    //             ),
+    //             right: Box::new(
+    //                 DatexExpressionData::Integer(Integer::from(2))
+    //                     .with_default_span()
+    //             ),
+    //             r#type: None
+    //         })
+    //     );
+    // }
 
     #[test]
     fn binary_operator_precedence() {
@@ -1160,19 +1160,12 @@ mod tests {
             ),
             operations: vec![
                 ApplyOperation::GenericAccess(
-                    DatexExpressionData::BinaryOperation(BinaryOperation {
-                        operator: BinaryOperator::VariantAccess,
-                        left: Box::new(
-                            DatexExpressionData::Identifier(
-                                "integer".to_owned(),
-                            )
-                            .with_default_span(),
+                    DatexExpressionData::VariantAccess(VariantAccess {
+                        base: ResolvedVariable::PointerAddress(
+                            CoreLibPointerId::Integer(None).into(),
                         ),
-                        right: Box::new(
-                            DatexExpressionData::Identifier("u8".to_owned())
-                                .with_default_span(),
-                        ),
-                        r#type: None,
+                        name: "integer".to_string(),
+                        variant: "u8".to_string(),
                     })
                     .with_default_span(),
                 ),
@@ -3294,34 +3287,12 @@ mod tests {
         let res = parse_unwrap_data("integer/u8");
         assert_eq!(
             res,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::VariantAccess,
-                left: Box::new(
-                    DatexExpressionData::Identifier("integer".to_string())
-                        .with_default_span()
+            DatexExpressionData::VariantAccess(VariantAccess {
+                base: ResolvedVariable::PointerAddress(
+                    CoreLibPointerId::Integer(None).into(),
                 ),
-                right: Box::new(
-                    DatexExpressionData::Identifier("u8".to_string())
-                        .with_default_span()
-                ),
-                r#type: None
-            })
-        );
-
-        let res = parse_unwrap_data("undeclared/u8");
-        assert_eq!(
-            res,
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::VariantAccess,
-                left: Box::new(
-                    DatexExpressionData::Identifier("undeclared".to_string())
-                        .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::Identifier("u8".to_string())
-                        .with_default_span()
-                ),
-                r#type: None
+                name: "integer".to_string(),
+                variant: "u8".to_string(),
             })
         );
     }
