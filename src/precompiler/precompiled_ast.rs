@@ -39,17 +39,9 @@ impl Display for VariableShape {
 #[derive(Default, Debug)]
 pub struct AstMetadata {
     pub variables: Vec<VariableMetadata>,
-    // TODO #441: move runtime somewhere else, not in AstMetadata?
-    pub runtime: Runtime,
 }
 
 impl AstMetadata {
-    pub fn new(runtime: Runtime) -> Self {
-        AstMetadata {
-            variables: Vec::new(),
-            runtime,
-        }
-    }
     pub fn variable_metadata(&self, id: usize) -> Option<&VariableMetadata> {
         self.variables.get(id)
     }

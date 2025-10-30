@@ -5,94 +5,75 @@ use crate::ast::structs::expression::{
     UnaryOperation, VariableAssignment, VariableDeclaration,
 };
 use crate::ast::structs::operator::ApplyOperation;
-use crate::ast::structs::r#type::TypeExpression;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
-use crate::visitor::{ErrorWithVisitAction, VisitAction};
+use crate::visitor::{VisitAction};
 
-pub type ExpressionVisitAction<T: ErrorWithVisitAction<DatexExpression>> =
-    Result<VisitAction<DatexExpression>, T>;
+pub type ExpressionVisitResult<E> =
+    Result<VisitAction<DatexExpression>, E>;
 
-pub trait VisitableExpression<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
->
+pub trait VisitableExpression<E>
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()>;
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E>;
 }
 
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for BinaryOperation
+impl<E> VisitableExpression<E> for BinaryOperation
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.left)?;
         visitor.visit_datex_expression(&mut self.right)?;
         Ok(())
     }
 }
 
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for Statements
+impl<E> VisitableExpression<E> for Statements
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for item in &mut self.statements {
             visitor.visit_datex_expression(item)?;
         }
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for List
+impl<E> VisitableExpression<E> for List
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for item in &mut self.items {
             visitor.visit_datex_expression(item)?;
         }
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for Map
+impl<E> VisitableExpression<E> for Map
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for (_key, value) in &mut self.entries {
             visitor.visit_datex_expression(value)?;
         }
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for Conditional
+impl<E> VisitableExpression<E> for Conditional
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.condition)?;
         visitor.visit_datex_expression(&mut self.then_branch)?;
         if let Some(else_branch) = &mut self.else_branch {
@@ -101,15 +82,12 @@ impl<
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for VariableDeclaration
+impl<E> VisitableExpression<E> for VariableDeclaration
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.init_expression)?;
         if let Some(type_annotation) = &mut self.r#type_annotation {
             visitor.visit_type_expression(type_annotation);
@@ -117,82 +95,64 @@ impl<
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for VariableAssignment
+impl<E> VisitableExpression<E> for VariableAssignment
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.expression)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for UnaryOperation
+impl<E> VisitableExpression<E> for UnaryOperation
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.expression)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for TypeDeclaration
+impl<E> VisitableExpression<E> for TypeDeclaration
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_type_expression(&mut self.value)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for ComparisonOperation
+impl<E> VisitableExpression<E> for ComparisonOperation
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.left)?;
         visitor.visit_datex_expression(&mut self.right)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for DerefAssignment
+impl<E> VisitableExpression<E> for DerefAssignment
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.assigned_expression)?;
         visitor.visit_datex_expression(&mut self.deref_expression)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for ApplyChain
+impl<E> VisitableExpression<E> for ApplyChain
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.base);
         for operation in &mut self.operations {
             match operation {
@@ -210,42 +170,33 @@ impl<
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for RemoteExecution
+impl<E> VisitableExpression<E> for RemoteExecution
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.left)?;
         visitor.visit_datex_expression(&mut self.right)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for SlotAssignment
+impl<E> VisitableExpression<E> for SlotAssignment
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.expression)?;
         Ok(())
     }
 }
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for FunctionDeclaration
+impl<E> VisitableExpression<E> for FunctionDeclaration
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for (_, param_type) in &mut self.parameters {
             visitor.visit_type_expression(param_type)?;
         }
@@ -254,15 +205,12 @@ impl<
     }
 }
 
-impl<
-    T: ErrorWithVisitAction<DatexExpression>,
-    U: ErrorWithVisitAction<TypeExpression>,
-> VisitableExpression<T, U> for DatexExpression
+impl<E> VisitableExpression<E> for DatexExpression
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl ExpressionVisitor<T, U>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
         match &mut self.data {
             DatexExpressionData::BinaryOperation(op) => {
                 op.walk_children(visitor)

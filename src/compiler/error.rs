@@ -222,6 +222,14 @@ impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     }
 }
 
+impl From<SpannedCompilerError> for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+    fn from(
+        value: SpannedCompilerError,
+    ) -> SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(value)
+    }
+}
+
 impl From<Vec<ParseError>> for DetailedCompilerErrors {
     fn from(value: Vec<ParseError>) -> Self {
         DetailedCompilerErrors {
@@ -334,15 +342,14 @@ pub fn collect_or_pass_error<T, E, Collector: ErrorCollector<E>>(
     collected_errors: &mut Option<Collector>,
     result: Result<T, E>,
 ) -> Result<MaybeAction<T>, E> {
-    if let Ok(result) = result {
-        Ok(MaybeAction::Do(result))
-    } else {
-        let error = unsafe { result.unwrap_err_unchecked() };
+    if let Err(error) = result {
         if let Some(collected_errors) = collected_errors {
             collected_errors.record_error(error);
             Ok(MaybeAction::Skip)
         } else {
             Err(error)
         }
+    } else {
+        result.map(MaybeAction::Do)
     }
 }

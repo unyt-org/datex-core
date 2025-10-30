@@ -3,71 +3,71 @@ use crate::ast::structs::r#type::{
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
-use crate::visitor::{ErrorWithVisitAction, VisitAction};
+use crate::visitor::{VisitAction};
 
-pub type TypeExpressionVisitAction<T: ErrorWithVisitAction<TypeExpression>> =
-    Result<VisitAction<TypeExpression>, T>;
+pub type TypeExpressionVisitResult<E> =
+    Result<VisitAction<TypeExpression>, E>;
 
-pub trait VisitableTypeExpression<T: ErrorWithVisitAction<TypeExpression>> {
+pub trait VisitableTypeExpression<E> {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()>;
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E>;
 }
 
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for StructuralList
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for item in &mut self.0 {
             item.walk_children(visitor)?;
         }
         Ok(())
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for FixedSizeList
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         self.r#type.walk_children(visitor)
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for SliceList
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         self.0.walk_children(visitor)
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for Intersection
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for item in &mut self.0 {
             item.walk_children(visitor)?;
         }
         Ok(())
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for Union
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for item in &mut self.0 {
             item.walk_children(visitor)?;
         }
@@ -75,26 +75,26 @@ impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
     }
 }
 
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for GenericAccess
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for arg in &mut self.access {
             arg.walk_children(visitor)?;
         }
         Ok(())
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for FunctionType
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for (_, param_type) in &mut self.parameters {
             param_type.walk_children(visitor)?;
         }
@@ -102,13 +102,13 @@ impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
         Ok(())
     }
 }
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for StructuralMap
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         for (_, value) in &mut self.0 {
             value.walk_children(visitor)?;
         }
@@ -116,13 +116,13 @@ impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
     }
 }
 
-impl<T: ErrorWithVisitAction<TypeExpression>> VisitableTypeExpression<T>
+impl<E> VisitableTypeExpression<E>
     for TypeExpression
 {
     fn walk_children(
         &mut self,
-        visitor: &mut impl TypeExpressionVisitor<T>,
-    ) -> Result<(), ()> {
+        visitor: &mut impl TypeExpressionVisitor<E>,
+    ) -> Result<(), E> {
         match &mut self.data {
             TypeExpressionData::StructuralList(structural_list) => {
                 structural_list.walk_children(visitor)

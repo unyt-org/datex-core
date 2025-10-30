@@ -16,21 +16,12 @@ pub enum VisitAction<T: Sized> {
     ReplaceRecurse(T),
     /// Convert the current node to a no-op
     ToNoop,
-
-    /// Abort the entire visiting process
-    Abort,
-}
-
-pub trait ErrorWithVisitAction<T: Sized> {
-    fn with_visit_action(&mut self, action: VisitAction<T>);
-    fn visit_action(&self) -> &VisitAction<T>;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::visitor::type_expression::EmptyTypeExpressionError;
     use crate::visitor::{
-        VisitAction, expression::visitable::ExpressionVisitAction,
+        VisitAction, expression::visitable::ExpressionVisitResult,
     };
     use crate::{
         ast::{
@@ -43,7 +34,6 @@ mod tests {
                 operator::BinaryOperator,
             },
         },
-        visitor::ErrorWithVisitAction,
     };
     use std::ops::Range;
 
@@ -54,52 +44,33 @@ mod tests {
     use crate::visitor::{
         expression::ExpressionVisitor,
         type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitAction,
+            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
         },
     };
 
     pub struct MyAstTypeExpressionError {
         message: String,
-        action: VisitAction<TypeExpression>,
-    }
-    impl ErrorWithVisitAction<TypeExpression> for MyAstTypeExpressionError {
-        fn visit_action(&self) -> &VisitAction<TypeExpression> {
-            &self.action
-        }
-        fn with_visit_action(&mut self, action: VisitAction<TypeExpression>) {
-            self.action = action;
-        }
     }
 
     #[derive(Debug)]
     pub struct MyAstExpressionError {
         message: String,
-        action: VisitAction<DatexExpression>,
     }
     impl MyAstExpressionError {
         pub fn new(msg: &str) -> MyAstExpressionError {
             Self {
                 message: msg.to_string(),
-                action: VisitAction::SkipChildren,
             }
-        }
-    }
-    impl ErrorWithVisitAction<DatexExpression> for MyAstExpressionError {
-        fn visit_action(&self) -> &VisitAction<DatexExpression> {
-            &self.action
-        }
-        fn with_visit_action(&mut self, action: VisitAction<DatexExpression>) {
-            self.action = action;
         }
     }
 
     struct MyAst;
-    impl TypeExpressionVisitor<EmptyTypeExpressionError> for MyAst {
+    impl TypeExpressionVisitor<MyAstExpressionError> for MyAst {
         fn visit_literal_type(
             &mut self,
             literal: &mut String,
             span: &Range<usize>,
-        ) -> TypeExpressionVisitAction<EmptyTypeExpressionError> {
+        ) -> TypeExpressionVisitResult<MyAstExpressionError> {
             Ok(VisitAction::Replace(TypeExpression::new(
                 TypeExpressionData::VariableAccess(VariableAccess {
                     id: 0,
@@ -109,14 +80,32 @@ mod tests {
             )))
         }
     }
-    impl ExpressionVisitor<MyAstExpressionError, EmptyTypeExpressionError>
-        for MyAst
-    {
+    impl ExpressionVisitor<MyAstExpressionError> for MyAst {
+        fn handle_expression_error(
+            &mut self,
+            error: MyAstExpressionError,
+            expression: &DatexExpression
+        ) -> Result<VisitAction<DatexExpression>, MyAstExpressionError> {
+            println!(
+                "Expression error: {:?} at {:?}. Aborting...",
+                error, expression.span
+            );
+            Err(error)
+        }
+        fn visit_create_ref(
+            &mut self,
+            datex_expression: &mut DatexExpression,
+            span: &Range<usize>,
+        ) -> ExpressionVisitResult<MyAstExpressionError> {
+            println!("visit create ref {:?}", datex_expression);
+            Ok(VisitAction::VisitChildren)
+        }
+
         fn visit_identifier(
             &mut self,
             identifier: &mut String,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction<MyAstExpressionError> {
+        ) -> ExpressionVisitResult<MyAstExpressionError> {
             Ok(VisitAction::Replace(DatexExpression {
                 data: DatexExpressionData::VariableAccess(VariableAccess {
                     id: 0,
@@ -126,33 +115,13 @@ mod tests {
                 wrapped: None,
             }))
         }
-        fn visit_create_ref(
-            &mut self,
-            datex_expression: &mut DatexExpression,
-            span: &Range<usize>,
-        ) -> ExpressionVisitAction<MyAstExpressionError> {
-            println!("visit create ref {:?}", datex_expression);
-            Ok(VisitAction::VisitChildren)
-        }
 
         fn visit_boolean(
             &mut self,
             boolean: &mut bool,
             span: &Range<usize>,
-        ) -> ExpressionVisitAction<MyAstExpressionError> {
+        ) -> ExpressionVisitResult<MyAstExpressionError> {
             Err(MyAstExpressionError::new("Booleans are not allowed"))
-        }
-
-        fn handle_expression_error<'a>(
-            &mut self,
-            error: &'a MyAstExpressionError,
-            expr: &DatexExpression,
-        ) -> Option<&'a VisitAction<DatexExpression>> {
-            println!(
-                "Expression error: {:?} at {:?}. Aborting...",
-                error, expr.span
-            );
-            Some(&VisitAction::Abort)
         }
     }
 
@@ -160,7 +129,7 @@ mod tests {
     fn simple_test() {
         let mut ast =
             parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap().ast;
-        MyAst.visit_datex_expression(&mut ast);
+        MyAst.visit_datex_expression(&mut ast).unwrap();
         println!("{:#?}", ast);
     }
 
@@ -168,8 +137,8 @@ mod tests {
     fn error() {
         let mut ast = parse("true + false").unwrap().ast;
         let mut transformer = MyAst;
-        transformer.visit_datex_expression(&mut ast);
-        println!("{:#?}", ast);
+        let res =transformer.visit_datex_expression(&mut ast);
+        assert!(res.is_err());
     }
 
     #[test]
@@ -206,7 +175,7 @@ mod tests {
             wrapped: None,
         };
         let transformer = &mut MyAst;
-        transformer.visit_datex_expression(&mut ast);
+        transformer.visit_datex_expression(&mut ast).unwrap();
         println!("{:?}", ast);
     }
 }

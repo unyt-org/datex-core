@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::ast::structs::expression::VariableAccess;
+use crate::ast::structs::expression::{DatexExpression, VariableAccess};
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
@@ -12,39 +12,30 @@ use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use crate::visitor::type_expression::visitable::{
-    TypeExpressionVisitAction, VisitableTypeExpression,
+    TypeExpressionVisitResult, VisitableTypeExpression,
 };
-use crate::visitor::{ErrorWithVisitAction, VisitAction};
+use crate::visitor::{VisitAction};
 pub mod visitable;
 
-pub struct EmptyTypeExpressionError;
-impl ErrorWithVisitAction<TypeExpression> for EmptyTypeExpressionError {
-    fn with_visit_action(&mut self, _action: VisitAction<TypeExpression>) {}
-    fn visit_action(&self) -> &VisitAction<TypeExpression> {
-        &VisitAction::SkipChildren
-    }
-}
+pub trait TypeExpressionVisitor<E>: Sized {
 
-pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
-    Sized
-{
     /// Handle type expression error
-    /// Returns an optional visit action to override the error's action
-    /// If no action is provided, the action of the error will be used
-    fn handle_type_expression_error<'a>(
+    /// Can either propagate the error or return a VisitAction to recover
+    /// Per default, it just propagates the error
+    fn handle_type_expression_error(
         &mut self,
-        error: &'a T,
+        error: E,
         expression: &TypeExpression,
-    ) -> Option<&'a VisitAction<TypeExpression>> {
+    ) -> Result<VisitAction<TypeExpression>, E> {
         let _ = expression;
-        Some(error.visit_action())
+        Err(error)
     }
 
     /// Visit type expression
     fn visit_type_expression(
         &mut self,
         expr: &mut TypeExpression,
-    ) -> Result<(), ()> {
+    ) -> Result<(), E> {
         let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
                 self.visit_get_reference_type(pointer_address, &expr.span)
@@ -111,11 +102,10 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
                 unimplemented!("RefFinal is going to be deprecated")
             }
         };
-        let action = match &visit_result {
+        let action = match visit_result {
             Ok(action) => action,
             Err(e) => self
-                .handle_type_expression_error(e, expr)
-                .unwrap_or(e.visit_action()),
+                .handle_type_expression_error(e, expr)?
         };
 
         match action {
@@ -139,7 +129,6 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
                 self.visit_type_expression(expr)?;
                 Ok(())
             }
-            VisitAction::Abort => Err(()),
         }
     }
 
@@ -148,7 +137,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         literal: &mut String,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = literal;
         Ok(VisitAction::SkipChildren)
@@ -159,7 +148,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         structural_list: &mut StructuralList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = structural_list;
         Ok(VisitAction::VisitChildren)
@@ -170,7 +159,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         fixed_size_list: &mut FixedSizeList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = fixed_size_list;
         Ok(VisitAction::VisitChildren)
@@ -181,7 +170,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         slice_list: &mut SliceList,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = slice_list;
         Ok(VisitAction::VisitChildren)
@@ -192,7 +181,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         intersection: &mut Intersection,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = intersection;
         Ok(VisitAction::VisitChildren)
@@ -203,7 +192,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         union: &mut Union,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = union;
         Ok(VisitAction::VisitChildren)
@@ -214,7 +203,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         generic_access: &mut GenericAccess,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = generic_access;
         Ok(VisitAction::VisitChildren)
@@ -225,7 +214,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         function_type: &mut FunctionType,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = function_type;
         Ok(VisitAction::VisitChildren)
@@ -236,7 +225,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         structural_map: &mut StructuralMap,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = structural_map;
         Ok(VisitAction::VisitChildren)
@@ -247,7 +236,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         type_ref: &mut TypeExpression,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = type_ref;
         Ok(VisitAction::VisitChildren)
@@ -258,7 +247,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         type_ref_mut: &mut TypeExpression,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = type_ref_mut;
         Ok(VisitAction::VisitChildren)
@@ -269,7 +258,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         integer: &mut Integer,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = integer;
         Ok(VisitAction::SkipChildren)
@@ -280,7 +269,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         typed_integer: &TypedInteger,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = typed_integer;
         Ok(VisitAction::SkipChildren)
@@ -291,7 +280,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         decimal: &mut Decimal,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = decimal;
         Ok(VisitAction::SkipChildren)
@@ -302,7 +291,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         typed_decimal: &TypedDecimal,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = typed_decimal;
         Ok(VisitAction::SkipChildren)
@@ -313,7 +302,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         text: &mut String,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = text;
         Ok(VisitAction::SkipChildren)
@@ -324,7 +313,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         pointer_address: &mut PointerAddress,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = pointer_address;
         Ok(VisitAction::SkipChildren)
@@ -335,7 +324,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         boolean: &mut bool,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = boolean;
         Ok(VisitAction::SkipChildren)
@@ -346,7 +335,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         endpoint: &mut Endpoint,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = endpoint;
         Ok(VisitAction::SkipChildren)
@@ -356,7 +345,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
     fn visit_null_type(
         &mut self,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         Ok(VisitAction::SkipChildren)
     }
@@ -366,7 +355,7 @@ pub trait TypeExpressionVisitor<T: ErrorWithVisitAction<TypeExpression>>:
         &mut self,
         var_access: &mut VariableAccess,
         span: &Range<usize>,
-    ) -> TypeExpressionVisitAction<T> {
+    ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = var_access;
         Ok(VisitAction::SkipChildren)

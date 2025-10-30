@@ -40,6 +40,7 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::ops::Range;
 use std::rc::Rc;
+use crate::runtime::Runtime;
 
 pub fn precompile_ast_simple_error(
     parse_result: ValidDatexParseResult,
@@ -844,8 +845,7 @@ fn resolve_variable(
         Ok(ResolvedVariable::VariableId(id))
     }
     // try to resolve core variable
-    else if let Some(core) = metadata
-        .runtime
+    else if let Some(core) = Runtime::default()
         .memory()
         .borrow()
         .get_reference(&CoreLibPointerId::Core.into()) // FIXME #444: don't use core struct here, but better access with one of our mappings already present
@@ -1014,7 +1014,7 @@ mod tests {
     ) -> Result<RichAst, SpannedCompilerError> {
         let runtime = Runtime::init_native(RuntimeConfig::default());
         let mut scope_stack = PrecompilerScopeStack::default();
-        let ast_metadata = Rc::new(RefCell::new(AstMetadata::new(runtime)));
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let expr = parse(src)
             .to_result()
             .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
