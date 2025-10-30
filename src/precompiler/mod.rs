@@ -6,10 +6,11 @@ pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
+use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::{
-    DatexExpression, RemoteExecution, ResolvedVariable, VariantAccess,
+    DatexExpression, RemoteExecution, VariantAccess,
 };
-use crate::ast::structs::r#type::TypeExpressionData;
+use crate::ast::structs::r#type::{TypeExpressionData, TypeVariantAccess};
 use crate::precompiler::scope::NewScopeType;
 use crate::runtime::Runtime;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
@@ -281,6 +282,32 @@ impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
                 TypeExpressionData::VariableAccess(VariableAccess {
                     id,
                     name: literal.to_string(),
+                })
+                .with_span(span.clone())
+            }
+            ResolvedVariable::PointerAddress(pointer_address) => {
+                TypeExpressionData::GetReference(pointer_address)
+                    .with_span(span.clone())
+            }
+        }))
+    }
+    fn visit_variant_access_type(
+        &mut self,
+        variant_access: &mut TypeVariantAccess,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedCompilerError> {
+        // ensure lhs exist
+        let _ = self.resolve_variable(&variant_access.name)?;
+        let literal =
+            format!("{}/{}", variant_access.name, variant_access.variant);
+
+        // resolve full variant access
+        let resolved_variable = self.resolve_variable(&literal)?;
+        Ok(VisitAction::Replace(match resolved_variable {
+            ResolvedVariable::VariableId(id) => {
+                TypeExpressionData::VariableAccess(VariableAccess {
+                    id,
+                    name: literal,
                 })
                 .with_span(span.clone())
             }

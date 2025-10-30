@@ -1,7 +1,8 @@
 use std::ops::Range;
 
-use crate::ast::structs::expression::VariableAccess;
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::ResolvedVariable;
+use crate::ast::structs::expression::{VariableAccess, VariantAccess};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -59,6 +60,8 @@ pub enum TypeExpressionData {
     Ref(Box<TypeExpression>),
     RefMut(Box<TypeExpression>),
     RefFinal(Box<TypeExpression>),
+
+    VariantAccess(TypeVariantAccess),
 }
 
 impl Spanned for TypeExpressionData {
@@ -136,3 +139,10 @@ pub struct FunctionType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StructuralMap(pub Vec<(TypeExpression, TypeExpression)>);
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypeVariantAccess {
+    pub name: String,
+    pub variant: String,
+    pub base: Option<ResolvedVariable>,
+}

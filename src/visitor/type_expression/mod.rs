@@ -3,7 +3,8 @@ use std::ops::Range;
 use crate::ast::structs::expression::VariableAccess;
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
+    StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
+    TypeVariantAccess, Union,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -41,6 +42,9 @@ pub trait TypeExpressionVisitor<E>: Sized {
         self.before_visit_type_expression(expr);
 
         let visit_result = match &mut expr.data {
+            TypeExpressionData::VariantAccess(variant_access) => {
+                self.visit_variant_access_type(variant_access, &expr.span)
+            }
             TypeExpressionData::GetReference(pointer_address) => {
                 self.visit_get_reference_type(pointer_address, &expr.span)
             }
@@ -321,6 +325,17 @@ pub trait TypeExpressionVisitor<E>: Sized {
     ) -> TypeExpressionVisitResult<E> {
         let _ = span;
         let _ = pointer_address;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit variant access expression
+    fn visit_variant_access_type(
+        &mut self,
+        variant_access: &mut TypeVariantAccess,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<E> {
+        let _ = span;
+        let _ = variant_access;
         Ok(VisitAction::SkipChildren)
     }
 

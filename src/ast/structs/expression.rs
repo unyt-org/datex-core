@@ -1,4 +1,5 @@
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
 use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::structs::operator::BinaryOperator;
@@ -413,21 +414,6 @@ pub struct SlotAssignment {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VariantAccess {
     pub name: String,
-    pub base: ResolvedVariable,
     pub variant: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ResolvedVariable {
-    VariableId(usize),
-    PointerAddress(PointerAddress),
-}
-
-impl Display for ResolvedVariable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ResolvedVariable::VariableId(id) => write!(f, "#{}", id),
-            ResolvedVariable::PointerAddress(addr) => write!(f, "{}", addr),
-        }
-    }
+    pub base: ResolvedVariable,
 }

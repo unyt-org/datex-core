@@ -2,11 +2,11 @@ use std::ops::Range;
 
 use crate::{
     ast::structs::{
-        expression::{DatexExpression, VariableAccess},
-        operator::{
-            BinaryOperator, ComparisonOperator, UnaryOperator,
+        expression::{DatexExpression, VariableAccess, VariantAccess},
+        operator::{BinaryOperator, ComparisonOperator, UnaryOperator},
+        r#type::{
+            FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
         },
-        r#type::{FunctionType, TypeExpression, TypeExpressionData},
     },
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
@@ -123,6 +123,11 @@ impl<'a> Formatter<'a> {
     ) -> Format<'a> {
         let a = &self.alloc;
         match &type_expr.data {
+            TypeExpressionData::VariantAccess(TypeVariantAccess {
+                name,
+                variant,
+                ..
+            }) => a.text(format!("{}/{}", name, variant)),
             TypeExpressionData::Integer(ti) => a.text(ti.to_string()),
             TypeExpressionData::Decimal(td) => a.text(td.to_string()),
             TypeExpressionData::Boolean(b) => a.text(b.to_string()),

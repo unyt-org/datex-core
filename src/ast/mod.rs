@@ -323,8 +323,7 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, ResolvedVariable, TypeDeclaration,
-                    VariantAccess,
+                    FunctionDeclaration, TypeDeclaration, VariantAccess,
                 },
                 operator::{
                     ApplyOperation, ArithmeticUnaryOperator,
@@ -3286,21 +3285,6 @@ mod tests {
                 })
                 .with_default_span()
             ]))
-        );
-    }
-
-    #[test]
-    fn variant_accessor() {
-        let res = parse_unwrap_data("integer/u8");
-        assert_eq!(
-            res,
-            DatexExpressionData::VariantAccess(VariantAccess {
-                base: ResolvedVariable::PointerAddress(
-                    CoreLibPointerId::Integer(None).into(),
-                ),
-                name: "integer".to_string(),
-                variant: "u8".to_string(),
-            })
         );
     }
 

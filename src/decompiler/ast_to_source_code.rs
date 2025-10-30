@@ -6,7 +6,7 @@ use crate::ast::structs::expression::{
     TypeDeclaration, VariantAccess,
 };
 use crate::ast::structs::r#type::{
-    FunctionType, TypeExpression, TypeExpressionData,
+    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 use crate::{
     ast::{
@@ -218,6 +218,13 @@ impl AstToSourceCodeFormatter {
         type_expr: &TypeExpression,
     ) -> String {
         match &type_expr.data {
+            TypeExpressionData::VariantAccess(TypeVariantAccess {
+                name,
+                variant,
+                ..
+            }) => {
+                format!("{}/{}", name, variant)
+            }
             TypeExpressionData::Integer(ti) => ti.to_string(),
             TypeExpressionData::Decimal(td) => td.to_string(),
             TypeExpressionData::Boolean(boolean) => boolean.to_string(),

@@ -2,11 +2,10 @@ use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };
+use crate::visitor::VisitAction;
 use crate::visitor::type_expression::TypeExpressionVisitor;
-use crate::visitor::{VisitAction};
 
-pub type TypeExpressionVisitResult<E> =
-    Result<VisitAction<TypeExpression>, E>;
+pub type TypeExpressionVisitResult<E> = Result<VisitAction<TypeExpression>, E>;
 
 pub trait VisitableTypeExpression<E> {
     fn walk_children(
@@ -15,9 +14,7 @@ pub trait VisitableTypeExpression<E> {
     ) -> Result<(), E>;
 }
 
-impl<E> VisitableTypeExpression<E>
-    for StructuralList
-{
+impl<E> VisitableTypeExpression<E> for StructuralList {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -28,9 +25,7 @@ impl<E> VisitableTypeExpression<E>
         Ok(())
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for FixedSizeList
-{
+impl<E> VisitableTypeExpression<E> for FixedSizeList {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -38,9 +33,7 @@ impl<E> VisitableTypeExpression<E>
         self.r#type.walk_children(visitor)
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for SliceList
-{
+impl<E> VisitableTypeExpression<E> for SliceList {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -48,9 +41,7 @@ impl<E> VisitableTypeExpression<E>
         self.0.walk_children(visitor)
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for Intersection
-{
+impl<E> VisitableTypeExpression<E> for Intersection {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -61,9 +52,7 @@ impl<E> VisitableTypeExpression<E>
         Ok(())
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for Union
-{
+impl<E> VisitableTypeExpression<E> for Union {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -75,9 +64,7 @@ impl<E> VisitableTypeExpression<E>
     }
 }
 
-impl<E> VisitableTypeExpression<E>
-    for GenericAccess
-{
+impl<E> VisitableTypeExpression<E> for GenericAccess {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -88,9 +75,7 @@ impl<E> VisitableTypeExpression<E>
         Ok(())
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for FunctionType
-{
+impl<E> VisitableTypeExpression<E> for FunctionType {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -102,9 +87,7 @@ impl<E> VisitableTypeExpression<E>
         Ok(())
     }
 }
-impl<E> VisitableTypeExpression<E>
-    for StructuralMap
-{
+impl<E> VisitableTypeExpression<E> for StructuralMap {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -116,9 +99,7 @@ impl<E> VisitableTypeExpression<E>
     }
 }
 
-impl<E> VisitableTypeExpression<E>
-    for TypeExpression
-{
+impl<E> VisitableTypeExpression<E> for TypeExpression {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
@@ -165,6 +146,7 @@ impl<E> VisitableTypeExpression<E>
             | TypeExpressionData::TypedDecimal(_)
             | TypeExpressionData::Boolean(_)
             | TypeExpressionData::Text(_)
+            | TypeExpressionData::VariantAccess(_)
             | TypeExpressionData::Endpoint(_) => Ok(()),
         }
     }

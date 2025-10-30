@@ -1,10 +1,12 @@
 use std::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::structs::ResolvedVariable;
+use crate::ast::structs::expression::{DatexExpressionData, VariantAccess};
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
+    StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
+    TypeVariantAccess, Union,
 };
 use crate::{
     ast::{
@@ -114,11 +116,14 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     None => {
                         TypeExpressionData::Literal(base).with_span(e.span())
                     }
-                    Some(variant) => TypeExpressionData::Literal(format!(
-                        "{}/{}",
-                        base, variant
-                    ))
-                    .with_span(e.span()),
+                    Some(variant) => {
+                        TypeExpressionData::VariantAccess(TypeVariantAccess {
+                            base: None,
+                            name: base,
+                            variant: variant.to_string(),
+                        })
+                        .with_span(e.span())
+                    }
                 }),
             just(Token::Null)
                 .map_with(|_, e| TypeExpressionData::Null.with_span(e.span())),
