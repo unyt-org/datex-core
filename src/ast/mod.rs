@@ -1556,8 +1556,12 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
-                    TypeExpressionData::Literal("integer/u8".to_owned())
-                        .with_default_span()
+                    TypeExpressionData::VariantAccess(TypeVariantAccess {
+                        base: None,
+                        name: "integer".to_owned(),
+                        variant: "u8".to_owned(),
+                    })
+                    .with_default_span()
                 ),
                 name: "x".to_string(),
                 init_expression: Box::new(
@@ -1579,8 +1583,12 @@ mod tests {
                 kind: VariableKind::Var,
                 type_annotation: Some(
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("integer/u8".to_owned())
-                            .with_default_span(),
+                        TypeExpressionData::VariantAccess(TypeVariantAccess {
+                            base: None,
+                            name: "integer".to_owned(),
+                            variant: "u8".to_owned(),
+                        })
+                        .with_default_span(),
                         TypeExpressionData::Literal("text".to_owned())
                             .with_default_span()
                     ]))
