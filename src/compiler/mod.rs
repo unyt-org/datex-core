@@ -4,7 +4,6 @@ use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
 };
-use crate::compiler::precompiler::precompile_ast;
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
@@ -30,6 +29,7 @@ use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
 use crate::precompiler::options::PrecompilerOptions;
+use crate::precompiler::precompile_ast_simple_error;
 use crate::precompiler::precompiled_ast::{
     AstMetadata, RichAst, VariableMetadata,
 };
@@ -43,7 +43,7 @@ use std::rc::Rc;
 pub mod context;
 pub mod error;
 pub mod metadata;
-pub mod precompiler;
+// pub mod precompiler;
 pub mod scope;
 pub mod type_compiler;
 pub mod type_inference;
@@ -448,11 +448,10 @@ fn precompile_to_rich_ast(
     }
     let rich_ast = if let Some(precompiler_data) = &scope.precompiler_data {
         // precompile the AST, adding metadata for variables etc.
-        precompile_ast(
+        precompile_ast_simple_error(
             valid_parse_result,
-            precompiler_data.rich_ast.metadata.clone(),
             &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
-            precompiler_options,
+            precompiler_data.rich_ast.metadata.clone(),
         )?
     } else {
         // if no precompiler data, just use the AST with default metadata

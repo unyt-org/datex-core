@@ -668,12 +668,12 @@ mod tests {
     use crate::ast::structs::expression::{List, Map, VariableKind};
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
 
-    use crate::compiler::precompiler::precompile_ast_simple_error;
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
     use crate::precompiler::precompiled_ast::{AstMetadata, RichAst};
     use crate::precompiler::scope_stack::PrecompilerScopeStack;
+    use crate::precompiler::{Precompiler, precompile_ast_simple_error};
     use crate::references::type_reference::{
         NominalTypeDeclaration, TypeReference,
     };
@@ -713,8 +713,8 @@ mod tests {
             DatexParseResult::Valid(valid_parse_result) => {
                 precompile_ast_simple_error(
                     valid_parse_result,
-                    Rc::new(RefCell::new(AstMetadata::default())),
                     &mut PrecompilerScopeStack::default(),
+                    Rc::new(RefCell::new(AstMetadata::default())),
                 )
             }
         }
@@ -740,8 +740,8 @@ mod tests {
             let valid_parse_result = parse(src).unwrap();
             let rich_ast = precompile_ast_simple_error(
                 valid_parse_result,
-                cell.clone(),
                 &mut PrecompilerScopeStack::default(),
+                cell.clone(),
             )
             .unwrap();
 
@@ -1280,8 +1280,8 @@ mod tests {
                 ast: expr,
                 spans: vec![0..1],
             },
-            Rc::new(RefCell::new(AstMetadata::default())),
             &mut PrecompilerScopeStack::default(),
+            Rc::new(RefCell::new(AstMetadata::default())),
         )
         .unwrap();
         let metadata = rich_ast.metadata;
@@ -1290,7 +1290,7 @@ mod tests {
         // check that the expression type is inferred correctly
         assert_eq!(
             infer_expression_type_detailed_errors(
-                &mut expr.as_mut().unwrap(),
+                expr.as_mut().unwrap(),
                 metadata.clone()
             )
             .unwrap(),

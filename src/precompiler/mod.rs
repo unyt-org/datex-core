@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
 use log::info;
@@ -9,7 +10,6 @@ use crate::ast::structs::expression::{
     DatexExpression, RemoteExecution, ResolvedVariable, VariantAccess,
 };
 use crate::ast::structs::r#type::TypeExpressionData;
-use crate::compiler::precompiler::precompile_ast;
 use crate::precompiler::scope::NewScopeType;
 use crate::runtime::Runtime;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
@@ -56,24 +56,68 @@ use crate::{
     },
 };
 
-#[derive(Default)]
-pub struct Precompiler {
+pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
-    scope_stack: PrecompilerScopeStack,
-    runtime: Runtime,
+    scope_stack: &'a mut PrecompilerScopeStack,
     collected_errors: Option<DetailedCompilerErrors>,
 }
 
-impl Precompiler {
+/// Precompile the AST by resolving variable references and collecting metadata.
+/// Exits early on first error encountered, returning a SpannedCompilerError.
+pub fn precompile_ast_simple_error<'a>(
+    ast: ValidDatexParseResult,
+    scope_stack: &'a mut PrecompilerScopeStack,
+    ast_metadata: Rc<RefCell<AstMetadata>>,
+) -> Result<RichAst, SpannedCompilerError> {
+    Precompiler::new(scope_stack, ast_metadata)
+        .precompile(
+            ast,
+            PrecompilerOptions {
+                detailed_errors: false,
+            },
+        )
+        .map_err(|e| {
+            match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                error,
+            ) => error,
+            _ => unreachable!(), // because detailed_errors: false
+        }
+        })
+}
+
+/// Precompile the AST by resolving variable references and collecting metadata.
+/// Collects all errors encountered, returning a DetailedCompilerErrorsWithRichAst.
+pub fn precompile_ast_detailed_errors<'a>(
+    ast: ValidDatexParseResult,
+    scope_stack: &'a mut PrecompilerScopeStack,
+    ast_metadata: Rc<RefCell<AstMetadata>>,
+) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
+    Precompiler::new(scope_stack, ast_metadata)
+        .precompile(
+            ast,
+            PrecompilerOptions {
+                detailed_errors: true,
+            },
+        )
+        .map_err(|e| {
+            match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+                error,
+            ) => error,
+            _ => unreachable!(), // because detailed_errors: true
+        }
+        })
+}
+
+impl<'a> Precompiler<'a> {
     pub fn new(
-        scope_stack: PrecompilerScopeStack,
+        scope_stack: &'a mut PrecompilerScopeStack,
         ast_metadata: Rc<RefCell<AstMetadata>>,
-        runtime: Runtime,
     ) -> Self {
         Self {
             ast_metadata,
             scope_stack,
-            runtime,
             collected_errors: None,
         }
     }
@@ -110,50 +154,6 @@ impl Precompiler {
             name,
             &mut *self.ast_metadata.borrow_mut(),
         )
-    }
-
-    /// Precompile the AST by resolving variable references and collecting metadata.
-    /// Exits early on first error encountered, returning a SpannedCompilerError.
-    pub fn precompile_ast_simple_error(
-        self,
-        ast: ValidDatexParseResult,
-    ) -> Result<RichAst, SpannedCompilerError> {
-        self.precompile(
-            ast,
-            PrecompilerOptions {
-                detailed_errors: false,
-            },
-        )
-            .map_err(|e| {
-                match e {
-                    SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                        error,
-                    ) => error,
-                    _ => unreachable!(), // because detailed_errors: false
-                }
-            })
-    }
-
-    /// Precompile the AST by resolving variable references and collecting metadata.
-    /// Collects all errors encountered, returning a DetailedCompilerErrorsWithRichAst.
-    pub fn precompile_ast_detailed_errors(
-        self,
-        ast: ValidDatexParseResult,
-    ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
-        self.precompile(
-            ast,
-            PrecompilerOptions {
-                detailed_errors: true,
-            },
-        )
-            .map_err(|e| {
-                match e {
-                    SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
-                        error,
-                    ) => error,
-                    _ => unreachable!(), // because detailed_errors: true
-                }
-            })
     }
 
     /// Precompile the AST by resolving variable references and collecting metadata.
@@ -246,39 +246,13 @@ impl Precompiler {
         &mut self,
         name: &str,
     ) -> Result<ResolvedVariable, CompilerError> {
-        println!("Resolving variable: {name}");
         // If variable exist
         if let Ok(id) = self.get_variable_and_update_metadata(name) {
-            info!("Visiting variable: {name}");
             Ok(ResolvedVariable::VariableId(id))
         }
         // try to resolve core variable
-        else if let Some(core) = self
-            .runtime
-            .memory()
-            .borrow()
-            .get_reference(&CoreLibPointerId::Core.into()) // FIXME don't use core struct here, but better access with one of our mappings already present
-        && let Some(core_variable) = core
-            .collapse_to_value()
-            .borrow()
-            .cast_to_map()
-            .unwrap()
-            .get_owned(name)
-        {
-            match core_variable {
-                ValueContainer::Reference(reference) => {
-                    if let Some(pointer_id) = reference.pointer_address() {
-                        Ok(ResolvedVariable::PointerAddress(pointer_id))
-                    } else {
-                        unreachable!(
-                            "Core variable reference must have a pointer ID"
-                        );
-                    }
-                }
-                _ => {
-                    unreachable!("Core variable must be a reference");
-                }
-            }
+        else if let Ok(core) = CoreLibPointerId::from_str(name) {
+            Ok(ResolvedVariable::PointerAddress(core.into()))
         } else {
             Err(CompilerError::UndeclaredVariable(name.to_string()))
         }
@@ -295,7 +269,7 @@ impl Precompiler {
     }
 }
 
-impl TypeExpressionVisitor<SpannedCompilerError> for Precompiler {
+impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
     fn visit_literal_type(
         &mut self,
         literal: &mut String,
@@ -317,7 +291,7 @@ impl TypeExpressionVisitor<SpannedCompilerError> for Precompiler {
         }))
     }
 }
-impl ExpressionVisitor<SpannedCompilerError> for Precompiler {
+impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
     /// Handle expression errors by either recording them if collected_errors is Some,
     /// or aborting the traversal if collected_errors is None.
     fn handle_expression_error(
@@ -578,17 +552,29 @@ mod tests {
     use crate::ast::parse;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
     use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
+    use crate::precompiler;
     use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::Integer;
     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use std::assert_matches::assert_matches;
     use std::io;
+
+    fn precompile(
+        ast: ValidDatexParseResult,
+        options: PrecompilerOptions,
+    ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
+    {
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        Precompiler::new(&mut scope_stack, ast_metadata)
+            .precompile(ast, options)
+    }
+
     #[test]
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
-        let precompiler = Precompiler::default();
         let ast = parse("var x: integer = 34; var y = 10; x + y").unwrap();
-        let res = precompiler.precompile(ast, options).unwrap();
+        let res = precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
     }
 
@@ -597,9 +583,8 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: true,
         };
-        let mut precompiler = Precompiler::default();
         let ast = parse("x + 10").unwrap();
-        let result = precompiler.precompile(ast, options);
+        let result = precompile(ast, options);
         println!("{:#?}", result);
         assert!(result.is_err());
     }
@@ -624,14 +609,12 @@ mod tests {
     fn parse_and_precompile_spanned_result(
         src: &str,
     ) -> Result<RichAst, SpannedCompilerError> {
-        let runtime = Runtime::init_native(RuntimeConfig::default());
-        let scope_stack = PrecompilerScopeStack::default();
+        let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let ast = parse(src)
             .to_result()
             .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
-        Precompiler::new(scope_stack, ast_metadata, runtime)
-            .precompile_ast_simple_error(ast)
+        precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
     }
 
     fn parse_and_precompile(src: &str) -> Result<RichAst, CompilerError> {
