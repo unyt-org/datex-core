@@ -14,3 +14,13 @@ impl PrecompilerScope {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NewScopeType {
+    // no new scope, just continue in the current scope
+    None,
+    // create a new scope, but do not increment the realm index
+    NewScope,
+    // create a new scope and increment the realm index (e.g. for remote execution calls)
+    NewScopeWithNewRealm,
+}

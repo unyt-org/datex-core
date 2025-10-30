@@ -33,11 +33,15 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         Err(error)
     }
 
+    fn before_visit_datex_expression(&mut self, _expr: &DatexExpression) {}
+    fn after_visit_datex_expression(&mut self, _expr: &DatexExpression) {}
+
     /// Visit datex expression
     fn visit_datex_expression(
         &mut self,
         expr: &mut DatexExpression,
     ) -> Result<(), E> {
+        self.before_visit_datex_expression(expr);
         let visit_result = match &mut expr.data {
             DatexExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access(variant_access, &expr.span)
@@ -158,7 +162,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             Ok(act) => act,
             Err(error) => self.handle_expression_error(error, expr)?,
         };
-        match action {
+        let result = match action {
             VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = DatexExpressionData::Noop;
@@ -182,7 +186,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
                 self.visit_datex_expression(expr)?;
                 Ok(())
             }
-        }
+        };
+        self.after_visit_datex_expression(expr);
+        result
     }
 
     /// Visit statements

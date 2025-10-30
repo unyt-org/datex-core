@@ -11,14 +11,13 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
+use crate::visitor::VisitAction;
 use crate::visitor::type_expression::visitable::{
     TypeExpressionVisitResult, VisitableTypeExpression,
 };
-use crate::visitor::{VisitAction};
 pub mod visitable;
 
 pub trait TypeExpressionVisitor<E>: Sized {
-
     /// Handle type expression error
     /// Can either propagate the error or return a VisitAction to recover
     /// Per default, it just propagates the error
@@ -31,11 +30,16 @@ pub trait TypeExpressionVisitor<E>: Sized {
         Err(error)
     }
 
+    fn before_visit_type_expression(&mut self, _expr: &TypeExpression) {}
+    fn after_visit_type_expression(&mut self, _expr: &TypeExpression) {}
+
     /// Visit type expression
     fn visit_type_expression(
         &mut self,
         expr: &mut TypeExpression,
     ) -> Result<(), E> {
+        self.before_visit_type_expression(expr);
+
         let visit_result = match &mut expr.data {
             TypeExpressionData::GetReference(pointer_address) => {
                 self.visit_get_reference_type(pointer_address, &expr.span)
@@ -104,11 +108,10 @@ pub trait TypeExpressionVisitor<E>: Sized {
         };
         let action = match visit_result {
             Ok(action) => action,
-            Err(e) => self
-                .handle_type_expression_error(e, expr)?
+            Err(e) => self.handle_type_expression_error(e, expr)?,
         };
 
-        match action {
+        let result = match action {
             VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = TypeExpressionData::Null;
@@ -129,7 +132,9 @@ pub trait TypeExpressionVisitor<E>: Sized {
                 self.visit_type_expression(expr)?;
                 Ok(())
             }
-        }
+        };
+        self.after_visit_type_expression(expr);
+        result
     }
 
     /// Visit literal type expression

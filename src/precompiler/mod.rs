@@ -6,18 +6,25 @@ pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
 use crate::ast::structs::expression::{
-    DatexExpression, ResolvedVariable, VariantAccess,
+    DatexExpression, RemoteExecution, ResolvedVariable, VariantAccess,
 };
+use crate::ast::structs::r#type::TypeExpressionData;
+use crate::compiler::precompiler::precompile_ast;
+use crate::precompiler::scope::NewScopeType;
 use crate::runtime::Runtime;
+use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
         parse_result::ValidDatexParseResult,
         spanned::Spanned,
-        structs::expression::{
+        structs::{
+            expression::{
                 BinaryOperation, DatexExpressionData, Statements,
                 TypeDeclaration, VariableAccess, VariableAssignment,
                 VariableDeclaration, VariableKind,
             },
+            operator::{BinaryOperator, binary::ArithmeticOperator},
+        },
     },
     compiler::{
         error::{
@@ -32,14 +39,14 @@ use crate::{
     precompiler::{
         options::PrecompilerOptions,
         precompiled_ast::{
-            AstMetadata, RichAst, VariableShape,
+            AstMetadata, RichAst, VariableMetadata, VariableShape,
         },
         scope_stack::PrecompilerScopeStack,
     },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
     values::{
-        core_values::r#type::Type,
+        core_values::r#type::Type, pointer::PointerAddress,
         value_container::ValueContainer,
     },
     visitor::{
@@ -101,7 +108,7 @@ impl Precompiler {
     ) -> Result<usize, CompilerError> {
         self.scope_stack.get_variable_and_update_metadata(
             name,
-            &mut self.ast_metadata.borrow_mut(),
+            &mut *self.ast_metadata.borrow_mut(),
         )
     }
 
@@ -276,9 +283,40 @@ impl Precompiler {
             Err(CompilerError::UndeclaredVariable(name.to_string()))
         }
     }
+
+    fn scope_type_for_expression(
+        &mut self,
+        expr: &DatexExpression,
+    ) -> NewScopeType {
+        match &expr.data {
+            DatexExpressionData::RemoteExecution(_) => NewScopeType::None,
+            _ => NewScopeType::NewScope,
+        }
+    }
 }
 
-impl TypeExpressionVisitor<SpannedCompilerError> for Precompiler {}
+impl TypeExpressionVisitor<SpannedCompilerError> for Precompiler {
+    fn visit_literal_type(
+        &mut self,
+        literal: &mut String,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedCompilerError> {
+        let resolved_variable = self.resolve_variable(literal)?;
+        Ok(VisitAction::Replace(match resolved_variable {
+            ResolvedVariable::VariableId(id) => {
+                TypeExpressionData::VariableAccess(VariableAccess {
+                    id,
+                    name: literal.to_string(),
+                })
+                .with_span(span.clone())
+            }
+            ResolvedVariable::PointerAddress(pointer_address) => {
+                TypeExpressionData::GetReference(pointer_address)
+                    .with_span(span.clone())
+            }
+        }))
+    }
+}
 impl ExpressionVisitor<SpannedCompilerError> for Precompiler {
     /// Handle expression errors by either recording them if collected_errors is Some,
     /// or aborting the traversal if collected_errors is None.
@@ -293,6 +331,43 @@ impl ExpressionVisitor<SpannedCompilerError> for Precompiler {
         } else {
             Err(error)
         }
+    }
+
+    fn before_visit_datex_expression(&mut self, expr: &DatexExpression) {
+        match self.scope_type_for_expression(expr) {
+            NewScopeType::NewScopeWithNewRealm => {
+                self.scope_stack.push_scope();
+                self.scope_stack.increment_realm_index();
+            }
+            NewScopeType::NewScope => {
+                self.scope_stack.push_scope();
+            }
+            _ => {}
+        };
+    }
+
+    fn after_visit_datex_expression(&mut self, expr: &DatexExpression) {
+        match self.scope_type_for_expression(expr) {
+            NewScopeType::NewScope | NewScopeType::NewScopeWithNewRealm => {
+                self.scope_stack.pop_scope();
+            }
+            _ => {}
+        };
+    }
+
+    fn visit_remote_execution(
+        &mut self,
+        remote_execution: &mut RemoteExecution,
+        _: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedCompilerError> {
+        self.visit_datex_expression(&mut remote_execution.left)?;
+
+        self.scope_stack.push_scope();
+        self.scope_stack.increment_realm_index();
+
+        self.visit_datex_expression(&mut remote_execution.right)?;
+        self.scope_stack.pop_scope();
+        Ok(VisitAction::SkipChildren)
     }
 
     fn visit_statements(
@@ -384,7 +459,6 @@ impl ExpressionVisitor<SpannedCompilerError> for Precompiler {
             };
         // both of the sides are identifiers
         let left_var = self.resolve_variable(lit_left.as_str());
-        let is_left_defined = left_var.is_ok();
         let is_right_defined =
             self.resolve_variable(lit_right.as_str()).is_ok();
 
@@ -512,7 +586,7 @@ mod tests {
     #[test]
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
-        let mut precompiler = Precompiler::default();
+        let precompiler = Precompiler::default();
         let ast = parse("var x: integer = 34; var y = 10; x + y").unwrap();
         let res = precompiler.precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
@@ -611,14 +685,18 @@ mod tests {
         );
 
         let result = parse_and_precompile("integer/u8");
-        assert_matches!(
-            result,
-            Ok(
-                RichAst {
-                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
-                    ..
-                }
-            ) if pointer_id == CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
+        assert_eq!(
+            result.unwrap().ast,
+            Some(
+                DatexExpressionData::VariantAccess(VariantAccess {
+                    base: ResolvedVariable::PointerAddress(
+                        CoreLibPointerId::Integer(None).into()
+                    ),
+                    name: "integer".to_string(),
+                    variant: "u8".to_string(),
+                })
+                .with_default_span()
+            )
         );
     }
 

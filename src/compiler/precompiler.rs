@@ -6,6 +6,9 @@ use crate::ast::structs::expression::{
     UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::structs::operator::ApplyOperation;
+/// deprecated: use precompiler mod instead
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, ErrorCollector, MaybeAction,
@@ -28,12 +31,14 @@ use crate::references::type_reference::{
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::parse_result::ValidDatexParseResult;
 use datex_core::ast::structs::expression::VariableAccess;
 use log::info;
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::ops::Range;
 use std::rc::Rc;
 
@@ -466,6 +471,7 @@ fn visit_expression(
             left: callee,
             right: expr,
         }) => {
+            // scope auf
             visit_expression(
                 callee,
                 metadata,
@@ -474,6 +480,7 @@ fn visit_expression(
                 spans,
                 collected_errors,
             )?;
+            // close
             visit_expression(
                 expr,
                 metadata,
@@ -969,482 +976,482 @@ fn visit_type_expression(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
-    use crate::ast::structs::expression::Statements;
-    use crate::ast::structs::r#type::StructuralMap;
-    use crate::ast::{error::src::SrcId, parse};
-    use crate::runtime::{Runtime, RuntimeConfig};
-    use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
-    use datex_core::values::core_values::integer::Integer;
-    use std::assert_matches::assert_matches;
-    use std::io;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
+//     use crate::ast::structs::expression::Statements;
+//     use crate::ast::structs::r#type::StructuralMap;
+//     use crate::ast::{error::src::SrcId, parse};
+//     use crate::runtime::{Runtime, RuntimeConfig};
+//     use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
+//     use datex_core::values::core_values::integer::Integer;
+//     use std::assert_matches::assert_matches;
+//     use std::io;
 
-    fn parse_unwrap(src: &str) -> DatexExpression {
-        let src_id = SrcId::test();
-        let res = parse(src);
-        if let DatexParseResult::Invalid(InvalidDatexParseResult {
-            errors,
-            ..
-        }) = res
-        {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
-            panic!("Parsing errors found");
-        }
-        res.unwrap().ast
-    }
+//     fn parse_unwrap(src: &str) -> DatexExpression {
+//         let src_id = SrcId::test();
+//         let res = parse(src);
+//         if let DatexParseResult::Invalid(InvalidDatexParseResult {
+//             errors,
+//             ..
+//         }) = res
+//         {
+//             errors.iter().for_each(|e| {
+//                 let cache = ariadne::sources(vec![(src_id, src)]);
+//                 e.clone().write(cache, io::stdout());
+//             });
+//             panic!("Parsing errors found");
+//         }
+//         res.unwrap().ast
+//     }
 
-    fn parse_and_precompile_spanned_result(
-        src: &str,
-    ) -> Result<RichAst, SpannedCompilerError> {
-        let runtime = Runtime::init_native(RuntimeConfig::default());
-        let mut scope_stack = PrecompilerScopeStack::default();
-        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
-        let expr = parse(src)
-            .to_result()
-            .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
-        precompile_ast(
-            expr,
-            ast_metadata.clone(),
-            &mut scope_stack,
-            PrecompilerOptions {
-                detailed_errors: false,
-            },
-        )
-        .map_err(|e| match e {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                error,
-            ) => error,
-            _ => unreachable!(), // because detailed_errors: false
-        })
-    }
+//     fn parse_and_precompile_spanned_result(
+//         src: &str,
+//     ) -> Result<RichAst, SpannedCompilerError> {
+//         let runtime = Runtime::init_native(RuntimeConfig::default());
+//         let mut scope_stack = PrecompilerScopeStack::default();
+//         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+//         let expr = parse(src)
+//             .to_result()
+//             .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
+//         precompile_ast(
+//             expr,
+//             ast_metadata.clone(),
+//             &mut scope_stack,
+//             PrecompilerOptions {
+//                 detailed_errors: false,
+//             },
+//         )
+//         .map_err(|e| match e {
+//             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+//                 error,
+//             ) => error,
+//             _ => unreachable!(), // because detailed_errors: false
+//         })
+//     }
 
-    fn parse_and_precompile(src: &str) -> Result<RichAst, CompilerError> {
-        parse_and_precompile_spanned_result(src).map_err(|e| e.error)
-    }
+//     fn parse_and_precompile(src: &str) -> Result<RichAst, CompilerError> {
+//         parse_and_precompile_spanned_result(src).map_err(|e| e.error)
+//     }
 
-    #[test]
-    fn undeclared_variable() {
-        let result = parse_and_precompile_spanned_result("x + 42");
-        assert!(result.is_err());
-        assert_matches!(
-            result,
-            Err(SpannedCompilerError{ error: CompilerError::UndeclaredVariable(var_name), span })
-            if var_name == "x" && span == Some((0..1))
-        );
-    }
+//     #[test]
+//     fn undeclared_variable() {
+//         let result = parse_and_precompile_spanned_result("x + 42");
+//         assert!(result.is_err());
+//         assert_matches!(
+//             result,
+//             Err(SpannedCompilerError{ error: CompilerError::UndeclaredVariable(var_name), span })
+//             if var_name == "x" && span == Some((0..1))
+//         );
+//     }
 
-    #[test]
-    fn scoped_variable() {
-        let result = parse_and_precompile("(var z = 42;z); z");
-        assert!(result.is_err());
-        assert_matches!(
-            result,
-            Err(CompilerError::UndeclaredVariable(var_name))
-            if var_name == "z"
-        );
-    }
+//     #[test]
+//     fn scoped_variable() {
+//         let result = parse_and_precompile("(var z = 42;z); z");
+//         assert!(result.is_err());
+//         assert_matches!(
+//             result,
+//             Err(CompilerError::UndeclaredVariable(var_name))
+//             if var_name == "z"
+//         );
+//     }
 
-    #[test]
-    fn core_types() {
-        let result = parse_and_precompile("boolean");
-        assert_matches!(
-            result,
-            Ok(
-                RichAst {
-                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
-                    ..
-                }
-            ) if pointer_id == CoreLibPointerId::Boolean.into()
-        );
-        let result = parse_and_precompile("integer");
-        assert_matches!(
-            result,
-            Ok(
-                RichAst {
-                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
-                    ..
-                }
-            ) if pointer_id == CoreLibPointerId::Integer(None).into()
-        );
+//     #[test]
+//     fn core_types() {
+//         let result = parse_and_precompile("boolean");
+//         assert_matches!(
+//             result,
+//             Ok(
+//                 RichAst {
+//                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
+//                     ..
+//                 }
+//             ) if pointer_id == CoreLibPointerId::Boolean.into()
+//         );
+//         let result = parse_and_precompile("integer");
+//         assert_matches!(
+//             result,
+//             Ok(
+//                 RichAst {
+//                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
+//                     ..
+//                 }
+//             ) if pointer_id == CoreLibPointerId::Integer(None).into()
+//         );
 
-        let result = parse_and_precompile("integer/u8");
-        assert_matches!(
-            result,
-            Ok(
-                RichAst {
-                    ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
-                    ..
-                }
-            ) if pointer_id == CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
-        );
-    }
+//         let result = parse_and_precompile("integer/u8");
+//         assert_matches!(
+//             result,
+//             Ok(
+//                 RichAst {
+//                     ast: Some(DatexExpression { data: DatexExpressionData::GetReference(pointer_id), ..}),
+//                     ..
+//                 }
+//             ) if pointer_id == CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8)).into()
+//         );
+//     }
 
-    #[test]
-    fn variant_access() {
-        // core type should work
-        let result =
-            parse_and_precompile("integer/u8").expect("Precompilation failed");
-        assert_eq!(
-            result.ast,
-            Some(
-                DatexExpressionData::GetReference(
-                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8))
-                        .into()
-                )
-                .with_default_span()
-            )
-        );
+//     #[test]
+//     fn variant_access() {
+//         // core type should work
+//         let result =
+//             parse_and_precompile("integer/u8").expect("Precompilation failed");
+//         assert_eq!(
+//             result.ast,
+//             Some(
+//                 DatexExpressionData::GetReference(
+//                     CoreLibPointerId::Integer(Some(IntegerTypeVariant::U8))
+//                         .into()
+//                 )
+//                 .with_default_span()
+//             )
+//         );
 
-        // core type with bad variant should error
-        let result = parse_and_precompile("integer/invalid");
-        assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "integer" && variant == "invalid");
+//         // core type with bad variant should error
+//         let result = parse_and_precompile("integer/invalid");
+//         assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "integer" && variant == "invalid");
 
-        // unknown type should error
-        let result = parse_and_precompile("invalid/u8");
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "invalid");
+//         // unknown type should error
+//         let result = parse_and_precompile("invalid/u8");
+//         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "invalid");
 
-        // declared type with invalid subvariant shall throw
-        let result = parse_and_precompile("type User = {}; User/u8");
-        assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "User" && variant == "u8");
+//         // declared type with invalid subvariant shall throw
+//         let result = parse_and_precompile("type User = {}; User/u8");
+//         assert!(result.is_err());
+//         assert_matches!(result, Err(CompilerError::SubvariantNotFound(name, variant)) if name == "User" && variant == "u8");
 
-        // a variant access without declaring the super type should error
-        let result = parse_and_precompile("type User/admin = {}; User/admin");
-        assert!(result.is_err());
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "User");
+//         // a variant access without declaring the super type should error
+//         let result = parse_and_precompile("type User/admin = {}; User/admin");
+//         assert!(result.is_err());
+//         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "User");
 
-        // declared subtype should work
-        let result = parse_and_precompile(
-            "type User = {}; type User/admin = {}; User/admin",
-        );
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::Statements(Statements::new_unterminated(
-                    vec![
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(0),
-                            name: "User".to_string(),
-                            value: TypeExpressionData::StructuralMap(
-                                StructuralMap(vec![])
-                            )
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(1),
-                            name: "User/admin".to_string(),
-                            value: TypeExpressionData::StructuralMap(
-                                StructuralMap(vec![])
-                            )
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                        DatexExpressionData::VariableAccess(VariableAccess {
-                            id: 1,
-                            name: "User/admin".to_string()
-                        })
-                        .with_default_span()
-                    ]
-                ))
-                .with_default_span()
-            )
-        );
+//         // declared subtype should work
+//         let result = parse_and_precompile(
+//             "type User = {}; type User/admin = {}; User/admin",
+//         );
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::Statements(Statements::new_unterminated(
+//                     vec![
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(0),
+//                             name: "User".to_string(),
+//                             value: TypeExpressionData::StructuralMap(
+//                                 StructuralMap(vec![])
+//                             )
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(1),
+//                             name: "User/admin".to_string(),
+//                             value: TypeExpressionData::StructuralMap(
+//                                 StructuralMap(vec![])
+//                             )
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                         DatexExpressionData::VariableAccess(VariableAccess {
+//                             id: 1,
+//                             name: "User/admin".to_string()
+//                         })
+//                         .with_default_span()
+//                     ]
+//                 ))
+//                 .with_default_span()
+//             )
+//         );
 
-        // value shall be interpreted as division
-        let result = parse_and_precompile("var a = 42; var b = 69; a/b");
-        assert!(result.is_ok());
-        let statements = if let DatexExpressionData::Statements(stmts) =
-            result.unwrap().ast.unwrap().data
-        {
-            stmts
-        } else {
-            panic!("Expected statements");
-        };
-        assert_eq!(
-            *statements.statements.get(2).unwrap(),
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Arithmetic(
-                    ArithmeticOperator::Divide
-                ),
-                left: Box::new(
-                    DatexExpressionData::VariableAccess(VariableAccess {
-                        id: 0,
-                        name: "a".to_string()
-                    })
-                    .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::VariableAccess(VariableAccess {
-                        id: 1,
-                        name: "b".to_string()
-                    })
-                    .with_default_span()
-                ),
-                r#type: None
-            })
-            .with_default_span()
-        );
+//         // value shall be interpreted as division
+//         let result = parse_and_precompile("var a = 42; var b = 69; a/b");
+//         assert!(result.is_ok());
+//         let statements = if let DatexExpressionData::Statements(stmts) =
+//             result.unwrap().ast.unwrap().data
+//         {
+//             stmts
+//         } else {
+//             panic!("Expected statements");
+//         };
+//         assert_eq!(
+//             *statements.statements.get(2).unwrap(),
+//             DatexExpressionData::BinaryOperation(BinaryOperation {
+//                 operator: BinaryOperator::Arithmetic(
+//                     ArithmeticOperator::Divide
+//                 ),
+//                 left: Box::new(
+//                     DatexExpressionData::VariableAccess(VariableAccess {
+//                         id: 0,
+//                         name: "a".to_string()
+//                     })
+//                     .with_default_span()
+//                 ),
+//                 right: Box::new(
+//                     DatexExpressionData::VariableAccess(VariableAccess {
+//                         id: 1,
+//                         name: "b".to_string()
+//                     })
+//                     .with_default_span()
+//                 ),
+//                 r#type: None
+//             })
+//             .with_default_span()
+//         );
 
-        // type with value should be interpreted as division
-        let result = parse_and_precompile("var a = 10; type b = 42; a/b");
-        assert!(result.is_ok());
-        let statements = if let DatexExpressionData::Statements(stmts) =
-            result.unwrap().ast.unwrap().data
-        {
-            stmts
-        } else {
-            panic!("Expected statements");
-        };
-        assert_eq!(
-            *statements.statements.get(2).unwrap(),
-            DatexExpressionData::BinaryOperation(BinaryOperation {
-                operator: BinaryOperator::Arithmetic(
-                    ArithmeticOperator::Divide
-                ),
-                left: Box::new(
-                    DatexExpressionData::VariableAccess(VariableAccess {
-                        id: 1,
-                        name: "a".to_string()
-                    })
-                    .with_default_span()
-                ),
-                right: Box::new(
-                    DatexExpressionData::VariableAccess(VariableAccess {
-                        id: 0,
-                        name: "b".to_string()
-                    })
-                    .with_default_span()
-                ),
-                r#type: None
-            })
-            .with_default_span()
-        );
-    }
+//         // type with value should be interpreted as division
+//         let result = parse_and_precompile("var a = 10; type b = 42; a/b");
+//         assert!(result.is_ok());
+//         let statements = if let DatexExpressionData::Statements(stmts) =
+//             result.unwrap().ast.unwrap().data
+//         {
+//             stmts
+//         } else {
+//             panic!("Expected statements");
+//         };
+//         assert_eq!(
+//             *statements.statements.get(2).unwrap(),
+//             DatexExpressionData::BinaryOperation(BinaryOperation {
+//                 operator: BinaryOperator::Arithmetic(
+//                     ArithmeticOperator::Divide
+//                 ),
+//                 left: Box::new(
+//                     DatexExpressionData::VariableAccess(VariableAccess {
+//                         id: 1,
+//                         name: "a".to_string()
+//                     })
+//                     .with_default_span()
+//                 ),
+//                 right: Box::new(
+//                     DatexExpressionData::VariableAccess(VariableAccess {
+//                         id: 0,
+//                         name: "b".to_string()
+//                     })
+//                     .with_default_span()
+//                 ),
+//                 r#type: None
+//             })
+//             .with_default_span()
+//         );
+//     }
 
-    #[test]
-    fn test_type_declaration_assigment() {
-        let result = parse_and_precompile("type MyInt = 1; var x = MyInt;");
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::Statements(Statements::new_terminated(
-                    vec![
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(0),
-                            name: "MyInt".to_string(),
-                            value: TypeExpressionData::Integer(Integer::from(
-                                1
-                            ))
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                        DatexExpressionData::VariableDeclaration(
-                            VariableDeclaration {
-                                id: Some(1),
-                                kind: VariableKind::Var,
-                                name: "x".to_string(),
-                                // must refer to variable id 0
-                                init_expression: Box::new(
-                                    DatexExpressionData::VariableAccess(
-                                        VariableAccess {
-                                            id: 0,
-                                            name: "MyInt".to_string()
-                                        }
-                                    )
-                                    .with_default_span()
-                                ),
-                                type_annotation: None,
-                            }
-                        )
-                        .with_default_span(),
-                    ]
-                ))
-                .with_default_span()
-            )
-        )
-    }
+//     #[test]
+//     fn test_type_declaration_assigment() {
+//         let result = parse_and_precompile("type MyInt = 1; var x = MyInt;");
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::Statements(Statements::new_terminated(
+//                     vec![
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(0),
+//                             name: "MyInt".to_string(),
+//                             value: TypeExpressionData::Integer(Integer::from(
+//                                 1
+//                             ))
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                         DatexExpressionData::VariableDeclaration(
+//                             VariableDeclaration {
+//                                 id: Some(1),
+//                                 kind: VariableKind::Var,
+//                                 name: "x".to_string(),
+//                                 // must refer to variable id 0
+//                                 init_expression: Box::new(
+//                                     DatexExpressionData::VariableAccess(
+//                                         VariableAccess {
+//                                             id: 0,
+//                                             name: "MyInt".to_string()
+//                                         }
+//                                     )
+//                                     .with_default_span()
+//                                 ),
+//                                 type_annotation: None,
+//                             }
+//                         )
+//                         .with_default_span(),
+//                     ]
+//                 ))
+//                 .with_default_span()
+//             )
+//         )
+//     }
 
-    #[test]
-    fn test_type_declaration_hoisted_assigment() {
-        let result = parse_and_precompile("var x = MyInt; type MyInt = 1;");
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::Statements(Statements::new_terminated(
-                    vec![
-                        DatexExpressionData::VariableDeclaration(
-                            VariableDeclaration {
-                                id: Some(1),
-                                kind: VariableKind::Var,
-                                name: "x".to_string(),
-                                // must refer to variable id 0
-                                init_expression: Box::new(
-                                    DatexExpressionData::VariableAccess(
-                                        VariableAccess {
-                                            id: 0,
-                                            name: "MyInt".to_string()
-                                        }
-                                    )
-                                    .with_default_span()
-                                ),
-                                type_annotation: None,
-                            }
-                        )
-                        .with_default_span(),
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(0),
-                            name: "MyInt".to_string(),
-                            value: TypeExpressionData::Integer(Integer::from(
-                                1
-                            ))
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                    ]
-                ))
-                .with_default_span()
-            )
-        )
-    }
+//     #[test]
+//     fn test_type_declaration_hoisted_assigment() {
+//         let result = parse_and_precompile("var x = MyInt; type MyInt = 1;");
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::Statements(Statements::new_terminated(
+//                     vec![
+//                         DatexExpressionData::VariableDeclaration(
+//                             VariableDeclaration {
+//                                 id: Some(1),
+//                                 kind: VariableKind::Var,
+//                                 name: "x".to_string(),
+//                                 // must refer to variable id 0
+//                                 init_expression: Box::new(
+//                                     DatexExpressionData::VariableAccess(
+//                                         VariableAccess {
+//                                             id: 0,
+//                                             name: "MyInt".to_string()
+//                                         }
+//                                     )
+//                                     .with_default_span()
+//                                 ),
+//                                 type_annotation: None,
+//                             }
+//                         )
+//                         .with_default_span(),
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(0),
+//                             name: "MyInt".to_string(),
+//                             value: TypeExpressionData::Integer(Integer::from(
+//                                 1
+//                             ))
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                     ]
+//                 ))
+//                 .with_default_span()
+//             )
+//         )
+//     }
 
-    #[test]
-    fn test_type_declaration_hoisted_cross_assigment() {
-        let result = parse_and_precompile("type x = MyInt; type MyInt = x;");
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::Statements(Statements::new_terminated(
-                    vec![
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(0),
-                            name: "x".to_string(),
-                            value: TypeExpressionData::VariableAccess(
-                                VariableAccess {
-                                    id: 1,
-                                    name: "MyInt".to_string()
-                                }
-                            )
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(1),
-                            name: "MyInt".to_string(),
-                            value: TypeExpressionData::VariableAccess(
-                                VariableAccess {
-                                    id: 0,
-                                    name: "x".to_string()
-                                }
-                            )
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                    ]
-                ))
-                .with_default_span()
-            )
-        )
-    }
+//     #[test]
+//     fn test_type_declaration_hoisted_cross_assigment() {
+//         let result = parse_and_precompile("type x = MyInt; type MyInt = x;");
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::Statements(Statements::new_terminated(
+//                     vec![
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(0),
+//                             name: "x".to_string(),
+//                             value: TypeExpressionData::VariableAccess(
+//                                 VariableAccess {
+//                                     id: 1,
+//                                     name: "MyInt".to_string()
+//                                 }
+//                             )
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(1),
+//                             name: "MyInt".to_string(),
+//                             value: TypeExpressionData::VariableAccess(
+//                                 VariableAccess {
+//                                     id: 0,
+//                                     name: "x".to_string()
+//                                 }
+//                             )
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                     ]
+//                 ))
+//                 .with_default_span()
+//             )
+//         )
+//     }
 
-    #[test]
-    fn test_type_invalid_nested_type_declaration() {
-        let result = parse_and_precompile(
-            "type x = NestedVar; (1; type NestedVar = x;)",
-        );
-        assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "NestedVar");
-    }
+//     #[test]
+//     fn test_type_invalid_nested_type_declaration() {
+//         let result = parse_and_precompile(
+//             "type x = NestedVar; (1; type NestedVar = x;)",
+//         );
+//         assert_matches!(result, Err(CompilerError::UndeclaredVariable(var_name)) if var_name == "NestedVar");
+//     }
 
-    #[test]
-    fn test_type_valid_nested_type_declaration() {
-        let result =
-            parse_and_precompile("type x = 10; (1; type NestedVar = x;)");
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::Statements(Statements::new_unterminated(
-                    vec![
-                        DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                            id: Some(0),
-                            name: "x".to_string(),
-                            value: TypeExpressionData::Integer(
-                                Integer::from(10).into()
-                            )
-                            .with_default_span(),
-                            hoisted: true,
-                        })
-                        .with_default_span(),
-                        DatexExpressionData::Statements(
-                            Statements::new_terminated(vec![
-                                DatexExpressionData::Integer(Integer::from(1))
-                                    .with_default_span(),
-                                DatexExpressionData::TypeDeclaration(
-                                    TypeDeclaration {
-                                        id: Some(1),
-                                        name: "NestedVar".to_string(),
-                                        value:
-                                            TypeExpressionData::VariableAccess(
-                                                VariableAccess {
-                                                    id: 0,
-                                                    name: "x".to_string()
-                                                }
-                                            )
-                                            .with_default_span(),
-                                        hoisted: true,
-                                    }
-                                )
-                                .with_default_span(),
-                            ])
-                        )
-                        .with_default_span()
-                    ]
-                ))
-                .with_default_span()
-            )
-        )
-    }
+//     #[test]
+//     fn test_type_valid_nested_type_declaration() {
+//         let result =
+//             parse_and_precompile("type x = 10; (1; type NestedVar = x;)");
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::Statements(Statements::new_unterminated(
+//                     vec![
+//                         DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                             id: Some(0),
+//                             name: "x".to_string(),
+//                             value: TypeExpressionData::Integer(
+//                                 Integer::from(10).into()
+//                             )
+//                             .with_default_span(),
+//                             hoisted: true,
+//                         })
+//                         .with_default_span(),
+//                         DatexExpressionData::Statements(
+//                             Statements::new_terminated(vec![
+//                                 DatexExpressionData::Integer(Integer::from(1))
+//                                     .with_default_span(),
+//                                 DatexExpressionData::TypeDeclaration(
+//                                     TypeDeclaration {
+//                                         id: Some(1),
+//                                         name: "NestedVar".to_string(),
+//                                         value:
+//                                             TypeExpressionData::VariableAccess(
+//                                                 VariableAccess {
+//                                                     id: 0,
+//                                                     name: "x".to_string()
+//                                                 }
+//                                             )
+//                                             .with_default_span(),
+//                                         hoisted: true,
+//                                     }
+//                                 )
+//                                 .with_default_span(),
+//                             ])
+//                         )
+//                         .with_default_span()
+//                     ]
+//                 ))
+//                 .with_default_span()
+//             )
+//         )
+//     }
 
-    #[test]
-    fn test_core_reference_type() {
-        let result = parse_and_precompile("type x = integer");
-        assert!(result.is_ok());
-        let rich_ast = result.unwrap();
-        assert_eq!(
-            rich_ast.ast,
-            Some(
-                DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                    id: Some(0),
-                    name: "x".to_string(),
-                    value: TypeExpressionData::GetReference(
-                        PointerAddress::from(CoreLibPointerId::Integer(None))
-                    )
-                    .with_default_span(),
-                    hoisted: false,
-                })
-                .with_default_span()
-            )
-        );
-    }
-}
+//     #[test]
+//     fn test_core_reference_type() {
+//         let result = parse_and_precompile("type x = integer");
+//         assert!(result.is_ok());
+//         let rich_ast = result.unwrap();
+//         assert_eq!(
+//             rich_ast.ast,
+//             Some(
+//                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
+//                     id: Some(0),
+//                     name: "x".to_string(),
+//                     value: TypeExpressionData::GetReference(
+//                         PointerAddress::from(CoreLibPointerId::Integer(None))
+//                     )
+//                     .with_default_span(),
+//                     hoisted: false,
+//                 })
+//                 .with_default_span()
+//             )
+//         );
+//     }
+// }
