@@ -594,10 +594,17 @@ mod tests {
     }
 
     #[test]
-    fn literal() {
+    fn variant_access() {
         let src = "integer/u16";
         let val = parse_type_unwrap(src);
-        assert_eq!(val, TypeExpressionData::Literal("integer/u16".to_owned()));
+        assert_eq!(
+            val,
+            TypeExpressionData::VariantAccess(TypeVariantAccess {
+                name: "integer".to_owned(),
+                variant: "u16".to_owned(),
+                base: None
+            })
+        );
     }
 
     #[test]
@@ -1180,8 +1187,12 @@ mod tests {
                     ))
                     .with_default_span(),
                     TypeExpressionData::RefMut(Box::new(
-                        TypeExpressionData::Literal("integer/u8".to_owned())
-                            .with_default_span()
+                        TypeExpressionData::VariantAccess(TypeVariantAccess {
+                            name: "integer".to_owned(),
+                            variant: "u8".to_owned(),
+                            base: None
+                        })
+                        .with_default_span()
                     ))
                     .with_default_span(),
                 ]))
