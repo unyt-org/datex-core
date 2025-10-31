@@ -1,6 +1,22 @@
+use serde::Serialize;
+use crate::compiler::compile_value;
+use crate::values::value_container::ValueContainer;
+
 pub mod deserializer;
 pub mod error;
 pub mod serializer;
+
+impl Serialize for ValueContainer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct(
+            "datex::value",
+            &compile_value(self).unwrap(),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {

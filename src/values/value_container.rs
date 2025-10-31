@@ -4,7 +4,6 @@ use crate::types::type_container::TypeContainer;
 use core::cell::RefCell;
 
 use super::value::Value;
-use crate::compiler::compile_value;
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
 use crate::traits::apply::Apply;
@@ -45,18 +44,6 @@ impl Display for ValueError {
 pub enum ValueContainer {
     Value(Value),
     Reference(Reference),
-}
-
-impl Serialize for ValueContainer {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct(
-            "datex::value",
-            &compile_value(self).unwrap(),
-        )
-    }
 }
 
 impl<'a> Deserialize<'a> for ValueContainer {

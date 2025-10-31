@@ -20,23 +20,28 @@ extern crate mopa;
 extern crate num_integer;
 
 pub mod ast;
-pub mod compiler;
+
 pub mod crypto;
 pub mod decompiler;
 pub mod dif;
-pub mod fmt;
+
 pub mod generator;
 pub mod global;
 pub mod libs;
 pub mod logger;
 pub mod network;
 pub mod parser;
+#[cfg(feature = "compiler")]
 pub mod precompiler;
+#[cfg(feature = "compiler")]
+pub mod compiler;
+#[cfg(feature = "compiler")]
+pub mod fmt;
 pub mod references;
 pub mod runtime;
 pub mod visitor;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "compiler"))]
 pub mod serde;
 pub mod task;
 pub mod traits;
