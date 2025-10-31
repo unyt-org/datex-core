@@ -5,7 +5,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::fmt::{self, Display};
+use core::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Eq, PartialEq)]

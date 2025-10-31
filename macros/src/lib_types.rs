@@ -45,15 +45,15 @@ pub fn derive_lib_type_string(input: DeriveInput) -> TokenStream {
     }
 
     let expanded = quote! {
-        impl std::fmt::Display for #name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl core::fmt::Display for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     #(#to_str_arms)*
                 }
             }
         }
 
-        impl std::str::FromStr for #name {
+        impl core::str::FromStr for #name {
             type Err = String;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s {

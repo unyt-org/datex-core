@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 use crate::ast::structs::expression::VariableAccess;
 use crate::ast::structs::r#type::{

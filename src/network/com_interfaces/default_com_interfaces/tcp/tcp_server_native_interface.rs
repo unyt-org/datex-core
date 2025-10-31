@@ -1,5 +1,5 @@
 use std::collections::{HashMap, VecDeque};
-use std::future::Future;
+use core::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

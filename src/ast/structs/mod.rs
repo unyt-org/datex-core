@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 
 use crate::values::pointer::PointerAddress;
 
@@ -15,7 +15,7 @@ pub enum ResolvedVariable {
 }
 
 impl Display for ResolvedVariable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ResolvedVariable::VariableId(id) => write!(f, "#{}", id),
             ResolvedVariable::PointerAddress(addr) => write!(f, "{}", addr),

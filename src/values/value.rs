@@ -5,8 +5,8 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::value_container::ValueError;
 use log::error;
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
+use core::fmt::{Display, Formatter};
+use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -142,7 +142,7 @@ where
 }
 
 impl Display for Value {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         write!(f, "{}", self.inner)
     }
 }
@@ -175,7 +175,7 @@ mod tests {
         },
     };
     use log::{debug, info};
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     #[test]
     fn endpoint() {

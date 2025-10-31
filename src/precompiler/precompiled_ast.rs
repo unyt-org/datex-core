@@ -27,7 +27,7 @@ impl From<VariableKind> for VariableShape {
 }
 
 impl Display for VariableShape {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             VariableShape::Type => write!(f, "type"),
             VariableShape::Value(kind) => write!(f, "{kind}"),

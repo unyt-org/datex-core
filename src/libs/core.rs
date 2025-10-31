@@ -12,9 +12,9 @@ use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::collections::HashMap;
-use std::iter::once;
+use core::iter::once;
 use std::rc::Rc;
 use strum::IntoEnumIterator;
 

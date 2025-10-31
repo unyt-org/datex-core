@@ -8,7 +8,7 @@ use crate::utils::time::Time;
 use crate::values::pointer::PointerAddress;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::values::core_values::endpoint::Endpoint;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::rc::Rc;

@@ -33,7 +33,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
 impl Display for ComInterfaceUUID {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "ComInterface({})", self.0)
     }
 }
@@ -292,7 +292,7 @@ macro_rules! delegate_com_interface_info {
 /// support a factory method for creating instances of the interface.
 /// Example:
 /// ```
-/// # use std::cell::RefCell;
+/// # use core::cell::RefCell;
 /// # use std::rc::Rc;
 /// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
 /// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///

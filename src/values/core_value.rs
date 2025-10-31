@@ -19,8 +19,8 @@ use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Neg, Not, Sub};
+use core::fmt::{Display, Formatter};
+use core::ops::{Add, AddAssign, Neg, Not, Sub};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -730,7 +730,7 @@ impl Neg for CoreValue {
 }
 
 impl Display for CoreValue {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             CoreValue::Type(ty) => write!(f, "{ty}"),
             CoreValue::Boolean(bool) => write!(f, "{bool}"),

@@ -5,7 +5,7 @@ use crate::compiler::scope::CompilationScope;
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::values::core_values::integer::Integer;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::rc::Rc;
 
 /// Compilation functions for type expressions.

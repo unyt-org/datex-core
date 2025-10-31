@@ -14,8 +14,8 @@ use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-use std::cell::RefCell;
-use std::fmt;
+use core::cell::RefCell;
+use core::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {

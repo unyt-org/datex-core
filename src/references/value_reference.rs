@@ -6,8 +6,8 @@ use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Debug;
+use core::cell::RefCell;
+use core::fmt::Debug;
 use std::rc::Rc;
 
 pub struct ValueReference {
@@ -52,7 +52,7 @@ impl ValueReference {
 }
 
 impl Debug for ValueReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ReferenceData")
             .field("value_container", &self.value_container)
             .field("pointer", &self.pointer_address)

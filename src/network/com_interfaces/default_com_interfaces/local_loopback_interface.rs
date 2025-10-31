@@ -8,7 +8,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 };
 use crate::{delegate_com_interface_info, set_sync_opener};
 use datex_macros::{com_interface, create_opener};
-use std::future::Future;
+use core::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

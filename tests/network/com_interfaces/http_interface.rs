@@ -6,7 +6,7 @@ use datex_core::{
         socket_provider::MultipleSocketProvider,
     },
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 use crate::context::init_global_context;
 

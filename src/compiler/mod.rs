@@ -1,3 +1,4 @@
+use core::cell::RefCell;
 use crate::ast::structs::VariableId;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::compiler::error::{
@@ -37,7 +38,6 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
-use std::cell::RefCell;
 use std::rc::Rc;
 use crate::references::reference::ReferenceMutability;
 
@@ -1089,7 +1089,7 @@ pub mod tests {
         compile_template, parse_datex_script_to_rich_ast_simple_error,
     };
     use std::assert_matches::assert_matches;
-    use std::cell::RefCell;
+    use core::cell::RefCell;
     use std::io::Read;
     use std::vec;
 

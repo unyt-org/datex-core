@@ -10,8 +10,8 @@ use crate::runtime::execution::{
 };
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Display;
+use core::cell::RefCell;
+use core::fmt::Display;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl From<ExecutionError> for ScriptExecutionError {
 }
 
 impl Display for ScriptExecutionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ScriptExecutionError::CompilerError(err) => {
                 write!(f, "Compiler Error: {}", err)

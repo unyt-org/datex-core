@@ -1,7 +1,7 @@
 use crate::ast::DatexParserTrait;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {
@@ -18,7 +18,7 @@ pub enum ComparisonOperator {
 }
 
 impl Display for ComparisonOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",

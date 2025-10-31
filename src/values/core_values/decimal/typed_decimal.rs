@@ -9,8 +9,8 @@ use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
-use std::num::ParseFloatError;
-use std::ops::Neg;
+use core::num::ParseFloatError;
+use core::ops::Neg;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Sub},
@@ -458,7 +458,7 @@ impl TypedDecimal {
 }
 
 impl Display for TypedDecimal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypedDecimal::F32(value) => write!(f, "{}", value.into_inner()),
             TypedDecimal::F64(value) => write!(f, "{}", value.into_inner()),

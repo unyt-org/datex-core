@@ -17,7 +17,7 @@ use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_sync_opener};
 use serde::{Deserialize, Serialize};
-use std::future::Future;
+use core::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

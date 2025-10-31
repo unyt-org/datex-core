@@ -5,7 +5,7 @@ use crate::values::core_values::{
     decimal::utils::decimal_to_string, endpoint::Endpoint,
 };
 use binrw::{BinRead, BinWrite};
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -106,7 +106,7 @@ pub enum Instruction {
 }
 
 impl Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Instruction::Int8(data) => write!(f, "INT_8 {}", data.0),
             Instruction::Int16(data) => write!(f, "INT_16 {}", data.0),
@@ -280,7 +280,7 @@ pub enum TypeInstruction {
 }
 
 impl Display for TypeInstruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeInstruction::LiteralText(data) => {
                 write!(f, "LITERAL_TEXT {}", data.0)

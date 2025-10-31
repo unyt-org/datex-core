@@ -15,11 +15,11 @@ use crate::traits::structural_eq::StructuralEq;
 use core::panic;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
-use std::{
+use core::{
     fmt::Display,
-    hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
+use std::hash::Hash;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
@@ -206,13 +206,13 @@ impl TypedInteger {
             _ => unreachable!(""),
         }
         .map_err(|e| match e.kind() {
-            std::num::IntErrorKind::Zero
-            | std::num::IntErrorKind::Empty
-            | std::num::IntErrorKind::InvalidDigit => {
+            core::num::IntErrorKind::Zero
+            | core::num::IntErrorKind::Empty
+            | core::num::IntErrorKind::InvalidDigit => {
                 NumberParseError::InvalidFormat
             }
-            std::num::IntErrorKind::PosOverflow
-            | std::num::IntErrorKind::NegOverflow => {
+            core::num::IntErrorKind::PosOverflow
+            | core::num::IntErrorKind::NegOverflow => {
                 NumberParseError::OutOfRange
             }
             _ => panic!("Unhandled integer parse error: {:?}", e.kind()),
@@ -447,7 +447,7 @@ impl TypedInteger {
 }
 
 impl Display for TypedInteger {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             TypedInteger::I8(v) => write!(f, "{v}"),
             TypedInteger::I16(v) => write!(f, "{v}"),

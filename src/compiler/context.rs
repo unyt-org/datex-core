@@ -17,8 +17,8 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use itertools::Itertools;
-use std::cell::{Cell, RefCell};
-use std::cmp::PartialEq;
+use core::cell::{Cell, RefCell};
+use core::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Cursor;
 

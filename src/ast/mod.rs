@@ -32,7 +32,7 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 use lexer::Token;
 use logos::Logos;
-use std::ops::Range;
+use core::ops::Range;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =

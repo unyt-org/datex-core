@@ -12,7 +12,7 @@ use hex::decode;
 use crate::stdlib::str;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -140,7 +140,7 @@ pub enum InvalidEndpointError {
     ReservedName,
 }
 impl Display for InvalidEndpointError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidEndpointError::InvalidCharacters => {
                 write!(f, "Endpoint contains invalid characters")
@@ -535,7 +535,7 @@ impl Endpoint {
 }
 
 impl Display for Endpoint {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self.type_ {
             EndpointType::Anonymous => {
                 // is @@any

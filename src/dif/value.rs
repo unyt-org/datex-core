@@ -15,7 +15,7 @@ use crate::values::value_container::ValueContainer;
 use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use core::cell::RefCell;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -296,7 +296,7 @@ mod tests {
         values::core_values::integer::typed_integer::IntegerTypeVariant,
     };
     use datex_core::values::value::Value;
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     fn get_mock_memory() -> RefCell<Memory> {
         RefCell::new(Memory::new(Endpoint::default()))

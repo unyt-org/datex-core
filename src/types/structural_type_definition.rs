@@ -10,7 +10,7 @@ use crate::values::core_values::text::Text;
 use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
-use std::fmt::Display;
+use core::fmt::Display;
 use std::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -199,7 +199,7 @@ impl StructuralEq for StructuralTypeDefinition {
 }
 
 impl Display for StructuralTypeDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             StructuralTypeDefinition::Integer(integer) => {
                 write!(f, "{}", integer)

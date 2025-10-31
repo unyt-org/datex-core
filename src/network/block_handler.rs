@@ -10,9 +10,9 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::info;
 use ringmap::RingMap;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::fmt::Debug;
+use core::fmt::Debug;
 use std::rc::Rc;
 // use tokio_stream::StreamExt;
 
@@ -75,7 +75,7 @@ pub struct BlockHandler {
 }
 
 impl Debug for BlockHandler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("BlockHandler")
             .field("current_context_id", &self.current_context_id)
             .field("block_cache", &self.block_cache)

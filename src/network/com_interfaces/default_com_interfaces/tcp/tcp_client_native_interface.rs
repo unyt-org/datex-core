@@ -1,5 +1,5 @@
-use std::cell::RefCell;
-use std::future::Future;
+use core::cell::RefCell;
+use core::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};

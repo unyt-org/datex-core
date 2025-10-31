@@ -15,7 +15,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use datex_core::ast::structs::operator::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
-use std::fmt::Display;
+use core::fmt::Display;
 use std::io::{BufRead, Cursor, Read, Seek};
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
@@ -137,7 +137,7 @@ fn get_text_data(
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             // get reader for dxb_body
@@ -547,7 +547,7 @@ fn get_next_instruction_code(
 fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
     reader: &mut R,
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             loop {

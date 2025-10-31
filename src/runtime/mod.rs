@@ -25,7 +25,7 @@ use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use core::fmt::Debug;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -48,7 +48,7 @@ pub struct Runtime {
 }
 
 impl Debug for Runtime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Runtime")
             .field("version", &self.version)
             .finish()

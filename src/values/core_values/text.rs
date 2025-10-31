@@ -12,7 +12,7 @@ pub struct Text(pub String);
 
 impl Display for Text {
     // TODO #319: escape string content
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "\"{}\"", self.0)
     }
 }
@@ -122,7 +122,7 @@ impl Text {
     }
     pub fn replace_range(
         &mut self,
-        range: std::ops::Range<usize>,
+        range: core::ops::Range<usize>,
         replace_with: &str,
     ) -> Result<(), String> {
         if range.start > range.end || range.end > self.0.len() {

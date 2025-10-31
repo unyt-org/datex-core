@@ -1,4 +1,4 @@
-use std::{
+use core::{
     fmt::{self, Display},
     ops::Range,
 };
@@ -10,7 +10,7 @@ pub type SourceId = usize;
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Loc {
     pub source: SourceId,
-    pub span: core::ops::Range<usize>,
+    pub span: Range<usize>,
 }
 use strum::IntoEnumIterator;
 

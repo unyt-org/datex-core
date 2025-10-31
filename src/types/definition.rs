@@ -89,7 +89,7 @@ impl Hash for TypeDefinition {
 }
 
 impl Display for TypeDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeDefinition::Collection(value) => write!(f, "{}", value),
             TypeDefinition::Structural(value) => write!(f, "{}", value),

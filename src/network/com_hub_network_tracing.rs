@@ -24,7 +24,7 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use std::fmt::Display;
+use core::fmt::Display;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -123,7 +123,7 @@ impl NetworkTraceResult {
 }
 
 impl Display for NetworkTraceResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         writeln!(
             f,
             "─────────────────────────────────────────────────────────"

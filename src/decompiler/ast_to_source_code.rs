@@ -1,4 +1,4 @@
-use std::fmt::{self};
+use core::fmt::{self};
 
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional,

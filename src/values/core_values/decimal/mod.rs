@@ -14,12 +14,12 @@ use num_enum::TryFromPrimitive;
 use num_traits::{FromPrimitive, Zero};
 use rational::Rational;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fmt::Display;
+use core::cmp::Ordering;
+use core::fmt::Display;
 use std::hash::Hash;
 use std::io::{Read, Seek};
-use std::ops::{Add, Neg, Sub};
-use std::str::FromStr;
+use core::ops::{Add, Neg, Sub};
+use core::str::FromStr;
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {
@@ -282,7 +282,7 @@ impl Sub for &Decimal {
 }
 
 impl Display for Decimal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Decimal::Finite(value) => write!(f, "{value}"),
             Decimal::NaN => write!(f, "nan"),

@@ -9,7 +9,7 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use core::cell::RefCell;
 use crate::values::core_values::r#type::Type;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

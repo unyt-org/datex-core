@@ -22,7 +22,7 @@ pub enum SocketState {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceSocketUUID(pub UUID);
 impl Display for ComInterfaceSocketUUID {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "ComInterfaceSocket({})", self.0)
     }
 }

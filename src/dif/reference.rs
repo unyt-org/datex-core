@@ -4,7 +4,7 @@ use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::memory::Memory;
 use datex_core::dif::value::DIFValueContainer;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
+use core::cell::RefCell;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFReference {
     pub value: DIFValueContainer,

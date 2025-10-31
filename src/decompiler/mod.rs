@@ -4,7 +4,7 @@ mod ast_to_source_code;
 
 use std::collections::HashMap; // FIXME #222 no-std
 use std::collections::HashSet;
-use std::fmt::Write;
+use core::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
@@ -873,7 +873,7 @@ fn decompile_loop(
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "&mut ")?;
             }
-            
+
             Instruction::RemoteExecution => {
                 handle_before_term(
                     state,

@@ -23,7 +23,7 @@ use datex_core::{
 };
 use datex_macros::{com_interface, create_opener};
 use log::info;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 use std::{

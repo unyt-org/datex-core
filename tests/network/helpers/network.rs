@@ -13,10 +13,10 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{self, Debug, Display};
+use core::fmt::{self, Debug, Display};
 use std::path::Path;
 use std::rc::Rc;
-use std::str::FromStr;
+use core::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
 

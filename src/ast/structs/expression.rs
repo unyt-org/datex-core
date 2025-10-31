@@ -17,8 +17,8 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::fmt::Display;
-use std::ops::{Neg, Range};
+use core::fmt::Display;
+use core::ops::{Neg, Range};
 use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Debug)]
@@ -380,7 +380,7 @@ pub enum VariableKind {
 }
 
 impl Display for VariableKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             VariableKind::Const => write!(f, "const"),
             VariableKind::Var => write!(f, "var"),
@@ -394,7 +394,7 @@ pub enum Slot {
     Named(String),
 }
 impl Display for Slot {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "#")?;
         match self {
             Slot::Addressed(addr) => write!(f, "{}", addr),

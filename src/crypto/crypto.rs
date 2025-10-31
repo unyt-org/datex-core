@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 
 use crate::stdlib::{future::Future, pin::Pin};
 pub trait CryptoTrait: Send + Sync {
@@ -91,7 +91,7 @@ pub enum CryptoError {
 }
 
 impl Display for CryptoError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             CryptoError::Other(msg) => write!(f, "CryptoError: {}", msg),
             CryptoError::KeyGeneratorFailed => {

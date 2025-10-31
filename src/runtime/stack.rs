@@ -5,7 +5,7 @@ use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use datex_core::references::reference::Reference;
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -70,7 +70,7 @@ impl Default for ScopeStack {
 }
 
 impl Display for ScopeStack {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "ScopeStack: [")?;
         for scope in self.stack.iter() {
             writeln!(f, "{scope:?}")?;

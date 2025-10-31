@@ -8,9 +8,8 @@ use datex_core::global::protocol_structures::block_header::{
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::run_async;
-use futures_util::StreamExt;
 use log::info;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
 

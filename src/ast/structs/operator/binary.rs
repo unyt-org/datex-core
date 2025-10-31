@@ -1,7 +1,7 @@
 use crate::ast::DatexParserTrait;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
@@ -35,7 +35,7 @@ pub enum ArithmeticOperator {
     Power,    // ^
 }
 impl Display for ArithmeticOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",
@@ -79,7 +79,7 @@ impl From<&LogicalOperator> for InstructionCode {
 }
 
 impl Display for LogicalOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",
@@ -116,7 +116,7 @@ impl From<&BitwiseOperator> for InstructionCode {
 }
 
 impl Display for BitwiseOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",
@@ -131,7 +131,7 @@ impl Display for BitwiseOperator {
 }
 
 impl Display for BinaryOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",

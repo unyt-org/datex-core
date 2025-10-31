@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use core::fmt::{Display, Formatter};
 
 use crate::global::instruction_codes::InstructionCode;
 
@@ -22,7 +22,7 @@ impl From<&UnaryOperator> for InstructionCode {
 }
 
 impl Display for UnaryOperator {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             UnaryOperator::Reference(op) => write!(f, "{}", op),
             UnaryOperator::Arithmetic(op) => write!(f, "{}", op),
@@ -52,7 +52,7 @@ impl From<&ReferenceUnaryOperator> for InstructionCode {
 }
 
 impl Display for ReferenceUnaryOperator {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             ReferenceUnaryOperator::CreateRef => write!(f, "&"),
             ReferenceUnaryOperator::CreateRefMut => write!(f, "&mut"),
@@ -81,7 +81,7 @@ impl From<&ArithmeticUnaryOperator> for InstructionCode {
 }
 
 impl Display for ArithmeticUnaryOperator {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             ArithmeticUnaryOperator::Increment => write!(f, "++"),
             ArithmeticUnaryOperator::Decrement => write!(f, "--"),
@@ -105,7 +105,7 @@ impl From<&BitwiseUnaryOperator> for InstructionCode {
 }
 
 impl Display for BitwiseUnaryOperator {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             BitwiseUnaryOperator::Negation => write!(f, "~"),
         }
@@ -126,7 +126,7 @@ impl From<&LogicalUnaryOperator> for InstructionCode {
 }
 
 impl Display for LogicalUnaryOperator {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
             LogicalUnaryOperator::Not => write!(f, "!"),
         }

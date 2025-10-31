@@ -4,8 +4,8 @@ use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
 use pad::PadStr;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::ops::{Add, Neg};
+use core::fmt::Display;
+use core::ops::{Add, Neg};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
@@ -229,7 +229,7 @@ impl Add for Rational {
 }
 
 impl Display for Rational {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.rational_to_string())
     }
 }

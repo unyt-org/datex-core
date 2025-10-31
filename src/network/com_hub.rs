@@ -8,9 +8,9 @@ use futures::channel::oneshot::Sender;
 use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::cmp::PartialEq;
+use core::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 #[cfg(feature = "tokio_runtime")]
@@ -115,7 +115,7 @@ pub struct ComHub {
 }
 
 impl Debug for ComHub {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ComHub")
             .field("endpoint", &self.endpoint)
             .field("options", &self.options)
@@ -909,7 +909,7 @@ impl ComHub {
                     panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
                 }
             };
-            (dir_rank, std::cmp::Reverse(*priority))
+            (dir_rank, core::cmp::Reverse(*priority))
         });
     }
 
@@ -976,7 +976,7 @@ impl ComHub {
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "debug")] {
                                 use crate::runtime::global_context::get_global_context;
-                                use std::cmp::Ordering;
+                                use core::cmp::Ordering;
                                 if get_global_context().debug_flags.enable_deterministic_behavior {
                                     Ordering::Equal
                                 }
@@ -1047,7 +1047,7 @@ impl ComHub {
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
     ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
-        std::iter::from_coroutine(
+        core::iter::from_coroutine(
             #[coroutine]
             move || {
                 let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
@@ -1905,7 +1905,7 @@ pub enum ResponseError {
 }
 
 impl Display for ResponseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
                 write!(

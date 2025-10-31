@@ -45,9 +45,9 @@ use datex_core::references::reference::Reference;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
-use std::cell::RefCell;
+use core::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Display;
+use core::fmt::Display;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
@@ -86,7 +86,7 @@ pub struct MemoryDump {
 }
 
 impl Display for MemoryDump {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (address, value) in &self.slots {
             match value {
                 Some(vc) => {
@@ -411,7 +411,7 @@ pub enum InvalidProgramError {
 }
 
 impl Display for InvalidProgramError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidProgramError::InvalidScopeClose => {
                 write!(f, "Invalid scope close")
@@ -498,7 +498,7 @@ impl From<AssignmentError> for ExecutionError {
 }
 
 impl Display for ExecutionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ExecutionError::ReferenceFromValueContainerError(err) => {
                 write!(f, "Reference from value container error: {err}")

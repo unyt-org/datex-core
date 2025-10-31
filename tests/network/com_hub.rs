@@ -15,7 +15,7 @@ use datex_core::stdlib::rc::Rc;
 use itertools::Itertools;
 use core::panic;
 use std::io::Write;
-use std::str::FromStr;
+use core::str::FromStr;
 use std::sync::mpsc;
 // FIXME #217 no-std
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;

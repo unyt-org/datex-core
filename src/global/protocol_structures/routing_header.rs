@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
@@ -231,7 +231,7 @@ pub enum Receivers {
     EndpointsWithKeys(Vec<(Endpoint, Key512)>),
 }
 impl Display for Receivers {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Receivers::None => write!(f, "No receivers"),
             Receivers::PointerId(pid) => write!(f, "Pointer ID: {:?}", pid),
@@ -374,7 +374,7 @@ impl RoutingHeader {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use super::*;
     #[test]

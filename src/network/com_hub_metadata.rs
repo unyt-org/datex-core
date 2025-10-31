@@ -8,7 +8,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use std::collections::HashMap;
-use std::fmt::Display;
+use core::fmt::Display;
 use itertools::Itertools;
 
 pub struct ComHubMetadataInterfaceSocket {
@@ -37,7 +37,7 @@ pub struct ComHubMetadata {
 }
 
 impl Display for ComHubMetadata {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         writeln!(f, "ComHub ({})", self.endpoint)?;
 
         // print interfaces

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 
 use crate::ast::DatexParserTrait;
 use crate::global::instruction_codes::InstructionCode;
@@ -16,7 +16,7 @@ pub enum AssignmentOperator {
     BitwiseOrAssign,  // |=
 }
 impl Display for AssignmentOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",

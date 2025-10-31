@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 use std::io::{Cursor, Read};
 // FIXME #109 no-std
 
@@ -334,7 +334,7 @@ impl DXBBlock {
 }
 
 impl Display for DXBBlock {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let block_type = self.block_header.flags_and_timestamp.block_type();
         let sender = &self.routing_header.sender;
         let receivers = self.receivers();
@@ -346,7 +346,7 @@ impl Display for DXBBlock {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use crate::{
         global::{

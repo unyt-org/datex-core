@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use core::str::FromStr;
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 use chumsky::container::Seq;
 

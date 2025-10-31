@@ -13,7 +13,7 @@ use crate::values::pointer::PointerAddress;
 use datex_core::dif::reference::DIFReference;
 use datex_core::dif::update::DIFUpdate;
 use datex_core::dif::value::DIFReferenceNotFoundError;
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -26,7 +26,7 @@ impl From<ObserverError> for DIFObserveError {
     }
 }
 impl Display for DIFObserveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFObserveError::ReferenceNotFound => {
                 write!(f, "Reference not found")
@@ -69,7 +69,7 @@ impl From<TypeError> for DIFUpdateError {
 }
 
 impl Display for DIFUpdateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFUpdateError::ReferenceNotFound => {
                 write!(f, "Reference not found")
@@ -92,7 +92,7 @@ pub enum DIFApplyError {
     ReferenceNotFound,
 }
 impl Display for DIFApplyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFApplyError::ExecutionError(e) => {
                 write!(f, "Execution error: {}", e)
@@ -117,7 +117,7 @@ impl From<DIFReferenceNotFoundError> for DIFCreatePointerError {
 }
 
 impl Display for DIFCreatePointerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFCreatePointerError::ReferenceNotFound => {
                 write!(f, "Reference not found")
@@ -134,7 +134,7 @@ pub enum DIFResolveReferenceError {
     ReferenceNotFound,
 }
 impl Display for DIFResolveReferenceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFResolveReferenceError::ReferenceNotFound => {
                 write!(f, "Reference not found")

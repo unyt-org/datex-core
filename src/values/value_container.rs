@@ -1,7 +1,7 @@
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
-use std::cell::RefCell;
+use core::cell::RefCell;
 
 use super::value::Value;
 use crate::compiler::compile_value;
@@ -11,9 +11,9 @@ use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use core::fmt::Display;
 use std::hash::Hash;
-use std::ops::{Add, Neg, Sub};
+use core::ops::{Add, Neg, Sub};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,7 @@ pub enum ValueError {
 }
 
 impl Display for ValueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ValueError::IsVoid => write!(f, "Value is void"),
             ValueError::InvalidOperation => {
@@ -149,7 +149,7 @@ impl Identity for ValueContainer {
 }
 
 impl Display for ValueContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ValueContainer::Value(value) => write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer

@@ -131,7 +131,7 @@ fn compare_datex_result_with_expected(
 }
 
 fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)> + 'a {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             // read test cases from directory ./test_cases/<filename>.json

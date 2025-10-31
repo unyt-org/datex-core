@@ -5,7 +5,7 @@ use crate::{
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
 };
-use std::cell::RefCell;
+use core::cell::RefCell;
 use crate::references::observers::TransceiverId;
 
 impl Reference {
@@ -245,7 +245,7 @@ mod tests {
         values::value_container::ValueContainer,
     };
     use std::assert_matches::assert_matches;
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     #[test]
     fn push() {

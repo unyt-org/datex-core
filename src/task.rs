@@ -2,8 +2,8 @@ use cfg_if::cfg_if;
 use futures::channel::mpsc;
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::info;
-use std::cell::RefCell;
-use std::future::Future;
+use core::cell::RefCell;
+use core::future::Future;
 use std::rc::Rc;
 
 type LocalPanicChannel = Rc<
@@ -176,14 +176,14 @@ cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
         pub fn timeout<F>(duration: std::time::Duration, fut: F) -> tokio::time::Timeout<F::IntoFuture>
         where
-            F: std::future::IntoFuture,
+            F: core::future::IntoFuture,
         {
             tokio::time::timeout(duration, fut)
         }
 
         pub fn spawn_local<F>(fut: F)-> tokio::task::JoinHandle<()>
         where
-            F: std::future::Future<Output = ()> + 'static,
+            F: core::future::Future<Output = ()> + 'static,
         {
             tokio::task::spawn_local(fut)
         }
@@ -212,7 +212,7 @@ cfg_if! {
             fut: F,
         ) -> Result<T, &'static str>
         where
-            F: std::future::Future<Output = T>,
+            F: core::future::Future<Output = T>,
         {
             let timeout_fut = sleep(duration);
             futures::pin_mut!(fut);
@@ -229,19 +229,19 @@ cfg_if! {
 
         pub fn spawn_local<F>(fut: F)
         where
-            F: std::future::Future<Output = ()> + 'static,
+            F: core::future::Future<Output = ()> + 'static,
         {
             wasm_bindgen_futures::spawn_local(fut);
         }
         pub fn spawn<F>(fut: F)
         where
-            F: std::future::Future<Output = ()> + 'static,
+            F: core::future::Future<Output = ()> + 'static,
         {
             wasm_bindgen_futures::spawn_local(fut);
         }
         pub fn spawn_blocking<F>(_fut: F) -> !
         where
-            F: std::future::Future + 'static,
+            F: core::future::Future + 'static,
         {
             panic!("`spawn_blocking` is not supported in the wasm runtime.");
         }

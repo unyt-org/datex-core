@@ -17,8 +17,8 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::fmt::Display;
+use core::cell::RefCell;
+use core::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -40,7 +40,7 @@ impl From<MapAccessError> for AccessError {
 }
 
 impl Display for AccessError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AccessError::MapAccessError(err) => {
                 write!(f, "Map access error: {}", err)
@@ -75,7 +75,7 @@ pub enum TypeError {
     },
 }
 impl Display for TypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeError::TypeMismatch { expected, found } => write!(
                 f,
@@ -93,7 +93,7 @@ pub enum AssignmentError {
 }
 
 impl Display for AssignmentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AssignmentError::ImmutableReference => {
                 write!(f, "Cannot assign to an immutable reference")
@@ -190,7 +190,7 @@ pub mod mutability_option_as_int {
 }
 
 impl Display for ReferenceMutability {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ReferenceMutability::Mutable => write!(f, "&mut"),
             ReferenceMutability::Immutable => write!(f, "&"),
@@ -205,7 +205,7 @@ pub enum Reference {
 }
 
 impl Display for Reference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Reference::ValueReference(vr) => {
                 let vr = vr.borrow();
@@ -321,7 +321,7 @@ pub enum ReferenceCreationError {
 }
 
 impl Display for ReferenceCreationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ReferenceCreationError::InvalidType => {
                 write!(

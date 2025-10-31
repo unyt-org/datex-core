@@ -39,7 +39,7 @@ impl From<&str> for NominalTypeDeclaration {
 }
 
 impl Display for NominalTypeDeclaration {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         if let Some(variant) = &self.variant {
             write!(f, "{}/{}", self.name, variant)
         } else {
@@ -179,7 +179,7 @@ impl Apply for TypeReference {
 }
 
 impl Display for TypeReference {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         if let Some(nominal) = &self.nominal_type_declaration {
             // special exception: for Unit, display "()"
             if self.pointer_address == Some(PointerAddress::from(CoreLibPointerId::Unit)) {

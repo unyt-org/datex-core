@@ -4,8 +4,8 @@ use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::precompiler::precompiled_ast::RichAst;
 use crate::serde::error::DeserializationError;
 use datex_core::compiler::type_inference::SpannedTypeError;
-use std::fmt::{Display, Formatter};
-use std::ops::Range;
+use core::fmt::{Display, Formatter};
+use core::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
@@ -50,7 +50,7 @@ impl SpannedCompilerError {
 }
 
 impl Display for SpannedCompilerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{} ({})",
@@ -115,7 +115,7 @@ impl DetailedCompilerErrors {
 }
 
 impl Display for DetailedCompilerErrors {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         for error in self.errors.iter() {
             writeln!(f, "{}", error)?;
         }
@@ -254,7 +254,7 @@ impl From<TypeError> for CompilerError {
 }
 
 impl Display for CompilerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             CompilerError::InvalidRedeclaration(name) => {
                 write!(f, "Invalid redeclaration of {name}")

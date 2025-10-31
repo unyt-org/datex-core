@@ -45,7 +45,7 @@ mod tests {
     };
     use datex_core::dif::r#type::DIFTypeDefinition;
     use datex_core::values::core_values::endpoint::Endpoint;
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
         let memory = RefCell::new(Memory::new(Endpoint::default()));

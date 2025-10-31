@@ -1,6 +1,6 @@
 use crate::values::value_container::{ValueContainer, ValueError};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, ops::Not};
+use core::{fmt::Display, ops::Not};
 
 use super::super::core_value_trait::CoreValueTrait;
 use crate::traits::structural_eq::StructuralEq;
@@ -32,7 +32,7 @@ impl Boolean {
 }
 
 impl Display for Boolean {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }

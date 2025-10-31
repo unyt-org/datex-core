@@ -5,8 +5,8 @@ use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Display;
+use core::cell::RefCell;
+use core::fmt::Display;
 use std::hash::Hash;
 use std::rc::Rc;
 
@@ -18,7 +18,7 @@ pub enum TypeContainer {
 }
 
 impl Display for TypeContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeContainer::Type(t) => write!(f, "{}", t),
             TypeContainer::TypeReference(tr) => {

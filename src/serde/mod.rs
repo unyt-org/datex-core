@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn special_types_serde() {
         // floats
-        let val = std::f64::consts::PI;
+        let val = core::f64::consts::PI;
         let s = to_bytes(&val).unwrap();
         let d: f64 = from_bytes(&s).unwrap();
         assert_eq!(val, d);

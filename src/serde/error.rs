@@ -2,7 +2,7 @@ use core::fmt;
 use serde::de::Error;
 use serde::ser::StdError;
 use serde::ser::{self};
-use std::fmt::Display;
+use core::fmt::Display;
 use std::io;
 
 use crate::compiler::error::{CompilerError, SpannedCompilerError};

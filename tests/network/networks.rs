@@ -15,7 +15,7 @@ use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
 use log::info;
 use ntest_timeout::timeout;
-use std::str::FromStr;
+use core::str::FromStr;
 use std::time::Duration;
 use tokio::task;
 
