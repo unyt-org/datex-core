@@ -482,60 +482,67 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedCompilerError> {
         let operator = &binary_operation.operator;
-        let left = &mut binary_operation.left;
-        let right = &mut binary_operation.right;
+        
+        // handle special case: / operator
+        if operator == &BinaryOperator::Arithmetic(ArithmeticOperator::Divide) {
+            let left = &mut binary_operation.left;
+            let right = &mut binary_operation.right;
 
-        let lit_left = if let DatexExpressionData::Identifier(name) = &left.data
-        {
-            name.clone()
-        } else {
-            return Ok(VisitAction::VisitChildren);
-        };
-        let lit_right =
-            if let DatexExpressionData::Identifier(name) = &right.data {
+            let lit_left = if let DatexExpressionData::Identifier(name) = &left.data
+            {
                 name.clone()
             } else {
                 return Ok(VisitAction::VisitChildren);
             };
-        // both of the sides are identifiers
-        let left_var = self.resolve_variable(lit_left.as_str());
-        let is_right_defined =
-            self.resolve_variable(lit_right.as_str()).is_ok();
+            let lit_right =
+                if let DatexExpressionData::Identifier(name) = &right.data {
+                    name.clone()
+                } else {
+                    return Ok(VisitAction::VisitChildren);
+                };
+            // both of the sides are identifiers
+            let left_var = self.resolve_variable(lit_left.as_str());
+            let is_right_defined =
+                self.resolve_variable(lit_right.as_str()).is_ok();
 
-        // left is defined (could be integer, or user defined variable)
-        if let Ok(left_var) = left_var {
-            if is_right_defined {
-                // both sides are defined, left side could be a type, or no,
-                // same for right side
-                // could be variant access if the left side is a type and right side does exist as subvariant,
-                // otherwise we try division
-                Ok(VisitAction::VisitChildren)
+            // left is defined (could be integer, or user defined variable)
+            if let Ok(left_var) = left_var {
+                if is_right_defined {
+                    // both sides are defined, left side could be a type, or no,
+                    // same for right side
+                    // could be variant access if the left side is a type and right side does exist as subvariant,
+                    // otherwise we try division
+                    Ok(VisitAction::VisitChildren)
+                } else {
+                    // is right is not defined, fallback to variant access
+                    // could be divison though, where user misspelled rhs (unhandled, will throw)
+                    Ok(VisitAction::Replace(DatexExpression::new(
+                        DatexExpressionData::VariantAccess(VariantAccess {
+                            base: left_var,
+                            name: lit_left,
+                            variant: lit_right,
+                        }),
+                        span.clone(),
+                    )))
+                }
             } else {
-                // is right is not defined, fallback to variant access
-                // could be divison though, where user misspelled rhs (unhandled, will throw)
-                Ok(VisitAction::Replace(DatexExpression::new(
-                    DatexExpressionData::VariantAccess(VariantAccess {
-                        base: left_var,
-                        name: lit_left,
-                        variant: lit_right,
-                    }),
-                    span.clone(),
-                )))
-            }
-        } else {
-            // if left is not defined and
-            self.collect_error(SpannedCompilerError::new_with_span(
-                CompilerError::UndeclaredVariable(lit_left),
-                left.span.clone(),
-            ))?;
-            if !is_right_defined {
+                // if left is not defined and
                 self.collect_error(SpannedCompilerError::new_with_span(
-                    CompilerError::UndeclaredVariable(lit_right),
-                    right.span.clone(),
+                    CompilerError::UndeclaredVariable(lit_left),
+                    left.span.clone(),
                 ))?;
+                if !is_right_defined {
+                    self.collect_error(SpannedCompilerError::new_with_span(
+                        CompilerError::UndeclaredVariable(lit_right),
+                        right.span.clone(),
+                    ))?;
+                }
+                Ok(VisitAction::SkipChildren)
             }
-            Ok(VisitAction::SkipChildren)
         }
+        else {
+            Ok(VisitAction::VisitChildren)
+        }        
     }
 
     fn visit_variable_declaration(
