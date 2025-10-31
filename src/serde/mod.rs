@@ -16,7 +16,7 @@ mod tests {
     use datex_core::decompiler::decompile_body;
     use log::info;
     use serde::{Deserialize, Serialize};
-    use std::collections::{HashMap, HashSet};
+    use crate::stdlib::collections::{HashMap, HashSet};
 
     // Tuple Struct
     #[derive(Deserialize, Serialize, Debug, PartialEq)]

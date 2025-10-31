@@ -18,7 +18,6 @@ use crate::{
 };
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
-use std::path::PathBuf;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -61,7 +60,8 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX file path
     /// This will read the file, compile it to DXB, execute it and extract the
-    pub fn from_dx_file(path: PathBuf) -> Result<Self, DeserializationError> {
+    #[cfg(feature = "std")]
+    pub fn from_dx_file(path: std::path::PathBuf) -> Result<Self, DeserializationError> {
         let input = std::fs::read_to_string(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
@@ -70,7 +70,8 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DXB file path
     /// This will read the file, execute it and extract the resulting value for deserialization
-    pub fn from_dxb_file(path: PathBuf) -> Result<Self, DeserializationError> {
+    #[cfg(feature = "std")]
+    pub fn from_dxb_file(path: std::path::PathBuf) -> Result<Self, DeserializationError> {
         let input = std::fs::read(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;

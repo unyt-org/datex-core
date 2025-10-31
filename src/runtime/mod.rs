@@ -1,4 +1,4 @@
-#[cfg(feature = "native_crypto")]
+#[cfg(all(feature = "native_crypto", feature = "std"))]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::global::dxb_block::{
     DXBBlock, IncomingEndpointContextSectionId, IncomingSection,
@@ -24,10 +24,11 @@ use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 use core::fmt::Debug;
-use std::pin::Pin;
-use std::sync::Arc;
+use core::slice;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::Arc;
 
 pub mod dif_interface;
 pub mod execution;
@@ -242,7 +243,7 @@ impl RuntimeInternal {
         let mut block =
             DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
 
-        block.set_receivers(std::slice::from_ref(
+        block.set_receivers(slice::from_ref(
             &remote_execution_context.endpoint,
         ));
 
@@ -429,7 +430,7 @@ impl Runtime {
         &self.internal.memory
     }
 
-    #[cfg(feature = "native_crypto")]
+    #[cfg(all(feature = "native_crypto", feature = "std"))]
     pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
@@ -489,7 +490,7 @@ impl Runtime {
     }
 
     // inits a native runtime and starts the update loop
-    #[cfg(feature = "native_crypto")]
+    #[cfg(all(feature = "native_crypto", feature = "std"))]
     pub async fn create_native(config: RuntimeConfig) -> Runtime {
         let runtime = Self::init_native(config);
         runtime.start().await;

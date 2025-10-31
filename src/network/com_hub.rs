@@ -9,10 +9,11 @@ use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use core::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
+use crate::stdlib::collections::{HashMap, HashSet};
 use core::fmt::{Debug, Display, Formatter};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::stdlib::sync::{Arc};
+use crate::stdsync::Mutex;
+use crate::stdlib::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 // FIXME #175 no-std

@@ -1,8 +1,9 @@
-use std::{
+use crate::stdlib::{
     cell::RefCell,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc},
 };
+use crate::stdsync::Mutex;
 
 use async_trait::async_trait;
 use futures::channel::oneshot;

@@ -13,9 +13,9 @@ use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
 use core::cell::RefCell;
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 use core::iter::once;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 use strum::IntoEnumIterator;
 
 thread_local! {
@@ -328,7 +328,7 @@ mod tests {
 
     use super::*;
     use itertools::Itertools;
-    use std::{assert_matches::assert_matches, str::FromStr};
+    use crate::stdlib::{assert_matches::assert_matches, str::FromStr};
 
     #[test]
     fn core_lib() {

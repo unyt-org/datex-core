@@ -18,9 +18,10 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_sync_opener};
 use serde::{Deserialize, Serialize};
 use core::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::{Arc};
+use crate::stdsync::Mutex;
+use crate::stdlib::time::Duration;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;

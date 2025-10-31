@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use core::fmt::Display;
-use std::time::Duration;
+use crate::stdlib::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {

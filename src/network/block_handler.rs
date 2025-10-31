@@ -11,9 +11,9 @@ use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::info;
 use ringmap::RingMap;
 use core::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use crate::stdlib::collections::{BTreeMap, HashMap, VecDeque};
 use core::fmt::Debug;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 // use tokio_stream::StreamExt;
 
 // TODO #170: store scope memory

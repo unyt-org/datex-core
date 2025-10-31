@@ -1,5 +1,5 @@
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
-use std::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
+use crate::stdlib::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
 
 #[cfg(feature = "debug")]
 #[derive(Clone, Debug)]
@@ -39,7 +39,7 @@ impl GlobalContext {
         }
     }
 
-    #[cfg(all(feature = "native_crypto", feature = "native_time"))]
+    #[cfg(all(feature = "native_crypto", feature = "std", feature = "native_time"))]
     pub fn native() -> GlobalContext {
         use crate::{
             crypto::crypto_native::CryptoNative, utils::time_native::TimeNative,

@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use datex_core::references::type_reference::TypeReference;
-use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
+use crate::stdlib::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
 use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

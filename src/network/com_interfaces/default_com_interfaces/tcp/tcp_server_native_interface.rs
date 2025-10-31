@@ -1,8 +1,9 @@
-use std::collections::{HashMap, VecDeque};
+use crate::stdlib::collections::{HashMap, VecDeque};
 use core::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::{Arc};
+use crate::stdsync::Mutex;
+use crate::stdlib::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::task::spawn;

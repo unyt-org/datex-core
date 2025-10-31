@@ -38,7 +38,7 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 use crate::references::reference::ReferenceMutability;
 
 pub mod context;
@@ -48,6 +48,8 @@ pub mod metadata;
 pub mod scope;
 pub mod type_compiler;
 pub mod type_inference;
+
+#[cfg(feature = "std")]
 pub mod workspace;
 
 #[derive(Clone, Default)]
@@ -1088,10 +1090,10 @@ pub mod tests {
         compile_ast, compile_script, compile_script_or_return_static_value,
         compile_template, parse_datex_script_to_rich_ast_simple_error,
     };
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
     use core::cell::RefCell;
-    use std::io::Read;
-    use std::vec;
+    use crate::stdlib::io::Read;
+    use crate::stdlib::vec;
 
     use crate::ast::parse;
     use crate::global::type_instruction_codes::TypeSpaceInstructionCode;

@@ -9,7 +9,7 @@ use crate::values::value_container::ValueContainer;
 use crate::{
     types::definition::TypeDefinition, values::core_values::r#type::Type,
 };
-use std::{
+use crate::stdlib::{
     cell::RefCell,
     fmt::{Display, Formatter},
     rc::Rc,

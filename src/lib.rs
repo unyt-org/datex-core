@@ -46,6 +46,7 @@ pub mod values;
 // reexport macros
 pub use datex_macros as macros;
 extern crate self as datex_core;
+extern crate core;
 
 #[cfg(feature = "std")]
 include!("./with_std.rs");
@@ -58,4 +59,11 @@ pub mod stdlib {
     pub use crate::with_std::*;
     #[cfg(not(feature = "std"))]
     pub use crate::without_std::*;
+}
+
+pub mod stdsync {
+    #[cfg(feature = "std")]
+    pub use crate::with_std::sync::*;
+    #[cfg(not(feature = "std"))]
+    pub use spin::*;
 }

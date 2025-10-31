@@ -7,8 +7,8 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
-use std::hash::Hash;
-use std::rc::Rc;
+use crate::stdlib::hash::Hash;
+use crate::stdlib::rc::Rc;
 
 // TODO #376: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]

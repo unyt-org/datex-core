@@ -4,7 +4,7 @@ use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::info;
 use core::cell::RefCell;
 use core::future::Future;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 type LocalPanicChannel = Rc<
     RefCell<

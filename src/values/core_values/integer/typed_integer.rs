@@ -19,7 +19,7 @@ use core::{
     fmt::Display,
     ops::{Add, AddAssign, Neg, Sub},
 };
-use std::hash::Hash;
+use crate::stdlib::hash::Hash;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 

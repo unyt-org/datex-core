@@ -1,5 +1,5 @@
 use core::fmt::Display;
-use std::io::{Cursor, Read};
+use crate::stdlib::io::{Cursor, Read};
 // FIXME #109 no-std
 
 use super::protocol_structures::{

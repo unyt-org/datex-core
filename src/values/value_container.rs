@@ -12,9 +12,9 @@ use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
 use core::fmt::Display;
-use std::hash::Hash;
+use crate::stdlib::hash::{Hash, Hasher};
 use core::ops::{Add, Neg, Sub};
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -73,7 +73,7 @@ impl<'a> Deserialize<'a> for ValueContainer {
 }
 
 impl Hash for ValueContainer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             ValueContainer::Value(value) => value.hash(state),
             ValueContainer::Reference(pointer) => pointer.hash(state),

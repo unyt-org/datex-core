@@ -8,7 +8,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 pub struct ValueReference {
     /// the value that this reference points to

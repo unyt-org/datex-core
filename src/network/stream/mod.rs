@@ -5,7 +5,7 @@ mod tests {
     mod transformer;
 
     use ntest_timeout::timeout;
-    use std::time::Duration;
+    use crate::stdlib::time::Duration;
     use tokio::task::spawn_local;
 
     use crate::{

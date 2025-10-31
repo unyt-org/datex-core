@@ -1,4 +1,5 @@
-use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
+use crate::stdlib::{future::Future, pin::Pin, time::Duration};
+use crate::stdsync::Mutex;
 // FIXME #209 no-std
 
 use crate::{

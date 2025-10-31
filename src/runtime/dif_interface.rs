@@ -18,7 +18,7 @@ use crate::{
     values::pointer::PointerAddress,
 };
 use datex_core::dif::update::DIFUpdate;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -263,7 +263,7 @@ mod tests {
     use crate::values::value_container::ValueContainer;
     use datex_core::runtime::RuntimeConfig;
     use core::cell::RefCell;
-    use std::rc::Rc;
+    use crate::stdlib::rc::Rc;
 
     #[test]
     fn struct_serde() {

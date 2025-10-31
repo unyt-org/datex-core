@@ -1,4 +1,4 @@
-use std::sync::Once;
+use crate::stdlib::sync::Once;
 
 use cfg_if::cfg_if;
 
@@ -6,6 +6,7 @@ static INIT: Once = Once::new();
 
 /// Initializes the logger with debug mode, logging all messages including debug messages.
 pub fn init_logger_debug() {
+    // TODO: nostd
     INIT.call_once(|| {
         init(true);
     });

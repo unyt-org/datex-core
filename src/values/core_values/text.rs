@@ -1,6 +1,6 @@
 use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
-use std::{
+use crate::stdlib::{
     fmt::Display,
     ops::{Add, AddAssign},
 };

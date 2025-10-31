@@ -1,4 +1,4 @@
-use std::{str::FromStr, vec};
+use crate::stdlib::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::DatexExpressionData;
@@ -528,8 +528,6 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
 
 #[cfg(test)]
 mod tests {
-    use indexmap::map::Slice;
-
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
@@ -539,7 +537,7 @@ mod tests {
     use crate::ast::structs::expression::{
         DatexExpression, DatexExpressionData, Statements,
     };
-    use std::{io, str::FromStr};
+    use crate::stdlib::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();

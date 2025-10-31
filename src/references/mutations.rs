@@ -244,7 +244,7 @@ mod tests {
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
     use core::cell::RefCell;
 
     #[test]

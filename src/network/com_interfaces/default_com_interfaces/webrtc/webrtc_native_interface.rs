@@ -1,11 +1,12 @@
-use std::{
+use crate::stdlib::{
     cell::RefCell,
     future::Future,
     pin::Pin,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc},
     time::Duration,
 };
+use crate::stdsync::Mutex;
 
 use crate::{
     delegate_com_interface_info,

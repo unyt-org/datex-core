@@ -12,7 +12,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {

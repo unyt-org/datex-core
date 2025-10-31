@@ -13,8 +13,8 @@ use crate::values::core_values::text::Text;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
+use crate::stdlib::hash::{Hash, Hasher};
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {

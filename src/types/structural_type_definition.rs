@@ -11,7 +11,7 @@ use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
 use core::fmt::Display;
-use std::hash::Hash;
+use crate::stdlib::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

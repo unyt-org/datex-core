@@ -12,7 +12,7 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
-use std::vec;
+use crate::stdlib::vec;
 pub struct DatexSerializer {}
 
 impl Default for DatexSerializer {
@@ -604,7 +604,7 @@ mod tests {
         core_value::CoreValue, value::Value, value_container::ValueContainer,
     };
     use serde::{Deserialize, Serialize};
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     #[derive(Serialize)]
     struct TestStruct {

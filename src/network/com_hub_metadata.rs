@@ -7,7 +7,7 @@ use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 use core::fmt::Display;
 use itertools::Itertools;
 

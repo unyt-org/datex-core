@@ -16,8 +16,8 @@ use rational::Rational;
 use serde::{Deserialize, Serialize};
 use core::cmp::Ordering;
 use core::fmt::Display;
-use std::hash::Hash;
-use std::io::{Read, Seek};
+use crate::stdlib::hash::Hash;
+use crate::stdlib::io::{Read, Seek};
 use core::ops::{Add, Neg, Sub};
 use core::str::FromStr;
 
@@ -490,7 +490,7 @@ impl From<f64> for Decimal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     #[test]
     fn decimal_addition() {

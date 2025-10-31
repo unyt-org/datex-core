@@ -8,10 +8,10 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use crate::stdlib::hash::Hash;
 use core::num::ParseFloatError;
 use core::ops::Neg;
-use std::{
+use crate::stdlib::{
     fmt::Display,
     ops::{Add, AddAssign, Sub},
 };
@@ -564,7 +564,7 @@ impl From<f64> for TypedDecimal {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     use super::*;
     use crate::values::core_values::decimal::Decimal;

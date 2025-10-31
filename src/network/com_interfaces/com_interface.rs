@@ -19,16 +19,17 @@ use crate::{
 };
 use log::{debug, error, warn};
 use serde::Deserialize;
-use std::{
+use crate::stdlib::{
     any::Any,
     cell::Cell,
     collections::{HashMap, VecDeque},
     pin::Pin,
 };
-use std::{
+use crate::stdlib::{
     future::Future,
-    sync::{Arc, Mutex},
+    sync::{Arc},
 };
+use crate::stdsync::Mutex;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -293,7 +294,7 @@ macro_rules! delegate_com_interface_info {
 /// Example:
 /// ```
 /// # use core::cell::RefCell;
-/// # use std::rc::Rc;
+/// # use datex_core::stdlib::rc::Rc;
 /// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
 /// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///
 /// use serde::{Deserialize, Serialize};

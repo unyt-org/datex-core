@@ -3,7 +3,7 @@ use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
 use crate::precompiler::precompiled_ast::RichAst;
 use crate::precompiler::scope_stack::PrecompilerScopeStack;
 use core::cell::RefCell;
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct PrecompilerData {

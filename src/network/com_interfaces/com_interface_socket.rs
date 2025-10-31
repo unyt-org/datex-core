@@ -9,8 +9,7 @@ use crate::utils::uuid::UUID;
 use crate::{
     values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
 };
-use std::sync::Mutex;
-// FIXME #196 no-std
+use crate::stdsync::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {

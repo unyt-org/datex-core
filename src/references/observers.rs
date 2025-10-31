@@ -3,7 +3,7 @@ use crate::references::{
     reference::Reference, value_reference::ValueReference,
 };
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, fmt::Display, rc::Rc};
+use crate::stdlib::{cell::RefCell, fmt::Display, rc::Rc};
 
 #[derive(Debug)]
 pub enum ObserverError {
@@ -186,7 +186,7 @@ mod tests {
         values::value_container::ValueContainer,
     };
     use datex_core::references::observers::Observer;
-    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
+    use crate::stdlib::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates

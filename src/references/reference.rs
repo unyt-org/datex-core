@@ -19,8 +19,8 @@ use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use core::cell::RefCell;
 use core::fmt::Display;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
+use crate::stdlib::hash::{Hash, Hasher};
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -843,7 +843,7 @@ mod tests {
     use crate::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     #[test]
     fn try_mut_from() {

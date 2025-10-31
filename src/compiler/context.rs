@@ -19,8 +19,8 @@ use binrw::BinWrite;
 use itertools::Itertools;
 use core::cell::{Cell, RefCell};
 use core::cmp::PartialEq;
-use std::collections::HashMap;
-use std::io::Cursor;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::io::Cursor;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {

@@ -6,8 +6,8 @@ use crate::compiler::{
 use crate::precompiler::precompiled_ast::RichAst;
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::path::PathBuf;
 
 /// Represents a file in the compiler workspace with its path, cached content and AST.
 pub struct WorkspaceFile {

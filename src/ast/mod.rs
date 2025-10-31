@@ -352,7 +352,7 @@ mod tests {
     use super::*;
     use crate::ast::structs::expression::{CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation, VariableDeclaration, VariableKind};
     use datex_core::ast::structs::expression::VariableAssignment;
-    use std::{
+    use crate::stdlib::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };

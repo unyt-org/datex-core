@@ -16,7 +16,7 @@ use binrw::BinRead;
 use datex_core::ast::structs::operator::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 use core::fmt::Display;
-use std::io::{BufRead, Cursor, Read, Seek};
+use crate::stdlib::io::{BufRead, Cursor, Read, Seek};
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);

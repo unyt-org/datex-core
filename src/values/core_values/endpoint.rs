@@ -11,7 +11,7 @@ use hex::decode;
 // FIXME #123 no-std
 use crate::stdlib::str;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
+use crate::stdlib::io::Cursor;
 use core::str::FromStr;
 
 #[derive(

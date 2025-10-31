@@ -46,9 +46,9 @@ use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
 use core::cell::RefCell;
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 use core::fmt::Display;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -1583,8 +1583,8 @@ fn handle_binary_operation(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use std::vec;
+    use crate::stdlib::assert_matches::assert_matches;
+    use crate::stdlib::vec;
 
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};

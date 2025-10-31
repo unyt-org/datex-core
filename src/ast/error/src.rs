@@ -1,8 +1,5 @@
 use internment::Intern;
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-};
+use crate::stdlib::fmt;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SrcId(Intern<Vec<String>>);
@@ -36,7 +33,8 @@ impl SrcId {
         SrcId(Intern::new(vec!["test".to_string()]))
     }
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
+    #[cfg(feature = "std")]
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Self {
         SrcId(Intern::new(
             path.as_ref()
                 .iter()
@@ -45,7 +43,8 @@ impl SrcId {
         ))
     }
 
-    pub fn to_path(&self) -> PathBuf {
+    #[cfg(feature = "std")]
+    pub fn to_path(&self) -> std::path::PathBuf {
         self.0.iter().map(|e| e.to_string()).collect()
     }
 }
@@ -64,8 +63,10 @@ impl From<String> for SrcId {
         SrcId(Intern::new(vec![s]))
     }
 }
-impl From<PathBuf> for SrcId {
-    fn from(s: PathBuf) -> Self {
+
+#[cfg(feature = "std")]
+impl From<std::path::PathBuf> for SrcId {
+    fn from(s: std::path::PathBuf) -> Self {
         SrcId::from_path(s)
     }
 }

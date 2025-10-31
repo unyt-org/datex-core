@@ -17,7 +17,7 @@ use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::ops::Range;
-use std::rc::Rc;
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub enum TypeError {
@@ -639,7 +639,7 @@ fn infer_binary_expression_type(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     use super::*;
     use crate::ast::parse;

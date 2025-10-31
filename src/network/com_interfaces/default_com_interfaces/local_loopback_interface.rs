@@ -9,9 +9,10 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::{delegate_com_interface_info, set_sync_opener};
 use datex_macros::{com_interface, create_opener};
 use core::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::{Arc};
+use crate::stdsync::Mutex;
+use crate::stdlib::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;

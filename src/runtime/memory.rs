@@ -9,9 +9,9 @@ use crate::values::pointer::PointerAddress;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::values::core_values::endpoint::Endpoint;
 use core::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::rc::Rc;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::io::Cursor;
+use crate::stdlib::rc::Rc;
 // FIXME #105 no-std
 
 #[derive(Debug, Default)]

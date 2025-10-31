@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashSet, io::Write, ops::Range};
+use crate::stdlib::{collections::HashSet, io::Write, ops::Range};
 
 use crate::{
     ast::{

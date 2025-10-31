@@ -13,8 +13,8 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use futures::channel::oneshot;
 use log::info;
-use std::rc::Rc;
-use std::time::Duration;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::time::Duration;
 
 impl RuntimeInternal {
     /// Starts the

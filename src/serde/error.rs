@@ -3,7 +3,7 @@ use serde::de::Error;
 use serde::ser::StdError;
 use serde::ser::{self};
 use core::fmt::Display;
-use std::io;
+use crate::stdlib::io;
 
 use crate::compiler::error::{CompilerError, SpannedCompilerError};
 use crate::runtime::execution::ExecutionError;

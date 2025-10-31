@@ -4,9 +4,9 @@ use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
-use std::collections::HashMap;
+use crate::stdlib::collections::HashMap;
 use core::fmt::{self, Display};
-use std::hash::{Hash, Hasher};
+use crate::stdlib::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {

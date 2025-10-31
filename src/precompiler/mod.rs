@@ -1,5 +1,5 @@
 use core::str::FromStr;
-use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
+use crate::stdlib::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 use chumsky::container::Seq;
 
 pub mod options;
@@ -616,8 +616,8 @@ mod tests {
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
     use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
     use crate::values::core_values::integer::Integer;
-    use std::assert_matches::assert_matches;
-    use std::io;
+    use crate::stdlib::assert_matches::assert_matches;
+    use crate::stdlib::io;
     use crate::ast::structs::expression::{CreateRef, Deref};
     use crate::references::reference::ReferenceMutability;
     use crate::values::pointer::PointerAddress;

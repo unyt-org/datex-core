@@ -1,9 +1,10 @@
-use std::{
+use crate::stdlib::{
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{Arc},
     time::Duration,
 };
+use crate::stdsync::Mutex;
 
 use super::serial_common::{SerialError, SerialInterfaceSetupData};
 use crate::network::com_interfaces::com_interface::{

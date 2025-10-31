@@ -1,8 +1,8 @@
-use std::time::Duration;
-use std::{
+use crate::stdlib::time::Duration;
+use crate::stdlib::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
-    sync::Mutex,
 };
+use crate::stdsync::Mutex;
 // FIXME #211 no-std
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;

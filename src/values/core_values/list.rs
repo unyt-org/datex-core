@@ -3,7 +3,7 @@ use crate::values::{
     core_value::CoreValue,
     value_container::{ValueContainer, ValueError},
 };
-use std::{fmt, ops::Index};
+use crate::stdlib::{fmt, ops::Index};
 
 use crate::traits::structural_eq::StructuralEq;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]

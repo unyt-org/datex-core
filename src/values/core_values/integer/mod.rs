@@ -9,7 +9,7 @@ use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::{BigInt, Num};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use std::{
+use crate::stdlib::{
     fmt::Display,
     hash::Hash,
     io::{Read, Seek},
