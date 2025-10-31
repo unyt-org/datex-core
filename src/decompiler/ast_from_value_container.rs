@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::{DatexExpressionData, List, Map};
+use crate::ast::structs::expression::{CreateRef, DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::r#type::TypeExpressionData;
 use crate::references::reference::ReferenceMutability;
@@ -15,32 +15,14 @@ impl From<&ValueContainer> for DatexExpressionData {
         match value {
             ValueContainer::Value(value) => value_to_datex_expression(value),
             ValueContainer::Reference(reference) => {
-                match reference.mutability() {
-                    ReferenceMutability::Mutable => {
-                        DatexExpressionData::CreateRefMut(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                    ReferenceMutability::Immutable => {
-                        DatexExpressionData::CreateRef(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                    ReferenceMutability::Final => {
-                        DatexExpressionData::CreateRefFinal(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                }
+                DatexExpressionData::CreateRef(CreateRef {
+                    mutability: reference.mutability(),
+                    expression: Box::new(
+                        DatexExpressionData::from(
+                            &reference.value_container(),
+                        ).with_default_span(),
+                    )
+                })
             }
         }
     }

@@ -39,6 +39,7 @@ use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::references::reference::ReferenceMutability;
 
 pub mod context;
 pub mod error;
@@ -995,40 +996,22 @@ fn compile_expression(
         }
 
         // refs
-        DatexExpressionData::CreateRef(expression) => {
+        DatexExpressionData::CreateRef(create_ref) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF);
+                .append_instruction_code(match create_ref.mutability {
+                    ReferenceMutability::Immutable => InstructionCode::CREATE_REF,
+                    ReferenceMutability::Mutable => InstructionCode::CREATE_REF_MUT,
+                    ReferenceMutability::Final => InstructionCode::CREATE_REF_FINAL,
+                });
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*expression, &metadata),
+                RichAst::new(*create_ref.expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
         }
-        DatexExpressionData::CreateRefMut(expression) => {
-            compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF_MUT);
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*expression, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-        }
-        DatexExpressionData::CreateRefFinal(expression) => {
-            compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*expression, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-        }
-
+        
         DatexExpressionData::Type(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
@@ -1040,12 +1023,12 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpressionData::Deref(expression) => {
+        DatexExpressionData::Deref(deref) => {
             compilation_context.mark_has_non_static_value();
             compilation_context.append_instruction_code(InstructionCode::DEREF);
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*expression, &metadata),
+                RichAst::new(*deref.expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;

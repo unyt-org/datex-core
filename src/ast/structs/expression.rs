@@ -19,6 +19,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use std::fmt::Display;
 use std::ops::{Neg, Range};
+use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
@@ -114,15 +115,11 @@ pub enum DatexExpressionData {
     FunctionDeclaration(FunctionDeclaration),
 
     // TODO combine
-    /// Reference, e.g. &x
-    CreateRef(Box<DatexExpression>),
-    /// Mutable reference, e.g. &mut x
-    CreateRefMut(Box<DatexExpression>),
-    /// Final reference, e.g. &final x
-    CreateRefFinal(Box<DatexExpression>),
+    /// Reference, e.g. &x or &mut x
+    CreateRef(CreateRef),
 
     /// Deref
-    Deref(Box<DatexExpression>),
+    Deref(Deref),
 
     /// Slot, e.g. #1, #endpoint
     Slot(Slot),
@@ -416,4 +413,16 @@ pub struct VariantAccess {
     pub name: String,
     pub variant: String,
     pub base: ResolvedVariable,
+}
+
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Deref {
+    pub expression: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateRef {
+    pub mutability: ReferenceMutability,
+    pub expression: Box<DatexExpression>,
 }

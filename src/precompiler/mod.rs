@@ -591,12 +591,11 @@ mod tests {
     use crate::ast::parse;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
     use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
-    use crate::precompiler;
-    use crate::runtime::RuntimeConfig;
     use crate::values::core_values::integer::Integer;
-    use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
     use std::assert_matches::assert_matches;
     use std::io;
+    use crate::ast::structs::expression::{CreateRef, Deref};
+    use crate::references::reference::ReferenceMutability;
 
     fn precompile(
         ast: ValidDatexParseResult,
@@ -1091,6 +1090,48 @@ mod tests {
                     .with_default_span(),
                     hoisted: false,
                 })
+                .with_default_span()
+            )
+        );
+    }
+
+    #[test]
+    fn test_deref() {
+        let result = parse_and_precompile("const x = &42; *x");
+        assert!(result.is_ok());
+        let rich_ast = result.unwrap();
+        assert_eq!(
+            rich_ast.ast,
+            Some(
+                DatexExpressionData::Statements(Statements::new_unterminated(vec![
+                    DatexExpressionData::VariableDeclaration(
+                        VariableDeclaration {
+                            id: Some(0),
+                            kind: VariableKind::Const,
+                            name: "x".to_string(),
+                            init_expression: Box::new(
+                                DatexExpressionData::CreateRef(CreateRef {
+                                    mutability: ReferenceMutability::Immutable,
+                                    expression: Box::new(
+                                        DatexExpressionData::Integer(
+                                            Integer::from(42)
+                                        )
+                                            .with_default_span()
+                                    )
+                                }).with_default_span(),
+                            ),
+                            type_annotation: None,
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::Deref(Deref {expression: Box::new(
+                        DatexExpressionData::VariableAccess(VariableAccess {
+                            id: 0,
+                            name: "x".to_string()
+                        }).with_default_span()
+                    )})
+                    .with_default_span(),
+                ]))
                 .with_default_span()
             )
         );

@@ -350,15 +350,13 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::structs::expression::{
-        DatexExpressionData, List, Map, Slot, UnaryOperation,
-        VariableDeclaration, VariableKind,
-    };
+    use crate::ast::structs::expression::{CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation, VariableDeclaration, VariableKind};
     use datex_core::ast::structs::expression::VariableAssignment;
     use std::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
+    use crate::references::reference::ReferenceMutability;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {
@@ -3904,10 +3902,10 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Box::new(
+            DatexExpressionData::Deref(Deref {expression: Box::new(
                 DatexExpressionData::Identifier("x".to_string())
                     .with_default_span()
-            ))
+            )})
         );
     }
 
@@ -3917,13 +3915,13 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Box::new(
-                DatexExpressionData::Deref(Box::new(
+            DatexExpressionData::Deref(Deref {expression: Box::new(
+                DatexExpressionData::Deref(Deref {expression: Box::new(
                     DatexExpressionData::Identifier("x".to_string())
                         .with_default_span()
-                ))
+                )})
                 .with_default_span()
-            ))
+            )})
         );
     }
 
@@ -4022,17 +4020,20 @@ mod tests {
                 name: "x".to_string(),
                 type_annotation: None,
                 init_expression: Box::new(
-                    DatexExpressionData::CreateRefMut(Box::new(
-                        DatexExpressionData::List(List::new(vec![
-                            DatexExpressionData::Integer(Integer::from(1))
-                                .with_default_span(),
-                            DatexExpressionData::Integer(Integer::from(2))
-                                .with_default_span(),
-                            DatexExpressionData::Integer(Integer::from(3))
-                                .with_default_span(),
-                        ]))
-                        .with_default_span()
-                    ))
+                    DatexExpressionData::CreateRef(CreateRef {
+                        mutability: ReferenceMutability::Mutable,
+                        expression: Box::new(
+                            DatexExpressionData::List(List::new(vec![
+                                DatexExpressionData::Integer(Integer::from(1))
+                                    .with_default_span(),
+                                DatexExpressionData::Integer(Integer::from(2))
+                                    .with_default_span(),
+                                DatexExpressionData::Integer(Integer::from(3))
+                                    .with_default_span(),
+                            ]))
+                                .with_default_span()
+                        )
+                    })
                     .with_default_span()
                 ),
             })
@@ -4051,18 +4052,18 @@ mod tests {
                 name: "x".to_string(),
                 type_annotation: None,
                 init_expression: Box::new(
-                    DatexExpressionData::CreateRef(Box::new(
-                        DatexExpressionData::List(List::new(vec![
-                            DatexExpressionData::Integer(Integer::from(1))
-                                .with_default_span(),
-                            DatexExpressionData::Integer(Integer::from(2))
-                                .with_default_span(),
-                            DatexExpressionData::Integer(Integer::from(3))
-                                .with_default_span(),
-                        ]))
-                        .with_default_span()
-                    ))
-                    .with_default_span()
+                    DatexExpressionData::CreateRef(CreateRef {
+                        mutability: ReferenceMutability::Immutable,
+                        expression: Box::new(
+                            DatexExpressionData::List(List::new(vec![
+                                DatexExpressionData::Integer(Integer::from(1))
+                                    .with_default_span(),
+                                DatexExpressionData::Integer(Integer::from(2))
+                                    .with_default_span(),
+                                DatexExpressionData::Integer(Integer::from(3))
+                                    .with_default_span(),
+                            ])).with_default_span()
+                        )}).with_default_span()
                 ),
             })
         );

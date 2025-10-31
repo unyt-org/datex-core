@@ -1,12 +1,13 @@
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::UnaryOperation;
+use crate::ast::structs::expression::{CreateRef, Deref, UnaryOperation};
 use crate::ast::structs::operator::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
 };
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
+use crate::references::reference::ReferenceMutability;
 
 pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
     recursive(|unary| {
@@ -32,12 +33,21 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
             .map_with(|(ref_type, expr), e| {
                 match ref_type {
                     Some(Token::Mutable) => {
-                        DatexExpressionData::CreateRefMut(Box::new(expr))
+                        DatexExpressionData::CreateRef(CreateRef {
+                            mutability: ReferenceMutability::Mutable,
+                            expression: Box::new(expr)
+                        })
                     }
                     Some(Token::Final) => {
-                        DatexExpressionData::CreateRefFinal(Box::new(expr))
+                        DatexExpressionData::CreateRef(CreateRef {
+                            mutability: ReferenceMutability::Final,
+                            expression: Box::new(expr)
+                        })
                     }
-                    None => DatexExpressionData::CreateRef(Box::new(expr)),
+                    None => DatexExpressionData::CreateRef(CreateRef {
+                        mutability: ReferenceMutability::Immutable,
+                        expression: Box::new(expr)
+                    }),
                     _ => unreachable!(),
                 }
                 .with_span(e.span())
@@ -47,7 +57,7 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
             just(Token::Star)
                 .then(unary.clone())
                 .map_with(|(_, expr), e| {
-                    DatexExpressionData::Deref(Box::new(expr))
+                    DatexExpressionData::Deref(Deref {expression: Box::new(expr)})
                         .with_span(e.span())
                 });
 

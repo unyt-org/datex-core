@@ -1,13 +1,7 @@
 pub mod visitable;
 use std::ops::Range;
 
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
-    DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    List, Map, RemoteExecution, Slot, SlotAssignment, Statements,
-    TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment,
-    VariableDeclaration, VariantAccess,
-};
+use crate::ast::structs::expression::{ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, List, Map, RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -116,11 +110,8 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
                     &expr.span,
                 )
             }
-            DatexExpressionData::CreateRef(datex_expression) => {
-                self.visit_create_ref(datex_expression, &expr.span)
-            }
-            DatexExpressionData::CreateRefMut(datex_expression) => {
-                self.visit_create_mut(datex_expression, &expr.span)
+            DatexExpressionData::CreateRef(create_ref) => {
+                self.visit_create_ref(create_ref, &expr.span)
             }
             DatexExpressionData::Deref(deref) => {
                 self.visit_deref(deref, &expr.span)
@@ -151,9 +142,6 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             }
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 self.visit_remote_execution(remote_execution, &expr.span)
-            }
-            DatexExpressionData::CreateRefFinal(datex_expression) => {
-                unimplemented!("CreateRefFinal is going to be deprecated")
             }
             DatexExpressionData::Identifier(identifier) => {
                 self.visit_identifier(identifier, &expr.span)
@@ -370,11 +358,11 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Visit create reference expression
     fn visit_create_ref(
         &mut self,
-        datex_expression: &mut DatexExpression,
+        create_ref: &mut CreateRef,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
-        let _ = datex_expression;
+        let _ = create_ref;
         Ok(VisitAction::VisitChildren)
     }
 
@@ -392,11 +380,11 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Visit dereference expression
     fn visit_deref(
         &mut self,
-        datex_expression: &mut DatexExpression,
+        deref: &mut Deref,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
-        let _ = datex_expression;
+        let _ = deref;
         Ok(VisitAction::VisitChildren)
     }
 

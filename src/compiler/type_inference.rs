@@ -438,36 +438,19 @@ pub fn infer_expression_type_inner(
                 last_type
             }
         }
-        DatexExpressionData::CreateRef(expr) => {
+        DatexExpressionData::CreateRef(create_ref) => {
             let mut inner_type =
-                infer_expression_type_inner(expr, metadata, collected_errors)?;
+                infer_expression_type_inner(&mut create_ref.expression, metadata, collected_errors)?;
             match &mut inner_type {
                 TypeContainer::Type(t) => TypeContainer::Type(Type {
                     type_definition: TypeDefinition::Type(Box::new(t.clone())),
-                    reference_mutability: Some(ReferenceMutability::Immutable),
+                    reference_mutability: Some(create_ref.mutability.clone()),
                     base_type: None,
                 }),
                 // TODO #490: check if defined mutability of type reference matches
                 TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
                     type_definition: TypeDefinition::Reference(r.clone()),
-                    reference_mutability: Some(ReferenceMutability::Immutable),
-                    base_type: None,
-                }),
-            }
-        }
-        DatexExpressionData::CreateRefMut(expr) => {
-            let mut inner_type =
-                infer_expression_type_inner(expr, metadata, collected_errors)?;
-            match &mut inner_type {
-                TypeContainer::Type(t) => TypeContainer::Type(Type {
-                    type_definition: TypeDefinition::Type(Box::new(t.clone())),
-                    reference_mutability: Some(ReferenceMutability::Mutable),
-                    base_type: None,
-                }),
-                // TODO #491: check if defined mutability of type reference matches
-                TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
-                    type_definition: TypeDefinition::Reference(r.clone()),
-                    reference_mutability: Some(ReferenceMutability::Mutable),
+                    reference_mutability: Some(create_ref.mutability.clone()),
                     base_type: None,
                 }),
             }

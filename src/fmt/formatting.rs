@@ -16,6 +16,7 @@ use crate::{
         integer::typed_integer::TypedInteger,
     },
 };
+use crate::references::reference::ReferenceMutability;
 
 impl<'a> Formatter<'a> {
     pub fn datex_expression_to_source_code(
@@ -41,14 +42,12 @@ impl<'a> Formatter<'a> {
             ),
             DatexExpressionData::Map(map) => self.map_to_source_code(map),
             DatexExpressionData::List(list) => self.list_to_source_code(list),
-            DatexExpressionData::CreateRef(expr) => {
-                a.text("&") + self.format_datex_expression(expr)
-            }
-            DatexExpressionData::CreateRefMut(expr) => {
-                a.text("&mut ") + self.format_datex_expression(expr)
-            }
-            DatexExpressionData::CreateRefFinal(expr) => {
-                a.text("&final ") + self.format_datex_expression(expr)
+            DatexExpressionData::CreateRef(create_ref) => {
+                (match create_ref.mutability {
+                    ReferenceMutability::Immutable => a.text("&"),
+                    ReferenceMutability::Mutable => a.text("&mut "),
+                    ReferenceMutability::Final => a.text("&final "),
+                }) + self.format_datex_expression(&create_ref.expression)
             }
             DatexExpressionData::BinaryOperation(BinaryOperation {
                 operator,

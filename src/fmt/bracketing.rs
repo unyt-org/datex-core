@@ -166,9 +166,7 @@ impl<'a> Formatter<'a> {
                 let (prec, _, _) = self.unary_operator_info(op);
                 prec
             }
-            DatexExpressionData::CreateRef(_)
-            | DatexExpressionData::CreateRefMut(_)
-            | DatexExpressionData::CreateRefFinal(_) => 40,
+            DatexExpressionData::CreateRef(_) => 40,
             _ => 255, // never need parens
         }
     }

@@ -40,6 +40,7 @@ mod tests {
         expression::VariableAccess,
         r#type::{TypeExpression, TypeExpressionData},
     };
+    use crate::ast::structs::expression::CreateRef;
     use crate::visitor::{
         expression::ExpressionVisitor,
         type_expression::{
@@ -94,10 +95,10 @@ mod tests {
         }
         fn visit_create_ref(
             &mut self,
-            datex_expression: &mut DatexExpression,
+            create_ref: &mut CreateRef,
             span: &Range<usize>,
         ) -> ExpressionVisitResult<MyAstExpressionError> {
-            println!("visit create ref {:?}", datex_expression);
+            println!("visit create ref {:?}", create_ref);
             Ok(VisitAction::VisitChildren)
         }
 

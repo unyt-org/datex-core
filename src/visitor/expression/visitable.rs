@@ -1,9 +1,4 @@
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
-    DatexExpression, DatexExpressionData, DerefAssignment, FunctionDeclaration,
-    List, Map, RemoteExecution, SlotAssignment, Statements, TypeDeclaration,
-    UnaryOperation, VariableAssignment, VariableDeclaration,
-};
+use crate::ast::structs::expression::{ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, List, Map, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
 use crate::ast::structs::operator::ApplyOperation;
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
@@ -189,6 +184,26 @@ impl<E> VisitableExpression<E> for FunctionDeclaration {
     }
 }
 
+impl<E> VisitableExpression<E> for Deref {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
+        visitor.visit_datex_expression(&mut self.expression)?;
+        Ok(())
+    }
+}
+
+impl<E> VisitableExpression<E> for CreateRef {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
+        visitor.visit_datex_expression(&mut self.expression)?;
+        Ok(())
+    }
+}
+
 impl<E> VisitableExpression<E> for DatexExpression {
     fn walk_children(
         &mut self,
@@ -224,14 +239,8 @@ impl<E> VisitableExpression<E> for DatexExpression {
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 function_declaration.walk_children(visitor)
             }
-            DatexExpressionData::CreateRef(datex_expression) => {
-                datex_expression.walk_children(visitor)
-            }
-            DatexExpressionData::CreateRefMut(datex_expression) => {
-                datex_expression.walk_children(visitor)
-            }
-            DatexExpressionData::CreateRefFinal(datex_expression) => {
-                datex_expression.walk_children(visitor)
+            DatexExpressionData::CreateRef(create_ref) => {
+                create_ref.walk_children(visitor)
             }
             DatexExpressionData::Deref(datex_expression) => {
                 datex_expression.walk_children(visitor)

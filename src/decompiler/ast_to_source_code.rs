@@ -18,6 +18,7 @@ use crate::{
     },
     decompiler::FormattingMode,
 };
+use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Default)]
 pub enum BraceStyle {
@@ -482,14 +483,18 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Identifier(l) => l.to_string(),
             DatexExpressionData::Map(map) => self.map_to_source_code(map),
             DatexExpressionData::List(list) => self.list_to_source_code(list),
-            DatexExpressionData::CreateRef(expr) => {
-                format!("&{}", self.format(expr))
-            }
-            DatexExpressionData::CreateRefMut(expr) => {
-                format!("&mut {}", self.format(expr))
-            }
-            DatexExpressionData::CreateRefFinal(expr) => {
-                format!("&final {}", self.format(expr))
+            DatexExpressionData::CreateRef(create_ref) => {
+                match &create_ref.mutability {
+                    ReferenceMutability::Mutable => {
+                        format!("&mut {}", self.format(&create_ref.expression))
+                    }
+                    ReferenceMutability::Final => {
+                        format!("&final {}", self.format(&create_ref.expression))
+                    }
+                    ReferenceMutability::Immutable => {
+                        format!("&{}", self.format(&create_ref.expression))
+                    }
+                }
             }
             DatexExpressionData::BinaryOperation(BinaryOperation {
                 operator,
@@ -649,8 +654,8 @@ impl AstToSourceCodeFormatter {
                     body_code
                 )
             }
-            DatexExpressionData::Deref(datex_expression) => {
-                format!("*{}", self.format(datex_expression))
+            DatexExpressionData::Deref(deref) => {
+                format!("*{}", self.format(&deref.expression))
             }
             DatexExpressionData::Slot(slot) => slot.to_string(),
             DatexExpressionData::SlotAssignment(SlotAssignment {
@@ -720,6 +725,7 @@ mod tests {
         },
         values::core_values::decimal::Decimal,
     };
+    use crate::ast::structs::expression::Deref;
 
     fn compact() -> AstToSourceCodeFormatter {
         AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)
@@ -924,13 +930,13 @@ mod tests {
 
     #[test]
     fn test_deref() {
-        let deref_ast = DatexExpressionData::Deref(Box::new(
+        let deref_ast = DatexExpressionData::Deref(Deref {expression: Box::new(
             DatexExpressionData::VariableAccess(VariableAccess {
                 id: 0,
                 name: "ptr".to_string(),
             })
             .with_default_span(),
-        ));
+        )});
         assert_eq!(compact().format(&deref_ast.with_default_span()), "*ptr");
     }
 
