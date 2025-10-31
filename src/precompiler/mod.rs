@@ -521,18 +521,7 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
                     )))
                 }
             } else {
-                // if left is not defined and
-                self.collect_error(SpannedCompilerError::new_with_span(
-                    CompilerError::UndeclaredVariable(lit_left),
-                    left.span.clone(),
-                ))?;
-                if !is_right_defined {
-                    self.collect_error(SpannedCompilerError::new_with_span(
-                        CompilerError::UndeclaredVariable(lit_right),
-                        right.span.clone(),
-                    ))?;
-                }
-                Ok(VisitAction::SkipChildren)
+                Ok(VisitAction::VisitChildren)
             }
         }
         else {
@@ -625,6 +614,7 @@ mod tests {
     use std::io;
     use crate::ast::structs::expression::{CreateRef, Deref};
     use crate::references::reference::ReferenceMutability;
+    use crate::values::pointer::PointerAddress;
 
     fn precompile(
         ast: ValidDatexParseResult,
