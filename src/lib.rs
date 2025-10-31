@@ -43,6 +43,7 @@ pub mod parser;
 pub mod references;
 pub mod runtime;
 #[cfg(feature = "compiler")]
+pub mod type_inferer;
 pub mod visitor;
 
 pub mod core_compiler;
