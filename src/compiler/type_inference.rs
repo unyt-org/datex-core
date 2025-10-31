@@ -9,7 +9,6 @@ use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::precompiler::precompiled_ast::AstMetadata;
-use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;

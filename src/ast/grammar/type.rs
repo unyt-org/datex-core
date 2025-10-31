@@ -1,8 +1,7 @@
 use std::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::ResolvedVariable;
-use crate::ast::structs::expression::{DatexExpressionData, VariantAccess};
+use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData,

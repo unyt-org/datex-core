@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
 
-use log::info;
 pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
@@ -14,7 +13,6 @@ use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 use crate::precompiler::scope::NewScopeType;
-use crate::runtime::Runtime;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
@@ -42,16 +40,13 @@ use crate::{
     precompiler::{
         options::PrecompilerOptions,
         precompiled_ast::{
-            AstMetadata, RichAst, VariableMetadata, VariableShape,
+            AstMetadata, RichAst, VariableShape,
         },
         scope_stack::PrecompilerScopeStack,
     },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
-    values::{
-        core_values::r#type::Type, pointer::PointerAddress,
-        value_container::ValueContainer,
-    },
+    values::core_values::r#type::Type,
     visitor::{
         VisitAction,
         expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
@@ -175,7 +170,7 @@ impl<'a> Precompiler<'a> {
     ) -> Result<usize, CompilerError> {
         self.scope_stack.get_variable_and_update_metadata(
             name,
-            &mut *self.ast_metadata.borrow_mut(),
+            &mut self.ast_metadata.borrow_mut(),
         )
     }
 

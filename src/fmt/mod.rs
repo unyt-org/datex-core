@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     ast::structs::{
-        expression::{DatexExpression, VariableAccess, VariantAccess},
+        expression::{DatexExpression, VariableAccess},
         operator::{BinaryOperator, ComparisonOperator, UnaryOperator},
         r#type::{
             FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,

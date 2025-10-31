@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
-use crate::ast::structs::expression::{VariableAccess, VariantAccess};
+use crate::ast::structs::expression::VariableAccess;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;

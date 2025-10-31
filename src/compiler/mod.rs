@@ -29,7 +29,7 @@ use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
 use crate::precompiler::options::PrecompilerOptions;
-use crate::precompiler::{precompile_ast, precompile_ast_simple_error};
+use crate::precompiler::precompile_ast;
 use crate::precompiler::precompiled_ast::{
     AstMetadata, RichAst, VariableMetadata,
 };
