@@ -6,7 +6,7 @@ pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
-use crate::ast::structs::ResolvedVariable;
+use crate::ast::structs::{ResolvedVariable, VariableId};
 use crate::ast::structs::expression::{
     DatexExpression, RemoteExecution, VariantAccess,
 };
@@ -536,7 +536,8 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedCompilerError> {
         // check if variable already declared in active scope
-        if self.scope_stack.get_active_scope().variable_ids_by_name.contains_key(&variable_declaration.name) {
+        if let Some(existing_var_id) = self.scope_stack.get_active_scope().variable_ids_by_name.get(&variable_declaration.name) {
+            variable_declaration.id = Some(*existing_var_id);
             return Err(SpannedCompilerError::new_with_span(CompilerError::InvalidRedeclaration(variable_declaration.name.clone()), span.clone()));
         }
         variable_declaration.id = Some(self.add_new_variable(
