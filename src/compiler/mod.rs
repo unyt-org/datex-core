@@ -29,7 +29,7 @@ use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
 use crate::precompiler::options::PrecompilerOptions;
-use crate::precompiler::precompile_ast_simple_error;
+use crate::precompiler::{precompile_ast, precompile_ast_simple_error};
 use crate::precompiler::precompiled_ast::{
     AstMetadata, RichAst, VariableMetadata,
 };
@@ -449,10 +449,11 @@ fn precompile_to_rich_ast(
     }
     let rich_ast = if let Some(precompiler_data) = &scope.precompiler_data {
         // precompile the AST, adding metadata for variables etc.
-        precompile_ast_simple_error(
+        precompile_ast(
             valid_parse_result,
             &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
             precompiler_data.rich_ast.metadata.clone(),
+            precompiler_options
         )?
     } else {
         // if no precompiler data, just use the AST with default metadata

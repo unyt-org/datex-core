@@ -74,13 +74,14 @@ pub fn precompile_ast_simple_error(
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, SpannedCompilerError> {
-    Precompiler::new(scope_stack, ast_metadata)
-        .precompile(
-            ast,
-            PrecompilerOptions {
-                detailed_errors: false,
-            },
-        )
+    precompile_ast(
+        ast,
+        scope_stack,
+        ast_metadata,
+        PrecompilerOptions {
+            detailed_errors: false,
+        }
+    )
         .map_err(|e| {
             match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
@@ -98,21 +99,36 @@ pub fn precompile_ast_detailed_errors(
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
+    precompile_ast(
+        ast,
+        scope_stack,
+        ast_metadata,
+        PrecompilerOptions {
+            detailed_errors: true,
+        }
+    )
+        .map_err(|e| {
+            match e {
+                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+                    error,
+                ) => error,
+                _ => unreachable!(), // because detailed_errors: true
+            }
+        })
+}
+
+/// Precompile the AST by resolving variable references and collecting metadata.
+pub fn precompile_ast(
+    ast: ValidDatexParseResult,
+    scope_stack: &mut PrecompilerScopeStack,
+    ast_metadata: Rc<RefCell<AstMetadata>>,
+    options: PrecompilerOptions,
+) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     Precompiler::new(scope_stack, ast_metadata)
         .precompile(
             ast,
-            PrecompilerOptions {
-                detailed_errors: true,
-            },
+            options
         )
-        .map_err(|e| {
-            match e {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
-                error,
-            ) => error,
-            _ => unreachable!(), // because detailed_errors: true
-        }
-        })
 }
 
 impl<'a> Precompiler<'a> {
