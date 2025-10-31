@@ -77,11 +77,6 @@ impl PrecompilerScopeStack {
         if let Some(var_id) = self.get_variable(name) {
             let var_metadata = metadata.variable_metadata_mut(var_id).unwrap();
             // if the original realm index is not the current realm index, mark it as cross-realm
-            info!(
-                "Get variable {name} with realm index: {}, current realm index: {}",
-                var_metadata.original_realm_index,
-                self.current_realm_index()
-            );
             if var_metadata.original_realm_index != self.current_realm_index() {
                 var_metadata.is_cross_realm = true;
             }
@@ -92,17 +87,25 @@ impl PrecompilerScopeStack {
     }
 
     pub fn set_variable(&mut self, name: String, id: usize) {
+        self.get_active_scope_mut().variable_ids_by_name.insert(name, id);
+    }
+    
+    fn get_active_scope_index(&self) -> usize {
         // get the second last scope or the last one if there is only one scope
-        let index = if self.scopes.len() > 1 {
+        if self.scopes.len() > 1 {
             self.scopes.len() - 2
         } else {
-            self.scopes.len() - 1
-        };
-        if let Some(scope) = self.scopes.get_mut(index) {
-            scope.variable_ids_by_name.insert(name, id);
-        } else {
-            unreachable!("Scope stack must always have at least one scope");
+            0
         }
+    }
+    
+    pub fn get_active_scope(&self) -> &PrecompilerScope {
+        self.scopes.get(self.get_active_scope_index()).unwrap()
+    }
+    
+    pub fn get_active_scope_mut(&mut self) -> &mut PrecompilerScope {
+        let index = self.get_active_scope_index();
+        self.scopes.get_mut(index).unwrap()
     }
 
     pub fn get_variable(&self, name: &str) -> Option<usize> {

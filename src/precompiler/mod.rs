@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
+use chumsky::container::Seq;
 
 pub mod options;
 pub mod precompiled_ast;
@@ -534,6 +535,10 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         variable_declaration: &mut VariableDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedCompilerError> {
+        // check if variable already declared in active scope
+        if self.scope_stack.get_active_scope().variable_ids_by_name.contains_key(&variable_declaration.name) {
+            return Err(SpannedCompilerError::new_with_span(CompilerError::InvalidRedeclaration(variable_declaration.name.clone()), span.clone()));
+        }
         variable_declaration.id = Some(self.add_new_variable(
             variable_declaration.name.clone(),
             VariableShape::Value(variable_declaration.kind),
@@ -644,6 +649,31 @@ mod tests {
         let result = precompile(ast, options);
         println!("{:#?}", result);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn duplicate_variable_error() {
+        let options = PrecompilerOptions {
+            detailed_errors: false,
+        };
+        let ast = parse("var x = 1; var x = 2;").unwrap();
+        let result = precompile(ast, options);
+        assert_matches!(result.unwrap_err(), SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})  if name == "x");
+    }
+
+    #[test]
+    fn invalid_type_redeclaration() {
+        let src = r#"
+        type A = integer;
+        type A = text; // redeclaration error
+        "#;
+        let ast = parse(src).unwrap();
+        let result = precompile(ast, PrecompilerOptions::default());
+        assert!(result.is_err());
+        assert_matches!(
+            result,
+            Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})) if name == "A"
+        );
     }
 
     fn parse_unwrap(src: &str) -> DatexExpression {

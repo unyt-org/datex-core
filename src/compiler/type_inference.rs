@@ -789,22 +789,15 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var_a = metadata.variable_metadata(0).unwrap();
         let var_type = var_a.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        if let TypeContainer::TypeReference(var_type) = var_type {
+            // TODO
+            // assert_eq!(var_type.borrow().pointer_address, Some(CoreLibPointerId::Integer(None).into()));
+        }
+        else {
+            panic!("Not a TypeReference")
+        }
     }
-
-    #[test]
-    fn invalid_redeclaration() {
-        let src = r#"
-        type A = integer;
-        type A = text; // redeclaration error
-        "#;
-        let result = parse_and_precompile_map_compiler_error(src);
-        assert!(result.is_err());
-        assert_matches!(
-            result,
-            Err(CompilerError::InvalidRedeclaration(name)) if name == "A"
-        );
-    }
+    
 
     #[test]
     fn recursive_types() {
