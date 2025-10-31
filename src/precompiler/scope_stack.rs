@@ -30,6 +30,7 @@ impl PrecompilerScopeStack {
 
     pub fn pop_scope(&mut self) {
         if !self.scopes.is_empty() {
+            println!("befoere pop: {:#?}", self.scopes);
             self.scopes.pop();
         } else {
             unreachable!("Cannot pop scope from an empty scope stack");
@@ -92,6 +93,7 @@ impl PrecompilerScopeStack {
     }
 
     pub fn set_variable(&mut self, name: String, id: usize) {
+        println!("Setting variable {} with id {}, {:#?}", name, id, self.scopes);
         // get the second last scope or the last one if there is only one scope
         let index = if self.scopes.len() > 1 {
             self.scopes.len() - 2

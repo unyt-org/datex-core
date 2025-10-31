@@ -64,13 +64,14 @@ pub struct Precompiler<'a> {
     scope_stack: &'a mut PrecompilerScopeStack,
     collected_errors: Option<DetailedCompilerErrors>,
     spans: Vec<Range<usize>>, // FIXME make this better
+    is_first_level_expression: bool,
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Exits early on first error encountered, returning a SpannedCompilerError.
-pub fn precompile_ast_simple_error<'a>(
+pub fn precompile_ast_simple_error(
     ast: ValidDatexParseResult,
-    scope_stack: &'a mut PrecompilerScopeStack,
+    scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, SpannedCompilerError> {
     Precompiler::new(scope_stack, ast_metadata)
@@ -92,9 +93,9 @@ pub fn precompile_ast_simple_error<'a>(
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Collects all errors encountered, returning a DetailedCompilerErrorsWithRichAst.
-pub fn precompile_ast_detailed_errors<'a>(
+pub fn precompile_ast_detailed_errors(
     ast: ValidDatexParseResult,
-    scope_stack: &'a mut PrecompilerScopeStack,
+    scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
     Precompiler::new(scope_stack, ast_metadata)
@@ -124,6 +125,7 @@ impl<'a> Precompiler<'a> {
             scope_stack,
             collected_errors: None,
             spans: vec![],
+            is_first_level_expression: true
         }
     }
 
@@ -352,16 +354,26 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
                 self.scope_stack.increment_realm_index();
             }
             NewScopeType::NewScope => {
-                self.scope_stack.push_scope();
+                // if in top level scope, don't create a new scope if first ast level
+                if !(self.scope_stack.scopes.len() == 1
+                    && self.is_first_level_expression)
+                {
+                    self.scope_stack.push_scope();
+                }
             }
             _ => {}
         };
+
+        self.is_first_level_expression = false;
     }
 
     fn after_visit_datex_expression(&mut self, expr: &mut DatexExpression) {
         match self.scope_type_for_expression(expr) {
             NewScopeType::NewScope | NewScopeType::NewScopeWithNewRealm => {
-                self.scope_stack.pop_scope();
+                // always keep top level scope
+                if self.scope_stack.scopes.len() > 1 {
+                    self.scope_stack.pop_scope();
+                }
             }
             _ => {}
         };
@@ -673,7 +685,6 @@ mod tests {
     #[test]
     fn scoped_variable() {
         let result = parse_and_precompile("(var z = 42;z); z");
-        println!("{:#?}", result);
         assert!(result.is_err());
         assert_matches!(
             result,

@@ -121,6 +121,7 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
+        println!("contex {:#?}", execution_context);
         let dxb = execution_context.compile(script, inserted_values)?;
         RuntimeInternal::execute_dxb(
             self_rc,
