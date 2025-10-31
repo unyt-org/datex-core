@@ -25,7 +25,6 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
         let reference = just(Token::Ampersand)
             .ignore_then(
                 just(Token::Mutable)
-                    .or(just(Token::Final))
                     .or_not()
                     .padded_by(whitespace()),
             )
@@ -35,12 +34,6 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
                     Some(Token::Mutable) => {
                         DatexExpressionData::CreateRef(CreateRef {
                             mutability: ReferenceMutability::Mutable,
-                            expression: Box::new(expr)
-                        })
-                    }
-                    Some(Token::Final) => {
-                        DatexExpressionData::CreateRef(CreateRef {
-                            mutability: ReferenceMutability::Final,
                             expression: Box::new(expr)
                         })
                     }

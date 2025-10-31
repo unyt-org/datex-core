@@ -1059,17 +1059,6 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::CreateRefFinal => {
-                context.borrow_mut().scope_stack.create_scope(
-                    Scope::UnaryOperation {
-                        operator: UnaryOperator::Reference(
-                            ReferenceUnaryOperator::CreateRefFinal,
-                        ),
-                    },
-                );
-                None
-            }
-
             // remote execution
             Instruction::RemoteExecution => {
                 context
@@ -1412,9 +1401,6 @@ fn handle_unary_reference_operation(
         ReferenceUnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
-            Reference::try_final_from(value_container)?,
-        ),
         ReferenceUnaryOperator::CreateRefMut => {
             ValueContainer::Reference(Reference::try_mut_from(value_container)?)
         }

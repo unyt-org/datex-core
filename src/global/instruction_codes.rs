@@ -169,7 +169,6 @@ pub enum InstructionCode {
     POINTER_ACTION, // $aa += ...
     CREATE_REF,    // &()
     CREATE_REF_MUT, // &mut ()
-    CREATE_REF_FINAL, // &final ()
     SET_REF,       // &aa = ...
 
     ASSIGN_TO_REF, // *x = 10;

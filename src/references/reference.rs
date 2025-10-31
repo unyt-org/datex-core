@@ -110,7 +110,6 @@ impl Display for AssignmentError {
 pub enum ReferenceMutability {
     Mutable = 0,
     Immutable = 1,
-    Final = 2,
 }
 
 pub mod mutability_as_int {
@@ -128,7 +127,6 @@ pub mod mutability_as_int {
         match value {
             (ReferenceMutability::Mutable) => serializer.serialize_u8(0),
             (ReferenceMutability::Immutable) => serializer.serialize_u8(1),
-            (ReferenceMutability::Final) => serializer.serialize_u8(2),
         }
     }
 
@@ -142,7 +140,6 @@ pub mod mutability_as_int {
         Ok(match opt {
             (0) => (ReferenceMutability::Mutable),
             (1) => (ReferenceMutability::Immutable),
-            (2) => (ReferenceMutability::Final),
             (x) => {
                 return Err(D::Error::custom(format!(
                     "invalid mutability code: {}",
@@ -167,7 +164,6 @@ pub mod mutability_option_as_int {
         match value {
             Some(ReferenceMutability::Mutable) => serializer.serialize_u8(0),
             Some(ReferenceMutability::Immutable) => serializer.serialize_u8(1),
-            Some(ReferenceMutability::Final) => serializer.serialize_u8(2),
             None => serializer.serialize_none(),
         }
     }
@@ -182,7 +178,6 @@ pub mod mutability_option_as_int {
         Ok(match opt {
             Some(0) => Some(ReferenceMutability::Mutable),
             Some(1) => Some(ReferenceMutability::Immutable),
-            Some(2) => Some(ReferenceMutability::Final),
             Some(x) => {
                 return Err(D::Error::custom(format!(
                     "invalid mutability code: {}",
@@ -198,7 +193,6 @@ impl Display for ReferenceMutability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReferenceMutability::Mutable => write!(f, "&mut"),
-            ReferenceMutability::Final => write!(f, "&final"),
             ReferenceMutability::Immutable => write!(f, "&"),
         }
     }
@@ -324,18 +318,11 @@ impl<T: Into<ValueContainer>> From<T> for Reference {
 pub enum ReferenceCreationError {
     InvalidType,
     MutableTypeReference,
-    CannotCreateFinalFromMutableRef,
 }
 
 impl Display for ReferenceCreationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReferenceCreationError::CannotCreateFinalFromMutableRef => {
-                write!(
-                    f,
-                    "Cannot create final reference from mutable reference"
-                )
-            }
             ReferenceCreationError::InvalidType => {
                 write!(
                     f,
@@ -465,8 +452,6 @@ impl Reference {
     pub(crate) fn mutability(&self) -> ReferenceMutability {
         match self {
             Reference::ValueReference(vr) => vr.borrow().mutability.clone(),
-
-            // Fixme #283: should we use final instead of immutable here?
             Reference::TypeReference(_) => ReferenceMutability::Immutable,
         }
     }
@@ -598,34 +583,6 @@ impl Reference {
         )
     }
 
-    /// Creates a final reference from a value container.
-    /// If the value container is a reference, it must be a final reference,
-    /// otherwise an error is returned.
-    /// If the value container is a value, a final reference to that value is created.
-    pub fn try_final_from(
-        value_container: ValueContainer,
-    ) -> Result<Self, ReferenceCreationError> {
-        match &value_container {
-            ValueContainer::Reference(reference) => {
-                // If it points to a non-final reference, forbid it
-                // Is is_mutable correct here? Probably should use !is_final once implemented
-                if reference.is_mutable() {
-                    return Err(
-                        ReferenceCreationError::CannotCreateFinalFromMutableRef,
-                    );
-                }
-            }
-            ValueContainer::Value(_) => {}
-        }
-
-        Reference::try_new_from_value_container(
-            value_container,
-            None,
-            None,
-            ReferenceMutability::Final,
-        )
-    }
-
     /// Collapses the reference chain to most inner reference to which this reference points.
     pub fn collapse_reference_chain(&self) -> Reference {
         match self {
@@ -735,12 +692,12 @@ impl Reference {
         }
     }
 
-    /// Returns a non-final reference to the ValueReference if this is a non-final ValueReference.
-    pub fn non_final_reference(&self) -> Option<Rc<RefCell<ValueReference>>> {
+    /// Returns a mutable reference to the ValueReference if this is a mutable ValueReference.
+    pub fn mutable_reference(&self) -> Option<Rc<RefCell<ValueReference>>> {
         match self {
             Reference::TypeReference(_) => None,
             Reference::ValueReference(vr) => {
-                if !vr.borrow().is_final() {
+                if vr.borrow().is_mutable() {
                     Some(vr.clone())
                 } else {
                     None
@@ -887,38 +844,6 @@ mod tests {
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
     use std::assert_matches::assert_matches;
-
-    #[test]
-    fn try_final_from() {
-        // creating a final reference from a value should work
-        let value = ValueContainer::from(42);
-        let reference = Reference::try_final_from(value).unwrap();
-        assert_eq!(reference.mutability(), ReferenceMutability::Final);
-
-        // creating a final reference from a immutable reference should work
-        let final_ref =
-            Reference::try_final_from(ValueContainer::from(42)).unwrap();
-        assert!(
-            Reference::try_final_from(ValueContainer::Reference(final_ref))
-                .is_ok()
-        );
-
-        // creating a final reference from a mutable reference should fail
-        let mutable_ref =
-            Reference::try_mut_from(ValueContainer::from(42)).unwrap();
-        assert_matches!(
-            Reference::try_final_from(ValueContainer::Reference(mutable_ref)),
-            Err(ReferenceCreationError::CannotCreateFinalFromMutableRef)
-        );
-
-        // creating a final reference from a type ref should work
-        let type_value = ValueContainer::Reference(Reference::TypeReference(
-            TypeReference::anonymous(Type::UNIT, None).as_ref_cell(),
-        ));
-        let type_ref = Reference::try_final_from(type_value).unwrap();
-        assert!(type_ref.is_type());
-        assert_eq!(type_ref.mutability(), ReferenceMutability::Immutable);
-    }
 
     #[test]
     fn try_mut_from() {

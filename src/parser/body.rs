@@ -417,9 +417,6 @@ pub fn iterate_instructions<'a>(
                     InstructionCode::CREATE_REF_MUT => {
                         Ok(Instruction::CreateRefMut)
                     }
-                    InstructionCode::CREATE_REF_FINAL => {
-                        Ok(Instruction::CreateRefFinal)
-                    }
 
                     // slots
                     InstructionCode::ALLOCATE_SLOT => {

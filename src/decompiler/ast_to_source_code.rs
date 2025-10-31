@@ -238,12 +238,6 @@ impl AstToSourceCodeFormatter {
             TypeExpressionData::RefMut(inner) => {
                 format!("&mut {}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpressionData::RefFinal(inner) => {
-                format!(
-                    "&final {}",
-                    self.type_expression_to_source_code(inner,)
-                )
-            }
             TypeExpressionData::Literal(literal) => literal.to_string(),
             TypeExpressionData::VariableAccess(VariableAccess {
                 name, ..
@@ -487,9 +481,6 @@ impl AstToSourceCodeFormatter {
                 match &create_ref.mutability {
                     ReferenceMutability::Mutable => {
                         format!("&mut {}", self.format(&create_ref.expression))
-                    }
-                    ReferenceMutability::Final => {
-                        format!("&final {}", self.format(&create_ref.expression))
                     }
                     ReferenceMutability::Immutable => {
                         format!("&{}", self.format(&create_ref.expression))

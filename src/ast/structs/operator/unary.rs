@@ -36,7 +36,6 @@ impl Display for UnaryOperator {
 pub enum ReferenceUnaryOperator {
     CreateRef,      // &
     CreateRefMut,   // &mut
-    CreateRefFinal, // &final
     Deref,          // *
 }
 
@@ -46,9 +45,6 @@ impl From<&ReferenceUnaryOperator> for InstructionCode {
             ReferenceUnaryOperator::CreateRef => InstructionCode::CREATE_REF,
             ReferenceUnaryOperator::CreateRefMut => {
                 InstructionCode::CREATE_REF_MUT
-            }
-            ReferenceUnaryOperator::CreateRefFinal => {
-                InstructionCode::CREATE_REF_FINAL
             }
             ReferenceUnaryOperator::Deref => InstructionCode::DEREF,
         }
@@ -60,7 +56,6 @@ impl Display for ReferenceUnaryOperator {
         match self {
             ReferenceUnaryOperator::CreateRef => write!(f, "&"),
             ReferenceUnaryOperator::CreateRefMut => write!(f, "&mut"),
-            ReferenceUnaryOperator::CreateRefFinal => write!(f, "&final"),
             ReferenceUnaryOperator::Deref => write!(f, "*"),
         }
     }

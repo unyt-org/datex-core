@@ -1003,7 +1003,6 @@ fn compile_expression(
                 .append_instruction_code(match create_ref.mutability {
                     ReferenceMutability::Immutable => InstructionCode::CREATE_REF,
                     ReferenceMutability::Mutable => InstructionCode::CREATE_REF_MUT,
-                    ReferenceMutability::Final => InstructionCode::CREATE_REF_FINAL,
                 });
             scope = compile_expression(
                 compilation_context,

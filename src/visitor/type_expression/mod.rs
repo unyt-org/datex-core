@@ -113,9 +113,6 @@ pub trait TypeExpressionVisitor<E>: Sized {
             TypeExpressionData::Literal(literal) => {
                 self.visit_literal_type(literal, &expr.span)
             }
-            TypeExpressionData::RefFinal(type_ref_final) => {
-                unimplemented!("RefFinal is going to be deprecated")
-            }
         };
         let action = match visit_result {
             Ok(action) => action,

@@ -46,7 +46,6 @@ impl<'a> Formatter<'a> {
                 (match create_ref.mutability {
                     ReferenceMutability::Immutable => a.text("&"),
                     ReferenceMutability::Mutable => a.text("&mut "),
-                    ReferenceMutability::Final => a.text("&final "),
                 }) + self.format_datex_expression(&create_ref.expression)
             }
             DatexExpressionData::BinaryOperation(BinaryOperation {

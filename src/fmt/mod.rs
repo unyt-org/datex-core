@@ -142,12 +142,6 @@ impl<'a> Formatter<'a> {
             TypeExpressionData::RefMut(inner) => {
                 a.text("&mut") + a.space() + self.format_type_expression(inner)
             }
-            TypeExpressionData::RefFinal(inner) => {
-                a.text("&final")
-                    + a.space()
-                    + self.format_type_expression(inner)
-            }
-
             TypeExpressionData::Literal(lit) => a.text(lit.to_string()),
             TypeExpressionData::VariableAccess(VariableAccess {
                 name, ..
