@@ -27,6 +27,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
+    // TODO: store optional type here, not in DatexExpressionData
 }
 impl DatexExpression {
     pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {

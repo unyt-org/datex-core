@@ -424,7 +424,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Visit typed integer literal
     fn visit_typed_integer(
         &mut self,
-        typed_integer: &TypedInteger,
+        typed_integer: &mut TypedInteger,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
@@ -446,7 +446,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Visit typed decimal literal
     fn visit_typed_decimal(
         &mut self,
-        typed_decimal: &TypedDecimal,
+        typed_decimal: &mut TypedDecimal,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;

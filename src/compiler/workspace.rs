@@ -71,6 +71,10 @@ impl CompilerWorkspace {
         self.files.get(path)
     }
 
+    pub fn get_file_mut(&mut self, path: &PathBuf) -> Option<&mut WorkspaceFile> {
+        self.files.get_mut(path)
+    }
+
     /// Retrieves the AST with metadata for a given file path and content after parsing and compilation.
     /// Returns a compiler error if parsing or compilation fails.
     fn get_rich_ast_for_file(
