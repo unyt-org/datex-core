@@ -1,4 +1,3 @@
-use log::info;
 
 use crate::{
     compiler::error::CompilerError,
