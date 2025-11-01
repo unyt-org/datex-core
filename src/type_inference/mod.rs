@@ -3,8 +3,8 @@ use std::{cell::RefCell, ops::Range, rc::Rc};
 use crate::{
     ast::structs::{
         expression::{
-            BinaryOperation, DatexExpression, Statements, VariableAccess,
-            VariableDeclaration,
+            BinaryOperation, DatexExpression, Statements, TypeDeclaration,
+            VariableAccess, VariableDeclaration,
         },
         r#type::TypeExpression,
     },
@@ -366,6 +366,43 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             mark_type(TypeContainer::never())
         }
     }
+
+    fn visit_type_declaration(
+        &mut self,
+        type_declaration: &mut TypeDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let type_id = type_declaration.id.expect(
+            "TypeDeclaration should have an id assigned during precompilation",
+        );
+        let type_def = self
+            .variable_type(type_id)
+            .as_ref()
+            .expect("TypeDeclaration type should have been inferred already")
+            .clone();
+        let reference = match &type_def {
+            TypeContainer::TypeReference(r) => r.clone(),
+            _ => {
+                panic!("TypeDeclaration var_type should be a TypeReference")
+            }
+        };
+
+        let inferred_type_def =
+            self.infer_type_expression(&mut type_declaration.value)?;
+
+        println!("Inferring type declaration id {:#?}", reference);
+        // let inner_ref = reference.borrow();
+        match inferred_type_def {
+            TypeContainer::Type(t) => {
+                reference.borrow_mut().type_value = t;
+            }
+            TypeContainer::TypeReference(r) => {
+                reference.borrow_mut().type_value = Type::reference(r, None);
+                // reference.swap(&r);
+            }
+        }
+        mark_type(type_def)
+    }
 }
 
 #[cfg(test)]
@@ -374,11 +411,13 @@ mod tests {
 
     use crate::{
         ast::parse,
+        libs::core::{CoreLibPointerId, get_core_lib_type_reference},
         precompiler::{
             precompile_ast_simple_error,
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
+        references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::infer_expression_type_simple_error,
         types::{
             structural_type_definition::StructuralTypeDefinition,
@@ -420,6 +459,26 @@ mod tests {
                 .expect("Precompilation failed");
         infer_expression_type_simple_error(&mut res)
             .expect("Type inference failed")
+    }
+
+    #[test]
+    fn nominal_type_declaration() {
+        let src = r#"
+        type A = integer;
+        "#;
+        let metadata = infer_get_ast(src).metadata;
+        let metadata = metadata.borrow();
+        let var_a = metadata.variable_metadata(0).unwrap();
+
+        let nominal_ref = TypeReference::nominal(
+            Type::reference(
+                get_core_lib_type_reference(CoreLibPointerId::Integer(None)),
+                None,
+            ),
+            NominalTypeDeclaration::from("A"),
+            None,
+        );
+        assert_eq!(var_a.var_type, Some(nominal_ref.as_type_container()));
     }
 
     #[test]
