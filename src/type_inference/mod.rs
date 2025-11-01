@@ -6,7 +6,9 @@ use crate::{
             BinaryOperation, DatexExpression, Statements, TypeDeclaration,
             VariableAccess, VariableDeclaration,
         },
-        r#type::{Intersection, StructuralMap, TypeExpression, Union},
+        r#type::{
+            Intersection, StructuralList, StructuralMap, TypeExpression, Union,
+        },
     },
     libs::core::{CoreLibPointerId, get_core_lib_type},
     precompiler::precompiled_ast::{AstMetadata, RichAst},
@@ -256,6 +258,21 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
             fields.push((field_name, field_type));
         }
         mark_structural_type(StructuralTypeDefinition::Map(fields))
+    }
+    fn visit_structural_list_type(
+        &mut self,
+        structural_list: &mut StructuralList,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        mark_structural_type(StructuralTypeDefinition::List(
+            structural_list
+                .0
+                .iter_mut()
+                .map(|elem_type_expr| {
+                    self.infer_type_expression(elem_type_expr)
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 
     fn visit_get_reference_type(
