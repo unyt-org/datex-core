@@ -8,7 +8,6 @@ use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
-use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
@@ -17,6 +16,7 @@ use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::ops::Range;
+use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -653,9 +653,9 @@ mod tests {
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
-    use crate::precompiler::precompiled_ast::{AstMetadata, RichAst};
-    use crate::precompiler::scope_stack::PrecompilerScopeStack;
-    use crate::precompiler::{Precompiler, precompile_ast_simple_error};
+    use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
+    use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;
+    use crate::compiler::precompiler::{Precompiler, precompile_ast_simple_error};
     use crate::references::type_reference::{
         NominalTypeDeclaration, TypeReference,
     };

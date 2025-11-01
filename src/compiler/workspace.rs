@@ -3,7 +3,7 @@ use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
 use crate::compiler::{
     CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
 };
-use crate::precompiler::precompiled_ast::RichAst;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
 use crate::stdlib::collections::HashMap;

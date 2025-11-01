@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use chumsky::prelude::end;
 use crate::ast::structs::VariableId;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::compiler::error::{
@@ -29,28 +30,31 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
-use crate::precompiler::options::PrecompilerOptions;
-use crate::precompiler::precompile_ast;
-use crate::precompiler::precompiled_ast::{
+use precompiler::options::PrecompilerOptions;
+use precompiler::precompile_ast;
+use precompiler::precompiled_ast::{
     AstMetadata, RichAst, VariableMetadata,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
+use datex_core::core_compiler::value_compiler::{append_get_ref, append_key_string};
+use datex_core::utils::buffers::append_u32;
+use crate::core_compiler::value_compiler::{append_boolean, append_decimal, append_encoded_integer, append_endpoint, append_float_as_i16, append_float_as_i32, append_instruction_code, append_text, append_typed_decimal, append_typed_integer, append_value_container};
 use crate::stdlib::rc::Rc;
 use crate::references::reference::ReferenceMutability;
 
 pub mod context;
 pub mod error;
 pub mod metadata;
-// pub mod precompiler;
 pub mod scope;
 pub mod type_compiler;
 pub mod type_inference;
 
 #[cfg(feature = "std")]
 pub mod workspace;
+pub mod precompiler;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -392,7 +396,7 @@ pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
     let buffer = RefCell::new(Vec::with_capacity(256));
     let compilation_scope = CompilationContext::new(buffer, vec![], true);
 
-    compilation_scope.insert_value_container(value);
+    append_value_container(compilation_scope.buffer.borrow_mut().as_mut(), value);
 
     Ok(compilation_scope.buffer.take())
 }
@@ -492,40 +496,43 @@ fn compile_expression(
     // TODO #483: no clone
     match rich_ast.ast.as_ref().unwrap().clone().data {
         DatexExpressionData::Integer(int) => {
-            compilation_context
-                .insert_encoded_integer(&int.to_smallest_fitting());
+            append_encoded_integer(
+                compilation_context.buffer.borrow_mut().as_mut(),
+                &int.to_smallest_fitting()
+            );
+
         }
         DatexExpressionData::TypedInteger(typed_int) => {
-            compilation_context.insert_typed_integer(&typed_int);
+            append_typed_integer(compilation_context.buffer.borrow_mut().as_mut(), &typed_int);
         }
         DatexExpressionData::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                 if let Some(int) = big_decimal.to_i16() {
-                    compilation_context.insert_float_as_i16(int);
+                    append_float_as_i16(compilation_context.buffer.borrow_mut().as_mut(), int);
                 } else if let Some(int) = big_decimal.to_i32() {
-                    compilation_context.insert_float_as_i32(int);
+                    append_float_as_i32(compilation_context.buffer.borrow_mut().as_mut(), int);
                 } else {
-                    compilation_context.insert_decimal(&decimal);
+                    append_decimal(compilation_context.buffer.borrow_mut().as_mut(), &decimal);
                 }
             }
             _ => {
-                compilation_context.insert_decimal(&decimal);
+                append_decimal(compilation_context.buffer.borrow_mut().as_mut(), &decimal);
             }
         },
         DatexExpressionData::TypedDecimal(typed_decimal) => {
-            compilation_context.insert_typed_decimal(&typed_decimal);
+            append_typed_decimal(compilation_context.buffer.borrow_mut().as_mut(), &typed_decimal);
         }
         DatexExpressionData::Text(text) => {
-            compilation_context.insert_text(&text);
+            append_text(compilation_context.buffer.borrow_mut().as_mut(), &text);
         }
         DatexExpressionData::Boolean(boolean) => {
-            compilation_context.insert_boolean(boolean);
+            append_boolean(compilation_context.buffer.borrow_mut().as_mut(), boolean);
         }
         DatexExpressionData::Endpoint(endpoint) => {
-            compilation_context.insert_endpoint(&endpoint);
+            append_endpoint(compilation_context.buffer.borrow_mut().as_mut(), &endpoint);
         }
         DatexExpressionData::Null => {
-            compilation_context.append_instruction_code(InstructionCode::NULL);
+            append_instruction_code(compilation_context.buffer.borrow_mut().as_mut(), InstructionCode::NULL);
         }
         DatexExpressionData::List(list) => {
             compilation_context
@@ -558,7 +565,8 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpressionData::Placeholder => {
-            compilation_context.insert_value_container(
+            append_value_container(
+                compilation_context.buffer.borrow_mut().as_mut(),
                 compilation_context
                     .inserted_values
                     .borrow()
@@ -784,7 +792,7 @@ fn compile_expression(
 
         DatexExpressionData::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
-            compilation_context.insert_get_ref(address);
+            append_get_ref(compilation_context.buffer.borrow_mut().as_mut(), address)
         }
 
         // assignment
@@ -961,17 +969,15 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
-            compilation_context
-                .append_u32(execution_block_ctx.buffer.borrow().len() as u32);
+            append_u32(compilation_context.buffer.borrow_mut().as_mut(), execution_block_ctx.buffer.borrow().len() as u32);
             // set injected slot count
-            compilation_context.append_u32(external_slots.len() as u32);
+            append_u32(compilation_context.buffer.borrow_mut().as_mut(), external_slots.len() as u32);
             for slot in external_slots {
                 compilation_context.insert_virtual_slot_address(slot.upgrade());
             }
 
             // insert block body (compilation_context.buffer)
-            compilation_context
-                .append_buffer(&execution_block_ctx.buffer.borrow())
+            compilation_context.buffer.borrow_mut().extend_from_slice(&execution_block_ctx.buffer.borrow());
         }
 
         // named slot
@@ -980,10 +986,10 @@ fn compile_expression(
                 "endpoint" => {
                     compilation_context
                         .append_instruction_code(InstructionCode::GET_SLOT);
-                    compilation_context
-                        .append_u32(InternalSlot::ENDPOINT as u32);
+                    append_u32(compilation_context.buffer.borrow_mut().as_mut(), InternalSlot::ENDPOINT as u32);
                 }
-                "core" => compilation_context.insert_get_ref(
+                "core" => append_get_ref(
+                    compilation_context.buffer.borrow_mut().as_mut(),
                     PointerAddress::from(CoreLibPointerId::Core),
                 ),
                 _ => {
@@ -995,7 +1001,7 @@ fn compile_expression(
 
         // pointer address
         DatexExpressionData::PointerAddress(address) => {
-            compilation_context.insert_get_ref(address);
+            append_get_ref(compilation_context.buffer.borrow_mut().as_mut(), address);
         }
 
         // refs
@@ -1059,7 +1065,7 @@ fn compile_key_value_entry(
     match key.data {
         // text -> insert key string
         DatexExpressionData::Text(text) => {
-            compilation_scope.insert_key_string(&text);
+            append_key_string(compilation_scope.buffer.borrow_mut().as_mut(), &text);
         }
         // other -> insert key as dynamic
         _ => {

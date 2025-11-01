@@ -32,8 +32,6 @@ pub mod logger;
 pub mod network;
 pub mod parser;
 #[cfg(feature = "compiler")]
-pub mod precompiler;
-#[cfg(feature = "compiler")]
 pub mod compiler;
 #[cfg(feature = "compiler")]
 pub mod fmt;
@@ -48,6 +46,8 @@ pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod values;
+pub mod core_compiler;
+
 // reexport macros
 pub use datex_macros as macros;
 extern crate self as datex_core;

@@ -1,19 +1,17 @@
 use core::str::FromStr;
 use crate::stdlib::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
-use chumsky::container::Seq;
 
 pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
-use crate::ast::structs::{ResolvedVariable, VariableId};
+use crate::ast::structs::{ResolvedVariable};
 use crate::ast::structs::expression::{
     DatexExpression, RemoteExecution, VariantAccess,
 };
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
-use crate::precompiler::scope::NewScopeType;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
@@ -38,13 +36,6 @@ use crate::{
         type_inference::infer_expression_type_detailed_errors,
     },
     libs::core::CoreLibPointerId,
-    precompiler::{
-        options::PrecompilerOptions,
-        precompiled_ast::{
-            AstMetadata, RichAst, VariableShape,
-        },
-        scope_stack::PrecompilerScopeStack,
-    },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
     values::core_values::r#type::Type,
@@ -54,6 +45,12 @@ use crate::{
         type_expression::TypeExpressionVisitor,
     },
 };
+use precompiled_ast::AstMetadata;
+use scope_stack::PrecompilerScopeStack;
+use precompiled_ast::RichAst;
+use options::PrecompilerOptions;
+use precompiled_ast::VariableShape;
+use scope::NewScopeType;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,

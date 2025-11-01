@@ -1,7 +1,7 @@
 
 use crate::{
     compiler::error::CompilerError,
-    precompiler::{
+    compiler::precompiler::{
         precompiled_ast::{AstMetadata, VariableMetadata, VariableShape},
         scope::PrecompilerScope,
     },

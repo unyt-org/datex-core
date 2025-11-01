@@ -848,7 +848,7 @@ fn get_result_value_from_instruction(
                         )
                     ) {
                         buffer.extend_from_slice(&yield_unwrap!(
-                            (&vc)
+                            compile_value(&vc)
                         ));
                     } else {
                         return yield Err(ExecutionError::SlotNotInitialized(

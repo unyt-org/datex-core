@@ -11,7 +11,7 @@ use crate::{
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,
-    precompiler::precompiled_ast::RichAst,
+    compiler::precompiler::precompiled_ast::RichAst,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;

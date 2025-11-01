@@ -3,15 +3,17 @@ use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
-use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::values::core_values::integer::Integer;
 use core::cell::RefCell;
+use crate::compiler::precompiler::precompiled_ast::AstMetadata;
+use crate::core_compiler::value_compiler::append_big_integer;
 use crate::stdlib::rc::Rc;
+use crate::utils::buffers::append_u8;
 
 /// Compilation functions for type expressions.
 impl CompilationContext {
     pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
-        self.append_u8(code as u8);
+        append_u8(self.buffer.borrow_mut().as_mut(), code as u8);
     }
 
     // TODO #452: Handle other types
@@ -20,7 +22,7 @@ impl CompilationContext {
         self.append_type_instruction_code(
             TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
         );
-        self.insert_big_integer(integer);
+        append_big_integer(self.buffer.borrow_mut().as_mut(), integer);
     }
 }
 
