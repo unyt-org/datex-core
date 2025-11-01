@@ -10,7 +10,7 @@ use crate::{
     },
     libs::core::{CoreLibPointerId, get_core_lib_type},
     precompiler::precompiled_ast::{AstMetadata, RichAst},
-    type_inferer::{
+    type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
         },
@@ -79,17 +79,17 @@ fn infer_expression_type(
     rich_ast: &mut RichAst,
     options: InferExpressionTypeOptions,
 ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
-    TypeInferer::new(rich_ast.metadata.clone())
+    TypeInference::new(rich_ast.metadata.clone())
         .infer(&mut rich_ast.ast, options)
 }
 
-pub struct TypeInferer {
+pub struct TypeInference {
     metadata: Rc<RefCell<AstMetadata>>,
 }
 
-impl TypeInferer {
+impl TypeInference {
     pub fn new(metadata: Rc<RefCell<AstMetadata>>) -> Self {
-        TypeInferer { metadata }
+        TypeInference { metadata }
     }
 
     pub fn infer(
@@ -154,7 +154,7 @@ fn mark_type<E>(
 ) -> Result<VisitAction<E>, SpannedTypeError> {
     Ok(VisitAction::SetTypeAnnotation(type_container))
 }
-impl TypeExpressionVisitor<SpannedTypeError> for TypeInferer {
+impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_integer_type(
         &mut self,
         integer: &mut Integer,
@@ -237,7 +237,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInferer {
     }
 }
 
-impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
+impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_statements(
         &mut self,
         statements: &mut Statements,
@@ -379,7 +379,7 @@ mod tests {
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
-        type_inferer::infer_expression_type_simple_error,
+        type_inference::infer_expression_type_simple_error,
         types::{
             structural_type_definition::StructuralTypeDefinition,
             type_container::TypeContainer,
