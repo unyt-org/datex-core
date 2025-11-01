@@ -2,7 +2,7 @@ use std::{cell::RefCell, ops::Range, rc::Rc};
 
 use crate::{
     ast::structs::expression::{DatexExpression, Map},
-    precompiler::precompiled_ast::AstMetadata,
+    precompiler::precompiled_ast::{AstMetadata, RichAst},
     type_inferer::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -34,12 +34,10 @@ pub mod error;
 pub mod options;
 
 pub fn infer_expression_type_simple_error(
-    ast: &mut DatexExpression,
-    metadata: Rc<RefCell<AstMetadata>>,
+    rich_ast: &mut RichAst,
 ) -> Result<TypeContainer, SpannedTypeError> {
     infer_expression_type(
-        ast,
-        metadata,
+        rich_ast,
         InferExpressionTypeOptions {
             detailed_errors: false,
         },
@@ -51,12 +49,10 @@ pub fn infer_expression_type_simple_error(
 }
 
 pub fn infer_expression_type_detailed_errors(
-    ast: &mut DatexExpression,
-    metadata: Rc<RefCell<AstMetadata>>,
+    rich_ast: &mut RichAst,
 ) -> Result<TypeContainer, DetailedTypeErrors> {
     infer_expression_type(
-        ast,
-        metadata,
+        rich_ast,
         InferExpressionTypeOptions {
             detailed_errors: true,
         },
@@ -70,12 +66,11 @@ pub fn infer_expression_type_detailed_errors(
 /// Infers the type of an expression as precisely as possible.
 /// Uses cached type information if available.
 fn infer_expression_type(
-    ast: &mut DatexExpression,
-    metadata: Rc<RefCell<AstMetadata>>,
+    rich_ast: &mut RichAst,
     options: InferExpressionTypeOptions,
 ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
-    TypeInferer::new(metadata)
-        .infer(ast, options)
+    TypeInferer::new(rich_ast.metadata.clone())
+        .infer(&mut rich_ast.ast, options)
         .map(|e| TypeContainer::never())
 }
 
@@ -256,4 +251,36 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
     //     span: &Range<usize>,
     // ) -> ExpressionVisitResult<SpannedTypeError> {
     // }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, rc::Rc};
+
+    use crate::{
+        ast::parse,
+        precompiler::{
+            Precompiler, precompile_ast_simple_error,
+            precompiled_ast::{AstMetadata, RichAst},
+            scope_stack::PrecompilerScopeStack,
+        },
+        type_inferer::infer_expression_type_simple_error,
+    };
+
+    fn infer(src: &str) -> RichAst {
+        let ast = parse(src).unwrap();
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let mut res =
+            precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
+                .expect("Precompilation failed");
+        infer_expression_type_simple_error(&mut res)
+            .expect("Type inference failed");
+        return res;
+    }
+
+    #[test]
+    fn infer_simple_integer() {
+        infer("42");
+    }
 }
