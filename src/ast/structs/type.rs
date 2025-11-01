@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::VariableAccess;
+use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -71,6 +72,7 @@ impl Spanned for TypeExpressionData {
             data: self,
             span: span.into(),
             wrapped: None,
+            r#type: None,
         }
     }
 
@@ -79,6 +81,7 @@ impl Spanned for TypeExpressionData {
             data: self,
             span: 0..0,
             wrapped: None,
+            r#type: None,
         }
     }
 }
@@ -89,6 +92,7 @@ pub struct TypeExpression {
     pub data: TypeExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
+    pub r#type: Option<TypeContainer>,
 }
 impl TypeExpression {
     pub fn new(data: TypeExpressionData, span: Range<usize>) -> Self {
@@ -96,6 +100,7 @@ impl TypeExpression {
             data,
             span,
             wrapped: None,
+            r#type: None,
         }
     }
 }

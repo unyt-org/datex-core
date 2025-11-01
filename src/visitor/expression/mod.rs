@@ -170,7 +170,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         let result = match action {
             VisitAction::SetTypeAnnotation(type_annotation) => {
                 expr.r#type = Some(type_annotation);
-                expr.walk_children(self)?;
+                // expr.walk_children(self)?;
                 Ok(())
             }
             VisitAction::SkipChildren => Ok(()),

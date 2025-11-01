@@ -120,8 +120,9 @@ pub trait TypeExpressionVisitor<E>: Sized {
         };
 
         let result = match action {
-            VisitAction::SetTypeAnnotation(_type_annotation) => {
-                unreachable!("Not implemented yet")
+            VisitAction::SetTypeAnnotation(type_annotation) => {
+                expr.r#type = Some(type_annotation);
+                Ok(())
             }
             VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
