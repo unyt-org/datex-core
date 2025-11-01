@@ -3,7 +3,8 @@ use std::{cell::RefCell, ops::Range, rc::Rc};
 use crate::{
     ast::structs::{
         expression::{
-            BinaryOperation, DatexExpression, Map, VariableDeclaration,
+            BinaryOperation, DatexExpression, Map, Statements, VariableAccess,
+            VariableDeclaration,
         },
         r#type::{self, TypeExpression},
     },
@@ -125,6 +126,22 @@ impl TypeInferer {
         self.visit_type_expression(type_expr)?;
         Ok(type_expr.r#type.clone().unwrap_or(TypeContainer::never()))
     }
+
+    fn variable_type(&self, id: usize) -> Option<TypeContainer> {
+        self.metadata
+            .borrow()
+            .variable_metadata(id)
+            .and_then(|meta| meta.var_type.clone())
+    }
+    fn update_variable_type(&mut self, id: usize, var_type: TypeContainer) {
+        if let Some(var_meta) =
+            self.metadata.borrow_mut().variable_metadata_mut(id)
+        {
+            var_meta.var_type = Some(var_type);
+        } else {
+            panic!("Variable metadata not found for id {}", id);
+        }
+    }
 }
 
 fn mark_structural_type<E>(
@@ -221,6 +238,33 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInferer {
 }
 
 impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
+    fn visit_statements(
+        &mut self,
+        statements: &mut Statements,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let mut inferred_type = TypeContainer::never();
+        let size = statements.statements.len();
+        for (i, statement) in statements.statements.iter_mut().enumerate() {
+            let inner_type = self.infer_expression(statement)?;
+            if !statements.is_terminated && i == size - 1 {
+                inferred_type = inner_type;
+            }
+        }
+        Ok(VisitAction::SetTypeAnnotation(inferred_type))
+    }
+
+    fn visit_variable_access(
+        &mut self,
+        var_access: &mut VariableAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        mark_type(
+            self.variable_type(var_access.id)
+                .unwrap_or(TypeContainer::never()),
+        )
+    }
+
     fn visit_integer(
         &mut self,
         integer: &mut Integer,
@@ -294,14 +338,18 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
         let inner =
             self.infer_expression(&mut variable_declaration.init_expression)?;
 
-        if let Some(specific) = &mut variable_declaration.type_annotation {
-            // FIXME check if matches
-            Ok(VisitAction::SetTypeAnnotation(
-                self.infer_type_expression(specific)?,
-            ))
-        } else {
-            Ok(VisitAction::SetTypeAnnotation(inner))
-        }
+        let actual_type =
+            if let Some(specific) = &mut variable_declaration.type_annotation {
+                // FIXME check if matches
+                self.infer_type_expression(specific)?
+            } else {
+                inner
+            };
+        self.update_variable_type(
+            variable_declaration.id.unwrap(),
+            actual_type.clone(),
+        );
+        mark_type(actual_type)
     }
     fn visit_binary_operation(
         &mut self,
@@ -328,12 +376,12 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{cell::RefCell, rc::Rc, str::FromStr};
 
     use crate::{
         ast::parse,
         precompiler::{
-            Precompiler, precompile_ast_simple_error,
+            precompile_ast_simple_error,
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
@@ -343,6 +391,7 @@ mod tests {
             type_container::TypeContainer,
         },
         values::core_values::{
+            endpoint::Endpoint,
             integer::typed_integer::{
                 IntegerTypeVariant, IntegerTypeVariantIter,
             },
@@ -350,7 +399,7 @@ mod tests {
         },
     };
 
-    fn infer(src: &str) -> RichAst {
+    fn infer_get_ast(src: &str) -> RichAst {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
@@ -361,24 +410,75 @@ mod tests {
             .expect("Type inference failed");
         res
     }
-    fn infer_get_first_type(src: &str) -> TypeContainer {
-        let rich_ast = infer(src);
-        rich_ast.ast.r#type.clone().expect("No type inferred")
+    fn infer_get_type(src: &str) -> TypeContainer {
+        let ast = parse(src).unwrap();
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let mut res =
+            precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
+                .expect("Precompilation failed");
+        infer_expression_type_simple_error(&mut res)
+            .expect("Type inference failed")
     }
 
     #[test]
-    fn infer_simple_integer() {
-        let inferred = infer_get_first_type("42");
+    fn infer_structural() {
+        let inferred = infer_get_type("42");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
                 .as_type_container()
         );
+
+        let inferred = infer_get_type("@endpoint");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Endpoint(
+                Endpoint::from_str("@endpoint").unwrap()
+            ))
+            .as_type_container()
+        );
+
+        let inferred = infer_get_type("'hello world'");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Text(
+                "hello world".into()
+            ))
+            .as_type_container()
+        );
+
+        let inferred = infer_get_type("true");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Boolean(true.into()))
+                .as_type_container()
+        );
+
+        let inferred = infer_get_type("null");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Null)
+                .as_type_container()
+        );
+    }
+
+    #[test]
+    fn statements_expression() {
+        let inferred = infer_get_type("10; 20; 30");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Integer(30.into()))
+                .as_type_container()
+        );
+
+        let inferred = infer_get_type("10; 20; 30;");
+        assert_eq!(inferred, TypeContainer::never());
     }
 
     #[test]
     fn var_declaration() {
-        let inferred = infer_get_first_type("var x = 42");
+        let inferred = infer_get_type("var x = 42");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
@@ -387,31 +487,44 @@ mod tests {
     }
 
     #[test]
-    fn var_declaration_with_type_annotation() {
-        let inferred = infer_get_first_type("var x: integer = 42");
+    fn var_declaration_and_access() {
+        let inferred = infer_get_type("var x = 42; x");
+        assert_eq!(
+            inferred,
+            Type::structural(StructuralTypeDefinition::Integer(42.into()))
+                .as_type_container()
+        );
+
+        let inferred = infer_get_type("var y: integer = 100u8; y");
         assert_eq!(inferred, TypeContainer::integer());
-        let inferred = infer_get_first_type("var x: integer/u8 = 42");
+    }
+
+    #[test]
+    fn var_declaration_with_type_annotation() {
+        let inferred = infer_get_type("var x: integer = 42");
+        assert_eq!(inferred, TypeContainer::integer());
+        let inferred = infer_get_type("var x: integer/u8 = 42");
         assert_eq!(
             inferred,
             TypeContainer::typed_integer(IntegerTypeVariant::U8)
         );
 
-        let inferred = infer_get_first_type("var x: decimal = 42");
+        let inferred = infer_get_type("var x: decimal = 42");
         assert_eq!(inferred, TypeContainer::decimal());
 
-        let inferred = infer_get_first_type("var x: boolean = true");
+        let inferred = infer_get_type("var x: boolean = true");
         assert_eq!(inferred, TypeContainer::boolean());
 
-        let inferred = infer_get_first_type("var x: text = 'hello'");
+        let inferred = infer_get_type("var x: text = 'hello'");
         assert_eq!(inferred, TypeContainer::text());
     }
 
     #[test]
     fn binary_operation() {
-        let inferred = infer_get_first_type("10 + 32");
+        let inferred = infer_get_type("10 + 32");
         assert_eq!(inferred, TypeContainer::integer());
 
-        let inferred = infer_get_first_type("10 + 'test'");
+        let inferred = infer_get_type("10 + 'test'");
         assert_eq!(inferred, TypeContainer::never());
     }
 }
