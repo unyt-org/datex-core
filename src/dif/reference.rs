@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::references::reference::mutability_as_int;
 use crate::references::reference::{Reference, ReferenceMutability};

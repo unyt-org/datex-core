@@ -940,7 +940,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
         endpoint: Endpoint,
     ) {
-        assert!(
+        core::assert!(
             self.sockets.borrow().contains_key(socket_uuid),
             "Socket not found in ComHub"
         );

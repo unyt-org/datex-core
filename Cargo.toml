@@ -155,7 +155,8 @@ default = [
     "com_tcp",
     "com_webrtc",
     "com_serial",
-    "com_websocket"
+    "com_websocket",
+    "dif"
     # "debug", # temporary to fix linting and allow tests to run
 ]
 
@@ -247,6 +248,9 @@ serde = [
     "dep:serde_json",
     "dep:serde_with",
     "log/serde",
+]
+dif = [
+    "serde"
 ]
 
 # note: compiler requires std

@@ -20,7 +20,7 @@ extern crate mopa;
 extern crate num_integer;
 
 pub mod crypto;
-
+#[cfg(feature="dif")]
 pub mod dif;
 
 pub mod generator;

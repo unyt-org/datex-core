@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::integer::Integer;
