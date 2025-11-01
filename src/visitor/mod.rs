@@ -1,3 +1,5 @@
+use crate::types::type_container::TypeContainer;
+
 pub mod expression;
 pub mod type_expression;
 
@@ -16,6 +18,8 @@ pub enum VisitAction<T: Sized> {
     ReplaceRecurse(T),
     /// Convert the current node to a no-op
     ToNoop,
+
+    SetTypeAnnotation(TypeContainer),
 }
 
 #[cfg(test)]
@@ -111,6 +115,7 @@ mod tests {
                 }),
                 span: span.clone(),
                 wrapped: None,
+                r#type: None,
             }))
         }
 
@@ -155,6 +160,7 @@ mod tests {
                                 ),
                                 span: 0..1,
                                 wrapped: None,
+                                r#type: None,
                             }),
                             right: Box::new(DatexExpression {
                                 data: DatexExpressionData::Identifier(
@@ -162,17 +168,20 @@ mod tests {
                                 ),
                                 span: 2..3,
                                 wrapped: None,
+                                r#type: None,
                             }),
                             r#type: None,
                         },
                     ),
                     wrapped: None,
                     span: 0..3,
+                    r#type: None,
                 }],
                 is_terminated: true,
             }),
             span: 1..2,
             wrapped: None,
+            r#type: None,
         };
         let transformer = &mut MyAst;
         transformer.visit_datex_expression(&mut ast).unwrap();

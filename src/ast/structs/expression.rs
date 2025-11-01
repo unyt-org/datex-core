@@ -9,6 +9,7 @@ use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
+use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -28,7 +29,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-                                // TODO: store optional type here, not in DatexExpressionData
+    pub r#type: Option<TypeContainer>,
 }
 impl DatexExpression {
     pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
@@ -36,6 +37,7 @@ impl DatexExpression {
             data,
             span,
             wrapped: None,
+            r#type: None,
         }
     }
 }
@@ -165,6 +167,7 @@ impl Spanned for DatexExpressionData {
             data: self,
             span: span.into(),
             wrapped: None,
+            r#type: None,
         }
     }
 
@@ -173,6 +176,7 @@ impl Spanned for DatexExpressionData {
             data: self,
             span: (0..0),
             wrapped: None,
+            r#type: None,
         }
     }
 }

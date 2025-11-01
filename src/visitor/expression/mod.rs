@@ -168,6 +168,11 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             Err(error) => self.handle_expression_error(error, expr)?,
         };
         let result = match action {
+            VisitAction::SetTypeAnnotation(type_annotation) => {
+                expr.r#type = Some(type_annotation);
+                expr.walk_children(self)?;
+                Ok(())
+            }
             VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = DatexExpressionData::Noop;
