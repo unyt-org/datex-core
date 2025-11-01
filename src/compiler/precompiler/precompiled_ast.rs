@@ -55,7 +55,7 @@ impl AstMetadata {
 
 #[derive(Debug, Clone, Default)]
 pub struct RichAst {
-    pub ast: Option<DatexExpression>,
+    pub ast: DatexExpression,
     pub metadata: Rc<RefCell<AstMetadata>>,
 }
 
@@ -65,14 +65,14 @@ impl RichAst {
         metadata: &Rc<RefCell<AstMetadata>>,
     ) -> Self {
         RichAst {
-            ast: Some(ast),
+            ast,
             metadata: metadata.clone(),
         }
     }
 
     pub fn new_without_metadata(ast: DatexExpression) -> Self {
         RichAst {
-            ast: Some(ast),
+            ast,
             metadata: Rc::new(RefCell::new(AstMetadata::default())),
         }
     }

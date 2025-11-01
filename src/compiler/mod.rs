@@ -295,7 +295,7 @@ pub fn compile_script_or_return_static_value<'a>(
         Ok((StaticValueOrDXB::DXB(compilation_context.buffer), scope))
     } else {
         // try to extract static value from AST
-        extract_static_value_from_ast(ast.ast.as_ref().unwrap())
+        extract_static_value_from_ast(&ast.ast)
             .map(|value| (StaticValueOrDXB::StaticValue(Some(value)), scope))
             .map_err(SpannedCompilerError::from)
     }
@@ -487,7 +487,7 @@ fn compile_expression(
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = rich_ast.metadata;
     // TODO #483: no clone
-    match rich_ast.ast.as_ref().unwrap().clone().data {
+    match rich_ast.ast.clone().data {
         DatexExpressionData::Integer(int) => {
             append_encoded_integer(
                 &mut compilation_context.buffer,
@@ -1056,9 +1056,7 @@ fn compile_expression(
 
         e => {
             println!("Unhandled expression in compiler: {:?}", e);
-            return Err(CompilerError::UnexpectedTerm(Box::new(
-                rich_ast.ast.unwrap(),
-            )));
+            return Err(CompilerError::UnexpectedTerm(Box::new(rich_ast.ast)));
         }
     }
 

@@ -31,6 +31,19 @@ pub struct DatexExpression {
     pub wrapped: Option<usize>, // number of wrapping parentheses
     pub r#type: Option<TypeContainer>,
 }
+impl Default for DatexExpression {
+    fn default() -> Self {
+        DatexExpression {
+            data: DatexExpressionData::Statements(Statements {
+                statements: Vec::new(),
+                is_terminated: false,
+            }),
+            span: 0..0,
+            wrapped: None,
+            r#type: None,
+        }
+    }
+}
 impl DatexExpression {
     pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
         DatexExpression {
