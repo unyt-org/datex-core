@@ -2,9 +2,12 @@ use std::{cell::RefCell, ops::Range, rc::Rc};
 
 use crate::{
     ast::structs::{
-        expression::{DatexExpression, Map, VariableDeclaration},
-        r#type::TypeExpression,
+        expression::{
+            BinaryOperation, DatexExpression, Map, VariableDeclaration,
+        },
+        r#type::{self, TypeExpression},
     },
+    libs::core::{CoreLibPointerId, get_core_lib_type},
     precompiler::precompiled_ast::{AstMetadata, RichAst},
     type_inferer::{
         error::{
@@ -16,13 +19,16 @@ use crate::{
         definition, structural_type_definition::StructuralTypeDefinition,
         type_container::TypeContainer,
     },
-    values::core_values::{
-        boolean::Boolean,
-        decimal::{Decimal, typed_decimal::TypedDecimal},
-        endpoint::Endpoint,
-        integer::{Integer, typed_integer::TypedInteger},
-        text::Text,
-        r#type::Type,
+    values::{
+        core_values::{
+            boolean::Boolean,
+            decimal::{Decimal, typed_decimal::TypedDecimal},
+            endpoint::Endpoint,
+            integer::{Integer, typed_integer::TypedInteger},
+            text::Text,
+            r#type::Type,
+        },
+        pointer::PointerAddress,
     },
     visitor::{
         VisitAction,
@@ -74,7 +80,6 @@ fn infer_expression_type(
 ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
     TypeInferer::new(rich_ast.metadata.clone())
         .infer(&mut rich_ast.ast, options)
-        .map(|e| TypeContainer::never())
 }
 
 pub struct TypeInferer {
@@ -125,9 +130,12 @@ impl TypeInferer {
 fn mark_structural_type<E>(
     definition: StructuralTypeDefinition,
 ) -> Result<VisitAction<E>, SpannedTypeError> {
-    Ok(VisitAction::SetTypeAnnotation(
-        Type::structural(definition).as_type_container(),
-    ))
+    mark_type(Type::structural(definition).as_type_container())
+}
+fn mark_type<E>(
+    type_container: TypeContainer,
+) -> Result<VisitAction<E>, SpannedTypeError> {
+    Ok(VisitAction::SetTypeAnnotation(type_container))
 }
 impl TypeExpressionVisitor<SpannedTypeError> for TypeInferer {
     fn visit_integer_type(
@@ -195,7 +203,23 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInferer {
             endpoint.clone(),
         ))
     }
+
+    fn visit_get_reference_type(
+        &mut self,
+        pointer_address: &mut PointerAddress,
+        _: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        if matches!(pointer_address, PointerAddress::Internal(_)) {
+            mark_type(get_core_lib_type(
+                CoreLibPointerId::try_from(&pointer_address.to_owned())
+                    .unwrap(),
+            ))
+        } else {
+            panic!("GetReference not supported yet")
+        }
+    }
 }
+
 impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
     fn visit_integer(
         &mut self,
@@ -279,6 +303,21 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
             Ok(VisitAction::SetTypeAnnotation(inner))
         }
     }
+    fn visit_binary_operation(
+        &mut self,
+        binary_operation: &mut BinaryOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let left_type = self.infer_expression(&mut binary_operation.left)?;
+        let right_type = self.infer_expression(&mut binary_operation.right)?;
+        // if base types are the same, use that as result type
+        if left_type.base_type() == right_type.base_type() {
+            Ok(VisitAction::SetTypeAnnotation(left_type.base_type()))
+        } else {
+            // otherwise, use never type
+            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
+        }
+    }
     // fn visit_map(
     //     &mut self,
     //     map: &mut Map,
@@ -303,7 +342,12 @@ mod tests {
             structural_type_definition::StructuralTypeDefinition,
             type_container::TypeContainer,
         },
-        values::core_values::r#type::Type,
+        values::core_values::{
+            integer::typed_integer::{
+                IntegerTypeVariant, IntegerTypeVariantIter,
+            },
+            r#type::Type,
+        },
     };
 
     fn infer(src: &str) -> RichAst {
@@ -340,5 +384,34 @@ mod tests {
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
                 .as_type_container()
         );
+    }
+
+    #[test]
+    fn var_declaration_with_type_annotation() {
+        let inferred = infer_get_first_type("var x: integer = 42");
+        assert_eq!(inferred, TypeContainer::integer());
+        let inferred = infer_get_first_type("var x: integer/u8 = 42");
+        assert_eq!(
+            inferred,
+            TypeContainer::typed_integer(IntegerTypeVariant::U8)
+        );
+
+        let inferred = infer_get_first_type("var x: decimal = 42");
+        assert_eq!(inferred, TypeContainer::decimal());
+
+        let inferred = infer_get_first_type("var x: boolean = true");
+        assert_eq!(inferred, TypeContainer::boolean());
+
+        let inferred = infer_get_first_type("var x: text = 'hello'");
+        assert_eq!(inferred, TypeContainer::text());
+    }
+
+    #[test]
+    fn binary_operation() {
+        let inferred = infer_get_first_type("10 + 32");
+        assert_eq!(inferred, TypeContainer::integer());
+
+        let inferred = infer_get_first_type("10 + 'test'");
+        assert_eq!(inferred, TypeContainer::never());
     }
 }
