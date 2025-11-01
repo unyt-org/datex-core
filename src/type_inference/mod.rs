@@ -225,7 +225,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_union_type(
         &mut self,
         union: &mut Union,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
         let members = union
             .0
@@ -237,7 +237,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_intersection_type(
         &mut self,
         intersection: &mut Intersection,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
         let members = intersection
             .0
@@ -249,7 +249,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_structural_map_type(
         &mut self,
         structural_map: &mut StructuralMap,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
         let mut fields = vec![];
         for (field_name, field_type_expr) in structural_map.0.iter_mut() {
@@ -262,7 +262,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_structural_list_type(
         &mut self,
         structural_list: &mut StructuralList,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
         mark_structural_type(StructuralTypeDefinition::List(
             structural_list
@@ -292,7 +292,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_variable_access_type(
         &mut self,
         var_access: &mut VariableAccess,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
         mark_type(
             self.variable_type(var_access.id)
@@ -305,7 +305,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_statements(
         &mut self,
         statements: &mut Statements,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let mut inferred_type = TypeContainer::never();
         let size = statements.statements.len();
@@ -321,7 +321,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_variable_access(
         &mut self,
         var_access: &mut VariableAccess,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         mark_type(
             self.variable_type(var_access.id)
@@ -418,7 +418,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_binary_operation(
         &mut self,
         binary_operation: &mut BinaryOperation,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let left_type = self.infer_expression(&mut binary_operation.left)?;
         let right_type = self.infer_expression(&mut binary_operation.right)?;
@@ -434,7 +434,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_type_declaration(
         &mut self,
         type_declaration: &mut TypeDeclaration,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let type_id = type_declaration.id.expect(
             "TypeDeclaration should have an id assigned during precompilation",
