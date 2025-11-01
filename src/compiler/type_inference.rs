@@ -742,7 +742,7 @@ mod tests {
 
             let mut expr = rich_ast.ast;
             infer_expression_type_detailed_errors(
-                &mut expr.as_mut().unwrap(),
+                expr.as_mut().unwrap(),
                 rich_ast.metadata.clone(),
             )
             .unwrap();
@@ -757,7 +757,7 @@ mod tests {
     /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
         let rich_ast = parse_and_precompile_unwrap(src);
-        let mut expr = rich_ast.ast;
+        let expr = rich_ast.ast;
         resolve_type_expression_type(
             match &mut expr.unwrap().data {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {

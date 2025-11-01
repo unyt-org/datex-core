@@ -120,6 +120,9 @@ pub trait TypeExpressionVisitor<E>: Sized {
         };
 
         let result = match action {
+            VisitAction::SetTypeAnnotation(_type_annotation) => {
+                unreachable!("Not implemented yet")
+            }
             VisitAction::SkipChildren => Ok(()),
             VisitAction::ToNoop => {
                 expr.data = TypeExpressionData::Null;
@@ -280,7 +283,7 @@ pub trait TypeExpressionVisitor<E>: Sized {
     /// Visit typed integer literal
     fn visit_typed_integer_type(
         &mut self,
-        typed_integer: &TypedInteger,
+        typed_integer: &mut TypedInteger,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {
         let _ = span;
@@ -302,7 +305,7 @@ pub trait TypeExpressionVisitor<E>: Sized {
     /// Visit typed decimal literal
     fn visit_typed_decimal_type(
         &mut self,
-        typed_decimal: &TypedDecimal,
+        typed_decimal: &mut TypedDecimal,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {
         let _ = span;
