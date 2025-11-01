@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use crate::stdlib::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
 #[cfg(feature = "debug")]

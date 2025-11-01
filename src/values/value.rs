@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
@@ -56,25 +57,25 @@ impl Value {
 
 impl Value {
     pub fn is_type(&self) -> bool {
-        matches!(self.inner, CoreValue::Type(_))
+        core::matches!(self.inner, CoreValue::Type(_))
     }
     pub fn is_null(&self) -> bool {
-        matches!(self.inner, CoreValue::Null)
+        core::matches!(self.inner, CoreValue::Null)
     }
     pub fn is_text(&self) -> bool {
-        matches!(self.inner, CoreValue::Text(_))
+        core::matches!(self.inner, CoreValue::Text(_))
     }
     pub fn is_integer_i8(&self) -> bool {
-        matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
+        core::matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
     }
     pub fn is_bool(&self) -> bool {
-        matches!(self.inner, CoreValue::Boolean(_))
+        core::matches!(self.inner, CoreValue::Boolean(_))
     }
     pub fn is_map(&self) -> bool {
-        matches!(self.inner, CoreValue::Map(_))
+        core::matches!(self.inner, CoreValue::Map(_))
     }
     pub fn is_list(&self) -> bool {
-        matches!(self.inner, CoreValue::List(_))
+        core::matches!(self.inner, CoreValue::List(_))
     }
     pub fn actual_type(&self) -> &TypeContainer {
         self.actual_type.as_ref()

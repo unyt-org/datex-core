@@ -19,7 +19,7 @@ pub enum BlockType {
 
 impl BlockType {
     pub fn is_response(&self) -> bool {
-        matches!(self, BlockType::Response | BlockType::TraceBack)
+        core::matches!(self, BlockType::Response | BlockType::TraceBack)
     }
 }
 

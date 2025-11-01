@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -229,7 +230,7 @@ impl CoreValue {
     /// Check if the CoreValue is a combined value type (List, Map)
     /// that contains inner ValueContainers.
     pub fn is_collection_value(&self) -> bool {
-        matches!(self, CoreValue::List(_) | CoreValue::Map(_))
+        core::matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
 
     /// Get the default type of the CoreValue as a TypeContainer.

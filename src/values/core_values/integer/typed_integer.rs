@@ -22,6 +22,7 @@ use core::{
 use crate::stdlib::hash::Hash;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
+use core::prelude::rust_2024::*;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).
@@ -166,7 +167,7 @@ impl TypedInteger {
         radix: u32,
         variant: IntegerTypeVariant,
     ) -> Result<TypedInteger, NumberParseError> {
-        if matches!(variant, IntegerTypeVariant::Big) {
+        if core::matches!(variant, IntegerTypeVariant::Big) {
             return Ok(TypedInteger::Big(Integer::from_string_radix(
                 s, radix,
             )?));
@@ -362,7 +363,7 @@ impl TypedInteger {
         if let TypedInteger::Big(_) = self {
             return true;
         }
-        matches!(
+        core::matches!(
             self,
             TypedInteger::I8(_)
                 | TypedInteger::I16(_)

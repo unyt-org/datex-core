@@ -685,7 +685,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestEnum");
-        assert!(matches!(result, TestEnum::Variant1));
+        assert!(core::matches!(result, TestEnum::Variant1));
     }
 
     #[test]
@@ -698,7 +698,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestEnum");
-        assert!(matches!(result, TestEnum::Variant2));
+        assert!(core::matches!(result, TestEnum::Variant2));
     }
 
     #[test]
@@ -715,7 +715,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestStruct2 = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestStruct2");
-        assert!(matches!(result.test_enum, TestEnum::Variant1));
+        assert!(core::matches!(result.test_enum, TestEnum::Variant1));
     }
 
     #[test]
@@ -808,7 +808,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        assert!(matches!(result, ExampleEnum::Variant1(_)));
+        assert!(core::matches!(result, ExampleEnum::Variant1(_)));
 
         let script = r#"{"Variant2": 42}"#;
         let dxb = compile_script(script, CompileOptions::default())
@@ -818,6 +818,6 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        assert!(matches!(result, ExampleEnum::Variant2(_)));
+        assert!(core::matches!(result, ExampleEnum::Variant2(_)));
     }
 }

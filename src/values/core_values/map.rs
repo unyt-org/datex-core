@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use super::super::core_value_trait::CoreValueTrait;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
@@ -49,11 +50,11 @@ impl Map {
     }
 
     pub fn is_structural(&self) -> bool {
-        matches!(self, Map::Structural(_))
+        core::matches!(self, Map::Structural(_))
     }
 
     pub fn has_fixed_size(&self) -> bool {
-        matches!(self, Map::Fixed(_) | Map::Structural(_))
+        core::matches!(self, Map::Fixed(_) | Map::Structural(_))
     }
 
     pub fn size(&self) -> usize {

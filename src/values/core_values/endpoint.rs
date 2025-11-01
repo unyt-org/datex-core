@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::crypto::random;
 use core::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;

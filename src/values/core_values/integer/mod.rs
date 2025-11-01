@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 pub mod typed_integer;
 pub mod utils;
 

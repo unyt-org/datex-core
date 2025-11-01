@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
@@ -47,16 +48,16 @@ impl Type {
         reference_mutability: None,
     };
     pub fn is_structural(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Structural(_))
+        core::matches!(self.type_definition, TypeDefinition::Structural(_))
     }
     pub fn is_union(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Union(_))
+        core::matches!(self.type_definition, TypeDefinition::Union(_))
     }
     pub fn is_unit(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Unit)
+        core::matches!(self.type_definition, TypeDefinition::Unit)
     }
     pub fn is_reference(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Reference(_))
+        core::matches!(self.type_definition, TypeDefinition::Reference(_))
     }
     pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {

@@ -121,7 +121,7 @@ impl AstToSourceCodeFormatter {
 
     /// Return a space or empty string based on formatting mode
     fn space(&self) -> &'static str {
-        if matches!(self.mode, FormattingMode::Compact) {
+        if core::matches!(self.mode, FormattingMode::Compact) {
             ""
         } else {
             " "
@@ -130,7 +130,7 @@ impl AstToSourceCodeFormatter {
 
     // Return a newline or empty string based on formatting mode
     fn newline(&self) -> &'static str {
-        if matches!(self.mode, FormattingMode::Compact) {
+        if core::matches!(self.mode, FormattingMode::Compact) {
             ""
         } else {
             "\n"
@@ -148,7 +148,7 @@ impl AstToSourceCodeFormatter {
 
     /// Pad the given string with spaces if not in compact mode
     fn pad(&self, s: &str) -> String {
-        if matches!(self.mode, FormattingMode::Compact) {
+        if core::matches!(self.mode, FormattingMode::Compact) {
             s.to_string()
         } else {
             format!("{}{}{}", self.space(), s, self.space())
@@ -321,7 +321,7 @@ impl AstToSourceCodeFormatter {
                         format!(
                             "{}:{}{}",
                             self.key_type_expression_to_source_code(k),
-                            if matches!(self.mode, FormattingMode::Compact) {
+                            if core::matches!(self.mode, FormattingMode::Compact) {
                                 ""
                             } else {
                                 " "
@@ -358,7 +358,7 @@ impl AstToSourceCodeFormatter {
         let separator = separator.unwrap_or("");
 
         // Compact mode
-        if matches!(self.mode, FormattingMode::Compact) {
+        if core::matches!(self.mode, FormattingMode::Compact) {
             return format!(
                 "{}{}{}",
                 brace_style.open(),
@@ -425,7 +425,7 @@ impl AstToSourceCodeFormatter {
                 format!(
                     "{}:{}{}",
                     self.key_expression_to_source_code(k),
-                    if matches!(self.mode, FormattingMode::Compact) {
+                    if core::matches!(self.mode, FormattingMode::Compact) {
                         ""
                     } else {
                         " "

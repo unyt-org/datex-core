@@ -1,5 +1,5 @@
-use core::panic;
 use crate::stdlib::{collections::HashSet, io::Write, ops::Range, format};
+use core::prelude::rust_2024::*;
 
 use crate::{
     ast::{

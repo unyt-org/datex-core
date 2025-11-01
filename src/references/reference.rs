@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
@@ -386,7 +387,7 @@ impl Reference {
     /// generally possible.
     pub fn supports_property_access(&self) -> bool {
         self.with_value(|value| {
-            matches!(
+            core::matches!(
                 value.inner,
                 CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
@@ -397,7 +398,7 @@ impl Reference {
     /// Checks if the reference has text property access.
     /// This is true for maps.
     pub fn supports_text_property_access(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::Map(_)))
+        self.with_value(|value| core::matches!(value.inner, CoreValue::Map(_)))
             .unwrap_or(false)
     }
 
@@ -405,7 +406,7 @@ impl Reference {
     /// This is true for maps, lists and text.
     pub fn supports_numeric_property_access(&self) -> bool {
         self.with_value(|value| {
-            matches!(
+            core::matches!(
                 value.inner,
                 CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
@@ -415,7 +416,7 @@ impl Reference {
 
     /// Checks if the reference supports push operation
     pub fn supports_push(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::List(_)))
+        self.with_value(|value| core::matches!(value.inner, CoreValue::List(_)))
             .unwrap_or(false)
     }
 }

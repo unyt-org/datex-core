@@ -146,7 +146,7 @@ impl InterfaceProperties {
     }
 
     pub fn shall_reconnect(&self) -> bool {
-        !matches!(self.reconnection_config, ReconnectionConfig::NoReconnect)
+        !core::matches!(self.reconnection_config, ReconnectionConfig::NoReconnect)
     }
 
     pub fn can_receive(&self) -> bool {

@@ -543,7 +543,7 @@ fn resolve_type_expression_type(
                 .expect("Type variable type should have been inferred already")
         }
         TypeExpressionData::GetReference(pointer_address) => {
-            if matches!(pointer_address, PointerAddress::Internal(_)) {
+            if core::matches!(pointer_address, PointerAddress::Internal(_)) {
                 get_core_lib_type(
                     CoreLibPointerId::try_from(&pointer_address.to_owned())
                         .unwrap(),
@@ -808,7 +808,7 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(core::matches!(var_type, TypeContainer::TypeReference(_)));
     }
 
     #[test]
@@ -822,7 +822,7 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(core::matches!(var_type, TypeContainer::TypeReference(_)));
 
         // get next field, as wrapped in union
         let next = {
@@ -1222,7 +1222,7 @@ mod tests {
             r#type: None,
         })
         .with_default_span();
-        assert!(matches!(
+        assert!(core::matches!(
             infer_expression_type_simple_error(
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))

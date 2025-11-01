@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;

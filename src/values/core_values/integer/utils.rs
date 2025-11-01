@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 
 pub fn smallest_fitting_unsigned(val: u128) -> TypedInteger {

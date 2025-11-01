@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
@@ -379,7 +380,7 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => value.into_inner().is_infinite(),
             TypedDecimal::F64(value) => value.into_inner().is_infinite(),
             TypedDecimal::Decimal(value) => {
-                matches!(value, Decimal::Infinity | Decimal::NegInfinity)
+                core::matches!(value, Decimal::Infinity | Decimal::NegInfinity)
             }
         }
     }
@@ -404,12 +405,12 @@ impl TypedDecimal {
 
     /// Returns true if the TypedDecimal is of variant F32.
     pub fn is_f32(&self) -> bool {
-        matches!(self, TypedDecimal::F32(_))
+        core::matches!(self, TypedDecimal::F32(_))
     }
 
     /// Returns true if the TypedDecimal is of variant F64.
     pub fn is_f64(&self) -> bool {
-        matches!(self, TypedDecimal::F64(_))
+        core::matches!(self, TypedDecimal::F64(_))
     }
 
     /// Returns true if the value is NaN (Not a Number).
@@ -417,7 +418,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
-            TypedDecimal::Decimal(value) => matches!(value, Decimal::NaN),
+            TypedDecimal::Decimal(value) => core::matches!(value, Decimal::NaN),
         }
     }
 

@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 pub mod rational;
 pub mod typed_decimal;
 pub mod utils;
@@ -88,22 +89,22 @@ impl Decimal {
 
     /// Returns true if the value is finite (not NaN or Infinity).
     pub fn is_finite(&self) -> bool {
-        matches!(self, Decimal::Finite(_) | Decimal::Zero | Decimal::NegZero)
+        core::matches!(self, Decimal::Finite(_) | Decimal::Zero | Decimal::NegZero)
     }
 
     /// Returns true if the value is infinite (positive or negative).
     pub fn is_infinite(&self) -> bool {
-        matches!(self, Decimal::Infinity | Decimal::NegInfinity)
+        core::matches!(self, Decimal::Infinity | Decimal::NegInfinity)
     }
 
     /// Returns true if the value is zero (positive or negative).
     pub fn is_nan(&self) -> bool {
-        matches!(self, Decimal::NaN)
+        core::matches!(self, Decimal::NaN)
     }
 
     /// Returns true if the value is zero (positive or negative).
     pub fn is_zero(&self) -> bool {
-        matches!(self, Decimal::Zero | Decimal::NegZero)
+        core::matches!(self, Decimal::Zero | Decimal::NegZero)
     }
 
     /// Returns true if the value has a positive sign.
@@ -558,91 +559,91 @@ mod tests {
     #[test]
     fn zero() {
         let a = Decimal::from(0.0f32);
-        assert!(matches!(a, Decimal::Zero));
-        assert!(!matches!(a, Decimal::NegZero));
+        assert!(core::matches!(a, Decimal::Zero));
+        assert!(!core::matches!(a, Decimal::NegZero));
 
         let b = Decimal::from(0.0f64);
-        assert!(matches!(b, Decimal::Zero));
-        assert!(!matches!(b, Decimal::NegZero));
+        assert!(core::matches!(b, Decimal::Zero));
+        assert!(!core::matches!(b, Decimal::NegZero));
 
         let c = Decimal::from_string("0.0").unwrap();
-        assert!(matches!(c, Decimal::Zero));
-        assert!(!matches!(c, Decimal::NegZero));
+        assert!(core::matches!(c, Decimal::Zero));
+        assert!(!core::matches!(c, Decimal::NegZero));
     }
 
     #[test]
     fn neg_zero() {
         let a = Decimal::from(-0.0f32);
-        assert!(matches!(a, Decimal::NegZero));
-        assert!(!matches!(a, Decimal::Zero));
+        assert!(core::matches!(a, Decimal::NegZero));
+        assert!(!core::matches!(a, Decimal::Zero));
 
         let b = Decimal::from(-0.0f64);
-        assert!(matches!(b, Decimal::NegZero));
-        assert!(!matches!(b, Decimal::Zero));
+        assert!(core::matches!(b, Decimal::NegZero));
+        assert!(!core::matches!(b, Decimal::Zero));
 
         let c = Decimal::from_string("-0.0").unwrap();
-        assert!(matches!(c, Decimal::NegZero));
-        assert!(!matches!(c, Decimal::Zero));
+        assert!(core::matches!(c, Decimal::NegZero));
+        assert!(!core::matches!(c, Decimal::Zero));
     }
 
     #[test]
     fn inf() {
         let a = Decimal::from(f32::INFINITY);
-        assert!(matches!(a, Decimal::Infinity));
+        assert!(core::matches!(a, Decimal::Infinity));
 
         let b = Decimal::from(f64::INFINITY);
-        assert!(matches!(b, Decimal::Infinity));
+        assert!(core::matches!(b, Decimal::Infinity));
 
         let c = Decimal::from_string("infinity").unwrap();
-        assert!(matches!(c, Decimal::Infinity));
+        assert!(core::matches!(c, Decimal::Infinity));
     }
 
     #[test]
     fn neg_inf() {
         let a = Decimal::from(f32::NEG_INFINITY);
-        assert!(matches!(a, Decimal::NegInfinity));
+        assert!(core::matches!(a, Decimal::NegInfinity));
 
         let b = Decimal::from(f64::NEG_INFINITY);
-        assert!(matches!(b, Decimal::NegInfinity));
+        assert!(core::matches!(b, Decimal::NegInfinity));
 
         let c = Decimal::from_string("-infinity").unwrap();
-        assert!(matches!(c, Decimal::NegInfinity));
+        assert!(core::matches!(c, Decimal::NegInfinity));
     }
 
     #[test]
     fn nan() {
         let a = Decimal::from(f32::NAN);
-        assert!(matches!(a, Decimal::NaN));
+        assert!(core::matches!(a, Decimal::NaN));
 
         let b = Decimal::from(f64::NAN);
-        assert!(matches!(b, Decimal::NaN));
+        assert!(core::matches!(b, Decimal::NaN));
 
         let c = Decimal::from_string("nan").unwrap();
-        assert!(matches!(c, Decimal::NaN));
+        assert!(core::matches!(c, Decimal::NaN));
 
         let a = Decimal::from(-f32::NAN);
-        assert!(matches!(a, Decimal::NaN));
+        assert!(core::matches!(a, Decimal::NaN));
 
         let b = Decimal::from(-f64::NAN);
-        assert!(matches!(b, Decimal::NaN));
+        assert!(core::matches!(b, Decimal::NaN));
 
         let c = Decimal::from_string("-nan").unwrap();
-        assert!(matches!(c, Decimal::NaN));
+        assert!(core::matches!(c, Decimal::NaN));
     }
 
     #[test]
     fn finite() {
         let a = Decimal::from(1.23f32);
-        assert!(matches!(a, Decimal::Finite(_)));
+        assert!(core::matches!(a, Decimal::Finite(_)));
 
         let b = Decimal::from(4.56f64);
-        assert!(matches!(b, Decimal::Finite(_)));
+        assert!(core::matches!(b, Decimal::Finite(_)));
 
         let c = Decimal::from_string("7.89").unwrap();
-        assert!(matches!(c, Decimal::Finite(_)));
+        assert!(core::matches!(c, Decimal::Finite(_)));
 
         let d = Decimal::from_string("-1.23").unwrap();
-        assert!(matches!(d, Decimal::Finite(_)));
+        assert!(core::matches!(d, Decimal::Finite(_)));
     }
 
     #[test]

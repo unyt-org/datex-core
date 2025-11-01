@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::dif::update::DIFUpdate;
 use crate::references::{
     reference::Reference, value_reference::ValueReference,

@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;

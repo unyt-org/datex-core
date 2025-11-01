@@ -29,6 +29,7 @@ use core::fmt::Debug;
 use core::slice;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;
+use core::prelude::rust_2024::*;
 
 pub mod dif_interface;
 pub mod execution;
@@ -319,7 +320,7 @@ impl RuntimeInternal {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
         // assert that the execution context is local
-        if !matches!(execution_context, ExecutionContext::Local(_)) {
+        if !core::matches!(execution_context, ExecutionContext::Local(_)) {
             unreachable!(
                 "Execution context must be local for executing a DXB block"
             );

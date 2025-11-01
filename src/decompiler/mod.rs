@@ -628,7 +628,7 @@ fn decompile_loop(
                 )?;
             }
             Instruction::ScopeEnd => {
-                let current_scope_is_collection = matches!(
+                let current_scope_is_collection = core::matches!(
                     state.get_current_scope().scope_type.0,
                     ScopeType::List | ScopeType::Map
                 );

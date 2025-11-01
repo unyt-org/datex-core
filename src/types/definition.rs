@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -103,7 +104,7 @@ impl Display for TypeDefinition {
 
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {
-                    matches!(
+                    core::matches!(
                         t.as_type().type_definition,
                         TypeDefinition::Structural(_)
                             | TypeDefinition::Reference(_)

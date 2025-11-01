@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use super::super::core_value_trait::CoreValueTrait;
 use crate::values::{
     core_value::CoreValue,

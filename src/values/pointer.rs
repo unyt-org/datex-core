@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use serde::{Deserialize, Serialize};
 use core::fmt::Display;
 

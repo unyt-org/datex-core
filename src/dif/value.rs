@@ -258,7 +258,7 @@ fn get_type_if_non_default(
                 .pointer_address
                 .as_ref()
                 .map(CoreLibPointerId::try_from)
-                && matches!(
+                && core::matches!(
                     address,
                     CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64))
                         | CoreLibPointerId::Boolean

@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use num::BigRational;
 use num_bigint::BigInt;
 use num_integer::Integer;

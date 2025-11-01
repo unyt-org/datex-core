@@ -1,5 +1,5 @@
+use core::prelude::rust_2024::*;
 use core::fmt;
-
 use crate::ast::lexer::Token;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

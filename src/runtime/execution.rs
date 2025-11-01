@@ -48,6 +48,7 @@ use crate::stdlib::collections::HashMap;
 use core::fmt::Display;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::rc::Rc;
+use core::prelude::rust_2024::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -1711,7 +1712,7 @@ mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::SCOPE_END.into(),
         ]);
-        assert!(matches!(
+        assert!(core::matches!(
             result,
             Err(ExecutionError::InvalidProgram(
                 InvalidProgramError::InvalidScopeClose

@@ -6,7 +6,7 @@ use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
 use datex_core::references::reference::Reference;
 use core::fmt::Display;
-
+use core::prelude::rust_2024::*;
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
     pub active_value: Option<ValueContainer>,

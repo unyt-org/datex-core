@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
 use crate::traits::value_eq::ValueEq;
@@ -83,6 +84,6 @@ impl ValueReference {
     }
 
     pub fn is_mutable(&self) -> bool {
-        matches!(self.mutability, ReferenceMutability::Mutable)
+        core::matches!(self.mutability, ReferenceMutability::Mutable)
     }
 }

@@ -69,7 +69,7 @@ impl ComInterfaceState {
         *self = new_state;
     }
     pub fn is_destroyed_or_not_connected(&self) -> bool {
-        matches!(
+        core::matches!(
             self,
             ComInterfaceState::Destroyed | ComInterfaceState::NotConnected
         )

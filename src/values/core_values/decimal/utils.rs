@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use core::fmt::Display;
 
 use num_traits::Float;

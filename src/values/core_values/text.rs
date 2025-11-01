@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::{

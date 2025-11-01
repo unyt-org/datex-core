@@ -23,7 +23,7 @@ pub enum DatexParseResult {
 
 impl DatexParseResult {
     pub fn is_valid(&self) -> bool {
-        matches!(self, DatexParseResult::Valid { .. })
+        core::matches!(self, DatexParseResult::Valid { .. })
     }
     pub fn unwrap(self) -> ValidDatexParseResult {
         match self {
