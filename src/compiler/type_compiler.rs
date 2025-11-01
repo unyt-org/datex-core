@@ -12,22 +12,22 @@ use crate::utils::buffers::append_u8;
 
 /// Compilation functions for type expressions.
 impl CompilationContext {
-    pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
-        append_u8(self.buffer.borrow_mut().as_mut(), code as u8);
+    pub fn append_type_instruction_code(&mut self, code: TypeSpaceInstructionCode) {
+        append_u8(&mut self.buffer, code as u8);
     }
 
     // TODO #452: Handle other types
 
-    pub fn insert_type_literal_integer(&self, integer: &Integer) {
+    pub fn insert_type_literal_integer(&mut self, integer: &Integer) {
         self.append_type_instruction_code(
             TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
         );
-        append_big_integer(self.buffer.borrow_mut().as_mut(), integer);
+        append_big_integer(&mut self.buffer, integer);
     }
 }
 
 pub fn compile_type_expression(
-    ctx: &CompilationContext,
+    ctx: &mut CompilationContext,
     expr: &TypeExpression,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope: CompilationScope,

@@ -59,19 +59,18 @@ impl VirtualSlot {
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext {
-    pub inserted_value_index: Cell<usize>,
-    pub buffer: RefCell<Vec<u8>>,
-    // FIXME #485: use lifetimes and references here
-    pub inserted_values: RefCell<Vec<ValueContainer>>,
+    pub inserted_value_index: usize,
+    pub buffer: Vec<u8>,
+    pub inserted_values: Vec<ValueContainer>,
     /// this flag is set to true if any non-static value is encountered
-    pub has_non_static_value: RefCell<bool>,
+    pub has_non_static_value: bool,
 
     /// Set to true if no further source text is expected to be compiled.
     /// Example: for a REPL, this is set to false
     pub is_end_of_source_text: bool,
 
     // mapping for temporary scope slot resolution
-    slot_indices: RefCell<HashMap<VirtualSlot, Vec<u32>>>,
+    slot_indices: HashMap<VirtualSlot, Vec<u32>>,
 }
 
 impl CompilationContext {
@@ -96,31 +95,30 @@ impl CompilationContext {
     const FLOAT_64_BYTES: u8 = 8;
 
     pub fn new(
-        buffer: RefCell<Vec<u8>>,
+        buffer: Vec<u8>,
         inserted_values: Vec<ValueContainer>,
         is_end_of_source_text: bool,
     ) -> Self {
         CompilationContext {
-            inserted_value_index: Cell::new(0),
+            inserted_value_index: 0,
             buffer,
-            inserted_values: RefCell::new(inserted_values),
-            has_non_static_value: RefCell::new(false),
-            slot_indices: RefCell::new(HashMap::new()),
+            inserted_values,
+            has_non_static_value: false,
+            slot_indices: HashMap::new(),
             is_end_of_source_text,
         }
     }
 
-    pub fn index(&self) -> usize {
-        self.buffer.borrow().len()
+    pub fn buffer_index(&self) -> usize {
+        self.buffer.len()
     }
 
-    fn insert_value_container(&self, value_container: &ValueContainer) {
-        append_value_container(self.buffer.borrow_mut().as_mut(), value_container);
+    fn insert_value_container(&mut self, value_container: &ValueContainer) {
+        append_value_container(&mut self.buffer, value_container);
     }
 
     pub fn external_slots(&self) -> Vec<VirtualSlot> {
         self.slot_indices
-            .borrow()
             .iter()
             .filter(|(slot, _)| slot.is_external())
             .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
@@ -134,7 +132,6 @@ impl CompilationContext {
         match_externals: bool,
     ) -> Vec<Vec<u32>> {
         self.slot_indices
-            .borrow()
             .iter()
             .filter(|(slot, _)| slot.is_external() == match_externals)
             .sorted_by(|a, b| a.0.virtual_address.cmp(&b.0.virtual_address))
@@ -142,7 +139,7 @@ impl CompilationContext {
             .collect()
     }
 
-    pub fn remap_virtual_slots(&self) {
+    pub fn remap_virtual_slots(&mut self) {
         let mut slot_address = 0;
 
         // parent slots
@@ -164,14 +161,14 @@ impl CompilationContext {
 
     // This method writes a placeholder value for the slot
     // since the slot address is not known yet and just temporary.
-    pub fn insert_virtual_slot_address(&self, virtual_slot: VirtualSlot) {
-        let mut slot_indices = self.slot_indices.borrow_mut();
-        if let Some(indices) = slot_indices.get_mut(&virtual_slot) {
-            indices.push(self.index() as u32);
+    pub fn insert_virtual_slot_address(&mut self, virtual_slot: VirtualSlot) {
+        let buffer_index = self.buffer_index() as u32;
+        if let Some(indices) = self.slot_indices.get_mut(&virtual_slot) {
+            indices.push(buffer_index);
         } else {
-            slot_indices.insert(virtual_slot, vec![self.index() as u32]);
+            self.slot_indices.insert(virtual_slot, vec![buffer_index]);
         }
-        append_u32(self.buffer.borrow_mut().as_mut(), 0); // placeholder for the slot address
+        append_u32(&mut self.buffer, 0); // placeholder for the slot address
     }
 
     // TODO #440: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
@@ -186,7 +183,7 @@ impl CompilationContext {
     //     self.insert_union_options(union.options[1..].to_vec());
     // }
 
-    fn insert_union_options(&self, options: Vec<ValueContainer>) {
+    fn insert_union_options(&mut self, options: Vec<ValueContainer>) {
         // directly insert value if only one option left
         if options.len() == 1 {
             self.insert_value_container(&options[0]);
@@ -200,17 +197,16 @@ impl CompilationContext {
             self.append_instruction_code(InstructionCode::SCOPE_END);
         }
     }
-    pub fn set_u32_at_index(&self, u32: u32, index: usize) {
-        let mut buffer = self.buffer.borrow_mut();
-        buffer[index..index + CompilationContext::INT_32_BYTES as usize]
+    pub fn set_u32_at_index(&mut self, u32: u32, index: usize) {
+        self.buffer[index..index + CompilationContext::INT_32_BYTES as usize]
             .copy_from_slice(&u32.to_le_bytes());
     }
 
-    pub fn mark_has_non_static_value(&self) {
-        self.has_non_static_value.replace(true);
+    pub fn mark_has_non_static_value(&mut self) {
+        self.has_non_static_value = true;
     }
 
-    pub fn append_instruction_code(&self, code: InstructionCode) {
-        append_instruction_code(self.buffer.borrow_mut().as_mut(), code);
+    pub fn append_instruction_code(&mut self, code: InstructionCode) {
+        append_instruction_code(&mut self.buffer, code);
     }
 }

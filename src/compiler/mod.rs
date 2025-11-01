@@ -279,16 +279,16 @@ pub fn compile_script_or_return_static_value<'a>(
         datex_script,
         &mut options,
     )?;
-    let compilation_context = CompilationContext::new(
-        RefCell::new(Vec::with_capacity(256)),
+    let mut compilation_context = CompilationContext::new(
+        Vec::with_capacity(256),
         vec![],
         options.compile_scope.once,
     );
     // FIXME #480: no clone here
-    let scope = compile_ast(ast.clone(), &compilation_context, options)?;
-    if *compilation_context.has_non_static_value.borrow() {
+    let scope = compile_ast(ast.clone(), &mut compilation_context, options)?;
+    if compilation_context.has_non_static_value {
         Ok((
-            StaticValueOrDXB::DXB(compilation_context.buffer.take()),
+            StaticValueOrDXB::DXB(compilation_context.buffer),
             scope,
         ))
     } else {
@@ -370,21 +370,21 @@ pub fn compile_template<'a>(
         datex_script,
         &mut options,
     )?;
-    let compilation_context = CompilationContext::new(
-        RefCell::new(Vec::with_capacity(256)),
+    let mut compilation_context = CompilationContext::new(
+        Vec::with_capacity(256),
         // TODO #482: no clone here
         inserted_values.to_vec(),
         options.compile_scope.once,
     );
-    compile_ast(ast, &compilation_context, options)
-        .map(|scope| (compilation_context.buffer.take(), scope))
+    compile_ast(ast, &mut compilation_context, options)
+        .map(|scope| (compilation_context.buffer, scope))
         .map_err(SpannedCompilerError::from)
 }
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
 fn compile_ast<'a>(
     ast: RichAst,
-    compilation_context: &CompilationContext,
+    compilation_context: &mut CompilationContext,
     options: CompileOptions<'a>,
 ) -> Result<CompilationScope, CompilerError> {
     let compilation_scope =
@@ -393,12 +393,12 @@ fn compile_ast<'a>(
 }
 
 pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
-    let buffer = RefCell::new(Vec::with_capacity(256));
-    let compilation_scope = CompilationContext::new(buffer, vec![], true);
+    let buffer = Vec::with_capacity(256);
+    let mut compilation_scope = CompilationContext::new(buffer, vec![], true);
 
-    append_value_container(compilation_scope.buffer.borrow_mut().as_mut(), value);
+    append_value_container(&mut compilation_scope.buffer, value);
 
-    Ok(compilation_scope.buffer.take())
+    Ok(compilation_scope.buffer)
 }
 
 /// Tries to extract a static value from a DATEX expression AST.
@@ -470,7 +470,7 @@ fn precompile_to_rich_ast(
 }
 
 pub fn compile_rich_ast(
-    compilation_context: &CompilationContext,
+    compilation_context: &mut CompilationContext,
     rich_ast: RichAst,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
@@ -487,7 +487,7 @@ pub fn compile_rich_ast(
 }
 
 fn compile_expression(
-    compilation_context: &CompilationContext,
+    compilation_context: &mut CompilationContext,
     rich_ast: RichAst,
     meta: CompileMetadata,
     mut scope: CompilationScope,
@@ -497,42 +497,42 @@ fn compile_expression(
     match rich_ast.ast.as_ref().unwrap().clone().data {
         DatexExpressionData::Integer(int) => {
             append_encoded_integer(
-                compilation_context.buffer.borrow_mut().as_mut(),
+                &mut compilation_context.buffer,
                 &int.to_smallest_fitting()
             );
 
         }
         DatexExpressionData::TypedInteger(typed_int) => {
-            append_typed_integer(compilation_context.buffer.borrow_mut().as_mut(), &typed_int);
+            append_typed_integer(&mut compilation_context.buffer, &typed_int);
         }
         DatexExpressionData::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
                 if let Some(int) = big_decimal.to_i16() {
-                    append_float_as_i16(compilation_context.buffer.borrow_mut().as_mut(), int);
+                    append_float_as_i16(&mut compilation_context.buffer, int);
                 } else if let Some(int) = big_decimal.to_i32() {
-                    append_float_as_i32(compilation_context.buffer.borrow_mut().as_mut(), int);
+                    append_float_as_i32(&mut compilation_context.buffer, int);
                 } else {
-                    append_decimal(compilation_context.buffer.borrow_mut().as_mut(), &decimal);
+                    append_decimal(&mut compilation_context.buffer, &decimal);
                 }
             }
             _ => {
-                append_decimal(compilation_context.buffer.borrow_mut().as_mut(), &decimal);
+                append_decimal(&mut compilation_context.buffer, &decimal);
             }
         },
         DatexExpressionData::TypedDecimal(typed_decimal) => {
-            append_typed_decimal(compilation_context.buffer.borrow_mut().as_mut(), &typed_decimal);
+            append_typed_decimal(&mut compilation_context.buffer, &typed_decimal);
         }
         DatexExpressionData::Text(text) => {
-            append_text(compilation_context.buffer.borrow_mut().as_mut(), &text);
+            append_text(&mut compilation_context.buffer, &text);
         }
         DatexExpressionData::Boolean(boolean) => {
-            append_boolean(compilation_context.buffer.borrow_mut().as_mut(), boolean);
+            append_boolean(&mut compilation_context.buffer, boolean);
         }
         DatexExpressionData::Endpoint(endpoint) => {
-            append_endpoint(compilation_context.buffer.borrow_mut().as_mut(), &endpoint);
+            append_endpoint(&mut compilation_context.buffer, &endpoint);
         }
         DatexExpressionData::Null => {
-            append_instruction_code(compilation_context.buffer.borrow_mut().as_mut(), InstructionCode::NULL);
+            append_instruction_code(&mut compilation_context.buffer, InstructionCode::NULL);
         }
         DatexExpressionData::List(list) => {
             compilation_context
@@ -566,14 +566,13 @@ fn compile_expression(
         }
         DatexExpressionData::Placeholder => {
             append_value_container(
-                compilation_context.buffer.borrow_mut().as_mut(),
+                &mut compilation_context.buffer,
                 compilation_context
                     .inserted_values
-                    .borrow()
-                    .get(compilation_context.inserted_value_index.get())
+                    .get(compilation_context.inserted_value_index)
                     .unwrap(),
             );
-            compilation_context.inserted_value_index.update(|x| x + 1);
+            compilation_context.inserted_value_index += 1;
         }
 
         // statements
@@ -792,7 +791,7 @@ fn compile_expression(
 
         DatexExpressionData::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
-            append_get_ref(compilation_context.buffer.borrow_mut().as_mut(), address)
+            append_get_ref(&mut compilation_context.buffer, address)
         }
 
         // assignment
@@ -949,13 +948,13 @@ fn compile_expression(
             )?;
 
             // compile remote execution block
-            let execution_block_ctx = CompilationContext::new(
-                RefCell::new(Vec::with_capacity(256)),
+            let mut execution_block_ctx = CompilationContext::new(
+                Vec::with_capacity(256),
                 vec![],
                 true,
             );
             let external_scope = compile_rich_ast(
-                &execution_block_ctx,
+                &mut execution_block_ctx,
                 RichAst::new(*script, &metadata),
                 CompilationScope::new_with_external_parent_scope(scope),
             )?;
@@ -969,15 +968,15 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
-            append_u32(compilation_context.buffer.borrow_mut().as_mut(), execution_block_ctx.buffer.borrow().len() as u32);
+            append_u32(&mut compilation_context.buffer, execution_block_ctx.buffer.len() as u32);
             // set injected slot count
-            append_u32(compilation_context.buffer.borrow_mut().as_mut(), external_slots.len() as u32);
+            append_u32(&mut compilation_context.buffer, external_slots.len() as u32);
             for slot in external_slots {
                 compilation_context.insert_virtual_slot_address(slot.upgrade());
             }
 
             // insert block body (compilation_context.buffer)
-            compilation_context.buffer.borrow_mut().extend_from_slice(&execution_block_ctx.buffer.borrow());
+            compilation_context.buffer.extend_from_slice(&execution_block_ctx.buffer);
         }
 
         // named slot
@@ -986,10 +985,10 @@ fn compile_expression(
                 "endpoint" => {
                     compilation_context
                         .append_instruction_code(InstructionCode::GET_SLOT);
-                    append_u32(compilation_context.buffer.borrow_mut().as_mut(), InternalSlot::ENDPOINT as u32);
+                    append_u32(&mut compilation_context.buffer, InternalSlot::ENDPOINT as u32);
                 }
                 "core" => append_get_ref(
-                    compilation_context.buffer.borrow_mut().as_mut(),
+                    &mut compilation_context.buffer,
                     PointerAddress::from(CoreLibPointerId::Core),
                 ),
                 _ => {
@@ -1001,7 +1000,7 @@ fn compile_expression(
 
         // pointer address
         DatexExpressionData::PointerAddress(address) => {
-            append_get_ref(compilation_context.buffer.borrow_mut().as_mut(), address);
+            append_get_ref(&mut compilation_context.buffer, address);
         }
 
         // refs
@@ -1056,7 +1055,7 @@ fn compile_expression(
 }
 
 fn compile_key_value_entry(
-    compilation_scope: &CompilationContext,
+    compilation_scope: &mut CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
     metadata: &Rc<RefCell<AstMetadata>>,
@@ -1065,7 +1064,7 @@ fn compile_key_value_entry(
     match key.data {
         // text -> insert key string
         DatexExpressionData::Text(text) => {
-            append_key_string(compilation_scope.buffer.borrow_mut().as_mut(), &text);
+            append_key_string(&mut compilation_scope.buffer, &text);
         }
         // other -> insert key as dynamic
         _ => {
@@ -1133,12 +1132,12 @@ pub mod tests {
             parse_datex_script_to_rich_ast_simple_error(script, &mut options)
                 .unwrap();
 
-        let compilation_context = CompilationContext::new(
-            RefCell::new(Vec::with_capacity(256)),
+        let mut compilation_context = CompilationContext::new(
+            Vec::with_capacity(256),
             vec![],
             options.compile_scope.once,
         );
-        compile_ast(ast, &compilation_context, options).unwrap();
+        compile_ast(ast, &mut compilation_context, options).unwrap();
         compilation_context
     }
 
@@ -2020,45 +2019,45 @@ pub mod tests {
         // non-static
         let script = "1 + 2";
         let compilation_scope = get_compilation_context(script);
-        assert!(*compilation_scope.has_non_static_value.borrow());
+        assert!(compilation_scope.has_non_static_value);
 
         let script = "1 2";
         let compilation_scope = get_compilation_context(script);
-        assert!(*compilation_scope.has_non_static_value.borrow());
+        assert!(compilation_scope.has_non_static_value);
 
         let script = "1;2";
         let compilation_scope = get_compilation_context(script);
-        assert!(*compilation_scope.has_non_static_value.borrow());
+        assert!(compilation_scope.has_non_static_value);
 
         let script = r#"{("x" + "y"): 1}"#;
         let compilation_scope = get_compilation_context(script);
-        assert!(*compilation_scope.has_non_static_value.borrow());
+        assert!(compilation_scope.has_non_static_value);
 
         // static
         let script = "1";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
 
         let script = "[]";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
 
         let script = "{}";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
 
         let script = "[1,2,3]";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
 
         let script = "{a: 2}";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
 
         // because of unary - 42
         let script = "-42";
         let compilation_scope = get_compilation_context(script);
-        assert!(!*compilation_scope.has_non_static_value.borrow());
+        assert!(!compilation_scope.has_non_static_value);
     }
 
     #[test]
