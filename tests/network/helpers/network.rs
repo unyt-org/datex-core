@@ -219,7 +219,7 @@ pub async fn test_routes(
     // make sure the start endpoint for all routes is the same
     for route in routes {
         if route.hops[0].0 != start {
-            panic!(
+            core::panic!(
                 "Route start endpoints must all be the same. Found {} instead of {}",
                 route.hops[0].0, start
             );
@@ -228,7 +228,7 @@ pub async fn test_routes(
 
     for end in ends {
         if start != end {
-            panic!("Route start {} does not match receiver {}", start, end);
+            core::panic!("Route start {} does not match receiver {}", start, end);
         }
     }
 
@@ -588,7 +588,7 @@ impl Network {
             match mockup_interface_channels.get_mut(&name).unwrap().take() {
                 Some(channel) => channel,
                 _ => {
-                    panic!("Channel {name} is already used");
+                    core::panic!("Channel {name} is already used");
                 }
             }
         }
@@ -605,7 +605,7 @@ impl Network {
 
     pub async fn start(&mut self) {
         if self.is_initialized {
-            panic!("Network already initialized");
+            core::panic!("Network already initialized");
         }
         self.is_initialized = true;
 
@@ -652,6 +652,6 @@ impl Network {
                 return node.runtime.as_ref().unwrap();
             }
         }
-        panic!("Endpoint {endpoint} not found in network");
+        core::panic!("Endpoint {endpoint} not found in network");
     }
 }

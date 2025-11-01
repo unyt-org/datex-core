@@ -551,7 +551,7 @@ mod tests {
                     let cache = ariadne::sources(vec![(src_id, src)]);
                     e.clone().write(cache, io::stdout());
                 });
-                panic!("Parsing errors found");
+                core::panic!("Parsing errors found");
             }
             DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => {
                 ast.data
@@ -578,11 +578,11 @@ mod tests {
                     ..
                 }) => value.data.clone(),
                 _ => {
-                    panic!("Expected TypeDeclaration, got {:?}", statements[0])
+                    core::panic!("Expected TypeDeclaration, got {:?}", statements[0])
                 }
             }
         } else {
-            panic!("Expected TypeDeclaration, got {:?}", value);
+            core::panic!("Expected TypeDeclaration, got {:?}", value);
         }
     }
 

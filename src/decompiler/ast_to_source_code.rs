@@ -267,8 +267,8 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpressionData::FixedSizeList(fixed_size_list) => todo!("#472 Undescribed by author."),
-            TypeExpressionData::SliceList(type_expression) => todo!("#473 Undescribed by author."),
+            TypeExpressionData::FixedSizeList(fixed_size_list) => core::todo!("#472 Undescribed by author."),
+            TypeExpressionData::SliceList(type_expression) => core::todo!("#473 Undescribed by author."),
             TypeExpressionData::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .0
@@ -285,7 +285,7 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpressionData::GenericAccess(generic_access) => todo!("#474 Undescribed by author."),
+            TypeExpressionData::GenericAccess(generic_access) => core::todo!("#474 Undescribed by author."),
             TypeExpressionData::Function(FunctionType {
                 parameters,
                 return_type,
@@ -523,7 +523,7 @@ impl AstToSourceCodeFormatter {
                                 self.key_expression_to_source_code(prop)
                             ));
                         }
-                        _ => todo!("#419 Undescribed by author."),
+                        _ => core::todo!("#419 Undescribed by author."),
                     }
                 }
                 format!("{}{}", self.format(base), applies_code.join(""))
@@ -555,7 +555,7 @@ impl AstToSourceCodeFormatter {
                 condition,
                 then_branch,
                 else_branch,
-            }) => todo!("#476 Undescribed by author."),
+            }) => core::todo!("#476 Undescribed by author."),
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: _,
                 kind,

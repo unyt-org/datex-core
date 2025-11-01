@@ -7,7 +7,7 @@ pub trait StructuralEq {
 macro_rules! assert_structural_eq {
     ($left_val:expr, $right_val:expr $(,)?) => {
         if !$left_val.structural_eq(&$right_val) {
-            panic!(
+            core::panic!(
                 "structural equality assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
                 $left_val, $right_val
             );
@@ -19,7 +19,7 @@ impl<T: StructuralEq> StructuralEq for Option<T> {
         match (self, other) {
             (Some(a), Some(b)) => a.structural_eq(b),
             (None, None) => {
-                todo!("#350 decide if None is structurally equal to None")
+                core::todo!("#350 decide if None is structurally equal to None")
             }
             _ => false,
         }

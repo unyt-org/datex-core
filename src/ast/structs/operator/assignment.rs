@@ -47,7 +47,7 @@ impl From<&AssignmentOperator> for InstructionCode {
                 InstructionCode::MULTIPLY_ASSIGN
             }
             AssignmentOperator::DivideAssign => InstructionCode::DIVIDE_ASSIGN,
-            operator => todo!(
+            operator => core::todo!(
                 "Assignment operator {:?} not implemented for InstructionCode",
                 operator
             ),

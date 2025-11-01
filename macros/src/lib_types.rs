@@ -6,7 +6,7 @@ pub fn derive_lib_type_string(input: DeriveInput) -> TokenStream {
     let name = input.ident;
 
     let Data::Enum(DataEnum { variants, .. }) = input.data else {
-        panic!("#[derive(LibTypeString)] only works on enums");
+        core::panic!("#[derive(LibTypeString)] only works on enums");
     };
 
     // Create match arms for Display and FromStr

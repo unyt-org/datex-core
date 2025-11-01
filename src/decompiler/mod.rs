@@ -1179,7 +1179,7 @@ fn handle_before_operand(
                 state.get_current_scope().close_scope_after_term = true;
             }
             _ => {
-                todo!("#423 Invalid operator: {operator:?}");
+                core::todo!("#423 Invalid operator: {operator:?}");
             }
         }
     }

@@ -54,7 +54,7 @@ pub async fn get_mock_setup_with_endpoint(
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     (Rc::new(com_hub), mockup_interface_ref.clone())
@@ -77,7 +77,7 @@ pub async fn get_runtime_with_mock_interface(
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     (runtime, mockup_interface_ref.clone())
@@ -289,7 +289,7 @@ pub fn get_last_received_single_block_from_com_hub(
     match &sections[0] {
         IncomingSection::SingleBlock((Some(block), ..)) => block.clone(),
         _ => {
-            panic!("Expected single block, but got block stream");
+            core::panic!("Expected single block, but got block stream");
         }
     }
 }
@@ -308,7 +308,7 @@ pub fn get_all_received_single_blocks_from_com_hub(
                 blocks.push(block.clone());
             }
             _ => {
-                panic!("Expected single block, but got block stream");
+                core::panic!("Expected single block, but got block stream");
             }
         }
     }

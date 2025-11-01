@@ -52,7 +52,7 @@ impl VirtualSlot {
                 virtual_address: self.virtual_address,
             }
         } else {
-            panic!("Cannot upgrade a local slot");
+            core::panic!("Cannot upgrade a local slot");
         }
     }
 }

@@ -36,7 +36,7 @@ pub fn compile_type_expression(
         TypeExpressionData::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
-        _ => todo!("#453 Undescribed by author."),
+        _ => core::todo!("#453 Undescribed by author."),
     }
     Ok(scope)
 }

@@ -24,7 +24,7 @@ pub async fn test_create_socket_connection() {
 
         let mut server = WebSocketServerNativeInterface::new(PORT, false).unwrap();
         server.open().await.unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketServerInterface: {e}");
+            core::panic!("Failed to create WebSocketServerInterface: {e}");
         });
 
         let client = Rc::new(RefCell::new(
@@ -32,7 +32,7 @@ pub async fn test_create_socket_connection() {
                 .unwrap(),
         ));
         client.borrow_mut().open().await.unwrap_or_else(|e| {
-            panic!("Failed to create WebSocketClientInterface: {e}");
+            core::panic!("Failed to create WebSocketClientInterface: {e}");
         });
         let server = Rc::new(RefCell::new(server));
 

@@ -117,7 +117,7 @@ mod tests {
                 ))
             );
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 
@@ -132,7 +132,7 @@ mod tests {
             );
             assert_eq!(dif_value.r#type, None);
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 }

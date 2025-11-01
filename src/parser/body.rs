@@ -590,7 +590,7 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                             ))
                         }
                     }
-                    _ => todo!("#426 Undescribed by author."),
+                    _ => core::todo!("#426 Undescribed by author."),
                 }
             }
         },

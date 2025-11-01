@@ -144,7 +144,7 @@ impl StructuralTypeDefinition {
                 StructuralTypeDefinition::Map(field_types),
                 CoreValue::Map(map),
             ) => field_types.iter().all(|(field_name, field_type)| {
-                todo!("#375 handle key matching")
+                core::todo!("#375 handle key matching")
                 // map.get(&field_name_value).is_some_and(|field_value| {
                 //     field_type.value_matches(field_value)
                 // })

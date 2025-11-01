@@ -45,7 +45,7 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
         .to_string()
         .starts_with("pub")
     {
-        panic!("The function is public. Remove the public modifier",);
+        core::panic!("The function is public. Remove the public modifier",);
     }
 
     {

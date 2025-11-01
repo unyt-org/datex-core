@@ -29,13 +29,13 @@ impl DatexParseResult {
         match self {
             DatexParseResult::Valid(result) => result,
             DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. }) => {
-                panic!("Parsing failed with errors: {:?}", errors)
+                core::panic!("Parsing failed with errors: {:?}", errors)
             }
         }
     }
     pub fn errors(&self) -> &Vec<ParseError> {
         match self {
-            DatexParseResult::Valid { .. } => panic!("No errors in valid parse result"),
+            DatexParseResult::Valid { .. } => core::panic!("No errors in valid parse result"),
             DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. })  => errors,
         }
     }

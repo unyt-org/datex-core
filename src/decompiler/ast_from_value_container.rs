@@ -71,9 +71,9 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                         TypeExpressionData::Integer(integer.clone())
                             .with_default_span()
                     }
-                    _ => todo!("#416 Undescribed by author."),
+                    _ => core::todo!("#416 Undescribed by author."),
                 },
-                _ => todo!("#417 Undescribed by author."),
+                _ => core::todo!("#417 Undescribed by author."),
             },
         ),
     }

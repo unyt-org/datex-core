@@ -7,7 +7,7 @@ pub trait Identity {
 macro_rules! assert_identical {
     ($left_val:expr, $right_val:expr $(,)?) => {
         if !$left_val.identical(&$right_val) {
-            panic!(
+            core::panic!(
                 "identity assertion failed: `(left is right)`\n  left: `{:?}`,\n right: `{:?}`",
                 $left_val, $right_val
             );

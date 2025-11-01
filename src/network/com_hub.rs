@@ -522,7 +522,7 @@ impl ComHub {
                 );
             }
             Err(error) => {
-                panic!("Failed to register socket endpoint {sender}: {error:?}");
+                core::panic!("Failed to register socket endpoint {sender}: {error:?}");
             },
             Ok(_) => { }
         }
@@ -832,7 +832,7 @@ impl ComHub {
         let socket_ref = socket.lock().unwrap();
         let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.borrow().contains_key(&socket_ref.uuid) {
-            panic!("Socket {} already exists in ComHub", socket_ref.uuid);
+            core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
 
         // info!(
@@ -841,7 +841,7 @@ impl ComHub {
         // );
 
         if !socket_ref.can_send() && priority != InterfacePriority::None {
-            panic!(
+            core::panic!(
                 "Socket {} cannot be used for fallback routing, since it has no send capability",
                 socket_ref.uuid
             );
@@ -907,7 +907,7 @@ impl ComHub {
                 InterfaceDirection::InOut => 0,
                 InterfaceDirection::Out => 1,
                 InterfaceDirection::In => {
-                    panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
+                    core::panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
                 }
             };
             (dir_rank, core::cmp::Reverse(*priority))
@@ -919,7 +919,7 @@ impl ComHub {
         self.sockets
             .borrow_mut()
             .remove(socket_uuid)
-            .or_else(|| panic!("Socket {socket_uuid} not found in ComHub"));
+            .or_else(|| core::panic!("Socket {socket_uuid} not found in ComHub"));
 
         // remove socket from endpoint socket list
         // remove endpoint key from endpoint_sockets if not sockets present
@@ -1007,7 +1007,7 @@ impl ComHub {
             .get(socket_uuid)
             .map(|socket| socket.0.clone())
             .unwrap_or_else(|| {
-                panic!("Socket for uuid {socket_uuid} not found")
+                core::panic!("Socket for uuid {socket_uuid} not found")
             })
     }
 
@@ -1022,7 +1022,7 @@ impl ComHub {
             .borrow()
             .get(interface_uuid)
             .unwrap_or_else(|| {
-                panic!("Interface for uuid {interface_uuid} not found")
+                core::panic!("Interface for uuid {interface_uuid} not found")
             })
             .0
             .clone()
@@ -1146,7 +1146,7 @@ impl ComHub {
 
             // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
-                todo!("#186 Undescribed by author.")
+                core::todo!("#186 Undescribed by author.")
             }
         }
     }

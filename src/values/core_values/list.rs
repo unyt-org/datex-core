@@ -3,7 +3,8 @@ use crate::values::{
     core_value::CoreValue,
     value_container::{ValueContainer, ValueError},
 };
-use crate::stdlib::{fmt, ops::Index};
+use crate::stdlib::{ops::Index};
+use core::fmt::Display;
 
 use crate::traits::structural_eq::StructuralEq;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
@@ -92,8 +93,8 @@ impl StructuralEq for List {
     }
 }
 
-impl fmt::Display for List {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for List {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
             if i > 0 {

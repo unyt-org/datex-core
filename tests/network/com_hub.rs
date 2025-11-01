@@ -51,7 +51,7 @@ pub async fn test_add_and_remove() {
             )
             .await
             .unwrap_or_else(|e| {
-                panic!("Error adding interface: {e:?}");
+                core::panic!("Error adding interface: {e:?}");
             });
         uuid
     };
@@ -74,7 +74,7 @@ pub async fn test_multiple_add() {
         )
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
     com_hub
         .open_and_add_interface(
@@ -83,7 +83,7 @@ pub async fn test_multiple_add() {
         )
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     assert!(

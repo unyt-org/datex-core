@@ -8,7 +8,8 @@ use crate::utils::{time::Time, uuid::UUID};
 use crate::serde::deserializer::from_value_container;
 use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
-use crate::{stdlib::fmt::Display, values::core_values::endpoint::Endpoint};
+use crate::{values::core_values::endpoint::Endpoint};
+use core::fmt::Display;
 use crate::{
     stdlib::{
         cell::RefCell,
@@ -339,7 +340,7 @@ where
             }
             Err(e) => {
                 error!("Failed to deserialize setup data: {e}");
-                panic!("Invalid setup data for com interface factory")
+                core::panic!("Invalid setup data for com interface factory")
             }
         }
     }
@@ -392,7 +393,7 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
                 if !has_been_send {
                     debug!("Failed to send block");
                     socket_ref.lock().unwrap().send_queue.push_back(block);
-                    panic!("Failed to send block");
+                    core::panic!("Failed to send block");
                 }
             });
         }
@@ -487,7 +488,7 @@ pub trait ComInterface: Any {
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         if self.get_state().is_destroyed() {
-            panic!(
+            core::panic!(
                 "Interface {} is already destroyed. Not destroying again.",
                 self.get_uuid()
             );

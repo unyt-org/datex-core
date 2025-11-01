@@ -258,7 +258,7 @@ impl Endpoint {
     /// Panics if the name is invalid
     pub fn new(name: &str) -> Endpoint {
         Endpoint::from_string(name).unwrap_or_else(|_| {
-            panic!("Failed to convert str {name} to Endpoint")
+            core::panic!("Failed to convert str {name} to Endpoint")
         })
     }
 
@@ -426,7 +426,7 @@ impl Endpoint {
             return buffer;
         }
         // if all bytes are 0, we panic - this should not happen under normal circumstances
-        panic!("Could not generate random anonymous id");
+        core::panic!("Could not generate random anonymous id");
     }
 
     fn are_name_chars_valid(name: [u8; 18]) -> bool {

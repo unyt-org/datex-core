@@ -137,7 +137,7 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
 pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
     let id = id.into();
     if !has_core_lib_type(id.clone()) {
-        panic!("Core lib type not found: {:?}", id);
+        core::panic!("Core lib type not found: {:?}", id);
     }
     CORE_LIB_TYPES.with(|core| core.get(&id).unwrap().clone())
 }
@@ -148,7 +148,7 @@ pub fn get_core_lib_type_reference(
     let type_container = get_core_lib_type(id);
     match type_container {
         TypeContainer::TypeReference(tr) => tr,
-        _ => panic!("Core lib type is not a TypeReference"),
+        _ => core::panic!("Core lib type is not a TypeReference"),
     }
 }
 
@@ -176,7 +176,7 @@ pub fn load_core_lib(memory: &mut Memory) {
                     memory.register_reference(&reference);
                     (name, ValueContainer::Reference(reference))
                 }
-                _ => panic!("Core lib type is not a TypeReference"),
+                _ => core::panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
 
@@ -301,7 +301,7 @@ fn create_core_type(
     let base_type_ref = match base_type {
         Some(TypeContainer::TypeReference(reference)) => Some(reference),
         Some(TypeContainer::Type(_)) => {
-            panic!("Base type must be a TypeReference")
+            core::panic!("Base type must be a TypeReference")
         }
         None => None,
     };

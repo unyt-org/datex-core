@@ -106,7 +106,7 @@ impl From<&BitwiseOperator> for InstructionCode {
             BitwiseOperator::Or => InstructionCode::OR,
             BitwiseOperator::Not => InstructionCode::NOT,
             _ => {
-                todo!(
+                core::todo!(
                     "Bitwise operator {:?} not implemented for InstructionCode",
                     op
                 )
@@ -188,7 +188,7 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::UNION => {
                 BinaryOperator::Bitwise(BitwiseOperator::And)
             }
-            _ => todo!("#154 Binary operator for {:?} not implemented", code),
+            _ => core::todo!("#154 Binary operator for {:?} not implemented", code),
         }
     }
 }
@@ -215,7 +215,7 @@ impl From<&Instruction> for BinaryOperator {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
             }
             _ => {
-                todo!(
+                core::todo!(
                     "#155 Binary operator for instruction {:?} not implemented",
                     instruction
                 );

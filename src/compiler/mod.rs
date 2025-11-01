@@ -841,7 +841,7 @@ fn compile_expression(
                         InstructionCode::from(&operator),
                     );
                 }
-                op => todo!("#436 Handle assignment operator: {op:?}"),
+                op => core::todo!("#436 Handle assignment operator: {op:?}"),
             }
 
             compilation_context.insert_virtual_slot_address(virtual_slot);

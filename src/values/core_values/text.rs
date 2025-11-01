@@ -1,9 +1,9 @@
 use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::{
-    fmt::Display,
     ops::{Add, AddAssign},
 };
+use core::fmt::Display;
 
 use super::super::core_value_trait::CoreValueTrait;
 

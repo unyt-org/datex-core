@@ -137,7 +137,7 @@ impl RuntimeInternal {
 
             self_rc.com_hub.send_own_block(block)
         } else {
-            todo!("#233 Handle returning error response block");
+            core::todo!("#233 Handle returning error response block");
         }
     }
 }

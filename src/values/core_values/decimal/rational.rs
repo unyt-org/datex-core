@@ -72,7 +72,7 @@ impl Rational {
     }
     pub(crate) fn new(numerator: BigInt, denominator: BigInt) -> Self {
         if denominator.is_zero() {
-            panic!("Denominator cannot be zero");
+            core::panic!("Denominator cannot be zero");
         }
         let big_rational = BigRational::new(numerator, denominator);
         Rational { big_rational }

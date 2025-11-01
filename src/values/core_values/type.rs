@@ -165,13 +165,13 @@ impl Type {
                 value.get_core_lib_type_pointer_id(),
             ),
             TypeDefinition::Union(_) => {
-                todo!("#322 handle union base type"); // generic type base type / type
+                core::todo!("#322 handle union base type"); // generic type base type / type
             }
             TypeDefinition::Reference(reference) => {
-                todo!("#323 handle reference base type");
+                core::todo!("#323 handle reference base type");
                 // return reference.collapse_to_value().borrow()
             }
-            _ => panic!("Unhandled type definition for base type"),
+            _ => core::panic!("Unhandled type definition for base type"),
         })
     }
 
@@ -225,7 +225,7 @@ impl Type {
         false
     }
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        todo!("#326 implement type reference matching");
+        core::todo!("#326 implement type reference matching");
         // self.type_matches(&other.type_value)
     }
 
@@ -256,7 +256,7 @@ impl Type {
                 structural_type.value_matches(value)
             }
             TypeDefinition::Reference(reference) => {
-                todo!("#327 handle reference type matching");
+                core::todo!("#327 handle reference type matching");
                 //reference.value_matches(value)
             }
             TypeDefinition::Type(inner_type) => {
@@ -267,10 +267,10 @@ impl Type {
                 parameters,
                 return_type,
             } => {
-                todo!("#328 handle function type matching");
+                core::todo!("#328 handle function type matching");
             }
             TypeDefinition::Collection(collection_type) => {
-                todo!("#329 handle collection type matching");
+                core::todo!("#329 handle collection type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
             TypeDefinition::Never => false,

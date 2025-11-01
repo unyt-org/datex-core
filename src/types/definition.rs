@@ -7,9 +7,9 @@ use crate::{
     },
 };
 use datex_core::references::type_reference::TypeReference;
-use crate::stdlib::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
+use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
 use crate::values::core_values::r#type::Type;
-
+use core::fmt::Display;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
     // { x: integer, y: text }

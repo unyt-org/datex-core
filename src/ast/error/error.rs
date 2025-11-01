@@ -1,5 +1,5 @@
 use core::panic;
-use crate::stdlib::{collections::HashSet, io::Write, ops::Range};
+use crate::stdlib::{collections::HashSet, io::Write, ops::Range, format};
 
 use crate::{
     ast::{
@@ -372,7 +372,7 @@ impl<'a>
             return ParseError::new_unexpected_end(span.start.into());
         }
         if span.end - span.start > 1 {
-            panic!("Span too large: {:?}", span);
+            core::panic!("Span too large: {:?}", span);
         }
 
         ParseError {

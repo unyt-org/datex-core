@@ -108,7 +108,7 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     // try to parse JSON, if failed, panic
     let parsed_json = json_syntax::Value::parse_str(&decompiled);
     if parsed_json.is_err() {
-        panic!("Decompiled JSON is not valid: {decompiled}");
+        core::panic!("Decompiled JSON is not valid: {decompiled}");
     }
     decompiled
 }

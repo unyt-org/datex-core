@@ -156,7 +156,7 @@ impl DIFInterface for RuntimeInternal {
         let reference = self.resolve_in_memory_reference(&address);
         match reference {
             Some(ptr) => Ok(DIFReference::from_reference(&ptr, &self.memory)),
-            None => todo!("#399 Implement async resolution of references"),
+            None => core::todo!("#399 Implement async resolution of references"),
         }
     }
 
@@ -176,7 +176,7 @@ impl DIFInterface for RuntimeInternal {
         callee: DIFValueContainer,
         value: DIFValueContainer,
     ) -> Result<DIFValueContainer, DIFApplyError> {
-        todo!("#400 Undescribed by author.")
+        core::todo!("#400 Undescribed by author.")
     }
 
     fn create_pointer(
@@ -187,7 +187,7 @@ impl DIFInterface for RuntimeInternal {
     ) -> Result<PointerAddress, DIFCreatePointerError> {
         let container = value.to_value_container(&self.memory)?;
         let type_container = if let Some(allowed_type) = &allowed_type {
-            todo!(
+            core::todo!(
                 "FIXME: Implement type_container creation from DIFTypeContainer"
             )
         } else {

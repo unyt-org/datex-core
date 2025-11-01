@@ -371,7 +371,7 @@ mod tests {
                     let cache = ariadne::sources(vec![(src_id, src)]);
                     e.clone().write(cache, io::stdout());
                 });
-                panic!("Parsing errors found");
+                core::panic!("Parsing errors found");
             }
             DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast,
         }
@@ -412,7 +412,7 @@ mod tests {
     fn parse_to_value_container(src: &str) -> ValueContainer {
         let expr = parse_unwrap_data(src);
         ValueContainer::try_from(&expr).unwrap_or_else(|_| {
-            panic!("Failed to convert expression to ValueContainer")
+            core::panic!("Failed to convert expression to ValueContainer")
         })
     }
 
@@ -521,7 +521,7 @@ mod tests {
                 }
             );
         } else {
-            panic!("Expected VariableDeclaration");
+            core::panic!("Expected VariableDeclaration");
         }
     }
 
@@ -4159,7 +4159,7 @@ mod tests {
             assert_eq!(right.span.start, 2);
             assert_eq!(right.span.end, 3);
         } else {
-            panic!("Expected BinaryOperation");
+            core::panic!("Expected BinaryOperation");
         }
     }
 }

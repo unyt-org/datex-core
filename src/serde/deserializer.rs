@@ -154,7 +154,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::Big(i) => {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
-                    e => todo!("#393 Unsupported typed integer: {:?}", e),
+                    e => core::todo!("#393 Unsupported typed integer: {:?}", e),
                 },
                 CoreValue::Integer(i) => {
                     if let Some(v) = i.as_i8() {
@@ -169,7 +169,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
-                CoreValue::Decimal(d) => todo!("#394 Unsupported decimal: {:?}", d),
+                CoreValue::Decimal(d) => core::todo!("#394 Unsupported decimal: {:?}", d),
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
                     TypedDecimal::F64(v) => visitor.visit_f64(v.0),

@@ -277,7 +277,7 @@ pub fn infer_expression_type_inner(
             let reference = match &type_def {
                 TypeContainer::TypeReference(r) => r.clone(),
                 _ => {
-                    panic!("TypeDeclaration var_type should be a TypeReference")
+                    core::panic!("TypeDeclaration var_type should be a TypeReference")
                 }
             };
 
@@ -416,7 +416,7 @@ pub fn infer_expression_type_inner(
                     }
                     value_type
                 }
-                op => todo!("#448 handle other assignment operators: {:?}", op),
+                op => core::todo!("#448 handle other assignment operators: {:?}", op),
             }
         }
         DatexExpressionData::Statements(statements) => {
@@ -549,7 +549,7 @@ fn resolve_type_expression_type(
                         .unwrap(),
                 )
             } else {
-                panic!("GetReference not supported yet")
+                core::panic!("GetReference not supported yet")
             }
         }
         TypeExpressionData::Union(members) => {
@@ -580,7 +580,7 @@ fn resolve_type_expression_type(
                 .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Type::intersection(member_types).as_type_container()
         }
-        _ => panic!(
+        _ => core::panic!(
             "Type inference not implemented for type expression: {:?}",
             ast
         ),
@@ -633,7 +633,7 @@ fn infer_binary_expression_type(
             }
         }
 
-        _ => todo!("#450 Undescribed by author."),
+        _ => core::todo!("#450 Undescribed by author."),
     }
 }
 
@@ -690,7 +690,7 @@ mod tests {
                 errors,
                 ..
             }) => {
-                panic!("Parsing failed: {:?}", errors)
+                core::panic!("Parsing failed: {:?}", errors)
             }
             DatexParseResult::Valid(valid_parse_result) => {
                 precompile_ast_simple_error(
@@ -794,7 +794,7 @@ mod tests {
             // assert_eq!(var_type.borrow().pointer_address, Some(CoreLibPointerId::Integer(None).into()));
         }
         else {
-            panic!("Not a TypeReference")
+            core::panic!("Not a TypeReference")
         }
     }
 

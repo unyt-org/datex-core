@@ -434,7 +434,7 @@ impl Reference {
     /// Panics if the reference already has a pointer address.
     pub fn set_pointer_address(&self, pointer_address: PointerAddress) {
         if self.pointer_address().is_some() {
-            panic!(
+            core::panic!(
                 "Cannot set pointer address on reference that already has one"
             );
         }
@@ -667,7 +667,7 @@ impl Reference {
     pub fn allowed_type(&self) -> TypeContainer {
         match self {
             Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
-            Reference::TypeReference(_) => todo!("#293 type Type"),
+            Reference::TypeReference(_) => core::todo!("#293 type Type"),
         }
     }
 
@@ -680,7 +680,7 @@ impl Reference {
                 .borrow()
                 .actual_type()
                 .clone(),
-            Reference::TypeReference(tr) => todo!("#294 type Type"),
+            Reference::TypeReference(tr) => core::todo!("#294 type Type"),
         }
     }
 
@@ -822,7 +822,7 @@ impl Apply for Reference {
         &self,
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        todo!("#297 Undescribed by author.")
+        core::todo!("#297 Undescribed by author.")
     }
 
     fn apply_single(
@@ -831,7 +831,7 @@ impl Apply for Reference {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => todo!("#298 Undescribed by author."),
+            Reference::ValueReference(vr) => core::todo!("#298 Undescribed by author."),
         }
     }
 }

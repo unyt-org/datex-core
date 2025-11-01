@@ -12,11 +12,11 @@ use crate::stdlib::hash::Hash;
 use core::num::ParseFloatError;
 use core::ops::Neg;
 use crate::stdlib::{
-    fmt::Display,
     ops::{Add, AddAssign, Sub},
 };
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
+use core::fmt::Display;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).

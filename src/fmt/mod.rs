@@ -171,8 +171,8 @@ impl<'a> Formatter<'a> {
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpressionData::FixedSizeList(list) => todo!(),
-            TypeExpressionData::SliceList(_) => todo!(),
+            TypeExpressionData::FixedSizeList(list) => core::todo!(),
+            TypeExpressionData::SliceList(_) => core::todo!(),
 
             // Intersection: `A & B & C`
             TypeExpressionData::Intersection(items) => {
@@ -185,7 +185,7 @@ impl<'a> Formatter<'a> {
             }
 
             TypeExpressionData::GenericAccess(access) => {
-                todo!()
+                core::todo!()
             }
 
             // Function type: `(x: Int, y: Text) -> Bool`

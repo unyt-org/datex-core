@@ -1,5 +1,5 @@
-use crate::stdlib::{cell::RefCell, fmt::Display, rc::Rc};
-
+use crate::stdlib::{cell::RefCell, rc::Rc};
+use core::fmt::Display;
 use crate::{
     ast::structs::expression::{DatexExpression, VariableKind},
     types::type_container::TypeContainer,

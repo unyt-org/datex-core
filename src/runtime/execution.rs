@@ -327,7 +327,7 @@ pub async fn execute_dxb(
                         slot,
                     )?));
             }
-            _ => todo!("#99 Undescribed by author."),
+            _ => core::todo!("#99 Undescribed by author."),
         }
     }
 
@@ -1110,7 +1110,7 @@ fn iterate_type_instructions(
                         TypeContainer::Type(Type::structural(integer.0)),
                     )));
                 }
-                _ => todo!("#405 Undescribed by author."),
+                _ => core::todo!("#405 Undescribed by author."),
             }
         }
     }
@@ -1345,7 +1345,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             ..
         }) => {
             // TODO #406: Implement map collector for optimized structural maps
-            panic!("append {:?}", value);
+            core::panic!("append {:?}", value);
         }
         _ => {
             unreachable!("Unsupported collector for collection scope");
@@ -1435,7 +1435,7 @@ fn handle_unary_operation(
         UnaryOperator::Arithmetic(arithmetic) => {
             handle_unary_arithmetic_operation(arithmetic, value_container)
         }
-        _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
+        _ => core::todo!("#102 Unary instruction not implemented: {operator:?}"),
     }
 }
 
@@ -1517,7 +1517,7 @@ fn handle_arithmetic_operation(
         //     Ok((active_value_container / &value_container)?)
         // }
         _ => {
-            todo!("#408 Implement arithmetic operation for {:?}", operator);
+            core::todo!("#408 Implement arithmetic operation for {:?}", operator);
         }
     }
 }
@@ -1529,7 +1529,7 @@ fn handle_bitwise_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("#409 Implement bitwise operation for {:?}", operator);
+        core::todo!("#409 Implement bitwise operation for {:?}", operator);
     }
 }
 
@@ -1540,7 +1540,7 @@ fn handle_logical_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("#410 Implement logical operation for {:?}", operator);
+        core::todo!("#410 Implement logical operation for {:?}", operator);
     }
 }
 
@@ -1592,7 +1592,7 @@ mod tests {
             ExecutionOptions { verbose: true },
         );
         execute_dxb_sync(context).unwrap_or_else(|err| {
-            panic!("Execution failed: {err}");
+            core::panic!("Execution failed: {err}");
         })
     }
 

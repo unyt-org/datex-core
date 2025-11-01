@@ -286,7 +286,7 @@ impl ExecutionContext {
             }) => (local_execution_context, execution_options, *verbose),
             // remote execution is not supported directly in execution context
             ExecutionContext::Remote(_) => {
-                panic!("Remote execution requires a Runtime");
+                core::panic!("Remote execution requires a Runtime");
             }
         };
 
@@ -341,7 +341,7 @@ impl ExecutionContext {
             }
             // remote execution is not supported directly in execution context
             ExecutionContext::Remote { .. } => {
-                panic!("Remote execution requires a Runtime");
+                core::panic!("Remote execution requires a Runtime");
             }
         }
     }

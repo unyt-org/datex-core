@@ -123,7 +123,7 @@ impl DIFValueRepresentation {
                 }
             }
             _ => {
-                todo!("#388 Other DIFRepresentationValue variants not supported yet")
+                core::todo!("#388 Other DIFRepresentationValue variants not supported yet")
             }
         })
     }
@@ -161,13 +161,13 @@ impl DIFValueRepresentation {
                         _ => self.to_default_value(memory)?,
                     }
                 } else {
-                    todo!("#389 Handle non-core library type references")
+                    core::todo!("#389 Handle non-core library type references")
                 }
             }
             DIFTypeContainer::Type(dif_type) => {
                 match &dif_type.type_definition {
                     DIFTypeDefinition::Structural(s) => {
-                        todo!("#390 Structural type conversion not supported yet")
+                        core::todo!("#390 Structural type conversion not supported yet")
                     }
                     DIFTypeDefinition::Unit => Value {
                         actual_type: Box::new(get_core_lib_type(
@@ -175,7 +175,7 @@ impl DIFValueRepresentation {
                         )),
                         inner: CoreValue::Null,
                     },
-                    _ => todo!("#391 Other type definitions not supported yet"),
+                    _ => core::todo!("#391 Other type definitions not supported yet"),
                 }
             }
         })

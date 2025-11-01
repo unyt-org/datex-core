@@ -284,7 +284,7 @@ impl Token {
             Token::Matches => "matches",
             Token::If => "if",
             Token::Else => "else",
-            e => todo!("#367 Unhandled token in as_string: {:?}", e),
+            e => core::todo!("#367 Unhandled token in as_string: {:?}", e),
         };
 
         identifier_token.to_string()
@@ -369,7 +369,7 @@ mod tests {
             assert_eq!(literal.variant, Some(IntegerTypeVariant::U8));
             assert_eq!(format!("{}", literal), "42u8".to_string());
         } else {
-            panic!("Expected DecimalIntegerLiteral with variant U8");
+            core::panic!("Expected DecimalIntegerLiteral with variant U8");
         }
 
         let mut lexer = Token::lexer("42");
@@ -379,7 +379,7 @@ mod tests {
             assert_eq!(literal.variant, None);
             assert_eq!(format!("{}", literal), "42".to_string());
         } else {
-            panic!("Expected DecimalIntegerLiteral with no variant");
+            core::panic!("Expected DecimalIntegerLiteral with no variant");
         }
     }
 

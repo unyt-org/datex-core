@@ -37,14 +37,14 @@ pub async fn test_construct() {
 
     let mut server = TCPServerNativeInterface::new(PORT).unwrap();
     server.open().await.unwrap_or_else(|e| {
-        panic!("Failed to create TCPServerInterface: {e:?}");
+        core::panic!("Failed to create TCPServerInterface: {e:?}");
     });
 
     let mut client =
         TCPClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
             .unwrap();
     client.open().await.unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketClientInterface: {e}");
+        core::panic!("Failed to create WebSocketClientInterface: {e}");
     });
     let client_uuid = client.get_socket_uuid().unwrap();
 

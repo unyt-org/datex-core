@@ -51,7 +51,7 @@ pub fn append_value_container(buffer: &mut Vec<u8>, value_container: &ValueConta
 pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
     match &value.inner {
         CoreValue::Type(ty) => {
-            todo!("#439 Type value not supported in CompilationContext");
+            core::todo!("#439 Type value not supported in CompilationContext");
         }
         CoreValue::Integer(integer) => {
             let integer = integer.to_smallest_fitting();

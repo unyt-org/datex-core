@@ -427,7 +427,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Self::Error> {
-        todo!("#134 Undescribed by author.")
+        core::todo!("#134 Undescribed by author.")
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {

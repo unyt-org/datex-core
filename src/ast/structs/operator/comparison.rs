@@ -51,7 +51,7 @@ impl From<&ComparisonOperator> for InstructionCode {
             ComparisonOperator::NotEqual => InstructionCode::NOT_EQUAL,
             ComparisonOperator::Is => InstructionCode::IS,
             ComparisonOperator::Matches => InstructionCode::MATCHES,
-            operator => todo!(
+            operator => core::todo!(
                 "Comparison operator {:?} not implemented for InstructionCode",
                 operator
             ),
@@ -76,7 +76,7 @@ impl From<&Instruction> for ComparisonOperator {
             Instruction::Is => ComparisonOperator::Is,
             Instruction::Matches => ComparisonOperator::Matches,
             _ => {
-                todo!(
+                core::todo!(
                     "Comparison operator for instruction {:?} not implemented",
                     instruction
                 );

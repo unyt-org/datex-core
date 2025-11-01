@@ -37,7 +37,7 @@ enum Signal {
 ///         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 ///         spawn_with_panic_notify(async {
 ///             // Simulate a panic
-///             panic!("This is a test panic");
+///             core::panic!("This is a test panic");
 ///        });
 ///     }
 /// }
@@ -85,7 +85,7 @@ pub fn init_panic_notify() {
             if channel.is_none() {
                 *channel = Some((Some(RefCell::new(tx)), Some(rx)));
             } else {
-                panic!("Panic channel already initialized");
+                core::panic!("Panic channel already initialized");
             }
         })
         .expect("Failed to initialize panic channel");
@@ -100,7 +100,7 @@ pub async fn close_panic_notify() {
             if let Some((tx, _)) = &mut *channel {
                 tx.take()
             } else {
-                panic!("Panic channel not initialized");
+                core::panic!("Panic channel not initialized");
             }
         })
         .expect("Failed to access panic channel")
@@ -119,7 +119,7 @@ pub async fn unwind_local_spawn_panics() {
             if let Some((_, rx)) = &mut *channel {
                 rx.take()
             } else {
-                panic!("Panic channel not initialized");
+                core::panic!("Panic channel not initialized");
             }
         })
         .expect("Failed to access panic channel");
@@ -128,7 +128,7 @@ pub async fn unwind_local_spawn_panics() {
         match panic_msg {
             Signal::Exit => {}
             Signal::Panic(panic_msg) => {
-                panic!("Panic in local spawn: {panic_msg}");
+                core::panic!("Panic in local spawn: {panic_msg}");
             }
         }
     }
@@ -143,7 +143,7 @@ async fn send_panic(panic: String) {
             if let Some((tx, _)) = &*channel {
                 tx.clone().expect("Panic channel not initialized")
             } else {
-                panic!("Panic channel not initialized");
+                core::panic!("Panic channel not initialized");
             }
         })
         .expect("Failed to access panic channel")
@@ -243,7 +243,7 @@ cfg_if! {
         where
             F: core::future::Future + 'static,
         {
-            panic!("`spawn_blocking` is not supported in the wasm runtime.");
+            core::panic!("`spawn_blocking` is not supported in the wasm runtime.");
         }
     } else {
         compile_error!("Unsupported runtime. Please enable either 'tokio_runtime' or 'wasm_runtime' feature.");

@@ -686,7 +686,7 @@ mod tests {
                 let cache = ariadne::sources(vec![(src_id, src)]);
                 e.clone().write(cache, io::stdout());
             });
-            panic!("Parsing errors found");
+            core::panic!("Parsing errors found");
         }
         res.unwrap().ast
     }
@@ -862,7 +862,7 @@ mod tests {
         {
             stmts
         } else {
-            panic!("Expected statements");
+            core::panic!("Expected statements");
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),
@@ -897,7 +897,7 @@ mod tests {
         {
             stmts
         } else {
-            panic!("Expected statements");
+            core::panic!("Expected statements");
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),

@@ -3,7 +3,8 @@ use crate::references::{
     reference::Reference, value_reference::ValueReference,
 };
 use serde::{Deserialize, Serialize};
-use crate::stdlib::{cell::RefCell, fmt::Display, rc::Rc};
+use crate::stdlib::{cell::RefCell, rc::Rc};
+use core::fmt::Display;
 
 #[derive(Debug)]
 pub enum ObserverError {

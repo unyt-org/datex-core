@@ -77,7 +77,7 @@ impl From<ParseError> for SpannedCompilerError {
         SpannedCompilerError {
             span: match &value.span {
                 SpanOrToken::Span(range) => Some(range.clone()),
-                _ => panic!("expected byte range, got token span"),
+                _ => core::panic!("expected byte range, got token span"),
             },
             error: CompilerError::ParseError(value),
         }

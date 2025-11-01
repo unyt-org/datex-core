@@ -218,7 +218,7 @@ impl ValueContainer {
     pub fn reference_unchecked(&self) -> &Reference {
         match self {
             ValueContainer::Reference(reference) => reference,
-            _ => panic!("Cannot convert ValueContainer to Reference"),
+            _ => core::panic!("Cannot convert ValueContainer to Reference"),
         }
     }
 
@@ -247,7 +247,7 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => todo!("#309 implement apply for Value"),
+            ValueContainer::Value(value) => core::todo!("#309 implement apply for Value"),
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
@@ -258,7 +258,7 @@ impl Apply for ValueContainer {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => {
-                todo!("#310 implement apply_single for Value")
+                core::todo!("#310 implement apply_single for Value")
             }
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }

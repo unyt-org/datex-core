@@ -138,7 +138,7 @@ impl DIFValue {
         let core_value = &value.inner;
 
         let dif_core_value = match core_value {
-            CoreValue::Type(ty) => todo!("#382 Type value not supported in DIF"),
+            CoreValue::Type(ty) => core::todo!("#382 Type value not supported in DIF"),
             CoreValue::Null => DIFValueRepresentation::Null,
             CoreValue::Boolean(bool) => DIFValueRepresentation::Boolean(bool.0),
             CoreValue::Integer(integer) => {
@@ -344,7 +344,7 @@ mod tests {
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U16)).into()
             );
         } else {
-            panic!("Expected reference type");
+            core::panic!("Expected reference type");
         }
 
         let dif = DIFValue::from_value(&Value::from(123i64), &memory);
@@ -355,7 +355,7 @@ mod tests {
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::I64)).into()
             );
         } else {
-            panic!("Expected reference type");
+            core::panic!("Expected reference type");
         }
     }
 

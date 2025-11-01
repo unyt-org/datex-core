@@ -1,6 +1,5 @@
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use crate::stdlib::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
-
 #[cfg(feature = "debug")]
 #[derive(Clone, Debug)]
 pub struct DebugFlags {
@@ -62,7 +61,7 @@ pub fn set_global_context(c: GlobalContext) {
 pub(crate) fn get_global_context() -> GlobalContext {
     match GLOBAL_CONTEXT.with(|c| c.borrow().clone()) {
         Some(c) => c,
-        None => panic!(
+        None => core::panic!(
             "Global context not initialized - call set_global_context first!"
         ),
     }

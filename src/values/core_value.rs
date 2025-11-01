@@ -484,7 +484,7 @@ impl Add for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("#317 TypedInteger + Integer not implemented yet");
+                    core::todo!("#317 TypedInteger + Integer not implemented yet");
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() + rhs.clone()))
                 }
                 CoreValue::Decimal(_) => {
@@ -608,7 +608,7 @@ impl Sub for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("#318 TypedInteger - Integer not implemented yet");
+                    core::todo!("#318 TypedInteger - Integer not implemented yet");
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() - rhs.clone()))
                 }
                 //     Ok(CoreValue::TypedInteger(
@@ -693,7 +693,7 @@ impl AddAssign<CoreValue> for CoreValue {
         if let Ok(value) = res {
             *self = value;
         } else {
-            panic!("Failed to add value: {res:?}");
+            core::panic!("Failed to add value: {res:?}");
         }
     }
 }

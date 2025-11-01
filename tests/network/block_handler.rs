@@ -66,7 +66,7 @@ async fn receive_single_block() {
                 info!("section: {section:?}");
                 assert_eq!(block.get_endpoint_context_id(), block_endpoint_context_id);
             }
-            _ => panic!("Expected a SingleBlock section"),
+            _ => core::panic!("Expected a SingleBlock section"),
         }
     }
 }
@@ -143,7 +143,7 @@ async fn receive_multiple_blocks() {
                 // blocks queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 2. Send second block
@@ -164,7 +164,7 @@ async fn receive_multiple_blocks() {
                 // blocks queue length must be 2 (was not yet drained)
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -263,7 +263,7 @@ async fn receive_multiple_blocks_wrong_order() {
                 let block = blocks.get(1).unwrap();
                 assert_eq!(block.block_header.block_number, 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -371,7 +371,7 @@ async fn receive_multiple_sections() {
                 // block queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 2. Send second block
@@ -396,7 +396,7 @@ async fn receive_multiple_sections() {
                 // blocks queue length must be 1
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 3. Send third block
@@ -418,7 +418,7 @@ async fn receive_multiple_sections() {
                 // block queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 4. Send fourth block
@@ -442,7 +442,7 @@ async fn receive_multiple_sections() {
                 // blocks queue length must be 1
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -506,7 +506,7 @@ async fn await_response_block() {
         //         assert_eq!(block.block_header.scope_id, scope_id);
         //         assert_eq!(block.block_header.section_index, section_index);
         //     }
-        //     _ => panic!("Expected a SingleBlock section"),
+        //     _ => core::panic!("Expected a SingleBlock section"),
         // }
 
     }
