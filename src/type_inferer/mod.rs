@@ -1,7 +1,10 @@
 use std::{cell::RefCell, ops::Range, rc::Rc};
 
 use crate::{
-    ast::structs::expression::{DatexExpression, Map},
+    ast::structs::{
+        expression::{DatexExpression, Map, VariableDeclaration},
+        r#type::TypeExpression,
+    },
     precompiler::precompiled_ast::{AstMetadata, RichAst},
     type_inferer::{
         error::{
@@ -87,14 +90,14 @@ impl TypeInferer {
         &mut self,
         ast: &mut DatexExpression,
         options: InferExpressionTypeOptions,
-    ) -> Result<(), SimpleOrDetailedTypeError> {
+    ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
         let collected_errors = &mut if options.detailed_errors {
             Some(DetailedTypeErrors { errors: vec![] })
         } else {
             None
         };
 
-        let result = self.visit_datex_expression(ast);
+        let result = self.infer_expression(ast);
         if let Some(collected_errors) = collected_errors.take()
             && collected_errors.has_errors()
         {
@@ -102,6 +105,20 @@ impl TypeInferer {
         } else {
             result.map_err(SimpleOrDetailedTypeError::from)
         }
+    }
+    fn infer_expression(
+        &mut self,
+        expr: &mut DatexExpression,
+    ) -> Result<TypeContainer, SpannedTypeError> {
+        self.visit_datex_expression(expr)?;
+        Ok(expr.r#type.clone().unwrap_or(TypeContainer::never()))
+    }
+    fn infer_type_expression(
+        &mut self,
+        type_expr: &mut TypeExpression,
+    ) -> Result<TypeContainer, SpannedTypeError> {
+        self.visit_type_expression(type_expr)?;
+        Ok(type_expr.r#type.clone().unwrap_or(TypeContainer::never()))
     }
 }
 
@@ -245,6 +262,23 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
             endpoint.clone(),
         ))
     }
+    fn visit_variable_declaration(
+        &mut self,
+        variable_declaration: &mut VariableDeclaration,
+        _: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let inner =
+            self.infer_expression(&mut variable_declaration.init_expression)?;
+
+        if let Some(specific) = &mut variable_declaration.type_annotation {
+            // FIXME check if matches
+            Ok(VisitAction::SetTypeAnnotation(
+                self.infer_type_expression(specific)?,
+            ))
+        } else {
+            Ok(VisitAction::SetTypeAnnotation(inner))
+        }
+    }
     // fn visit_map(
     //     &mut self,
     //     map: &mut Map,
@@ -290,9 +324,19 @@ mod tests {
 
     #[test]
     fn infer_simple_integer() {
-        let ast = infer_get_first_type("42");
+        let inferred = infer_get_first_type("42");
         assert_eq!(
-            ast,
+            inferred,
+            Type::structural(StructuralTypeDefinition::Integer(42.into()))
+                .as_type_container()
+        );
+    }
+
+    #[test]
+    fn var_declaration() {
+        let inferred = infer_get_first_type("var x = 42");
+        assert_eq!(
+            inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
                 .as_type_container()
         );
