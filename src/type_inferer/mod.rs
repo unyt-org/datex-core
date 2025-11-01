@@ -265,6 +265,11 @@ mod tests {
             scope_stack::PrecompilerScopeStack,
         },
         type_inferer::infer_expression_type_simple_error,
+        types::{
+            structural_type_definition::StructuralTypeDefinition,
+            type_container::TypeContainer,
+        },
+        values::core_values::r#type::Type,
     };
 
     fn infer(src: &str) -> RichAst {
@@ -276,11 +281,20 @@ mod tests {
                 .expect("Precompilation failed");
         infer_expression_type_simple_error(&mut res)
             .expect("Type inference failed");
-        return res;
+        res
+    }
+    fn infer_get_first_type(src: &str) -> TypeContainer {
+        let rich_ast = infer(src);
+        rich_ast.ast.r#type.clone().expect("No type inferred")
     }
 
     #[test]
     fn infer_simple_integer() {
-        infer("42");
+        let ast = infer_get_first_type("42");
+        assert_eq!(
+            ast,
+            Type::structural(StructuralTypeDefinition::Integer(42.into()))
+                .as_type_container()
+        );
     }
 }
