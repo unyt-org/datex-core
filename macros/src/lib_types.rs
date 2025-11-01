@@ -19,7 +19,7 @@ pub fn derive_lib_type_string(input: DeriveInput) -> TokenStream {
         if fields.is_empty() {
             // Simple variant
             to_str_arms.push(quote! {
-                #name::#ident => write!(f, "{}", #var_name),
+                #name::#ident => core::write!(f, "{}", #var_name),
             });
             from_str_arms.push(quote! {
                 #var_name => Ok(#name::#ident),
@@ -27,10 +27,10 @@ pub fn derive_lib_type_string(input: DeriveInput) -> TokenStream {
         } else {
             // Variant with data, e.g. Integer(Option<IntegerTypeVariant>)
             to_str_arms.push(quote! {
-                #name::#ident(Some(inner)) => write!(f, "{}/{}", #var_name, inner.to_string().to_lowercase()),
+                #name::#ident(Some(inner)) => core::write!(f, "{}/{}", #var_name, inner.to_string().to_lowercase()),
             });
             to_str_arms.push(quote! {
-                #name::#ident(None) => write!(f, "{}", #var_name),
+                #name::#ident(None) => core::write!(f, "{}", #var_name),
             });
             from_str_arms.push(quote! {
                 s if s.starts_with(concat!(#var_name, "/")) => {

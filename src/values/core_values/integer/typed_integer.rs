@@ -449,17 +449,17 @@ impl TypedInteger {
 impl Display for TypedInteger {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            TypedInteger::I8(v) => write!(f, "{v}"),
-            TypedInteger::I16(v) => write!(f, "{v}"),
-            TypedInteger::I32(v) => write!(f, "{v}"),
-            TypedInteger::I64(v) => write!(f, "{v}"),
-            TypedInteger::I128(v) => write!(f, "{v}"),
-            TypedInteger::U8(v) => write!(f, "{v}"),
-            TypedInteger::U16(v) => write!(f, "{v}"),
-            TypedInteger::U32(v) => write!(f, "{v}"),
-            TypedInteger::U64(v) => write!(f, "{v}"),
-            TypedInteger::U128(v) => write!(f, "{v}"),
-            TypedInteger::Big(v) => write!(f, "{v}"),
+            TypedInteger::I8(v) => core::write!(f, "{v}"),
+            TypedInteger::I16(v) => core::write!(f, "{v}"),
+            TypedInteger::I32(v) => core::write!(f, "{v}"),
+            TypedInteger::I64(v) => core::write!(f, "{v}"),
+            TypedInteger::I128(v) => core::write!(f, "{v}"),
+            TypedInteger::U8(v) => core::write!(f, "{v}"),
+            TypedInteger::U16(v) => core::write!(f, "{v}"),
+            TypedInteger::U32(v) => core::write!(f, "{v}"),
+            TypedInteger::U64(v) => core::write!(f, "{v}"),
+            TypedInteger::U128(v) => core::write!(f, "{v}"),
+            TypedInteger::Big(v) => core::write!(f, "{v}"),
         }
     }
 }

@@ -41,10 +41,10 @@ impl Display for ScriptExecutionError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ScriptExecutionError::CompilerError(err) => {
-                write!(f, "Compiler Error: {}", err)
+                core::write!(f, "Compiler Error: {}", err)
             }
             ScriptExecutionError::ExecutionError(err) => {
-                write!(f, "Execution Error: {}", err)
+                core::write!(f, "Execution Error: {}", err)
             }
         }
     }

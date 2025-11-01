@@ -218,7 +218,7 @@ impl Sub for &Integer {
 
 impl Display for Integer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.0)
+        core::write!(f, "{}", self.0)
     }
 }
 

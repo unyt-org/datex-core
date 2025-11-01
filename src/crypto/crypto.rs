@@ -93,27 +93,27 @@ pub enum CryptoError {
 impl Display for CryptoError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            CryptoError::Other(msg) => write!(f, "CryptoError: {}", msg),
+            CryptoError::Other(msg) => core::write!(f, "CryptoError: {}", msg),
             CryptoError::KeyGeneratorFailed => {
-                write!(f, "CryptoError: Key generation failed")
+                core::write!(f, "CryptoError: Key generation failed")
             }
             CryptoError::KeyExportFailed => {
-                write!(f, "CryptoError: Key export failed")
+                core::write!(f, "CryptoError: Key export failed")
             }
             CryptoError::KeyImportFailed => {
-                write!(f, "CryptoError: Key import failed")
+                core::write!(f, "CryptoError: Key import failed")
             }
             CryptoError::EncryptionError => {
-                write!(f, "CryptoError: Encryption failed")
+                core::write!(f, "CryptoError: Encryption failed")
             }
             CryptoError::DecryptionError => {
-                write!(f, "CryptoError: Decryption failed")
+                core::write!(f, "CryptoError: Decryption failed")
             }
             CryptoError::SigningError => {
-                write!(f, "CryptoError: Signing failed")
+                core::write!(f, "CryptoError: Signing failed")
             }
             CryptoError::VerificationError => {
-                write!(f, "CryptoError: Verification failed")
+                core::write!(f, "CryptoError: Verification failed")
             }
         }
     }

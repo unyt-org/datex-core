@@ -94,14 +94,14 @@ impl StructuralEq for List {
 
 impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[")?;
+        core::write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
             if i > 0 {
-                write!(f, ", ")?;
+                core::write!(f, ", ")?;
             }
-            write!(f, "{value}")?;
+            core::write!(f, "{value}")?;
         }
-        write!(f, "]")
+        core::write!(f, "]")
     }
 }
 

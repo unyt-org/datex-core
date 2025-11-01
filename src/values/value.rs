@@ -143,7 +143,7 @@ where
 
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        write!(f, "{}", self.inner)
+        core::write!(f, "{}", self.inner)
     }
 }
 

@@ -28,10 +28,10 @@ impl Display for MapAccessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MapAccessError::KeyNotFound => {
-                write!(f, "Key not found in fixed map")
+                core::write!(f, "Key not found in fixed map")
             }
             MapAccessError::Immutable => {
-                write!(f, "Map is immutable")
+                core::write!(f, "Map is immutable")
             }
         }
     }
@@ -276,8 +276,8 @@ impl Display for MapKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             // TODO #331: escape string
-            MapKey::Text(string) => write!(f, "\"{}\"", string),
-            MapKey::Value(value) => write!(f, "{value}"),
+            MapKey::Text(string) => core::write!(f, "\"{}\"", string),
+            MapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -299,8 +299,8 @@ impl From<OwnedMapKey> for ValueContainer {
 impl Display for OwnedMapKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OwnedMapKey::Text(text) => write!(f, "{text}"),
-            OwnedMapKey::Value(value) => write!(f, "{value}"),
+            OwnedMapKey::Text(text) => core::write!(f, "{text}"),
+            OwnedMapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -481,14 +481,14 @@ impl CoreValueTrait for Map {}
 
 impl Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{")?;
+        core::write!(f, "{{")?;
         for (i, (key, value)) in self.into_iter().enumerate() {
             if i > 0 {
-                write!(f, ", ")?;
+                core::write!(f, ", ")?;
             }
-            write!(f, "{key}: {value}")?;
+            core::write!(f, "{key}: {value}")?;
         }
-        write!(f, "}}")
+        core::write!(f, "}}")
     }
 }
 

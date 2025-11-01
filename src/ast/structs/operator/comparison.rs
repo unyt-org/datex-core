@@ -19,7 +19,7 @@ pub enum ComparisonOperator {
 
 impl Display for ComparisonOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {

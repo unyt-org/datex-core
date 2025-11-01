@@ -91,15 +91,15 @@ impl Hash for TypeDefinition {
 impl Display for TypeDefinition {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeDefinition::Collection(value) => write!(f, "{}", value),
-            TypeDefinition::Structural(value) => write!(f, "{}", value),
+            TypeDefinition::Collection(value) => core::write!(f, "{}", value),
+            TypeDefinition::Structural(value) => core::write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
-                write!(f, "{}", reference.borrow())
+                core::write!(f, "{}", reference.borrow())
             }
-            TypeDefinition::Type(value) => write!(f, "{}", value),
-            TypeDefinition::Unit => write!(f, "()"),
-            TypeDefinition::Unknown => write!(f, "unknown"),
-            TypeDefinition::Never => write!(f, "never"),
+            TypeDefinition::Type(value) => core::write!(f, "{}", value),
+            TypeDefinition::Unit => core::write!(f, "()"),
+            TypeDefinition::Unknown => core::write!(f, "unknown"),
+            TypeDefinition::Never => core::write!(f, "never"),
 
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {
@@ -112,15 +112,15 @@ impl Display for TypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 if is_level_zero {
-                    write!(f, "{}", types_str.join(" | "))
+                    core::write!(f, "{}", types_str.join(" | "))
                 } else {
-                    write!(f, "({})", types_str.join(" | "))
+                    core::write!(f, "({})", types_str.join(" | "))
                 }
             }
             TypeDefinition::Intersection(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "({})", types_str.join(" & "))
+                core::write!(f, "({})", types_str.join(" & "))
             }
             TypeDefinition::Function {
                 parameters,
@@ -130,7 +130,7 @@ impl Display for TypeDefinition {
                     .iter()
                     .map(|(name, ty)| format!("{}: {}", name, ty))
                     .collect();
-                write!(f, "({}) -> {}", params_str.join(", "), return_type)
+                core::write!(f, "({}) -> {}", params_str.join(", "), return_type)
             }
         }
     }

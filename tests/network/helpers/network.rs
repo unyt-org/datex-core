@@ -93,14 +93,14 @@ impl Display for Route {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, (endpoint, channel, _fork)) in self.hops.iter().enumerate() {
             // Write the endpoint
-            write!(f, "{endpoint}")?;
+            core::write!(f, "{endpoint}")?;
 
             // If not the last, write the arrow + optional channel
             if i + 1 < self.hops.len() {
                 if let Some(chan) = channel {
-                    write!(f, " -({chan})-> ")?;
+                    core::write!(f, " -({chan})-> ")?;
                 } else {
-                    write!(f, " --> ")?;
+                    core::write!(f, " --> ")?;
                 }
             }
         }
@@ -332,7 +332,7 @@ impl Display for RouteAssertionError {
                 expected,
                 actual,
             ) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be {expected} but was {actual}"
                 )
@@ -342,19 +342,19 @@ impl Display for RouteAssertionError {
                 expected,
                 actual,
             ) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be channel {expected} but was {actual}"
                 )
             }
             RouteAssertionError::InvalidForkOnHop(index, expected, actual) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be fork {expected} but was {actual}"
                 )
             }
             RouteAssertionError::MissingResponse(endpoint) => {
-                write!(f, "No response received for endpoint {endpoint}")
+                core::write!(f, "No response received for endpoint {endpoint}")
             }
         }
     }

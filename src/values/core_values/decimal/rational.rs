@@ -2,7 +2,6 @@ use num::BigRational;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
-use pad::PadStr;
 use serde::{Deserialize, Serialize};
 use core::fmt::Display;
 use core::ops::{Add, Neg};
@@ -123,12 +122,8 @@ impl Rational {
             shift -= 1;
         }
 
-        let string = numerator.to_string().pad(
-            shift as usize,
-            '0',
-            pad::Alignment::Right,
-            false,
-        );
+        let string = format!("{:0>width$}", numerator, width = shift as usize);
+
         let comma_shift = string.len() - shift as usize;
         let p1 = &string[0..comma_shift];
         let p2 = &string[comma_shift..];
@@ -230,7 +225,7 @@ impl Add for Rational {
 
 impl Display for Rational {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.rational_to_string())
+        core::write!(f, "{}", self.rational_to_string())
     }
 }
 

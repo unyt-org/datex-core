@@ -303,9 +303,9 @@ pub struct TypedLiteral<T> {
 impl Display for TypedLiteral<IntegerTypeVariant> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(variant) = &self.variant {
-            write!(f, "{}{}", self.value, variant.as_ref())
+            core::write!(f, "{}{}", self.value, variant.as_ref())
         } else {
-            write!(f, "{}", self.value)
+            core::write!(f, "{}", self.value)
         }
     }
 }
@@ -334,7 +334,7 @@ fn parse_typed_literal<T: TypeSuffix>(
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
+        core::write!(f, "{self:?}")
     }
 }
 

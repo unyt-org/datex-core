@@ -21,12 +21,12 @@ pub enum CollectionTypeDefinition {
 impl Display for CollectionTypeDefinition {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            CollectionTypeDefinition::List(ty) => write!(f, "[{}]", ty),
+            CollectionTypeDefinition::List(ty) => core::write!(f, "[{}]", ty),
             CollectionTypeDefinition::ListSlice(ty, size) => {
-                write!(f, "[{}; {}]", ty, size)
+                core::write!(f, "[{}; {}]", ty, size)
             }
             CollectionTypeDefinition::Map { key, value } => {
-                write!(f, "Map<{}, {}>", key, value)
+                core::write!(f, "Map<{}, {}>", key, value)
             }
         }
     }

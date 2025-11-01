@@ -59,8 +59,8 @@ impl PointerAddress {
 
 impl Display for PointerAddress {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "$")?;
-        write!(f, "{}", self.to_address_string())
+        core::write!(f, "$")?;
+        core::write!(f, "{}", self.to_address_string())
     }
 }
 impl Serialize for PointerAddress {

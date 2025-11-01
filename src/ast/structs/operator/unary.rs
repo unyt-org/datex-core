@@ -24,10 +24,10 @@ impl From<&UnaryOperator> for InstructionCode {
 impl Display for UnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            UnaryOperator::Reference(op) => write!(f, "{}", op),
-            UnaryOperator::Arithmetic(op) => write!(f, "{}", op),
-            UnaryOperator::Bitwise(op) => write!(f, "{}", op),
-            UnaryOperator::Logical(op) => write!(f, "{}", op),
+            UnaryOperator::Reference(op) => core::write!(f, "{}", op),
+            UnaryOperator::Arithmetic(op) => core::write!(f, "{}", op),
+            UnaryOperator::Bitwise(op) => core::write!(f, "{}", op),
+            UnaryOperator::Logical(op) => core::write!(f, "{}", op),
         }
     }
 }
@@ -54,9 +54,9 @@ impl From<&ReferenceUnaryOperator> for InstructionCode {
 impl Display for ReferenceUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            ReferenceUnaryOperator::CreateRef => write!(f, "&"),
-            ReferenceUnaryOperator::CreateRefMut => write!(f, "&mut"),
-            ReferenceUnaryOperator::Deref => write!(f, "*"),
+            ReferenceUnaryOperator::CreateRef => core::write!(f, "&"),
+            ReferenceUnaryOperator::CreateRefMut => core::write!(f, "&mut"),
+            ReferenceUnaryOperator::Deref => core::write!(f, "*"),
         }
     }
 }
@@ -83,10 +83,10 @@ impl From<&ArithmeticUnaryOperator> for InstructionCode {
 impl Display for ArithmeticUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            ArithmeticUnaryOperator::Increment => write!(f, "++"),
-            ArithmeticUnaryOperator::Decrement => write!(f, "--"),
-            ArithmeticUnaryOperator::Plus => write!(f, "+"),
-            ArithmeticUnaryOperator::Minus => write!(f, "-"),
+            ArithmeticUnaryOperator::Increment => core::write!(f, "++"),
+            ArithmeticUnaryOperator::Decrement => core::write!(f, "--"),
+            ArithmeticUnaryOperator::Plus => core::write!(f, "+"),
+            ArithmeticUnaryOperator::Minus => core::write!(f, "-"),
         }
     }
 }
@@ -107,7 +107,7 @@ impl From<&BitwiseUnaryOperator> for InstructionCode {
 impl Display for BitwiseUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            BitwiseUnaryOperator::Negation => write!(f, "~"),
+            BitwiseUnaryOperator::Negation => core::write!(f, "~"),
         }
     }
 }
@@ -128,7 +128,7 @@ impl From<&LogicalUnaryOperator> for InstructionCode {
 impl Display for LogicalUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            LogicalUnaryOperator::Not => write!(f, "!"),
+            LogicalUnaryOperator::Not => core::write!(f, "!"),
         }
     }
 }

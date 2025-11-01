@@ -1,5 +1,5 @@
 use crate::crypto::uuid::generate_uuid;
-use crate::stdlib::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UUID(String);
@@ -21,6 +21,6 @@ impl Default for UUID {
 
 impl Display for UUID {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "{}", self.0)
+        core::write!(f, "{}", self.0)
     }
 }

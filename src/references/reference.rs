@@ -22,6 +22,7 @@ use core::fmt::Display;
 use crate::stdlib::hash::{Hash, Hasher};
 use crate::stdlib::rc::Rc;
 
+
 #[derive(Debug)]
 pub enum AccessError {
     ImmutableReference,
@@ -43,25 +44,25 @@ impl Display for AccessError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AccessError::MapAccessError(err) => {
-                write!(f, "Map access error: {}", err)
+                core::write!(f, "Map access error: {}", err)
             }
             AccessError::ImmutableReference => {
-                write!(f, "Cannot modify an immutable reference")
+                core::write!(f, "Cannot modify an immutable reference")
             }
             AccessError::InvalidOperation(op) => {
-                write!(f, "Invalid operation: {}", op)
+                core::write!(f, "Invalid operation: {}", op)
             }
             AccessError::PropertyNotFound(prop) => {
-                write!(f, "Property not found: {}", prop)
+                core::write!(f, "Property not found: {}", prop)
             }
             AccessError::CanNotUseReferenceAsKey => {
-                write!(f, "Cannot use a reference as a property key")
+                core::write!(f, "Cannot use a reference as a property key")
             }
             AccessError::IndexOutOfBounds(index) => {
-                write!(f, "Index out of bounds: {}", index)
+                core::write!(f, "Index out of bounds: {}", index)
             }
             AccessError::InvalidPropertyKeyType(ty) => {
-                write!(f, "Invalid property key type: {}", ty)
+                core::write!(f, "Invalid property key type: {}", ty)
             }
         }
     }
@@ -77,7 +78,7 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeError::TypeMismatch { expected, found } => write!(
+            TypeError::TypeMismatch { expected, found } => core::write!(
                 f,
                 "Type mismatch: expected {}, found {}",
                 expected, found
@@ -96,9 +97,9 @@ impl Display for AssignmentError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AssignmentError::ImmutableReference => {
-                write!(f, "Cannot assign to an immutable reference")
+                core::write!(f, "Cannot assign to an immutable reference")
             }
-            AssignmentError::TypeError(e) => write!(f, "Type error: {}", e),
+            AssignmentError::TypeError(e) => core::write!(f, "Type error: {}", e),
         }
     }
 }
@@ -192,8 +193,8 @@ pub mod mutability_option_as_int {
 impl Display for ReferenceMutability {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ReferenceMutability::Mutable => write!(f, "&mut"),
-            ReferenceMutability::Immutable => write!(f, "&"),
+            ReferenceMutability::Mutable => core::write!(f, "&mut"),
+            ReferenceMutability::Immutable => core::write!(f, "&"),
         }
     }
 }
@@ -209,11 +210,11 @@ impl Display for Reference {
         match self {
             Reference::ValueReference(vr) => {
                 let vr = vr.borrow();
-                write!(f, "{} {}", vr.mutability, vr.value_container)
+                core::write!(f, "{} {}", vr.mutability, vr.value_container)
             }
             Reference::TypeReference(tr) => {
                 let tr = tr.borrow();
-                write!(f, "{}", tr)
+                core::write!(f, "{}", tr)
             }
         }
     }
@@ -324,13 +325,13 @@ impl Display for ReferenceCreationError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ReferenceCreationError::InvalidType => {
-                write!(
+                core::write!(
                     f,
                     "Cannot create reference from value container: invalid type"
                 )
             }
             ReferenceCreationError::MutableTypeReference => {
-                write!(f, "Cannot create mutable reference for type")
+                core::write!(f, "Cannot create mutable reference for type")
             }
         }
     }

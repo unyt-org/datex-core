@@ -233,13 +233,13 @@ pub enum Receivers {
 impl Display for Receivers {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            Receivers::None => write!(f, "No receivers"),
-            Receivers::PointerId(pid) => write!(f, "Pointer ID: {:?}", pid),
+            Receivers::None => core::write!(f, "No receivers"),
+            Receivers::PointerId(pid) => core::write!(f, "Pointer ID: {:?}", pid),
             Receivers::Endpoints(endpoints) => {
-                write!(f, "Endpoints: {:?}", endpoints)
+                core::write!(f, "Endpoints: {:?}", endpoints)
             }
             Receivers::EndpointsWithKeys(endpoints_with_keys) => {
-                write!(f, "Endpoints with keys: {:?}", endpoints_with_keys)
+                core::write!(f, "Endpoints with keys: {:?}", endpoints_with_keys)
             }
         }
     }

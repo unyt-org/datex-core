@@ -34,7 +34,7 @@ impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeError::MismatchedOperands(op, lhs, rhs) => {
-                write!(
+                core::write!(
                     f,
                     "Cannot perform \"{}\" operation on {} and {}",
                     op, lhs, rhs
@@ -44,7 +44,7 @@ impl Display for TypeError {
                 annotated_type,
                 assigned_type,
             } => {
-                write!(
+                core::write!(
                     f,
                     "Cannot assign {} to {}",
                     assigned_type, annotated_type

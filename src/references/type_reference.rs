@@ -41,9 +41,9 @@ impl From<&str> for NominalTypeDeclaration {
 impl Display for NominalTypeDeclaration {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         if let Some(variant) = &self.variant {
-            write!(f, "{}/{}", self.name, variant)
+            core::write!(f, "{}/{}", self.name, variant)
         } else {
-            write!(f, "{}", self.name)
+            core::write!(f, "{}", self.name)
         }
     }
 }
@@ -183,11 +183,11 @@ impl Display for TypeReference {
         if let Some(nominal) = &self.nominal_type_declaration {
             // special exception: for Unit, display "()"
             if self.pointer_address == Some(PointerAddress::from(CoreLibPointerId::Unit)) {
-                return write!(f, "()");
+                return core::write!(f, "()");
             }
-            write!(f, "{}", nominal)
+            core::write!(f, "{}", nominal)
         } else {
-            write!(f, "{}", self.type_value)
+            core::write!(f, "{}", self.type_value)
         }
     }
 }

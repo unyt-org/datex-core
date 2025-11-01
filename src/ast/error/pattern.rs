@@ -35,15 +35,15 @@ impl From<&Token> for Pattern {
 impl fmt::Display for Pattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Pattern::Custom(name) => write!(f, "{}", name),
-            Pattern::Declaration => write!(f, "declaration"),
-            Pattern::List => write!(f, "list"),
-            Pattern::SomethingElse => write!(f, "something else"),
-            Pattern::Any => write!(f, "any"),
-            Pattern::Token(token) => write!(f, "{}", token),
-            Pattern::Char(c) => write!(f, "{:?}", c),
-            Pattern::Literal => write!(f, "literal"),
-            Pattern::EndOfInput => write!(f, "end of input"),
+            Pattern::Custom(name) => core::write!(f, "{}", name),
+            Pattern::Declaration => core::write!(f, "declaration"),
+            Pattern::List => core::write!(f, "list"),
+            Pattern::SomethingElse => core::write!(f, "something else"),
+            Pattern::Any => core::write!(f, "any"),
+            Pattern::Token(token) => core::write!(f, "{}", token),
+            Pattern::Char(c) => core::write!(f, "{:?}", c),
+            Pattern::Literal => core::write!(f, "literal"),
+            Pattern::EndOfInput => core::write!(f, "end of input"),
         }
     }
 }

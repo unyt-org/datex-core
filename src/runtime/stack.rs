@@ -75,7 +75,7 @@ impl Display for ScopeStack {
         for scope in self.stack.iter() {
             writeln!(f, "{scope:?}")?;
         }
-        write!(f, "]")
+        core::write!(f, "]")
     }
 }
 

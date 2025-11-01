@@ -51,7 +51,7 @@ impl SpannedCompilerError {
 
 impl Display for SpannedCompilerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{} ({})",
             self.error,
@@ -257,10 +257,10 @@ impl Display for CompilerError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             CompilerError::InvalidRedeclaration(name) => {
-                write!(f, "Invalid redeclaration of {name}")
+                core::write!(f, "Invalid redeclaration of {name}")
             }
             CompilerError::UnexpectedTerm(rule) => {
-                write!(f, "Unexpected term: {rule:?}")
+                core::write!(f, "Unexpected term: {rule:?}")
             }
             CompilerError::ParseErrors(error) => {
                 for e in error {
@@ -269,52 +269,52 @@ impl Display for CompilerError {
                 Ok(())
             }
             CompilerError::SubvariantNotFound(name, variant) => {
-                write!(f, "Subvariant {variant} does not exist for {name}")
+                core::write!(f, "Subvariant {variant} does not exist for {name}")
             }
             CompilerError::SerializationError => {
-                write!(f, "Serialization error")
+                core::write!(f, "Serialization error")
             }
             CompilerError::BigDecimalOutOfBoundsError => {
-                write!(f, "BigDecimal out of bounds error")
+                core::write!(f, "BigDecimal out of bounds error")
             }
             CompilerError::IntegerOutOfBoundsError => {
-                write!(f, "Integer out of bounds error")
+                core::write!(f, "Integer out of bounds error")
             }
             CompilerError::InvalidPlaceholderCount => {
-                write!(f, "Invalid placeholder count")
+                core::write!(f, "Invalid placeholder count")
             }
             CompilerError::NonStaticValue => {
-                write!(f, "Encountered non-static value")
+                core::write!(f, "Encountered non-static value")
             }
             CompilerError::UndeclaredVariable(var) => {
-                write!(f, "Undeclared variable: {var}")
+                core::write!(f, "Undeclared variable: {var}")
             }
             CompilerError::ScopePopError => {
-                write!(f, "Could not pop scope, stack is empty")
+                core::write!(f, "Could not pop scope, stack is empty")
             }
             CompilerError::InvalidSlotName(name) => {
-                write!(f, "Slot #{name} does not exist")
+                core::write!(f, "Slot #{name} does not exist")
             }
             CompilerError::AssignmentToConst(name) => {
-                write!(f, "Cannot assign new value to const {name}")
+                core::write!(f, "Cannot assign new value to const {name}")
             }
             CompilerError::OnceScopeUsedMultipleTimes => {
-                write!(
+                core::write!(
                     f,
                     "Scope cannot be used multiple times, set 'once' to false to use a scope multiple times"
                 )
             }
             CompilerError::AssignmentToImmutableValue(name) => {
-                write!(f, "Cannot assign to immutable value: {name}")
+                core::write!(f, "Cannot assign to immutable value: {name}")
             }
             CompilerError::AssignmentToImmutableReference(name) => {
-                write!(f, "Cannot assign to immutable reference: {name}")
+                core::write!(f, "Cannot assign to immutable reference: {name}")
             }
             CompilerError::TypeError(err) => {
-                write!(f, "{}", err)
+                core::write!(f, "{}", err)
             }
             CompilerError::ParseError(err) => {
-                write!(f, "{:?}", err)
+                core::write!(f, "{:?}", err)
             }
         }
     }

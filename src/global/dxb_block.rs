@@ -338,7 +338,7 @@ impl Display for DXBBlock {
         let block_type = self.block_header.flags_and_timestamp.block_type();
         let sender = &self.routing_header.sender;
         let receivers = self.receivers();
-        write!(f, "[{block_type}] {sender} -> {receivers}")?;
+        core::write!(f, "[{block_type}] {sender} -> {receivers}")?;
 
         Ok(())
     }

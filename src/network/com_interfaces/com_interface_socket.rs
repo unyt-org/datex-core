@@ -3,7 +3,7 @@ use strum_macros::EnumIs;
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use crate::stdlib::fmt::Display;
+use core::fmt::Display;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
 use crate::{
@@ -22,7 +22,7 @@ pub enum SocketState {
 pub struct ComInterfaceSocketUUID(pub UUID);
 impl Display for ComInterfaceSocketUUID {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "ComInterfaceSocket({})", self.0)
+        core::write!(f, "ComInterfaceSocket({})", self.0)
     }
 }
 impl ComInterfaceSocketUUID {

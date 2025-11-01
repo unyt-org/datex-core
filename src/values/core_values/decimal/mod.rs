@@ -284,12 +284,12 @@ impl Sub for &Decimal {
 impl Display for Decimal {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Decimal::Finite(value) => write!(f, "{value}"),
-            Decimal::NaN => write!(f, "nan"),
-            Decimal::Zero => write!(f, "0.0"),
-            Decimal::NegZero => write!(f, "-0.0"),
-            Decimal::Infinity => write!(f, "infinity"),
-            Decimal::NegInfinity => write!(f, "-infinity"),
+            Decimal::Finite(value) => core::write!(f, "{value}"),
+            Decimal::NaN => core::write!(f, "nan"),
+            Decimal::Zero => core::write!(f, "0.0"),
+            Decimal::NegZero => core::write!(f, "-0.0"),
+            Decimal::Infinity => core::write!(f, "infinity"),
+            Decimal::NegInfinity => core::write!(f, "-infinity"),
         }
     }
 }

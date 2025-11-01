@@ -413,16 +413,16 @@ impl Display for InvalidProgramError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidProgramError::InvalidScopeClose => {
-                write!(f, "Invalid scope close")
+                core::write!(f, "Invalid scope close")
             }
             InvalidProgramError::InvalidKeyValuePair => {
-                write!(f, "Invalid key-value pair")
+                core::write!(f, "Invalid key-value pair")
             }
             InvalidProgramError::UnterminatedSequence => {
-                write!(f, "Unterminated sequence")
+                core::write!(f, "Unterminated sequence")
             }
             InvalidProgramError::MissingRemoteExecutionReceiver => {
-                write!(f, "Missing remote execution receiver")
+                core::write!(f, "Missing remote execution receiver")
             }
         }
     }
@@ -493,54 +493,54 @@ impl Display for ExecutionError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ExecutionError::ReferenceFromValueContainerError(err) => {
-                write!(f, "Reference from value container error: {err}")
+                core::write!(f, "Reference from value container error: {err}")
             }
             ExecutionError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
             ExecutionError::DXBParserError(err) => {
-                write!(f, "Parser error: {err}")
+                core::write!(f, "Parser error: {err}")
             }
-            ExecutionError::Unknown => write!(f, "Unknown execution error"),
-            ExecutionError::ValueError(err) => write!(f, "Value error: {err}"),
+            ExecutionError::Unknown => core::write!(f, "Unknown execution error"),
+            ExecutionError::ValueError(err) => core::write!(f, "Value error: {err}"),
             ExecutionError::InvalidProgram(err) => {
-                write!(f, "Invalid program error: {err}")
+                core::write!(f, "Invalid program error: {err}")
             }
             ExecutionError::NotImplemented(msg) => {
-                write!(f, "Not implemented: {msg}")
+                core::write!(f, "Not implemented: {msg}")
             }
             ExecutionError::SlotNotAllocated(address) => {
-                write!(
+                core::write!(
                     f,
                     "Tried to access unallocated slot at address {address}"
                 )
             }
             ExecutionError::SlotNotInitialized(address) => {
-                write!(
+                core::write!(
                     f,
                     "Tried to access uninitialized slot at address {address}"
                 )
             }
             ExecutionError::RequiresAsyncExecution => {
-                write!(f, "Program must be executed asynchronously")
+                core::write!(f, "Program must be executed asynchronously")
             }
             ExecutionError::RequiresRuntime => {
-                write!(f, "Execution requires a runtime to be set")
+                core::write!(f, "Execution requires a runtime to be set")
             }
             ExecutionError::ResponseError(err) => {
-                write!(f, "Response error: {err}")
+                core::write!(f, "Response error: {err}")
             }
             ExecutionError::IllegalTypeError(err) => {
-                write!(f, "Illegal type: {err}")
+                core::write!(f, "Illegal type: {err}")
             }
             ExecutionError::DerefOfNonReference => {
-                write!(f, "Tried to dereference a non-reference value")
+                core::write!(f, "Tried to dereference a non-reference value")
             }
             ExecutionError::AssignmentError(err) => {
-                write!(f, "Assignment error: {err}")
+                core::write!(f, "Assignment error: {err}")
             }
             ExecutionError::InvalidTypeCast => {
-                write!(f, "Invalid type cast")
+                core::write!(f, "Invalid type cast")
             }
         }
     }

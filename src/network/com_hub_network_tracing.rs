@@ -157,7 +157,7 @@ impl Display for NetworkTraceResult {
                 hop_2.distance
             };
 
-            write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
+            core::write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
             writeln!(
                 f,
                 "{} ({}) ─{}▶ {} ({}) | distance from {}: {} | fork #{}",

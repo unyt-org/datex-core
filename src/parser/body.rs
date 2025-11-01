@@ -9,7 +9,7 @@ use crate::global::protocol_structures::instructions::{
     UInt64Data, UInt128Data,
 };
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
-use crate::stdlib::fmt;
+use core::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
@@ -59,25 +59,25 @@ impl Display for DXBParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DXBParserError::InvalidBinaryCode(code) => {
-                write!(f, "Invalid binary code: {code}")
+                core::write!(f, "Invalid binary code: {code}")
             }
             DXBParserError::InvalidEndpoint(endpoint) => {
-                write!(f, "Invalid endpoint: {endpoint}")
+                core::write!(f, "Invalid endpoint: {endpoint}")
             }
             DXBParserError::FailedToReadInstructionCode => {
-                write!(f, "Failed to read instruction code")
+                core::write!(f, "Failed to read instruction code")
             }
             DXBParserError::FmtError(err) => {
-                write!(f, "Formatting error: {err}")
+                core::write!(f, "Formatting error: {err}")
             }
             DXBParserError::BinRwError(err) => {
-                write!(f, "Binary read/write error: {err}")
+                core::write!(f, "Binary read/write error: {err}")
             }
             DXBParserError::FromUtf8Error(err) => {
-                write!(f, "UTF-8 conversion error: {err}")
+                core::write!(f, "UTF-8 conversion error: {err}")
             }
             DXBParserError::InvalidScopeEndType { expected, found } => {
-                write!(
+                core::write!(
                     f,
                     "Invalid scope end type: expected {expected:?}, found {found:?}"
                 )

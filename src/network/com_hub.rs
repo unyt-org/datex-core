@@ -1909,7 +1909,7 @@ impl Display for ResponseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
-                write!(
+                core::write!(
                     f,
                     "No response after timeout ({}s) for endpoint {}",
                     duration.as_secs(),
@@ -1917,10 +1917,10 @@ impl Display for ResponseError {
                 )
             }
             ResponseError::NotReachable(endpoint) => {
-                write!(f, "Endpoint {endpoint} is not reachable")
+                core::write!(f, "Endpoint {endpoint} is not reachable")
             }
             ResponseError::EarlyAbort(endpoint) => {
-                write!(f, "Early abort for endpoint {endpoint}")
+                core::write!(f, "Early abort for endpoint {endpoint}")
             }
         }
     }

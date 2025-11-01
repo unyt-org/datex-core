@@ -26,15 +26,15 @@ pub enum ValueError {
 impl Display for ValueError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ValueError::IsVoid => write!(f, "Value is void"),
+            ValueError::IsVoid => core::write!(f, "Value is void"),
             ValueError::InvalidOperation => {
-                write!(f, "Invalid operation on value")
+                core::write!(f, "Invalid operation on value")
             }
             ValueError::TypeConversionError => {
-                write!(f, "Type conversion error")
+                core::write!(f, "Type conversion error")
             }
             ValueError::IntegerOverflow => {
-                write!(f, "Integer overflow occurred")
+                core::write!(f, "Integer overflow occurred")
             }
         }
     }
@@ -138,10 +138,10 @@ impl Identity for ValueContainer {
 impl Display for ValueContainer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ValueContainer::Value(value) => write!(f, "{value}"),
+            ValueContainer::Value(value) => core::write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer
             ValueContainer::Reference(reference) => {
-                write!(f, "&({})", reference.collapse_to_value().borrow())
+                core::write!(f, "&({})", reference.collapse_to_value().borrow())
             }
         }
     }

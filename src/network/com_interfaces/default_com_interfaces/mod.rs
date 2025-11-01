@@ -1,7 +1,12 @@
 pub mod base_interface;
+#[cfg(feature = "com_http")]
 pub mod http;
 pub mod local_loopback_interface;
+#[cfg(feature = "com_serial")]
 pub mod serial;
+#[cfg(feature = "com_tcp")]
 pub mod tcp;
+#[cfg(feature = "com_webrtc")]
 pub mod webrtc;
+#[cfg(feature = "com_websocket")]
 pub mod websocket;

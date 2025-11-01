@@ -202,36 +202,36 @@ impl Display for StructuralTypeDefinition {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             StructuralTypeDefinition::Integer(integer) => {
-                write!(f, "{}", integer)
+                core::write!(f, "{}", integer)
             }
             StructuralTypeDefinition::TypedInteger(typed_integer) => {
-                write!(f, "{}", typed_integer)
+                core::write!(f, "{}", typed_integer)
             }
             StructuralTypeDefinition::Decimal(decimal) => {
-                write!(f, "{}", decimal)
+                core::write!(f, "{}", decimal)
             }
             StructuralTypeDefinition::TypedDecimal(typed_decimal) => {
-                write!(f, "{}", typed_decimal)
+                core::write!(f, "{}", typed_decimal)
             }
-            StructuralTypeDefinition::Text(text) => write!(f, "{}", text),
+            StructuralTypeDefinition::Text(text) => core::write!(f, "{}", text),
             StructuralTypeDefinition::Boolean(boolean) => {
-                write!(f, "{}", boolean)
+                core::write!(f, "{}", boolean)
             }
             StructuralTypeDefinition::Endpoint(endpoint) => {
-                write!(f, "{}", endpoint)
+                core::write!(f, "{}", endpoint)
             }
-            StructuralTypeDefinition::Null => write!(f, "null"),
+            StructuralTypeDefinition::Null => core::write!(f, "null"),
             StructuralTypeDefinition::List(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "[{}]", types_str.join(", "))
+                core::write!(f, "[{}]", types_str.join(", "))
             }
             StructuralTypeDefinition::Map(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect();
-                write!(f, "{{{}}}", fields_str.join(", "))
+                core::write!(f, "{{{}}}", fields_str.join(", "))
             }
         }
     }

@@ -1,5 +1,5 @@
 use internment::Intern;
-use crate::stdlib::fmt;
+use core::fmt;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SrcId(Intern<Vec<String>>);
@@ -7,16 +7,16 @@ pub struct SrcId(Intern<Vec<String>>);
 impl fmt::Display for SrcId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.0.is_empty() {
-            write!(f, "?")
+            core::write!(f, "?")
         } else {
-            write!(f, "{}", self.0.clone().join("/"))
+            core::write!(f, "{}", self.0.clone().join("/"))
         }
     }
 }
 
 impl fmt::Debug for SrcId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        core::write!(f, "{}", self)
     }
 }
 

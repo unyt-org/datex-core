@@ -15,10 +15,10 @@ impl Display for ObserverError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ObserverError::ObserverNotFound => {
-                write!(f, "Observer not found")
+                core::write!(f, "Observer not found")
             }
             ObserverError::ImmutableReference => {
-                write!(f, "Cannot observe an immutable reference")
+                core::write!(f, "Cannot observe an immutable reference")
             }
         }
     }

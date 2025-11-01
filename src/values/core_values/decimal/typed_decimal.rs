@@ -460,9 +460,9 @@ impl TypedDecimal {
 impl Display for TypedDecimal {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::F64(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::Decimal(value) => write!(f, "{value}"),
+            TypedDecimal::F32(value) => core::write!(f, "{}", value.into_inner()),
+            TypedDecimal::F64(value) => core::write!(f, "{}", value.into_inner()),
+            TypedDecimal::Decimal(value) => core::write!(f, "{value}"),
         }
     }
 }

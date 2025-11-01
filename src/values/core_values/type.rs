@@ -301,7 +301,7 @@ impl Display for Type {
             .base_type
             .as_ref()
             .map_or("".to_string(), |b| format!(": {}", b.borrow()));
-        write!(f, "{}{}{}", mutability, self.type_definition, base)
+        core::write!(f, "{}{}{}", mutability, self.type_definition, base)
     }
 }
 

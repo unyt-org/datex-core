@@ -382,8 +382,8 @@ pub enum VariableKind {
 impl Display for VariableKind {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            VariableKind::Const => write!(f, "const"),
-            VariableKind::Var => write!(f, "var"),
+            VariableKind::Const => core::write!(f, "const"),
+            VariableKind::Var => core::write!(f, "var"),
         }
     }
 }
@@ -395,10 +395,10 @@ pub enum Slot {
 }
 impl Display for Slot {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "#")?;
+        core::write!(f, "#")?;
         match self {
-            Slot::Addressed(addr) => write!(f, "{}", addr),
-            Slot::Named(name) => write!(f, "{}", name),
+            Slot::Addressed(addr) => core::write!(f, "{}", addr),
+            Slot::Named(name) => core::write!(f, "{}", name),
         }
     }
 }

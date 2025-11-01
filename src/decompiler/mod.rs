@@ -27,10 +27,13 @@ use crate::parser::body;
 use crate::parser::body::DXBParserError;
 use crate::values::core_values::decimal::utils::decimal_to_string;
 use crate::values::value_container::ValueContainer;
-use syntect::easy::HighlightLines;
-use syntect::highlighting::{Style, Theme, ThemeSet};
-use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
-use syntect::util::{LinesWithEndings, as_24_bit_terminal_escaped};
+#[cfg(feature = "syntax_highlighting_legacy")]
+use syntect::{
+    easy::HighlightLines,
+    highlighting::{Style, Theme, ThemeSet},
+    parsing::{SyntaxDefinition, SyntaxSetBuilder},
+    util::{LinesWithEndings, as_24_bit_terminal_escaped},
+};
 
 /// Decompiles a DXB bytecode body into a human-readable string representation.
 pub fn decompile_body(
@@ -176,9 +179,9 @@ impl ScopeType {
         indentation_levels: usize,
     ) -> Result<(), DXBParserError> {
         match self {
-            ScopeType::Default => write!(output, "(")?,
-            ScopeType::List => write!(output, "[")?,
-            ScopeType::Map => write!(output, "{{")?,
+            ScopeType::Default => core::write!(output, "(")?,
+            ScopeType::List => core::write!(output, "[")?,
+            ScopeType::Map => core::write!(output, "{{")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have a start
             }
@@ -188,9 +191,9 @@ impl ScopeType {
             ScopeType::Default | ScopeType::List | ScopeType::Map => {
                 match formatting {
                     Formatting::Multiline { indent } => {
-                        write!(output, "\r\n")?;
+                        core::write!(output, "\r\n")?;
                         for _ in 0..(indentation_levels * indent) {
-                            write!(output, " ")?;
+                            core::write!(output, " ")?;
                         }
                     }
                     Formatting::Compact => {}
@@ -210,11 +213,11 @@ impl ScopeType {
             ScopeType::Default | ScopeType::List | ScopeType::Map => {
                 match formatting {
                     Formatting::Multiline { indent } => {
-                        write!(output, "\r\n")?;
+                        core::write!(output, "\r\n")?;
                         for _ in
                             0..(indentation_levels.saturating_sub(1) * indent)
                         {
-                            write!(output, " ")?;
+                            core::write!(output, " ")?;
                         }
                     }
                     Formatting::Compact => {}
@@ -223,9 +226,9 @@ impl ScopeType {
             _ => {}
         }
         match self {
-            ScopeType::Default => write!(output, ")")?,
-            ScopeType::List => write!(output, "]")?,
-            ScopeType::Map => write!(output, "}}")?,
+            ScopeType::Default => core::write!(output, ")")?,
+            ScopeType::List => core::write!(output, "]")?,
+            ScopeType::Map => core::write!(output, "}}")?,
             ScopeType::SlotAssignment => {
                 // do nothing, slot assignment does not have an end
             }
@@ -348,7 +351,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{i8}")?;
+                core::write!(output, "{i8}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int16(Int16Data(i16)) => {
@@ -358,7 +361,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{i16}")?;
+                core::write!(output, "{i16}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int32(Int32Data(i32)) => {
@@ -368,7 +371,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{i32}")?;
+                core::write!(output, "{i32}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int64(Int64Data(i64)) => {
@@ -378,7 +381,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{i64}")?;
+                core::write!(output, "{i64}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Int128(Int128Data(i128)) => {
@@ -388,7 +391,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{i128}")?;
+                core::write!(output, "{i128}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt8(UInt8Data(u8)) => {
@@ -398,7 +401,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{u8}")?;
+                core::write!(output, "{u8}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt16(UInt16Data(u16)) => {
@@ -408,7 +411,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{u16}")?;
+                core::write!(output, "{u16}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt32(UInt32Data(u32)) => {
@@ -418,7 +421,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{u32}")?;
+                core::write!(output, "{u32}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt64(UInt64Data(u64)) => {
@@ -428,7 +431,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{u64}")?;
+                core::write!(output, "{u64}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::UInt128(UInt128Data(u128)) => {
@@ -438,7 +441,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{u128}")?;
+                core::write!(output, "{u128}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::BigInteger(IntegerData(big_int)) => {
@@ -448,7 +451,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{big_int}n")?;
+                core::write!(output, "{big_int}n")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::DecimalF32(Float32Data(f32)) => {
@@ -458,7 +461,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(
+                core::write!(
                     output,
                     "{}",
                     decimal_to_string(f32, state.options.json_compat)
@@ -472,7 +475,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(
+                core::write!(
                     output,
                     "{}",
                     decimal_to_string(f64, state.options.json_compat)
@@ -486,7 +489,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(
+                core::write!(
                     output,
                     "{}",
                     decimal_to_string(i16 as f32, state.options.json_compat)
@@ -500,7 +503,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(
+                core::write!(
                     output,
                     "{}",
                     decimal_to_string(i32 as f32, state.options.json_compat)
@@ -514,7 +517,7 @@ fn decompile_loop(
                     true,
                     indentation_levels,
                 )?;
-                write!(output, "{big_decimal}")?;
+                core::write!(output, "{big_decimal}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::ShortText(ShortTextData(text)) => {
@@ -525,7 +528,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 let text = escape_text(&text);
-                write!(output, "\"{text}\"")?;
+                core::write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::Text(TextData(text)) => {
@@ -536,7 +539,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 let text = escape_text(&text);
-                write!(output, "\"{text}\"")?;
+                core::write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
             Instruction::True => {
@@ -546,7 +549,7 @@ fn decompile_loop(
                     false,
                     indentation_levels,
                 )?;
-                write!(output, "true")?;
+                core::write!(output, "true")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::False => {
@@ -556,7 +559,7 @@ fn decompile_loop(
                     false,
                     indentation_levels,
                 )?;
-                write!(output, "false")?;
+                core::write!(output, "false")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Null => {
@@ -566,7 +569,7 @@ fn decompile_loop(
                     false,
                     indentation_levels,
                 )?;
-                write!(output, "null")?;
+                core::write!(output, "null")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::Endpoint(endpoint) => {
@@ -576,7 +579,7 @@ fn decompile_loop(
                     false,
                     indentation_levels,
                 )?;
-                write!(output, "{endpoint}")?;
+                core::write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::ListStart => {
@@ -663,10 +666,10 @@ fn decompile_loop(
             }
             Instruction::CloseAndStore => match state.options.formatting {
                 Formatting::Multiline { .. } => {
-                    write!(output, ";\r\n")?;
+                    core::write!(output, ";\r\n")?;
                 }
                 Formatting::Compact => {
-                    write!(output, ";")?;
+                    core::write!(output, ";")?;
                 }
             },
 
@@ -712,10 +715,10 @@ fn decompile_loop(
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #95: generate variable name for slot
-                    write!(output, "#{} := ", address.0)?;
+                    core::write!(output, "#{} := ", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#{} := ", address.0)?;
+                    core::write!(output, "#{} := ", address.0)?;
                 }
                 handle_after_term(state, &mut output, false)?;
             }
@@ -729,10 +732,10 @@ fn decompile_loop(
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #96: get variable name for slot
-                    write!(output, "#{}", address.0)?;
+                    core::write!(output, "#{}", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#{}", address.0)?;
+                    core::write!(output, "#{}", address.0)?;
                 }
                 handle_after_term(state, &mut output, false)?;
             }
@@ -740,10 +743,10 @@ fn decompile_loop(
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #97: generate variable name for slot
-                    write!(output, "#drop {}", address.0)?;
+                    core::write!(output, "#drop {}", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#drop {}", address.0)?;
+                    core::write!(output, "#drop {}", address.0)?;
                 }
             }
             Instruction::SetSlot(address) => {
@@ -757,10 +760,10 @@ fn decompile_loop(
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #98: generate variable name for slot
-                    write!(output, "#{} = ", address.0)?;
+                    core::write!(output, "#{} = ", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#{} = ", address.0)?;
+                    core::write!(output, "#{} = ", address.0)?;
                 }
             }
 
@@ -782,7 +785,7 @@ fn decompile_loop(
                     .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
-                write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
+                core::write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 
@@ -798,7 +801,7 @@ fn decompile_loop(
                     .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
-                write!(output, "$<internal:{}>", address_hex)?;
+                core::write!(output, "$<internal:{}>", address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 
@@ -814,7 +817,7 @@ fn decompile_loop(
                     .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
-                write!(output, "$<origin:{}>", address_hex)?;
+                core::write!(output, "$<origin:{}>", address_hex)?;
                 handle_after_term(state, &mut output, false)?;
             }
 
@@ -828,10 +831,10 @@ fn decompile_loop(
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    write!(output, "#{} += ", address.0)?;
+                    core::write!(output, "#{} += ", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#{} += ", address.0)?;
+                    core::write!(output, "#{} += ", address.0)?;
                 }
             }
 
@@ -845,10 +848,10 @@ fn decompile_loop(
                 state.new_scope(ScopeType::SlotAssignment);
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
-                    write!(output, "#{} -= ", address.0)?;
+                    core::write!(output, "#{} -= ", address.0)?;
                 } else {
                     // otherwise just write the slot address
-                    write!(output, "#{} -= ", address.0)?;
+                    core::write!(output, "#{} -= ", address.0)?;
                 }
             }
 
@@ -860,7 +863,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 state.get_current_scope().skip_comma_for_next_item = true;
-                write!(output, "&")?;
+                core::write!(output, "&")?;
             }
 
             Instruction::CreateRefMut => {
@@ -871,7 +874,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 state.get_current_scope().skip_comma_for_next_item = true;
-                write!(output, "&mut ")?;
+                core::write!(output, "&mut ")?;
             }
 
             Instruction::RemoteExecution => {
@@ -903,11 +906,11 @@ fn decompile_loop(
                     .collect::<Vec<_>>()
                     .join(", ");
                 // write the decompiled body
-                write!(output, "[{slot_mapping}]({decompiled_body})")?;
+                core::write!(output, "[{slot_mapping}]({decompiled_body})")?;
             }
 
             _ => {
-                write!(output, "[[{instruction}]]")?;
+                core::write!(output, "[[{instruction}]]")?;
             }
         }
     }
@@ -920,6 +923,15 @@ fn decompile_loop(
     Ok(output)
 }
 
+#[cfg(not(feature = "syntax_highlighting_legacy"))]
+pub fn apply_syntax_highlighting(
+    datex_script: String,
+) -> Result<String, DXBParserError> {
+    // skip syntax highlighting
+    Ok(datex_script)
+}
+
+#[cfg(feature = "syntax_highlighting_legacy")]
 pub fn apply_syntax_highlighting(
     datex_script: String,
 ) -> Result<String, DXBParserError> {
@@ -946,10 +958,10 @@ pub fn apply_syntax_highlighting(
     for line in LinesWithEndings::from(&datex_script) {
         let ranges: Vec<(Style, &str)> = h.highlight_line(line, &ps).unwrap();
         let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
-        write!(output, "{escaped}")?;
+        core::write!(output, "{escaped}")?;
     }
     // reset style
-    write!(output, "\x1b[0m")?;
+    core::write!(output, "\x1b[0m")?;
     Ok(output)
 }
 
@@ -980,10 +992,10 @@ fn write_text_key(
     };
     match formatting {
         Formatting::Multiline { .. } => {
-            write!(output, "{text}: ")?;
+            core::write!(output, "{text}: ")?;
         }
         Formatting::Compact => {
-            write!(output, "{text}:")?;
+            core::write!(output, "{text}:")?;
         }
     }
     Ok(())
@@ -1032,16 +1044,16 @@ fn handle_after_term(
     // next_item_is_key
     if state.get_current_scope().next_item_is_key {
         if !is_standalone_key || close_scope {
-            write!(output, ")")?;
+            core::write!(output, ")")?;
         }
         // set next_item_is_key to false
         state.get_current_scope().next_item_is_key = false;
         match state.options.formatting {
             Formatting::Multiline { .. } => {
-                write!(output, ": ")?;
+                core::write!(output, ": ")?;
             }
             Formatting::Compact => {
-                write!(output, ":")?;
+                core::write!(output, ":")?;
             }
         }
         // prevent redundant comma before value
@@ -1086,7 +1098,7 @@ fn handle_before_item(
 
     // if next_item_is_key, add opening parenthesis
     if !is_standalone_key && scope.next_item_is_key {
-        write!(output, "(")?;
+        core::write!(output, "(")?;
     }
 
     match scope.scope_type {
@@ -1099,14 +1111,14 @@ fn handle_before_item(
         {
             match formatted {
                 Formatting::Multiline { indent } => {
-                    write!(output, ",\r\n")?;
+                    core::write!(output, ",\r\n")?;
                     let current_indent = indentation_levels * indent;
                     for _ in 0..current_indent {
-                        write!(output, " ")?;
+                        core::write!(output, " ")?;
                     }
                 }
                 Formatting::Compact => {
-                    write!(output, ",")?;
+                    core::write!(output, ",")?;
                 }
             }
         }
@@ -1155,15 +1167,15 @@ fn handle_before_operand(
                 state.get_current_scope().close_scope_after_term = false;
             }
             (Instruction::UnaryMinus, false) => {
-                write!(output, "-")?;
+                core::write!(output, "-")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::UnaryPlus, false) => {
-                write!(output, "+")?;
+                core::write!(output, "+")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
             (Instruction::BitwiseNot, false) => {
-                write!(output, "~")?;
+                core::write!(output, "~")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
             _ => {
@@ -1179,6 +1191,6 @@ fn write_operator(
     output: &mut String,
     operator: &str,
 ) -> Result<(), DXBParserError> {
-    write!(output, " {operator} ")?;
+    core::write!(output, " {operator} ")?;
     Ok(())
 }

@@ -17,7 +17,7 @@ pub enum AssignmentOperator {
 }
 impl Display for AssignmentOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {

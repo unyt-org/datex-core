@@ -36,7 +36,7 @@ pub enum ArithmeticOperator {
 }
 impl Display for ArithmeticOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {
@@ -80,7 +80,7 @@ impl From<&LogicalOperator> for InstructionCode {
 
 impl Display for LogicalOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {
@@ -117,7 +117,7 @@ impl From<&BitwiseOperator> for InstructionCode {
 
 impl Display for BitwiseOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {
@@ -132,7 +132,7 @@ impl Display for BitwiseOperator {
 
 impl Display for BinaryOperator {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
+        core::write!(
             f,
             "{}",
             match self {

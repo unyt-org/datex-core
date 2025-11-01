@@ -40,13 +40,13 @@ impl Display for SerializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SerializationError::Custom(msg) => {
-                write!(f, "Serialization error: {}", msg)
+                core::write!(f, "Serialization error: {}", msg)
             }
             SerializationError::CanNotSerialize(msg) => {
-                write!(f, "Can not serialize value: {}", msg)
+                core::write!(f, "Can not serialize value: {}", msg)
             }
             SerializationError::CompilerError(err) => {
-                write!(f, "Compiler error: {}", err)
+                core::write!(f, "Compiler error: {}", err)
             }
         }
     }
@@ -88,22 +88,22 @@ impl Display for DeserializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DeserializationError::Custom(msg) => {
-                write!(f, "Deserialization error: {}", msg)
+                core::write!(f, "Deserialization error: {}", msg)
             }
             DeserializationError::CanNotDeserialize(msg) => {
-                write!(f, "Can not deserialize value: {}", msg)
+                core::write!(f, "Can not deserialize value: {}", msg)
             }
             DeserializationError::ExecutionError(err) => {
-                write!(f, "Execution error: {}", err)
+                core::write!(f, "Execution error: {}", err)
             }
             DeserializationError::CanNotReadFile(msg) => {
-                write!(f, "Can not read file: {}", msg)
+                core::write!(f, "Can not read file: {}", msg)
             }
             DeserializationError::CompilerError(err) => {
-                write!(f, "Compiler error: {}", err)
+                core::write!(f, "Compiler error: {}", err)
             }
             DeserializationError::NoStaticValueFound => {
-                write!(f, "No static value found in script")
+                core::write!(f, "No static value found in script")
             }
         }
     }

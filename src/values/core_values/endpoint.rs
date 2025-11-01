@@ -1,5 +1,5 @@
 use crate::crypto::random;
-use crate::stdlib::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter};
 use crate::stdlib::hash::Hash;
 use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
@@ -8,8 +8,7 @@ use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::{BinRead, BinWrite};
 use hex::decode;
-// FIXME #123 no-std
-use crate::stdlib::str;
+use core::str;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::io::Cursor;
 use core::str::FromStr;
@@ -143,22 +142,22 @@ impl Display for InvalidEndpointError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidEndpointError::InvalidCharacters => {
-                write!(f, "Endpoint contains invalid characters")
+                core::write!(f, "Endpoint contains invalid characters")
             }
             InvalidEndpointError::MaxLengthExceeded => {
-                write!(
+                core::write!(
                     f,
                     "Endpoint name exceeds maximum length of 18 characters"
                 )
             }
             InvalidEndpointError::MinLengthNotMet => {
-                write!(f, "Endpoint name must be at least 3 characters long")
+                core::write!(f, "Endpoint name must be at least 3 characters long")
             }
             InvalidEndpointError::InvalidInstance => {
-                write!(f, "Endpoint instance must be between 1 and 65534")
+                core::write!(f, "Endpoint instance must be between 1 and 65534")
             }
             InvalidEndpointError::ReservedName => {
-                write!(f, "Endpoint name is reserved")
+                core::write!(f, "Endpoint name is reserved")
             }
         }
     }
@@ -540,7 +539,7 @@ impl Display for Endpoint {
             EndpointType::Anonymous => {
                 // is @@any
                 if self.identifier == [255; 18] {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -549,7 +548,7 @@ impl Display for Endpoint {
                 }
                 // is @@local
                 else if self.identifier == [0; 18] {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -558,7 +557,7 @@ impl Display for Endpoint {
                 }
                 // is normal anonymous endpoint
                 else {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -566,7 +565,7 @@ impl Display for Endpoint {
                     )?
                 }
             }
-            EndpointType::Person => write!(
+            EndpointType::Person => core::write!(
                 f,
                 "{}{}",
                 Endpoint::PREFIX_PERSON,
@@ -574,7 +573,7 @@ impl Display for Endpoint {
                     .unwrap()
                     .trim_end_matches('\0')
             )?,
-            EndpointType::Institution => write!(
+            EndpointType::Institution => core::write!(
                 f,
                 "{}{}",
                 Endpoint::PREFIX_INSTITUTION,
@@ -587,7 +586,7 @@ impl Display for Endpoint {
         match self.instance {
             EndpointInstance::Any => (),
             EndpointInstance::All => f.write_str("/*")?,
-            EndpointInstance::Instance(instance) => write!(f, "/{instance}")?,
+            EndpointInstance::Instance(instance) => core::write!(f, "/{instance}")?,
         };
 
         Ok(())

@@ -20,10 +20,10 @@ pub enum TypeContainer {
 impl Display for TypeContainer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeContainer::Type(t) => write!(f, "{}", t),
+            TypeContainer::Type(t) => core::write!(f, "{}", t),
             TypeContainer::TypeReference(tr) => {
                 let tr = tr.borrow();
-                write!(f, "{}", tr)
+                core::write!(f, "{}", tr)
             }
         }
     }

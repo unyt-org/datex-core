@@ -35,7 +35,7 @@ use crate::stdsync::Mutex;
 pub struct ComInterfaceUUID(pub UUID);
 impl Display for ComInterfaceUUID {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "ComInterface({})", self.0)
+        core::write!(f, "ComInterface({})", self.0)
     }
 }
 

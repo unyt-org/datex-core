@@ -17,8 +17,8 @@ pub enum ResolvedVariable {
 impl Display for ResolvedVariable {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ResolvedVariable::VariableId(id) => write!(f, "#{}", id),
-            ResolvedVariable::PointerAddress(addr) => write!(f, "{}", addr),
+            ResolvedVariable::VariableId(id) => core::write!(f, "#{}", id),
+            ResolvedVariable::PointerAddress(addr) => core::write!(f, "{}", addr),
         }
     }
 }
