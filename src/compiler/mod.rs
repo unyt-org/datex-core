@@ -306,13 +306,13 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     options: &mut CompileOptions<'a>,
 ) -> Result<RichAst, SpannedCompilerError> {
     // TODO #481: do this (somewhere else)
-    // // shortcut if datex_script is "?" - call compile_value directly
+    // // shortcut if datex_script is "?" - call compile_value_container directly
     // if datex_script == "?" {
     //     if inserted_values.len() != 1 {
     //         return Err(CompilerError::InvalidPlaceholderCount);
     //     }
     //     let result =
-    //         compile_value(inserted_values[0]).map(StaticValueOrAst::from)?;
+    //         compile_value_container(inserted_values[0]).map(StaticValueOrAst::from)?;
     //     return Ok((result, options.compile_scope));
     // }
 
@@ -390,15 +390,6 @@ fn compile_ast<'a>(
     let compilation_scope =
         compile_rich_ast(compilation_context, ast, options.compile_scope)?;
     Ok(compilation_scope)
-}
-
-pub fn compile_value(value: &ValueContainer) -> Result<Vec<u8>, CompilerError> {
-    let buffer = Vec::with_capacity(256);
-    let mut compilation_scope = CompilationContext::new(buffer, vec![], true);
-
-    append_value_container(&mut compilation_scope.buffer, value);
-
-    Ok(compilation_scope.buffer)
 }
 
 /// Tries to extract a static value from a DATEX expression AST.

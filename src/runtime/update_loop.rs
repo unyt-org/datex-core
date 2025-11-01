@@ -1,4 +1,3 @@
-use crate::compiler::compile_value;
 use crate::global::dxb_block::{DXBBlock, OutgoingContextId};
 use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
 use crate::global::protocol_structures::block_header::{
@@ -13,6 +12,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use futures::channel::oneshot;
 use log::info;
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::time::Duration;
 
@@ -122,13 +122,10 @@ impl RuntimeInternal {
 
         if let Ok(value) = result {
             let dxb = if let Some(value) = &value {
-                compile_value(value)
+                compile_value_container(value)
             } else {
-                Ok(vec![])
+                vec![]
             };
-
-            // TODO #232: handle compiler error here
-            let dxb = dxb.unwrap();
 
             let mut block = DXBBlock::new(
                 routing_header,

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use crate::compiler::compile_value;
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::values::value_container::ValueContainer;
 
 pub mod deserializer;
@@ -13,7 +13,7 @@ impl Serialize for ValueContainer {
     {
         serializer.serialize_newtype_struct(
             "datex::value",
-            &compile_value(self).unwrap(),
+            &compile_value_container(self),
         )
     }
 }

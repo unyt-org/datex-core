@@ -1,6 +1,9 @@
-use crate::compiler::error::SpannedCompilerError;
-use crate::compiler::scope::CompilationScope;
-use crate::compiler::{CompileOptions, compile_template};
+#[cfg(feature = "compiler")]
+use crate::compiler::{
+    error::SpannedCompilerError,
+    scope::CompilationScope,
+    CompileOptions, compile_template
+};
 use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
@@ -16,10 +19,12 @@ use crate::stdlib::rc::Rc;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
+    #[cfg(feature = "compiler")]
     CompilerError(SpannedCompilerError),
     ExecutionError(ExecutionError),
 }
 
+#[cfg(feature = "compiler")]
 impl From<SpannedCompilerError> for ScriptExecutionError {
     fn from(err: SpannedCompilerError) -> Self {
         ScriptExecutionError::CompilerError(err)
@@ -195,6 +200,7 @@ impl ExecutionContext {
         ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, false))
     }
 
+    #[cfg(feature = "compiler")]
     fn compile_scope(&self) -> &CompilationScope {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
@@ -208,6 +214,7 @@ impl ExecutionContext {
         }
     }
 
+    #[cfg(feature = "compiler")]
     fn set_compile_scope(&mut self, new_compile_scope: CompilationScope) {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
@@ -222,6 +229,7 @@ impl ExecutionContext {
     }
 
     /// Compiles a script using the compile scope of the execution context
+    #[cfg(feature = "compiler")]
     pub fn compile(
         &mut self,
         script: &str,
@@ -309,6 +317,7 @@ impl ExecutionContext {
     }
 
     /// Executes a script in a local execution context.
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         &mut self,
         script: &str,
@@ -337,6 +346,7 @@ impl ExecutionContext {
         }
     }
 
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         &mut self,
         script: &str,

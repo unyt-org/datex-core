@@ -1,4 +1,3 @@
-use crate::compiler::compile_value;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -12,6 +11,7 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::vec;
 pub struct DatexSerializer {}
 
@@ -32,7 +32,7 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    compile_value(&value_container).map_err(|e| e.into())
+    Ok(compile_value_container(&value_container))
 }
 pub fn to_value_container<T>(
     value: &T,

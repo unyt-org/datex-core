@@ -11,8 +11,6 @@ use crate::ast::structs::operator::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
-use crate::compiler::compile_value;
-use crate::compiler::error::CompilerError;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::*;
 use crate::global::slots::InternalSlot;
@@ -48,6 +46,7 @@ use num_enum::TryFromPrimitive;
 use core::cell::RefCell;
 use crate::stdlib::collections::HashMap;
 use core::fmt::Display;
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
@@ -441,7 +440,6 @@ pub enum ExecutionError {
     RequiresAsyncExecution,
     RequiresRuntime,
     ResponseError(ResponseError),
-    CompilerError(CompilerError),
     IllegalTypeError(IllegalTypeError),
     ReferenceNotFound,
     DerefOfNonReference,
@@ -485,12 +483,6 @@ impl From<ResponseError> for ExecutionError {
     }
 }
 
-impl From<CompilerError> for ExecutionError {
-    fn from(error: CompilerError) -> Self {
-        ExecutionError::CompilerError(error)
-    }
-}
-
 impl From<AssignmentError> for ExecutionError {
     fn from(error: AssignmentError) -> Self {
         ExecutionError::AssignmentError(error)
@@ -505,9 +497,6 @@ impl Display for ExecutionError {
             }
             ExecutionError::ReferenceNotFound => {
                 write!(f, "Reference not found")
-            }
-            ExecutionError::CompilerError(err) => {
-                write!(f, "Compiler error: {err}")
             }
             ExecutionError::DXBParserError(err) => {
                 write!(f, "Parser error: {err}")
@@ -847,9 +836,7 @@ fn get_result_value_from_instruction(
                             |_| ExecutionError::SlotNotAllocated(local_slot),
                         )
                     ) {
-                        buffer.extend_from_slice(&yield_unwrap!(
-                            compile_value(&vc)
-                        ));
+                        buffer.extend_from_slice(&compile_value_container(&vc));
                     } else {
                         return yield Err(ExecutionError::SlotNotInitialized(
                             local_slot,
