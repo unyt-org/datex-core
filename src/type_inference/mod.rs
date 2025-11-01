@@ -3,10 +3,10 @@ use std::{cell::RefCell, ops::Range, rc::Rc};
 use crate::{
     ast::structs::{
         expression::{
-            BinaryOperation, DatexExpression, Map, Statements, VariableAccess,
+            BinaryOperation, DatexExpression, Statements, VariableAccess,
             VariableDeclaration,
         },
-        r#type::{self, TypeExpression},
+        r#type::TypeExpression,
     },
     libs::core::{CoreLibPointerId, get_core_lib_type},
     precompiler::precompiled_ast::{AstMetadata, RichAst},
@@ -17,7 +17,7 @@ use crate::{
         options::InferExpressionTypeOptions,
     },
     types::{
-        definition, structural_type_definition::StructuralTypeDefinition,
+        structural_type_definition::StructuralTypeDefinition,
         type_container::TypeContainer,
     },
     values::{
