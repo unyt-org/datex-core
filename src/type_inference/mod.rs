@@ -360,10 +360,10 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let right_type = self.infer_expression(&mut binary_operation.right)?;
         // if base types are the same, use that as result type
         if left_type.base_type() == right_type.base_type() {
-            Ok(VisitAction::SetTypeAnnotation(left_type.base_type()))
+            mark_type(left_type.base_type())
         } else {
             // otherwise, use never type
-            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
+            mark_type(TypeContainer::never())
         }
     }
 }
