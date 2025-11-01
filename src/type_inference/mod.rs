@@ -6,7 +6,7 @@ use crate::{
             BinaryOperation, DatexExpression, Statements, TypeDeclaration,
             VariableAccess, VariableDeclaration,
         },
-        r#type::TypeExpression,
+        r#type::{Intersection, StructuralMap, TypeExpression, Union},
     },
     libs::core::{CoreLibPointerId, get_core_lib_type},
     precompiler::precompiled_ast::{AstMetadata, RichAst},
@@ -220,6 +220,43 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
             endpoint.clone(),
         ))
     }
+    fn visit_union_type(
+        &mut self,
+        union: &mut Union,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        let members = union
+            .0
+            .iter_mut()
+            .map(|member| self.infer_type_expression(member))
+            .collect::<Result<Vec<_>, _>>()?;
+        mark_type(Type::union(members).as_type_container())
+    }
+    fn visit_intersection_type(
+        &mut self,
+        intersection: &mut Intersection,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        let members = intersection
+            .0
+            .iter_mut()
+            .map(|member| self.infer_type_expression(member))
+            .collect::<Result<Vec<_>, _>>()?;
+        mark_type(Type::intersection(members).as_type_container())
+    }
+    fn visit_structural_map_type(
+        &mut self,
+        structural_map: &mut StructuralMap,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        let mut fields = vec![];
+        for (field_name, field_type_expr) in structural_map.0.iter_mut() {
+            let field_name = self.infer_type_expression(field_name)?;
+            let field_type = self.infer_type_expression(field_type_expr)?;
+            fields.push((field_name, field_type));
+        }
+        mark_structural_type(StructuralTypeDefinition::Map(fields))
+    }
 
     fn visit_get_reference_type(
         &mut self,
@@ -234,6 +271,16 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
         } else {
             panic!("GetReference not supported yet")
         }
+    }
+    fn visit_variable_access_type(
+        &mut self,
+        var_access: &mut VariableAccess,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        mark_type(
+            self.variable_type(var_access.id)
+                .unwrap_or(TypeContainer::never()),
+        )
     }
 }
 
@@ -420,6 +467,7 @@ mod tests {
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::infer_expression_type_simple_error,
         types::{
+            definition::TypeDefinition,
             structural_type_definition::StructuralTypeDefinition,
             type_container::TypeContainer,
         },
@@ -479,6 +527,61 @@ mod tests {
             None,
         );
         assert_eq!(var_a.var_type, Some(nominal_ref.as_type_container()));
+    }
+
+    #[test]
+    fn structural_type_declaration() {
+        let src = r#"
+        typedef A = integer;
+        "#;
+        let metadata = infer_get_ast(src).metadata;
+        let metadata = metadata.borrow();
+        let var_a = metadata.variable_metadata(0).unwrap();
+        let var_type = var_a.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+    }
+
+    #[test]
+    fn recursive_nominal_type() {
+        let src = r#"
+        type LinkedList = {
+            value: text,
+            next: LinkedList | null
+        };
+        "#;
+        let metadata = infer_get_ast(src).metadata;
+        let metadata = metadata.borrow();
+        let var = metadata.variable_metadata(0).unwrap();
+        let var_type = var.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+
+        // get next field, as wrapped in union
+        let next = {
+            let var_type_ref = match var_type {
+                TypeContainer::TypeReference(r) => r,
+                _ => unreachable!(),
+            };
+            let bor = var_type_ref.borrow();
+            let structural_type_definition =
+                bor.as_type().structural_type().unwrap();
+            let fields = match structural_type_definition {
+                StructuralTypeDefinition::Map(fields) => fields,
+                _ => unreachable!(),
+            };
+            let inner_union = match &fields[1].1 {
+                TypeContainer::Type(r) => r.clone(),
+                _ => unreachable!(),
+            }
+            .type_definition;
+            match inner_union {
+                TypeDefinition::Union(members) => {
+                    assert_eq!(members.len(), 2);
+                    members[0].clone()
+                }
+                _ => unreachable!(),
+            }
+        };
+        assert_eq!(next, var_type.clone());
     }
 
     #[test]
