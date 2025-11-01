@@ -742,7 +742,7 @@ mod tests {
 
             let mut expr = rich_ast.ast;
             infer_expression_type_detailed_errors(
-                expr.as_mut().unwrap(),
+                &mut expr,
                 rich_ast.metadata.clone(),
             )
             .unwrap();
@@ -757,9 +757,9 @@ mod tests {
     /// The function asserts that the expression is indeed a type declaration.
     fn infer_type_container_from_str(src: &str) -> TypeContainer {
         let rich_ast = parse_and_precompile_unwrap(src);
-        let expr = rich_ast.ast;
+        let mut expr = rich_ast.ast;
         resolve_type_expression_type(
-            match &mut expr.unwrap().data {
+            match &mut expr.data {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     value,
                     ..
@@ -904,7 +904,7 @@ mod tests {
         let rich_ast = parse_and_precompile_unwrap(&src);
         let mut expr = rich_ast.ast;
         let result = infer_expression_type_simple_error(
-            &mut expr.as_mut().unwrap(),
+            &mut expr,
             rich_ast.metadata.clone(),
         )
         .map_err(|e| e.error);
@@ -1275,11 +1275,8 @@ mod tests {
 
         // check that the expression type is inferred correctly
         assert_eq!(
-            infer_expression_type_detailed_errors(
-                expr.as_mut().unwrap(),
-                metadata.clone()
-            )
-            .unwrap(),
+            infer_expression_type_detailed_errors(&mut expr, metadata.clone())
+                .unwrap(),
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
                 10
             )))

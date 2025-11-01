@@ -68,11 +68,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub fn render(&self) -> String {
-        if let Some(ast) = &self.ast.ast {
-            self.render_expression(ast)
-        } else {
-            "".to_string()
-        }
+        self.render_expression(&self.ast.ast)
     }
 
     /// Renders a DatexExpression into a source code string.
