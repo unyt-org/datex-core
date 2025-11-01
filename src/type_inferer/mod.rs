@@ -366,12 +366,6 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInferer {
             Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
         }
     }
-    // fn visit_map(
-    //     &mut self,
-    //     map: &mut Map,
-    //     span: &Range<usize>,
-    // ) -> ExpressionVisitResult<SpannedTypeError> {
-    // }
 }
 
 #[cfg(test)]
@@ -391,14 +385,14 @@ mod tests {
             type_container::TypeContainer,
         },
         values::core_values::{
-            endpoint::Endpoint,
-            integer::typed_integer::{
-                IntegerTypeVariant, IntegerTypeVariantIter,
-            },
+            endpoint::Endpoint, integer::typed_integer::IntegerTypeVariant,
             r#type::Type,
         },
     };
 
+    /// Infers the AST of the given source code.
+    /// Panics if parsing, precompilation or type inference fails.
+    /// Returns the RichAst containing the inferred types.
     fn infer_get_ast(src: &str) -> RichAst {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
@@ -410,6 +404,13 @@ mod tests {
             .expect("Type inference failed");
         res
     }
+
+    /// Infers the type of the given source code.
+    /// Panics if parsing, precompilation or type inference fails.
+    /// Returns the inferred type of the full script expression. For example,
+    /// for "var x = 42; x", it returns the type of "x", as this is the last expression of the statements.
+    /// For "var x = 42;", it returns the never type, as the statement is terminated.
+    /// For "10 + 32", it returns the type of the binary operation.
     fn infer_get_type(src: &str) -> TypeContainer {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
