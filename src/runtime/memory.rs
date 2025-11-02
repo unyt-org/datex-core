@@ -14,6 +14,8 @@ use core::cell::RefCell;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::io::Cursor;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
+
 // FIXME #105 no-std
 
 #[derive(Debug, Default)]

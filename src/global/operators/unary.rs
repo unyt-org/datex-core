@@ -1,5 +1,5 @@
+use core::prelude::rust_2024::*;
 use core::fmt::{Display, Formatter};
-
 use crate::global::instruction_codes::InstructionCode;
 
 #[derive(Clone, Debug, PartialEq, Copy)]

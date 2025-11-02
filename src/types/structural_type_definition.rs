@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
@@ -16,7 +15,9 @@ use core::fmt::Display;
 use core::hash::Hash;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
+use core::unimplemented;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

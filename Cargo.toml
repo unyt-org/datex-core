@@ -70,7 +70,6 @@ rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
-esp-idf-svc = { version = "0.51.0", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 webrtc = { version = "0.13.0", optional = true }
 
@@ -82,7 +81,8 @@ pretty = { version = "0.12.5", optional = true}
 chumsky = { version = "0.10.1", optional = true, features = ["std"], default-features = false }
 logos = {version = "0.15.0", optional = true}
 internment = { version = "0.8.6", optional = true }
-spin = {version = "0.10.0", optional = true}
+foldhash = { version = "0.2.0", optional = true, default-features = false}
+spin = { version = "0.10.0", optional = true, default-features = false, features = ["spin_mutex", "mutex", "lock_api"]}
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -182,7 +182,7 @@ wasm_webrtc = ["com_webrtc"] # use webrtc
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
-esp_logger = ["esp-idf-svc"]
+esp_logger = [] # todo no-std logger
 env_logger = []
 
 # runtime
@@ -227,6 +227,7 @@ std = [
 ]   # use std
 nostd = [
     "dep:nostd",
+    "dep:foldhash",
     "dep:spin",
     "serde/alloc",
     "serde_with/alloc",
@@ -237,7 +238,7 @@ nostd = [
     "mopa/no_std",
     "hex/alloc",
     "num/alloc",
-    "num/libm"
+    "num/libm",
 ]
 debug = [
     "dep:serde-big-array"

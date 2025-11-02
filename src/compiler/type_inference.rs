@@ -19,6 +19,7 @@ use core::ops::Range;
 use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 use crate::stdlib::rc::Rc;
 
+
 #[derive(Debug, Clone)]
 pub enum TypeError {
     MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),

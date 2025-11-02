@@ -29,6 +29,8 @@ use crate::stdlib::vec::Vec;
 use core::option::Option;
 use crate::stdlib::string::String;
 use core::unreachable;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug)]
 pub enum AccessError {

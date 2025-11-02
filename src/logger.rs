@@ -1,5 +1,5 @@
+use core::prelude::rust_2024::*;
 use crate::stdlib::sync::Once;
-
 use cfg_if::cfg_if;
 
 static INIT: Once = Once::new();
@@ -60,9 +60,10 @@ cfg_if! {
     }
 
     else if #[cfg(feature = "esp_logger")] {
-        use esp_idf_svc::log::EspLogger;
+        // TODO:
+        // use esp_idf_svc::log::EspLogger;
         fn init(debug: bool) {
-            EspLogger::initialize_default();
+            // EspLogger::initialize_default();
         }
     }
 

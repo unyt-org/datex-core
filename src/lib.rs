@@ -60,13 +60,21 @@ pub mod stdlib {
     pub use std::*;
     #[cfg(not(feature = "std"))]
     pub use nostd::{
-        rc, sync, collections, fmt, cell, panic, vec, hash, string, future, pin, io, format, any
+        rc, sync, collections, fmt, cell, panic, vec, hash, string, future, pin, io, format, any, boxed, ops, borrow
     };
 }
 
-pub mod stdsync {
+pub mod std_sync {
     #[cfg(feature = "std")]
-    pub use std::sync::*;
+    pub use std::sync::Mutex;
     #[cfg(not(feature = "std"))]
-    pub use spin::*;
+    pub use spin::Mutex;
+}
+
+
+pub mod std_random {
+    #[cfg(feature = "std")]
+    pub use std::hash::RandomState;
+    #[cfg(not(feature = "std"))]
+    pub use foldhash::fast::RandomState;
 }

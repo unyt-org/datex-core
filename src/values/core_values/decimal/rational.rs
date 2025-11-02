@@ -9,6 +9,7 @@ use core::fmt::Display;
 use core::ops::{Add, Neg};
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {

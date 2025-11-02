@@ -253,11 +253,11 @@ impl MockupInterface {
         sockets: Arc<Mutex<ComInterfaceSockets>>,
     ) {
         if let Some(receiver) = &*receiver.borrow() {
-            let sockets = sockets.lock().unwrap();
+            let sockets = sockets.try_lock().unwrap();
             let socket = sockets.sockets.values().next();
             if let Some(socket) = socket {
-                let socket = socket.lock().unwrap();
-                let mut receive_queue = socket.receive_queue.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
+                let mut receive_queue = socket.receive_queue.try_lock().unwrap();
                 while let Ok(block) = receiver.try_recv() {
                     receive_queue.extend(block);
                 }

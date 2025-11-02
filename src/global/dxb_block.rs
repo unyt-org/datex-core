@@ -19,6 +19,7 @@ use log::error;
 use strum::Display;
 use thiserror::Error;
 use crate::stdlib::vec::Vec;
+use core::unimplemented;
 
 #[derive(Debug, Display, Error)]
 pub enum HeaderParsingError {

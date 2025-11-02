@@ -1,7 +1,6 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use core::fmt::Display;
-
+use crate::stdlib::boxed::Box;
 use crate::types::type_container::TypeContainer;
 
 // TODO #377: Rename to Generic type definition?

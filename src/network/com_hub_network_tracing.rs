@@ -1,7 +1,5 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::compile;
-use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -33,6 +31,9 @@ use core::writeln;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use core::unreachable;
+use crate::core_compiler::value_compiler::compile_value_container;
+use crate::stdlib::string::ToString;
+use crate::stdlib::borrow::ToOwned;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -714,11 +715,11 @@ impl ComHub {
             hops_datex.push(ValueContainer::from(data_map));
         }
 
-        let (dxb, _) = compile!("?", hops_datex).unwrap();
-        info!(
-            "Trace data: {}",
-            decompile_body(&dxb, DecompileOptions::default()).unwrap()
-        );
+        let dxb = compile_value_container(&ValueContainer::from(hops_datex));
+        // info!(
+        //     "Trace data: {}",
+        //     decompile_body(&dxb, DecompileOptions::default()).unwrap()
+        // );
 
         block.body = dxb;
     }

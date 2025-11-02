@@ -3,6 +3,7 @@ use core::result::Result;
 use core::fmt::Display;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 

@@ -1,7 +1,7 @@
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
-use crate::global::operators::ApplyOperation;
+use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
 use crate::global::operators::assignment::AssignmentOperator;

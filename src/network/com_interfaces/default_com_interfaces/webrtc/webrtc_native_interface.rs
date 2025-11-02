@@ -6,7 +6,7 @@ use crate::stdlib::{
     sync::{Arc},
     time::Duration,
 };
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 
 use crate::{
     delegate_com_interface_info,
@@ -451,7 +451,7 @@ impl WebRTCNativeInterface {
             // ICE servers
             self.rtc_configuration.ice_servers = self
                 .commons
-                .lock()
+                .try_lock()
                 .unwrap()
                 .ice_servers
                 .clone()
@@ -562,7 +562,7 @@ impl WebRTCNativeInterface {
             ));
             spawn_local(async move {
                 while let Some(candidate) = rx_ice_candidate.next().await {
-                    commons.clone().lock().unwrap().on_ice_candidate(
+                    commons.clone().try_lock().unwrap().on_ice_candidate(
                         RTCIceCandidateInitDX {
                             candidate: candidate.candidate,
                             sdp_mid: candidate.sdp_mid,

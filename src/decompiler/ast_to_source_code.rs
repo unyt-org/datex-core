@@ -15,9 +15,10 @@ use crate::{
             VariableAccess, VariableAssignment, VariableDeclaration,
         },
     },
-    global::operators::ApplyOperation,
     decompiler::FormattingMode,
 };
+
+use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Default)]

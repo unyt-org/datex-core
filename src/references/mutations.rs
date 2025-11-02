@@ -10,6 +10,7 @@ use core::cell::RefCell;
 use crate::references::observers::TransceiverId;
 use crate::stdlib::format;
 use core::ops::FnOnce;
+use crate::stdlib::string::ToString;
 
 impl Reference {
 

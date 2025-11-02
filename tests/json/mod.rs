@@ -48,7 +48,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
             Value::from(vec)
         }
         json_syntax::Value::Object(obj) => {
-            let mut map = IndexMap::new();
+            let mut map = IndexMap::default();
             for entry in obj {
                 map.insert(
                     entry.key.to_string(),

@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::runtime::execution::ExecutionError;
 use crate::values::value_container::ValueContainer;
 

@@ -38,7 +38,7 @@ impl List {
     ) -> Option<ValueContainer> {
         // replace
         if (index as usize) < self.0.len() {
-            Some(std::mem::replace(&mut self.0[index as usize], value))
+            Some(core::mem::replace(&mut self.0[index as usize], value))
         }
         // push
         else if (index as usize) == self.0.len() {
@@ -137,7 +137,7 @@ impl Index<usize> for List {
 
 impl IntoIterator for List {
     type Item = ValueContainer;
-    type IntoIter = std::vec::IntoIter<ValueContainer>;
+    type IntoIter = crate::stdlib::vec::IntoIter<ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()

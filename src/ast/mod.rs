@@ -333,7 +333,7 @@ mod tests {
             },
         },
         global::operators::{
-            ApplyOperation, ArithmeticUnaryOperator,
+            ArithmeticUnaryOperator,
             AssignmentOperator, BinaryOperator, ComparisonOperator,
             LogicalUnaryOperator, UnaryOperator,
             binary::{ArithmeticOperator, BitwiseOperator},
@@ -357,6 +357,7 @@ mod tests {
         vec,
     };
     use crate::references::reference::ReferenceMutability;
+    use crate::ast::structs::apply_operation::ApplyOperation;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {

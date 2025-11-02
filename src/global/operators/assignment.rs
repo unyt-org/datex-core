@@ -1,6 +1,6 @@
+use core::prelude::rust_2024::*;
 use core::fmt::Display;
 use super::super::instruction_codes::InstructionCode;
-use crate::stdlib::string::String;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {

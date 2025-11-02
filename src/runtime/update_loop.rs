@@ -109,7 +109,6 @@ impl RuntimeInternal {
         let routing_header: RoutingHeader = RoutingHeader::default()
             .with_sender(self_rc.endpoint.clone())
             .to_owned();
-
         let block_header = BlockHeader {
             context_id,
             flags_and_timestamp: FlagsAndTimestamp::new()

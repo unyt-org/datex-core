@@ -5,7 +5,7 @@ use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
@@ -72,7 +72,7 @@ impl TCPClientNativeInterface {
         );
         let receive_queue = socket.receive_queue.clone();
         self.get_sockets()
-            .lock()
+            .try_lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
 
@@ -84,16 +84,16 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                     Ok(n) => {
-                        let mut queue = receive_queue.lock().unwrap();
+                        let mut queue = receive_queue.try_lock().unwrap();
                         queue.extend(&buffer[..n]);
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

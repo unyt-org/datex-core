@@ -6,7 +6,6 @@ use crate::compiler::{
     scope::CompilationScope,
     CompileOptions, compile_template
 };
-use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::{
@@ -269,12 +268,15 @@ impl ExecutionContext {
                 .join(", ")
         );
 
-        let decompiled = decompile_body(dxb, DecompileOptions::colorized());
-        if let Err(e) = decompiled {
-            println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
-        } else {
-            let decompiled = decompiled?;
-            println!("[Decompiled]: {decompiled}");
+        #[cfg(feature = "compiler")]
+        {
+            let decompiled = crate::decompiler::decompile_body(dxb, crate::decompiler::DecompileOptions::colorized());
+            if let Err(e) = decompiled {
+                println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
+            } else {
+                let decompiled = decompiled?;
+                println!("[Decompiled]: {decompiled}");
+            }
         }
 
         Ok(())

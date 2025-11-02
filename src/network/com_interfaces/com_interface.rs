@@ -33,8 +33,9 @@ use crate::stdlib::{
     future::Future,
     sync::{Arc},
     vec::Vec,
+    boxed::Box,
 };
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -92,7 +93,7 @@ pub struct ComInterfaceSockets {
 impl ComInterfaceSockets {
     pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         {
-            let mut socket_mut = socket.lock().unwrap();
+            let mut socket_mut = socket.try_lock().unwrap();
             let uuid = socket_mut.uuid.clone();
             socket_mut.state = SocketState::Open;
             self.sockets.insert(uuid.clone(), socket.clone());
@@ -104,7 +105,7 @@ impl ComInterfaceSockets {
         self.sockets.remove(socket_uuid);
         self.deleted_sockets.push_back(socket_uuid.clone());
         if let Some(socket) = self.sockets.get(socket_uuid) {
-            socket.lock().unwrap().state = SocketState::Destroyed;
+            socket.try_lock().unwrap().state = SocketState::Destroyed;
         }
     }
     pub fn get_socket_by_uuid(
@@ -125,7 +126,7 @@ impl ComInterfaceSockets {
             return Err(ComInterfaceError::SocketNotFound);
         }
         {
-            let mut socket = socket.unwrap().lock().unwrap();
+            let mut socket = socket.unwrap().try_lock().unwrap();
             if socket.direct_endpoint.is_none() {
                 socket.direct_endpoint = Some(endpoint.clone());
             }
@@ -187,10 +188,10 @@ impl ComInterfaceInfo {
         &self.uuid
     }
     pub fn get_state(&self) -> ComInterfaceState {
-        *self.state.lock().unwrap()
+        *self.state.try_lock().unwrap()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
-        self.state.lock().unwrap().clone_from(&new_state);
+        self.state.try_lock().unwrap().clone_from(&new_state);
     }
 }
 
@@ -261,10 +262,10 @@ macro_rules! delegate_com_interface_info {
             self.info.com_interface_sockets().clone()
         }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+        fn as_any(&self) -> &dyn datex_core::stdlib::any::Any {
             self
         }
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        fn as_any_mut(&mut self) -> &mut dyn datex_core::stdlib::any::Any {
             self
         }
         fn get_properties(&mut self) -> &InterfaceProperties {
@@ -367,19 +368,19 @@ where
 
 pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
     fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
-        let mut socket_mut = socket_ref.lock().unwrap();
+        let mut socket_mut = socket_ref.try_lock().unwrap();
         let blocks: Vec<Vec<u8>> =
             socket_mut.send_queue.drain(..).collect::<Vec<_>>();
         blocks
     }
     let sockets = interface.borrow().get_sockets();
-    for socket_ref in sockets.lock().unwrap().sockets.values() {
+    for socket_ref in sockets.try_lock().unwrap().sockets.values() {
         let blocks = get_blocks(socket_ref);
         let interface = interface.clone();
         for block in blocks {
             let interface = interface.clone();
             let socket_ref = socket_ref.clone();
-            let uuid = socket_ref.lock().unwrap().uuid.clone();
+            let uuid = socket_ref.try_lock().unwrap().uuid.clone();
             interface
                 .borrow()
                 .get_info()
@@ -396,7 +397,7 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
                     .update(|x| x - 1);
                 if !has_been_send {
                     debug!("Failed to send block");
-                    socket_ref.lock().unwrap().send_queue.push_back(block);
+                    socket_ref.try_lock().unwrap().send_queue.push_back(block);
                     core::panic!("Failed to send block");
                 }
             });
@@ -411,8 +412,8 @@ pub trait ComInterface: Any {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
-    fn as_any(&self) -> &dyn std::any::Any;
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+    fn as_any(&self) -> &dyn crate::stdlib::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn crate::stdlib::any::Any;
 
     fn init_properties(&self) -> InterfaceProperties;
     // TODO #195: no mut, wrap self.info in RefCell
@@ -433,7 +434,7 @@ pub trait ComInterface: Any {
     /// to be consumed by the ComHub
     fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
-        let sockets = sockets.lock().unwrap();
+        let sockets = sockets.try_lock().unwrap();
         let uuids: Vec<ComInterfaceSocketUUID> =
             sockets.sockets.keys().cloned().collect();
         drop(sockets);
@@ -510,15 +511,15 @@ pub trait ComInterface: Any {
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.add_socket(socket);
     }
 
     // Remove socket from the interface
     fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
         let socket = sockets.get_socket_by_uuid(socket_uuid);
-        socket.unwrap().lock().unwrap().state = SocketState::Destroyed;
+        socket.unwrap().try_lock().unwrap().state = SocketState::Destroyed;
         sockets.remove_socket(socket_uuid);
     }
 
@@ -529,7 +530,7 @@ pub trait ComInterface: Any {
         endpoint: Endpoint,
         distance: u8,
     ) -> Result<(), ComInterfaceError> {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.register_socket_endpoint(socket_uuid, endpoint, distance)
     }
 

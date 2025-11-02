@@ -18,6 +18,7 @@ use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
 use core::cell::RefCell;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;

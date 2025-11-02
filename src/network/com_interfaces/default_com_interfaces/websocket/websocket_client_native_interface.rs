@@ -1,7 +1,7 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use crate::stdlib::{future::Future, pin::Pin, time::Duration};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 // FIXME #209 no-std
 
 use crate::{
@@ -81,7 +81,7 @@ impl WebSocketClientNativeInterface {
         self.websocket_stream = Some(write);
         let receive_queue = socket.receive_queue.clone();
         self.get_sockets()
-            .lock()
+            .try_lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
         let state = self.get_info().state.clone();
@@ -89,7 +89,7 @@ impl WebSocketClientNativeInterface {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {
-                        let mut queue = receive_queue.lock().unwrap();
+                        let mut queue = receive_queue.try_lock().unwrap();
                         queue.extend(data);
                     }
                     Ok(_) => {
@@ -97,7 +97,7 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

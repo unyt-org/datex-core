@@ -18,9 +18,13 @@ use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use core::cell::RefCell;
 use core::fmt;
+use crate::std_random::RandomState;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::borrow::ToOwned;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {
@@ -98,7 +102,7 @@ impl DIFValueRepresentation {
                 ),
             },
             DIFValueRepresentation::Object(object) => {
-                let mut map = IndexMap::new();
+                let mut map = IndexMap::default();
                 for (k, v) in object {
                     map.insert(
                         ValueContainer::Value(Value::from(k)),
@@ -113,7 +117,7 @@ impl DIFValueRepresentation {
                 }
             }
             DIFValueRepresentation::Map(map) => {
-                let mut core_map = IndexMap::new();
+                let mut core_map = IndexMap::default();
                 for (k, v) in map {
                     core_map.insert(
                         k.to_value_container(memory)?,
@@ -153,7 +157,8 @@ impl DIFValueRepresentation {
                             let mut core_map: IndexMap<
                                 ValueContainer,
                                 ValueContainer,
-                            > = IndexMap::new();
+                                RandomState,
+                            > = IndexMap::default();
                             for (k, v) in object {
                                 core_map.insert(
                                     Value::from(k).into(),
@@ -317,7 +322,7 @@ impl<'de> Deserialize<'de> for DIFValueRepresentation {
             where
                 E: de::Error,
             {
-                Ok(DIFValueRepresentation::String(value.to_owned()))
+                Ok(DIFValueRepresentation::String(value.to_string()))
             }
 
             fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
@@ -446,7 +451,7 @@ impl<'de> Deserialize<'de> for DIFTypeRepresentation {
             where
                 E: de::Error,
             {
-                Ok(DIFTypeRepresentation::String(value.to_owned()))
+                Ok(DIFTypeRepresentation::String(value.to_string()))
             }
 
             fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {

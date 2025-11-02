@@ -14,14 +14,14 @@ use core::cmp::PartialEq;
 use crate::stdlib::collections::{HashMap, HashSet};
 use core::fmt::{Debug, Display, Formatter};
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::vec;
 use crate::stdlib::string::String;
-
+use crate::stdlib::string::ToString;
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState
 };
@@ -500,7 +500,7 @@ impl ComHub {
         block: &DXBBlock,
     ) {
         let socket = self.get_socket_by_uuid(&socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let distance = block.routing_header.distance;
         let sender = block.routing_header.sender.clone();
@@ -621,7 +621,7 @@ impl ComHub {
                     );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .can_send()
                 {
@@ -711,9 +711,9 @@ impl ComHub {
             "{} registering endpoint {} for socket {}",
             self.endpoint,
             endpoint,
-            socket.lock().unwrap().uuid
+            socket.try_lock().unwrap().uuid
         );
-        let socket_ref = socket.lock().unwrap();
+        let socket_ref = socket.try_lock().unwrap();
 
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
@@ -833,7 +833,7 @@ impl ComHub {
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
     ) {
-        let socket_ref = socket.lock().unwrap();
+        let socket_ref = socket.try_lock().unwrap();
         let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.borrow().contains_key(&socket_ref.uuid) {
             core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
@@ -1040,7 +1040,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let socket = socket.lock().unwrap();
+        let socket = socket.try_lock().unwrap();
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
@@ -1065,7 +1065,7 @@ impl ComHub {
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
                         let socket = self.get_socket_by_uuid(&socket_uuid);
-                        let socket = socket.lock().unwrap();
+                        let socket = socket.try_lock().unwrap();
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
                         if options.only_direct
@@ -1191,7 +1191,7 @@ impl ComHub {
                     endpoint,
                     socket_uuid,
                     socket
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .direct_endpoint
                         .clone()
@@ -1615,7 +1615,7 @@ impl ComHub {
         }
 
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let is_broadcast = endpoints
             .iter()
@@ -1751,7 +1751,7 @@ impl ComHub {
 
         for (interface, priority) in self.interfaces.borrow().values() {
             let socket_updates = interface.clone().borrow().get_sockets();
-            let mut socket_updates = socket_updates.lock().unwrap();
+            let mut socket_updates = socket_updates.try_lock().unwrap();
 
             registered_sockets
                 .extend(socket_updates.socket_registrations.drain(..));
@@ -1783,7 +1783,7 @@ impl ComHub {
     fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             socket_ref.collect_incoming_data();
         }
     }
@@ -1794,7 +1794,7 @@ impl ComHub {
         let mut blocks = vec![];
         // iterate over all sockets
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             let uuid = socket_ref.uuid.clone();
             let block_queue = socket_ref.get_incoming_block_queue();
             blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));

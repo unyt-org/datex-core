@@ -24,6 +24,7 @@ use core::ops::{Add, Neg, Sub};
 use core::str::FromStr;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {

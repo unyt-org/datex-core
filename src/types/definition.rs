@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -13,8 +12,10 @@ use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
 use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
+use crate::stdlib::boxed::Box;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {

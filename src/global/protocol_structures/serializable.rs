@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use binrw::{
     meta::{ReadEndian, WriteEndian},
     BinWrite,

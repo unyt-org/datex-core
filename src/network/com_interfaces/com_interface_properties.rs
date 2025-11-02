@@ -7,6 +7,7 @@ use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
 use strum::EnumString;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]

@@ -38,8 +38,7 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
-use datex_core::decompiler::{DecompileOptions, decompile_value};
-use datex_core::references::reference::Reference;
+use crate::references::reference::Reference;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
@@ -56,6 +55,8 @@ use core::writeln;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use core::unreachable;
+use core::unimplemented;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -92,13 +93,14 @@ pub struct MemoryDump {
     pub slots: Vec<(u32, Option<ValueContainer>)>,
 }
 
+#[cfg(feature = "compiler")]
 impl Display for MemoryDump {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (address, value) in &self.slots {
             match value {
                 Some(vc) => {
                     let decompiled =
-                        decompile_value(vc, DecompileOptions::colorized());
+                        crate::decompiler::decompile_value(vc, crate::decompiler::DecompileOptions::colorized());
                     writeln!(f, "#{address}: {decompiled}")?
                 }
                 None => writeln!(f, "#{address}: <uninitialized>")?,

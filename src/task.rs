@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use cfg_if::cfg_if;
 use futures::channel::mpsc;
 use futures_util::{FutureExt, SinkExt, StreamExt};
@@ -7,6 +8,7 @@ use core::future::Future;
 use crate::stdlib::rc::Rc;
 use core::ops::FnOnce;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 
 type LocalPanicChannel = Rc<
     RefCell<
@@ -160,7 +162,7 @@ where
     F: Future<Output = ()> + 'static,
 {
     spawn_local(async {
-        let result = std::panic::AssertUnwindSafe(fut).catch_unwind().await;
+        let result = core::panic::AssertUnwindSafe(fut).catch_unwind().await;
         if let Err(err) = result {
             let panic_msg = if let Some(s) = err.downcast_ref::<&str>() {
                 s.to_string()
@@ -178,14 +180,14 @@ cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
         pub fn timeout<F>(duration: std::time::Duration, fut: F) -> tokio::time::Timeout<F::IntoFuture>
         where
-            F: core::future::IntoFuture,
+            F: IntoFuture,
         {
             tokio::time::timeout(duration, fut)
         }
 
         pub fn spawn_local<F>(fut: F)-> tokio::task::JoinHandle<()>
         where
-            F: core::future::Future<Output = ()> + 'static,
+            F: Future<Output = ()> + 'static,
         {
             tokio::task::spawn_local(fut)
         }

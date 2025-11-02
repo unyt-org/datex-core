@@ -7,6 +7,7 @@ use serde::ser::{self};
 use core::fmt::Display;
 use crate::stdlib::io;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 #[cfg(feature = "compiler")]
 use crate::compiler::error::{CompilerError, SpannedCompilerError};
 use crate::runtime::execution::ExecutionError;

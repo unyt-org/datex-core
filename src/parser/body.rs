@@ -1,6 +1,5 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::decompiler::ScopeType;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
@@ -21,6 +20,7 @@ use core::fmt::Display;
 use crate::stdlib::io::{BufRead, Cursor, Read, Seek};
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::string::FromUtf8Error;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -34,11 +34,7 @@ pub enum DXBParserError {
     FailedToReadInstructionCode,
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
-    FromUtf8Error(std::string::FromUtf8Error),
-    InvalidScopeEndType {
-        expected: ScopeType,
-        found: ScopeType,
-    },
+    FromUtf8Error(FromUtf8Error),
 }
 
 impl From<fmt::Error> for DXBParserError {
@@ -53,8 +49,8 @@ impl From<binrw::Error> for DXBParserError {
     }
 }
 
-impl From<std::string::FromUtf8Error> for DXBParserError {
-    fn from(error: std::string::FromUtf8Error) -> Self {
+impl From<FromUtf8Error> for DXBParserError {
+    fn from(error: FromUtf8Error) -> Self {
         DXBParserError::FromUtf8Error(error)
     }
 }
@@ -79,12 +75,6 @@ impl Display for DXBParserError {
             }
             DXBParserError::FromUtf8Error(err) => {
                 core::write!(f, "UTF-8 conversion error: {err}")
-            }
-            DXBParserError::InvalidScopeEndType { expected, found } => {
-                core::write!(
-                    f,
-                    "Invalid scope end type: expected {expected:?}, found {found:?}"
-                )
             }
         }
     }

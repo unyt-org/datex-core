@@ -34,7 +34,10 @@ use core::result::Result;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use core::unreachable;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::borrow::ToOwned;
 
 pub mod dif_interface;
 pub mod execution;
@@ -120,6 +123,7 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
@@ -139,6 +143,7 @@ impl RuntimeInternal {
         .map_err(ScriptExecutionError::from)
     }
 
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
@@ -521,6 +526,7 @@ impl Runtime {
         // crate::network::com_interfaces::default_com_interfaces::webrtc::webrtc_native_interface::WebRTCNativeInterface::register_on_com_hub(self.com_hub());
     }
 
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         &self,
         script: &str,
@@ -536,6 +542,7 @@ impl Runtime {
         .await
     }
 
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         &self,
         script: &str,

@@ -1,5 +1,6 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
+#[cfg(feature = "compiler")]
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
@@ -19,7 +20,10 @@ use core::hash::{Hash, Hasher};
 use crate::stdlib::rc::Rc;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::boxed::Box;
+use core::unimplemented;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -372,6 +376,7 @@ impl From<CoreValue> for Type {
     }
 }
 
+#[cfg(feature = "compiler")]
 impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     type Error = ();
 
@@ -398,6 +403,7 @@ impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     }
 }
 
+#[cfg(feature = "compiler")]
 impl TryFrom<&DatexExpressionData> for Type {
     type Error = ();
 
@@ -411,7 +417,6 @@ mod tests {
     use crate::values::{
         core_values::{
             integer::{Integer, typed_integer::TypedInteger},
-            list::List,
             text::Text,
             r#type::Type,
         },

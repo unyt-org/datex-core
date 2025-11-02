@@ -17,6 +17,7 @@ use core::str::FromStr;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::string::ToString;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,

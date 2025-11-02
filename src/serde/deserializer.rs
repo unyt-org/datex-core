@@ -21,6 +21,7 @@ use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use core::unreachable;
 
 /// Deserialize a value of type T from a byte slice containing DXB data

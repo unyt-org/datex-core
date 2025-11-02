@@ -18,7 +18,7 @@ use crate::stdlib::{
     string::String,
 };
 use core::option::Option;
-
+use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {

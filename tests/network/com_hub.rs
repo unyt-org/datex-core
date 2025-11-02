@@ -220,9 +220,9 @@ pub async fn send_blocks_to_multiple_endpoints() {
         assert_eq!(mockup_interface_out.outgoing_queue.len(), 2);
 
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_a.lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(socket_a.try_lock().unwrap().uuid.clone()));
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_b.lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(socket_b.try_lock().unwrap().uuid.clone()));
 
         assert!(mockup_interface_out.last_block().is_some());
     };
@@ -300,9 +300,9 @@ pub async fn test_receive() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let socket_ref = socket.lock().unwrap();
+            let socket_ref = socket.try_lock().unwrap();
             let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.lock().unwrap();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
             let _ = receive_queue_mut.write(block_bytes.as_slice());
         }
         com_hub.update_async().await;
@@ -358,9 +358,9 @@ pub async fn test_receive_multiple() {
             .collect();
 
         {
-            let socket_ref = socket.lock().unwrap();
+            let socket_ref = socket.try_lock().unwrap();
             let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.lock().unwrap();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
             for block in block_bytes.iter() {
                 let _ = receive_queue_mut.write(block);
             }
@@ -395,7 +395,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
             ComInterfaceState::Connected
         );
 
-        assert_eq!(socket.lock().unwrap().state, SocketState::Open);
+        assert_eq!(socket.try_lock().unwrap().state, SocketState::Open);
 
         let uuid = com_interface.borrow().get_uuid().clone();
 
@@ -411,7 +411,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
             ComInterfaceState::Destroyed
         );
 
-        assert_eq!(socket.lock().unwrap().state, SocketState::Destroyed);
+        assert_eq!(socket.try_lock().unwrap().state, SocketState::Destroyed);
     };
 }
 

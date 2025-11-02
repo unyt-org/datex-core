@@ -22,10 +22,12 @@ use serde::{Deserialize, Serialize};
 use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::string::ToString;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -143,9 +145,9 @@ impl BaseInterface {
     ) -> Result<(), BaseInterfaceError> {
         match self.get_socket_with_uuid(receiver_socket_uuid) {
             Some(socket) => {
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let receive_queue = socket.get_receive_queue();
-                receive_queue.lock().unwrap().extend(data);
+                receive_queue.try_lock().unwrap().extend(data);
                 Ok(())
             }
             _ => {

@@ -95,7 +95,7 @@ pub fn register_socket_endpoint(
     endpoint: Endpoint,
 ) {
     let mockup_interface = mockup_interface_ref.borrow_mut();
-    let uuid = socket.lock().unwrap().uuid.clone();
+    let uuid = socket.try_lock().unwrap().uuid.clone();
 
     mockup_interface
         .register_socket_endpoint(uuid, endpoint, 1)

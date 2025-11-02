@@ -1,8 +1,7 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
-
+use crate::stdlib::string::ToString;
 
 pub struct AnsiCodes {}
 impl AnsiCodes {

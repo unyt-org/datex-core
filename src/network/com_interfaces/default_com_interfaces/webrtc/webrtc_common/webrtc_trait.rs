@@ -3,7 +3,7 @@ use crate::stdlib::{
     rc::Rc,
     sync::{Arc},
 };
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 
 use async_trait::async_trait;
 use futures::channel::oneshot;
@@ -78,12 +78,12 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     ) -> Result<RTCSessionDescriptionDX, WebRTCError>;
 
     fn set_on_ice_candidate(&self, on_ice_candidate: Box<dyn Fn(Vec<u8>)>) {
-        self.get_commons().lock().unwrap().on_ice_candidate =
+        self.get_commons().try_lock().unwrap().on_ice_candidate =
             Some(on_ice_candidate);
     }
     fn on_ice_candidate(&self, candidate: RTCIceCandidateInitDX) {
         let commons = self.get_commons();
-        commons.lock().unwrap().on_ice_candidate(candidate);
+        commons.try_lock().unwrap().on_ice_candidate(candidate);
     }
     async fn add_ice_candidate(
         &self,
@@ -91,7 +91,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     ) -> Result<(), WebRTCError> {
         let is_remote_description_set = {
             let commons = self.get_commons();
-            let commons = commons.lock().unwrap();
+            let commons = commons.try_lock().unwrap();
             commons.is_remote_description_set
         };
         if is_remote_description_set {
@@ -100,7 +100,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
             self.handle_add_ice_candidate(candidate).await?;
         } else {
             let info = self.get_commons();
-            info.lock().unwrap().candidates.push_back(candidate);
+            info.try_lock().unwrap().candidates.push_back(candidate);
         }
         Ok(())
     }
@@ -111,7 +111,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         sockets: Arc<Mutex<ComInterfaceSockets>>,
     ) -> ComInterfaceSocketUUID {
         // FIXME #203 clean up old sockets
-        let mut sockets = sockets.lock().unwrap();
+        let mut sockets = sockets.try_lock().unwrap();
         let socket = ComInterfaceSocket::new(
             interface_uuid,
             InterfaceDirection::InOut,
@@ -125,7 +125,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         socket_uuid
     }
     fn _remote_endpoint(&self) -> Endpoint {
-        self.get_commons().lock().unwrap().endpoint.clone()
+        self.get_commons().try_lock().unwrap().endpoint.clone()
     }
     async fn set_remote_description(
         &self,
@@ -134,10 +134,10 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         let description = from_bytes::<RTCSessionDescriptionDX>(&description)
             .map_err(|_| WebRTCError::InvalidSdp)?;
         self.handle_set_remote_description(description).await?;
-        self.get_commons().lock().unwrap().is_remote_description_set = true;
+        self.get_commons().try_lock().unwrap().is_remote_description_set = true;
         let candidates = {
             let commons = self.get_commons();
-            let mut commons = commons.lock().unwrap();
+            let mut commons = commons.try_lock().unwrap();
 
             commons.candidates.drain(..).collect::<Vec<_>>()
         };
@@ -189,7 +189,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
                     .add_data_channel(channel_clone2.clone());
 
                 if let Some(on_connect) =
-                    commons.lock().unwrap().on_connect.as_ref()
+                    commons.try_lock().unwrap().on_connect.as_ref()
                 {
                     on_connect();
                 }
@@ -203,16 +203,16 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
                 if let Some(socket_uuid) =
                     channel_clone.borrow().get_socket_uuid()
                 {
-                    let sockets = sockets_clone.lock().unwrap();
+                    let sockets = sockets_clone.try_lock().unwrap();
                     if let Some(socket) = sockets.sockets.get(&socket_uuid) {
                         info!(
                             "Received data on socket: {data:?} {socket_uuid}"
                         );
                         socket
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .receive_queue
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .extend(data);
                     }
@@ -282,7 +282,7 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
         let tx_clone = RefCell::new(Some(tx));
         {
             let commons = self.get_commons();
-            let mut commons = commons.lock().unwrap();
+            let mut commons = commons.try_lock().unwrap();
             commons.on_connect = Some(Box::new(move || {
                 info!("Connected");
                 tx_clone.take().unwrap().send(()).unwrap();
@@ -343,7 +343,7 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
 
     fn set_ice_servers(&self, ice_servers: Vec<RTCIceServer>) {
         let commons = self.get_commons();
-        let mut commons = commons.lock().unwrap();
+        let mut commons = commons.try_lock().unwrap();
         commons.ice_servers = ice_servers;
     }
     fn remote_endpoint(&self) -> Endpoint {

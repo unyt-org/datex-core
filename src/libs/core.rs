@@ -23,6 +23,7 @@ use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 
 thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();

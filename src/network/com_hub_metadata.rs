@@ -115,7 +115,7 @@ impl ComHub {
         for (endpoint, sockets) in self.endpoint_sockets.borrow().iter() {
             for (socket_uuid, properties) in sockets {
                 let socket = self.get_socket_by_uuid(socket_uuid);
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -138,7 +138,7 @@ impl ComHub {
         for (socket_uuid, (socket, endpoints)) in self.sockets.borrow().iter() {
             // if no endpoints are registered, we consider it a socket without an endpoint
             if endpoints.is_empty() {
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)

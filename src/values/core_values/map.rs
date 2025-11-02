@@ -12,11 +12,13 @@ use core::hash::{Hash, Hasher};
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
+use crate::stdlib::string::ToString;
+use crate::std_random::RandomState;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
     // most general case, allows all types of keys and values, and dynamic size
-    Dynamic(IndexMap<ValueContainer, ValueContainer>),
+    Dynamic(IndexMap<ValueContainer, ValueContainer, RandomState>),
     // for fixed-size maps with known keys and values on construction
     Fixed(Vec<(ValueContainer, ValueContainer)>),
     // for maps with string keys
@@ -44,12 +46,12 @@ impl Display for MapAccessError {
 
 impl Default for Map {
     fn default() -> Self {
-        Map::Dynamic(IndexMap::new())
+        Map::Dynamic(IndexMap::default())
     }
 }
 
 impl Map {
-    pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
+    pub fn new(entries: IndexMap<ValueContainer, ValueContainer, RandomState>) -> Self {
         Map::Dynamic(entries)
     }
 
@@ -557,7 +559,7 @@ impl From<Vec<(String, ValueContainer)>> for Map {
         Map::new(
             vec.into_iter()
                 .map(|(k, v)| (k.into(), v))
-                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+                .collect::<IndexMap<ValueContainer, ValueContainer, RandomState>>(),
         )
     }
 }
@@ -576,17 +578,17 @@ where
     }
 }
 
-impl From<IndexMap<ValueContainer, ValueContainer>> for Map {
-    fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
+impl From<IndexMap<ValueContainer, ValueContainer, RandomState>> for Map {
+    fn from(map: IndexMap<ValueContainer, ValueContainer, RandomState>) -> Self {
         Map::new(map)
     }
 }
-impl From<IndexMap<String, ValueContainer>> for Map {
-    fn from(map: IndexMap<String, ValueContainer>) -> Self {
+impl From<IndexMap<String, ValueContainer, RandomState>> for Map {
+    fn from(map: IndexMap<String, ValueContainer, RandomState>) -> Self {
         Map::new(
             map.into_iter()
                 .map(|(k, v)| (k.into(), v))
-                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+                .collect::<IndexMap<ValueContainer, ValueContainer, RandomState>>(),
         )
     }
 }

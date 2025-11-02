@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
@@ -15,7 +14,7 @@ use core::cell::RefCell;
 use crate::values::core_values::r#type::Type;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
-
+use crate::stdlib::boxed::Box;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def", rename_all = "lowercase")]

@@ -16,6 +16,7 @@ use serde::ser::{
 use datex_core::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::vec;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
 

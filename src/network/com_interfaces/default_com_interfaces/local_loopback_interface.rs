@@ -13,11 +13,12 @@ use datex_macros::{com_interface, create_opener};
 use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
-
+use crate::stdlib::boxed::Box;
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::stdlib::string::ToString;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
@@ -45,7 +46,7 @@ impl LocalLoopbackInterface {
 
     #[create_opener]
     fn open(&mut self) -> Result<(), ()> {
-        let uuid = self.socket.lock().unwrap().uuid.clone();
+        let uuid = self.socket.try_lock().unwrap().uuid.clone();
         self.add_socket(self.socket.clone());
         self.register_socket_endpoint(uuid, Endpoint::LOCAL, 1)
             .unwrap();
@@ -60,9 +61,9 @@ impl ComInterface for LocalLoopbackInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         log::info!("LocalLoopbackInterface Sending block: {block:?}");
-        let socket = self.socket.lock().unwrap();
+        let socket = self.socket.try_lock().unwrap();
         log::info!("LocalLoopbackInterface sent block");
-        socket.get_receive_queue().lock().unwrap().extend(block);
+        socket.get_receive_queue().try_lock().unwrap().extend(block);
         Box::pin(async { true })
     }
 

@@ -2,6 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use core::fmt::Write;
 use itertools::Itertools;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 
 /*

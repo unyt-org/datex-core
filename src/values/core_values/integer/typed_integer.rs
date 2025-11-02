@@ -25,6 +25,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use core::unreachable;
 
 /// The integer type variants to be used as a inline

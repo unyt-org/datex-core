@@ -50,7 +50,7 @@ async fn receive_single_block() {
         // update the com interface
         com_interface.borrow_mut().update();
         // Check if the block was sent to the socket
-        assert_eq!(socket.lock().unwrap().receive_queue.lock().unwrap().len(), block_bytes_len);
+        assert_eq!(socket.try_lock().unwrap().receive_queue.try_lock().unwrap().len(), block_bytes_len);
 
         // update the com hub
         com_hub.update_async().await;

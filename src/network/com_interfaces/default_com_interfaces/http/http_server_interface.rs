@@ -12,7 +12,7 @@ use crate::stdlib::net::SocketAddr;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -168,7 +168,7 @@ impl HTTPServerNativeInterface {
                             data.to_vec(),
                             socket_uuid
                         );
-                        receive_queue.lock().unwrap().extend(data.to_vec());
+                        receive_queue.try_lock().unwrap().extend(data.to_vec());
                     }
                 }
             });

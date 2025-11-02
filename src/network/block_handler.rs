@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::global::dxb_block::{
     BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
     IncomingEndpointContextId, IncomingEndpointContextSectionId,
@@ -15,10 +14,11 @@ use ringmap::RingMap;
 use core::cell::RefCell;
 use crate::stdlib::collections::{BTreeMap, HashMap, VecDeque};
 use core::fmt::Debug;
+use crate::std_random::RandomState;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
-// use tokio_stream::StreamExt;
+use crate::stdlib::boxed::Box;
 
 // TODO #170: store scope memory
 #[derive(Debug)]
@@ -75,7 +75,7 @@ pub struct BlockHandler {
     >,
 
     /// history of all incoming blocks
-    pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData>>,
+    pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData, RandomState>>,
 }
 
 impl Debug for BlockHandler {
@@ -102,7 +102,7 @@ impl BlockHandler {
             block_cache: RefCell::new(HashMap::new()),
             incoming_sections_queue: RefCell::new(VecDeque::new()),
             section_observers: RefCell::new(HashMap::new()),
-            incoming_blocks_history: RefCell::new(RingMap::with_capacity(500)),
+            incoming_blocks_history: RefCell::new(RingMap::with_capacity_and_hasher(500, RandomState::default())),
         }
     }
 

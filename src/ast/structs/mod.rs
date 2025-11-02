@@ -4,6 +4,7 @@ use crate::values::pointer::PointerAddress;
 
 pub mod expression;
 pub mod r#type;
+pub mod apply_operation;
 
 pub type VariableId = usize;
 

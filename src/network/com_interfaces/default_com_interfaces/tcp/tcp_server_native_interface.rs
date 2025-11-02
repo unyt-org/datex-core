@@ -4,7 +4,7 @@ use crate::stdlib::collections::{HashMap, VecDeque};
 use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
-use crate::stdsync::Mutex;
+use crate::std_sync::Mutex;
 use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
@@ -84,14 +84,14 @@ impl TCPServerNativeInterface {
                             1,
                         );
                         let (read_half, write_half) = stream.into_split();
-                        tx.lock().unwrap().insert(
+                        tx.try_lock().unwrap().insert(
                             socket.uuid.clone(),
                             Arc::new(Mutex::new(write_half)),
                         );
 
                         let receive_queue = socket.receive_queue.clone();
                         sockets
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .add_socket(Arc::new(Mutex::new(socket)));
 
@@ -122,7 +122,7 @@ impl TCPServerNativeInterface {
                 }
                 Ok(n) => {
                     info!("Received: {:?}", &buffer[..n]);
-                    let mut queue = receive_queue.lock().unwrap();
+                    let mut queue = receive_queue.try_lock().unwrap();
                     queue.extend(&buffer[..n]);
                 }
                 Err(e) => {
@@ -162,14 +162,14 @@ impl ComInterface for TCPServerNativeInterface {
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let tx_queues = self.tx.clone();
-        let tx_queues = tx_queues.lock().unwrap();
+        let tx_queues = tx_queues.try_lock().unwrap();
         let tx = tx_queues.get(&socket);
         if tx.is_none() {
             error!("Client is not connected");
             return Box::pin(async { false });
         }
         let tx = tx.unwrap().clone();
-        Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
+        Box::pin(async move { tx.try_lock().unwrap().write(block).await.is_ok() })
     }
     fn init_properties(&self) -> InterfaceProperties {
         Self::get_default_properties()

@@ -21,6 +21,7 @@ use core::hash::Hash;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
