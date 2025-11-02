@@ -1,9 +1,7 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::fmt::Display;
-use crate::stdlib::io::{Cursor, Read};
-// FIXME #109 no-std
-
+use binrw::io::{Cursor, Read};
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,

@@ -12,7 +12,7 @@ use binrw::{BinRead, BinWrite};
 use hex::decode;
 use core::str;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::io::Cursor;
+use binrw::io::Cursor;
 use core::str::FromStr;
 use crate::stdlib::format;
 use crate::stdlib::string::String;

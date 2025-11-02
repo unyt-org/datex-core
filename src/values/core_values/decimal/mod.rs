@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use core::cmp::Ordering;
 use core::fmt::Display;
 use core::hash::Hash;
-use crate::stdlib::io::{Read, Seek};
+use binrw::io::{Read, Write, Seek};
 use core::ops::{Add, Neg, Sub};
 use core::str::FromStr;
 use crate::stdlib::vec;
@@ -385,7 +385,7 @@ impl BinRead for Decimal {
 impl BinWrite for Decimal {
     type Args<'a> = ();
 
-    fn write_options<W: crate::stdlib::io::Write + Seek>(
+    fn write_options<W: Write + Seek>(
         &self,
         writer: &mut W,
         endian: Endian,

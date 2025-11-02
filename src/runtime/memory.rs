@@ -12,7 +12,7 @@ use datex_core::global::protocol_structures::instructions::RawFullPointerAddress
 use datex_core::values::core_values::endpoint::Endpoint;
 use core::cell::RefCell;
 use crate::stdlib::collections::HashMap;
-use crate::stdlib::io::Cursor;
+use binrw::io::Cursor;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 

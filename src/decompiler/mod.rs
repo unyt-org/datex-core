@@ -5,7 +5,7 @@ mod ast_to_source_code;
 use crate::stdlib::collections::HashMap; // FIXME #222 no-std
 use crate::stdlib::collections::HashSet;
 use core::fmt::Write;
-use crate::stdlib::io::Cursor;
+use binrw::io::Cursor;
 // FIXME #223 no-std
 
 use crate::ast::structs::expression::DatexExpressionData;

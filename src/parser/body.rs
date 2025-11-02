@@ -17,10 +17,11 @@ use binrw::BinRead;
 use crate::global::operators::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 use core::fmt::Display;
-use crate::stdlib::io::{BufRead, Cursor, Read, Seek};
+use crate::stdlib::io::{BufRead};
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::string::FromUtf8Error;
+use binrw::io::Cursor;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -127,6 +128,15 @@ fn get_text_data(
     }
 }
 
+/// Copied from Cursor::has_data_left (unstable feature)
+fn reader_has_data_left(reader: &mut Cursor<&[u8]>) -> bool {
+    // rationale: We can use safe unwrap here, as our stream is no IO, but only
+    // bytes stream, so we can always access.
+    unsafe {
+        reader.fill_buf().map(|b| !b.is_empty()).unwrap_unchecked()
+    }
+}
+
 // TODO #221: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
@@ -138,12 +148,9 @@ pub fn iterate_instructions<'a>(
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                // rationale: We can use safe unwrap here, as our stream is no IO, but only
-                // bytes stream, so we can always access.
-                unsafe {
-                    if !reader.has_data_left().unwrap_unchecked() {
-                        return;
-                    }
+                // TODO: maybe do this more efficiently
+                if !reader_has_data_left(&mut reader) {
+                    return;
                 }
 
                 let instruction_code = get_next_instruction_code(&mut reader);
@@ -538,20 +545,17 @@ fn get_next_instruction_code(
         .map_err(|_| DXBParserError::FailedToReadInstructionCode)
 }
 
-fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
-    reader: &mut R,
+fn iterate_type_space_instructions(
+    reader: &mut Cursor<&[u8]>,
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
     core::iter::from_coroutine(
         #[coroutine]
         move || {
             loop {
                 // if cursor is at the end, break
-                unsafe {
-                    // rationale: We can use safe unwrap here, as our stream is no IO, but only
-                    // bytes stream, so we can always access.
-                    if !reader.has_data_left().unwrap_unchecked() {
-                        return;
-                    }
+
+                if !reader_has_data_left(reader) {
+                    return;
                 }
 
                 let instruction_code = u8::read(reader);

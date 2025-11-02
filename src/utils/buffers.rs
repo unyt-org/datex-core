@@ -4,6 +4,7 @@ use itertools::Itertools;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
+use core::convert::TryInto;
 
 /*
 read functions for primitive data types on a u8 array, also increments the index

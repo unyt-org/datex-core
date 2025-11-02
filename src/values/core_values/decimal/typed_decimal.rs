@@ -349,12 +349,12 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => {
                 value.into_inner() as f64 >= i64::MIN as f64
                     && value.into_inner() as f64 <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f32::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::F64(value) => {
                 value.into_inner() >= i64::MIN as f64
                     && value.into_inner() <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f64::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => {

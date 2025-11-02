@@ -11,15 +11,12 @@ use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
 use num::{BigInt, Num};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::{
-    io::{Read, Seek},
-};
+use binrw::io::{Read, Write, Seek};
 use core::fmt::Display;
 use core::ops::{Add, Neg, Sub};
 use core::str::FromStr;
 use core::hash::Hash;
 use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 
@@ -231,7 +228,7 @@ impl Display for Integer {
 impl BinWrite for Integer {
     type Args<'a> = ();
 
-    fn write_options<W: crate::stdlib::io::Write + Seek>(
+    fn write_options<W: Write + Seek>(
         &self,
         writer: &mut W,
         _endian: Endian,

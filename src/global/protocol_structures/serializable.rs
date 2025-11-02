@@ -3,7 +3,7 @@ use binrw::{
     meta::{ReadEndian, WriteEndian},
     BinWrite,
 };
-use crate::stdlib::io::Cursor; // FIXME #114 no-std
+use binrw::io::Cursor; // FIXME #114 no-std
 use crate::stdlib::vec::Vec;
 
 pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
