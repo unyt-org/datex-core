@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::stdlib::string::String;
 
 pub mod interface;
 pub mod reference;

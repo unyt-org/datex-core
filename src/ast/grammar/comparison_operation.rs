@@ -3,7 +3,7 @@ use crate::ast::grammar::utils::operation;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::ComparisonOperation;
-use crate::ast::structs::operator::ComparisonOperator;
+use crate::global::operators::ComparisonOperator;
 use crate::ast::{DatexExpression, DatexExpressionData};
 use chumsky::prelude::*;
 

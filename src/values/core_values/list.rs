@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use super::super::core_value_trait::CoreValueTrait;
 use crate::values::{
     core_value::CoreValue,
@@ -6,8 +7,9 @@ use crate::values::{
 };
 use crate::stdlib::{ops::Index};
 use core::fmt::Display;
-
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
 impl List {
@@ -69,11 +71,11 @@ impl List {
         &mut self.0
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, ValueContainer> {
+    pub fn iter(&self) -> core::slice::Iter<'_, ValueContainer> {
         self.0.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ValueContainer> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, ValueContainer> {
         self.0.iter_mut()
     }
 }
@@ -144,7 +146,7 @@ impl IntoIterator for List {
 
 impl<'a> IntoIterator for &'a List {
     type Item = &'a ValueContainer;
-    type IntoIter = std::slice::Iter<'a, ValueContainer>;
+    type IntoIter = core::slice::Iter<'a, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

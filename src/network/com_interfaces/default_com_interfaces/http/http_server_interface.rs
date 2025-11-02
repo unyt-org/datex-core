@@ -13,7 +13,7 @@ use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 
 use axum::{

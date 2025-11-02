@@ -12,17 +12,20 @@ use crate::values::{
 
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
-use core::panic;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use core::{
     fmt::Display,
     ops::{Add, AddAssign, Neg, Sub},
 };
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 use core::prelude::rust_2024::*;
+use core::result::Result;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).
@@ -131,7 +134,7 @@ impl<'de> Deserialize<'de> for TypedInteger {
 }
 
 impl Hash for TypedInteger {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedInteger::Big(v) => v.hash(state),
             TypedInteger::I8(v) => v.hash(state),

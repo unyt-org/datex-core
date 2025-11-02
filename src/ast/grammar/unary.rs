@@ -2,7 +2,7 @@ use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{CreateRef, Deref, UnaryOperation};
-use crate::ast::structs::operator::{
+use crate::global::operators::{
     ArithmeticUnaryOperator, LogicalUnaryOperator, UnaryOperator,
 };
 use crate::ast::{DatexExpressionData, DatexParserTrait};

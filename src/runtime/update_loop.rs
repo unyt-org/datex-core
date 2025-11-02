@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::global::dxb_block::{DXBBlock, OutgoingContextId};
 use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
 use crate::global::protocol_structures::block_header::{
@@ -15,7 +16,9 @@ use futures::channel::oneshot;
 use log::info;
 use datex_core::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 
 impl RuntimeInternal {
     /// Starts the
@@ -134,7 +137,7 @@ impl RuntimeInternal {
                 encrypted_header,
                 dxb,
             );
-            block.set_receivers(std::slice::from_ref(&receiver_endpoint));
+            block.set_receivers(core::slice::from_ref(&receiver_endpoint));
 
             self_rc.com_hub.send_own_block(block)
         } else {

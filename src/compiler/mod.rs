@@ -1,7 +1,6 @@
 use core::cell::RefCell;
-use chumsky::prelude::end;
 use crate::ast::structs::VariableId;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
@@ -44,6 +43,7 @@ use datex_core::utils::buffers::append_u32;
 use crate::core_compiler::value_compiler::{append_boolean, append_decimal, append_encoded_integer, append_endpoint, append_float_as_i16, append_float_as_i32, append_instruction_code, append_text, append_typed_decimal, append_typed_integer, append_value_container};
 use crate::stdlib::rc::Rc;
 use crate::references::reference::ReferenceMutability;
+use crate::stdlib::vec::Vec;
 
 pub mod context;
 pub mod error;
@@ -1988,7 +1988,7 @@ pub mod tests {
         let file_path = std::path::Path::new(&file_path);
         let file =
             std::fs::File::open(file_path).expect("Failed to open test.json");
-        let mut reader = std::io::BufReader::new(file);
+        let mut reader = crate::stdlib::io::BufReader::new(file);
         let mut json_string = String::new();
         reader
             .read_to_string(&mut json_string)

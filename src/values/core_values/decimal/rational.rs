@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use num::BigRational;
 use num_bigint::BigInt;
 use num_integer::Integer;
@@ -6,6 +7,8 @@ use num_traits::{Signed, ToPrimitive, Zero};
 use serde::{Deserialize, Serialize};
 use core::fmt::Display;
 use core::ops::{Add, Neg};
+use crate::stdlib::format;
+use crate::stdlib::string::String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {

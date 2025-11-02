@@ -1,9 +1,12 @@
-use crate::stdlib::time::Duration;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 use crate::utils::time::Time;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::{DurationMilliSeconds, DurationSeconds};
 use strum::EnumString;
+use crate::stdlib::string::String;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]

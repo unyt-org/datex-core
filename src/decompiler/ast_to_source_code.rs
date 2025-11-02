@@ -14,8 +14,8 @@ use crate::{
             DatexExpression, DatexExpressionData, FunctionDeclaration,
             VariableAccess, VariableAssignment, VariableDeclaration,
         },
-        structs::operator::ApplyOperation,
     },
+    global::operators::ApplyOperation,
     decompiler::FormattingMode,
 };
 use crate::references::reference::ReferenceMutability;
@@ -712,11 +712,11 @@ mod tests {
         ast::spanned::Spanned,
         ast::{
             parse, structs::expression::VariableKind,
-            structs::operator::assignment::AssignmentOperator,
         },
         values::core_values::decimal::Decimal,
     };
     use crate::ast::structs::expression::Deref;
+    use crate::global::operators::assignment::AssignmentOperator;
 
     fn compact() -> AstToSourceCodeFormatter {
         AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)

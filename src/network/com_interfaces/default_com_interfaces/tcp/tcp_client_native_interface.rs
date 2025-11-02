@@ -1,10 +1,12 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::cell::RefCell;
 use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{

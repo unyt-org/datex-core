@@ -1,5 +1,6 @@
 use core::str::FromStr;
 use crate::stdlib::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
+use core::unreachable;
 
 pub mod options;
 pub mod precompiled_ast;
@@ -23,9 +24,9 @@ use crate::{
                 TypeDeclaration, VariableAccess, VariableAssignment,
                 VariableDeclaration, VariableKind,
             },
-            operator::{BinaryOperator, binary::ArithmeticOperator},
         },
     },
+    global::operators::{BinaryOperator, binary::ArithmeticOperator},
     compiler::{
         error::{
             CompilerError, DetailedCompilerErrors,

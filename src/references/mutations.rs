@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use crate::dif::update::{DIFProperty, DIFUpdateData};
 use crate::dif::value::DIFValueContainer;
 use crate::runtime::memory::Memory;
@@ -7,6 +8,8 @@ use crate::{
 };
 use core::cell::RefCell;
 use crate::references::observers::TransceiverId;
+use crate::stdlib::format;
+use core::ops::FnOnce;
 
 impl Reference {
 

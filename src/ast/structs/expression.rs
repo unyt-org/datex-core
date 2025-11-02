@@ -1,11 +1,11 @@
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
-use crate::ast::structs::operator::ApplyOperation;
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
-use crate::ast::structs::operator::{ArithmeticUnaryOperator, UnaryOperator};
+use crate::global::operators::ApplyOperation;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::assignment::AssignmentOperator;
+use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::ast::structs::r#type::TypeExpression;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
@@ -20,6 +20,7 @@ use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::ops::{Neg, Range};
 use crate::references::reference::ReferenceMutability;
+use crate::stdlib::vec::Vec;
 
 #[derive(Clone, Debug)]
 /// An expression in the AST

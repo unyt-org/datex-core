@@ -9,7 +9,7 @@ use crate::ast::structs::expression::VariableDeclaration;
 use crate::ast::structs::expression::{
     DerefAssignment, VariableAssignment, VariableKind,
 };
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::ast::structs::r#type::TypeExpression;
 use crate::ast::{
     DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,

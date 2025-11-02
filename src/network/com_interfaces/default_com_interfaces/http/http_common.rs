@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use strum::Display;
 use thiserror::Error;
 

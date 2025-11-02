@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::dif::update::DIFUpdate;
 use crate::references::{
     reference::Reference, value_reference::ValueReference,
@@ -6,6 +7,8 @@ use crate::references::{
 use serde::{Deserialize, Serialize};
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use core::fmt::Display;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug)]
 pub enum ObserverError {

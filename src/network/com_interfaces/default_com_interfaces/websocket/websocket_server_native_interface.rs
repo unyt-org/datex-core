@@ -1,9 +1,10 @@
-use crate::stdlib::time::Duration;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 use crate::stdlib::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
 };
 use crate::stdsync::Mutex;
-// FIXME #211 no-std
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{

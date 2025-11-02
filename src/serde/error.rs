@@ -1,10 +1,13 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::fmt;
 use serde::de::Error;
 use serde::ser::StdError;
 use serde::ser::{self};
 use core::fmt::Display;
 use crate::stdlib::io;
-
+use crate::stdlib::string::String;
+#[cfg(feature = "compiler")]
 use crate::compiler::error::{CompilerError, SpannedCompilerError};
 use crate::runtime::execution::ExecutionError;
 
@@ -12,6 +15,7 @@ use crate::runtime::execution::ExecutionError;
 pub enum SerializationError {
     Custom(String),
     CanNotSerialize(String),
+    #[cfg(feature = "compiler")]
     CompilerError(CompilerError),
 }
 impl ser::Error for SerializationError {
@@ -30,6 +34,8 @@ impl From<io::Error> for SerializationError {
         SerializationError::Custom(e.to_string())
     }
 }
+
+#[cfg(feature = "compiler")]
 impl From<CompilerError> for SerializationError {
     fn from(e: CompilerError) -> Self {
         SerializationError::CompilerError(e)
@@ -45,6 +51,7 @@ impl Display for SerializationError {
             SerializationError::CanNotSerialize(msg) => {
                 core::write!(f, "Can not serialize value: {}", msg)
             }
+            #[cfg(feature = "compiler")]
             SerializationError::CompilerError(err) => {
                 core::write!(f, "Compiler error: {}", err)
             }
@@ -58,6 +65,7 @@ pub enum DeserializationError {
     CanNotDeserialize(String),
     ExecutionError(ExecutionError),
     CanNotReadFile(String),
+    #[cfg(feature = "compiler")]
     CompilerError(SpannedCompilerError),
     NoStaticValueFound,
 }
@@ -99,6 +107,7 @@ impl Display for DeserializationError {
             DeserializationError::CanNotReadFile(msg) => {
                 core::write!(f, "Can not read file: {}", msg)
             }
+            #[cfg(feature = "compiler")]
             DeserializationError::CompilerError(err) => {
                 core::write!(f, "Compiler error: {}", err)
             }

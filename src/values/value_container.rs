@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
@@ -12,9 +13,10 @@ use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
 use serde::{Deserialize, Serialize};
 use core::fmt::Display;
-use crate::stdlib::hash::{Hash, Hasher};
+use core::hash::{Hash, Hasher};
 use core::ops::{Add, Neg, Sub};
 use crate::stdlib::rc::Rc;
+use core::ops::FnOnce;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {

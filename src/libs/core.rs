@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::references::reference::Reference;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
@@ -17,6 +19,10 @@ use crate::stdlib::collections::HashMap;
 use core::iter::once;
 use crate::stdlib::rc::Rc;
 use strum::IntoEnumIterator;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
 
 thread_local! {
     pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();

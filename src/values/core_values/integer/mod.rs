@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 pub mod typed_integer;
 pub mod utils;
 
@@ -11,12 +12,15 @@ use num::{BigInt, Num};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::{
-    fmt::Display,
-    hash::Hash,
     io::{Read, Seek},
-    ops::{Add, Neg, Sub},
-    str::FromStr,
 };
+use core::fmt::Display;
+use core::ops::{Add, Neg, Sub};
+use core::str::FromStr;
+use core::hash::Hash;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::string::String;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
@@ -226,7 +230,7 @@ impl Display for Integer {
 impl BinWrite for Integer {
     type Args<'a> = ();
 
-    fn write_options<W: std::io::Write + Seek>(
+    fn write_options<W: crate::stdlib::io::Write + Seek>(
         &self,
         writer: &mut W,
         _endian: Endian,

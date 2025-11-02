@@ -1,10 +1,13 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::{
     ops::{Add, AddAssign},
 };
 use core::fmt::Display;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 use super::super::core_value_trait::CoreValueTrait;
 

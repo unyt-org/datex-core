@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::global::dxb_block::{
     BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
     IncomingEndpointContextId, IncomingEndpointContextSectionId,
@@ -14,6 +16,8 @@ use core::cell::RefCell;
 use crate::stdlib::collections::{BTreeMap, HashMap, VecDeque};
 use core::fmt::Debug;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 // use tokio_stream::StreamExt;
 
 // TODO #170: store scope memory

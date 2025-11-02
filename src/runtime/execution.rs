@@ -1,13 +1,13 @@
 use super::stack::{Scope, ScopeStack};
 
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::binary::{
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::binary::{
     ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };
-use crate::ast::structs::operator::{
+use crate::global::operators::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
@@ -49,6 +49,13 @@ use core::fmt::Display;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::stdlib::rc::Rc;
 use core::prelude::rust_2024::*;
+use core::result::Result;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use core::writeln;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {

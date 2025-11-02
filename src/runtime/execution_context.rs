@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 #[cfg(feature = "compiler")]
 use crate::compiler::{
     error::SpannedCompilerError,
@@ -53,6 +54,7 @@ impl Display for ScriptExecutionError {
 
 #[derive(Debug, Clone, Default)]
 pub struct RemoteExecutionContext {
+    #[cfg(feature = "compiler")]
     pub compile_scope: CompilationScope,
     pub endpoint: Endpoint,
     pub context_id: Option<OutgoingContextId>,
@@ -62,6 +64,7 @@ impl RemoteExecutionContext {
     /// Creates a new remote execution context with the given endpoint.
     pub fn new(endpoint: impl Into<Endpoint>, once: bool) -> Self {
         RemoteExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             endpoint: endpoint.into(),
             context_id: None,
@@ -71,6 +74,7 @@ impl RemoteExecutionContext {
 
 #[derive(Debug, Clone, Default)]
 pub struct LocalExecutionContext {
+    #[cfg(feature = "compiler")]
     compile_scope: CompilationScope,
     runtime_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
     execution_options: ExecutionOptions,
@@ -80,6 +84,7 @@ pub struct LocalExecutionContext {
 impl LocalExecutionContext {
     pub fn new(once: bool) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::default(),
@@ -92,6 +97,7 @@ impl LocalExecutionContext {
     /// Creates a new local execution context with the given compile scope.
     pub fn debug(once: bool) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             execution_options: ExecutionOptions { verbose: true },
             verbose: true,
@@ -104,6 +110,7 @@ impl LocalExecutionContext {
         once: bool,
     ) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::new(runtime_internal),
@@ -118,6 +125,7 @@ impl LocalExecutionContext {
         once: bool,
     ) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::new(runtime_internal),

@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::compile;
 use crate::decompiler::{DecompileOptions, decompile_body};
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
@@ -19,13 +21,18 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use itertools::Itertools;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use core::fmt::Display;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use core::writeln;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -386,7 +393,7 @@ impl ComHub {
         // create trace back block
         let trace_back_block = self.create_trace_block(
             hops,
-            std::slice::from_ref(&sender),
+            core::slice::from_ref(&sender),
             BlockType::TraceBack,
             block.block_header.context_id,
             None,

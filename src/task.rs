@@ -5,6 +5,8 @@ use log::info;
 use core::cell::RefCell;
 use core::future::Future;
 use crate::stdlib::rc::Rc;
+use core::ops::FnOnce;
+use crate::stdlib::string::String;
 
 type LocalPanicChannel = Rc<
     RefCell<

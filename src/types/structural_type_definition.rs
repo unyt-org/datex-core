@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
@@ -12,7 +13,10 @@ use crate::values::value_container::ValueContainer;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
 use core::fmt::Display;
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

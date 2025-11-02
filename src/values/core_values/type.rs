@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
@@ -14,8 +15,11 @@ use crate::values::core_values::text::Text;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
-use crate::stdlib::hash::{Hash, Hasher};
+use core::hash::{Hash, Hasher};
 use crate::stdlib::rc::Rc;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {

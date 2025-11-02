@@ -2,9 +2,9 @@ use crate::ast::structs::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
-use crate::ast::structs::operator::binary::ArithmeticOperator;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::assignment::AssignmentOperator;
+use crate::global::operators::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};

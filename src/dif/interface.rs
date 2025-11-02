@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::DIFUpdateData;
 use crate::dif::value::DIFValueContainer;

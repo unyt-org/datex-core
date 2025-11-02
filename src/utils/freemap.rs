@@ -1,5 +1,6 @@
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::collections::hash_map::{Iter, IterMut};
+use crate::stdlib::vec::Vec;
 
 pub trait NextKey: Copy + Eq + std::hash::Hash + Default {
     fn next_key(&mut self) -> Self;

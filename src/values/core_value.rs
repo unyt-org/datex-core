@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -22,6 +23,9 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {

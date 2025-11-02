@@ -33,6 +33,7 @@ use chumsky::prelude::*;
 use lexer::Token;
 use logos::Logos;
 use core::ops::Range;
+use core::result::Result;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -323,13 +324,7 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration, VariantAccess,
-                },
-                operator::{
-                    ApplyOperation, ArithmeticUnaryOperator,
-                    AssignmentOperator, BinaryOperator, ComparisonOperator,
-                    LogicalUnaryOperator, UnaryOperator,
-                    binary::{ArithmeticOperator, BitwiseOperator},
+                    FunctionDeclaration, TypeDeclaration,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -337,7 +332,12 @@ mod tests {
                 },
             },
         },
-        libs::core::CoreLibPointerId,
+        global::operators::{
+            ApplyOperation, ArithmeticUnaryOperator,
+            AssignmentOperator, BinaryOperator, ComparisonOperator,
+            LogicalUnaryOperator, UnaryOperator,
+            binary::{ArithmeticOperator, BitwiseOperator},
+        },
         values::{
             core_values::{
                 decimal::Decimal,

@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::stdlib::{future::Future, pin::Pin};
 use rand::Rng;
 use crate::stdlib::sync::OnceLock;

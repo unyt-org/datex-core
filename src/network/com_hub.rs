@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::stdlib::{cell::RefCell, rc::Rc};
@@ -13,10 +15,12 @@ use crate::stdlib::collections::{HashMap, HashSet};
 use core::fmt::{Debug, Display, Formatter};
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-// FIXME #175 no-std
+use crate::stdlib::vec::Vec;
+use crate::stdlib::vec;
+use crate::stdlib::string::String;
 
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState

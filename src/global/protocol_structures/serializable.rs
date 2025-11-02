@@ -3,6 +3,7 @@ use binrw::{
     BinWrite,
 };
 use crate::stdlib::io::Cursor; // FIXME #114 no-std
+use crate::stdlib::vec::Vec;
 
 pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
     fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error>

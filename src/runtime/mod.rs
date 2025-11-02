@@ -30,6 +30,11 @@ use core::slice;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;
 use core::prelude::rust_2024::*;
+use core::result::Result;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 pub mod dif_interface;
 pub mod execution;

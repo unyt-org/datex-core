@@ -1,5 +1,4 @@
 use datex_core::serde::serializer::to_value_container;
-use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::block_header::BlockHeader;
 use datex_core::global::protocol_structures::encrypted_header::{
@@ -12,10 +11,7 @@ use datex_core::network::com_interfaces::default_com_interfaces::base_interface:
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use itertools::Itertools;
-use core::panic;
-use std::io::Write;
-use core::str::FromStr;
+use datex_core::stdlib::io::Write;
 use std::sync::mpsc;
 // FIXME #217 no-std
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
@@ -271,7 +267,7 @@ pub async fn default_interface_set_default_interface_first() {
         // This will set the default interface and socket
         com_hub.update_async().await;
         let _ = send_empty_block_and_update(
-            std::slice::from_ref(&TEST_ENDPOINT_B),
+            core::slice::from_ref(&TEST_ENDPOINT_B),
             &com_hub,
         )
         .await;

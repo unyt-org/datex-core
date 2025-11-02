@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::{
@@ -15,6 +17,7 @@ use crate::{
         cell::RefCell,
         hash::{Hash, Hasher},
         rc::Rc,
+        string::String,
     },
     task::spawn_with_panic_notify,
 };
@@ -29,6 +32,7 @@ use crate::stdlib::{
 use crate::stdlib::{
     future::Future,
     sync::{Arc},
+    vec::Vec,
 };
 use crate::stdsync::Mutex;
 

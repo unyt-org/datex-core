@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::libs::core::CoreLibPointerId;
@@ -14,7 +15,10 @@ use crate::stdlib::{
     cell::RefCell,
     fmt::{Display, Formatter},
     rc::Rc,
+    string::String,
 };
+use core::option::Option;
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {

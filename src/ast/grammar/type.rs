@@ -32,6 +32,7 @@ use chumsky::{
     prelude::{choice, just, recursive},
     select,
 };
+use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {

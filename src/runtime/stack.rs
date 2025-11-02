@@ -1,12 +1,17 @@
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::UnaryOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::UnaryOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
-use datex_core::references::reference::Reference;
+use crate::references::reference::Reference;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
+use core::result::Result;
+use crate::stdlib::vec;
+use core::writeln;
+use crate::stdlib::vec::Vec;
+
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
     pub active_value: Option<ValueContainer>,

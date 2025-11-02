@@ -20,6 +20,7 @@ use crate::{
 };
 use datex_core::dif::update::DIFUpdate;
 use crate::stdlib::rc::Rc;
+use core::result::Result;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(

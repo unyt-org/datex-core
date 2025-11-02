@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::libs::core::CoreLibPointerId;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
@@ -9,7 +10,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
 use core::num::ParseFloatError;
 use core::ops::Neg;
 use crate::stdlib::{
@@ -18,6 +19,9 @@ use crate::stdlib::{
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 use core::fmt::Display;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).
@@ -83,7 +87,7 @@ impl<'de> Deserialize<'de> for TypedDecimal {
 }
 
 impl Hash for TypedDecimal {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedDecimal::F32(value) => {
                 // hash -0.0 and 0.0 to the same value

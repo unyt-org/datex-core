@@ -1,4 +1,5 @@
 use crate::runtime::global_context::get_global_context;
+use crate::stdlib::vec::Vec;
 
 pub fn random_bytes_slice<const SIZE: usize>() -> [u8; SIZE] {
     let crypto = get_global_context().crypto;

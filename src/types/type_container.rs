@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::references::type_reference::TypeReference;
 use crate::traits::structural_eq::StructuralEq;
@@ -8,7 +9,7 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
 use crate::stdlib::rc::Rc;
 
 // TODO #376: move match logic and other type stuff here
@@ -75,7 +76,7 @@ impl TypeContainer {
 }
 
 impl Hash for TypeContainer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeContainer::Type(t) => t.hash(state),
             TypeContainer::TypeReference(tr) => {

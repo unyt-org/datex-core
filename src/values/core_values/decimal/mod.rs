@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 pub mod rational;
 pub mod typed_decimal;
 pub mod utils;
@@ -17,10 +18,12 @@ use rational::Rational;
 use serde::{Deserialize, Serialize};
 use core::cmp::Ordering;
 use core::fmt::Display;
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
 use crate::stdlib::io::{Read, Seek};
 use core::ops::{Add, Neg, Sub};
 use core::str::FromStr;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {
@@ -33,7 +36,7 @@ pub enum Decimal {
 }
 
 impl Hash for Decimal {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             Decimal::Finite(value) => value.hash(state),
             Decimal::NaN => 0.hash(state),
@@ -381,7 +384,7 @@ impl BinRead for Decimal {
 impl BinWrite for Decimal {
     type Args<'a> = ();
 
-    fn write_options<W: std::io::Write + Seek>(
+    fn write_options<W: crate::stdlib::io::Write + Seek>(
         &self,
         writer: &mut W,
         endian: Endian,

@@ -1,7 +1,6 @@
 use core::fmt::Display;
-
-use crate::ast::DatexParserTrait;
-use crate::global::instruction_codes::InstructionCode;
+use super::super::instruction_codes::InstructionCode;
+use crate::stdlib::string::String;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {

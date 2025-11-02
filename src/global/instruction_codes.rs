@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use num_enum::TryFromPrimitive;
 use strum::Display;
 

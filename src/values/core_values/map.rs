@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use super::super::core_value_trait::CoreValueTrait;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
@@ -7,7 +8,10 @@ use crate::values::value_container::ValueContainer;
 use indexmap::IndexMap;
 use crate::stdlib::collections::HashMap;
 use core::fmt::{self, Display};
-use crate::stdlib::hash::{Hash, Hasher};
+use core::hash::{Hash, Hasher};
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::format;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
@@ -361,8 +365,8 @@ impl<'a> Iterator for MapIterator<'a> {
 
 pub enum MapMutIterator<'a> {
     Dynamic(indexmap::map::IterMut<'a, ValueContainer, ValueContainer>),
-    Fixed(std::slice::IterMut<'a, (ValueContainer, ValueContainer)>),
-    Structural(std::slice::IterMut<'a, (String, ValueContainer)>),
+    Fixed(core::slice::IterMut<'a, (ValueContainer, ValueContainer)>),
+    Structural(core::slice::IterMut<'a, (String, ValueContainer)>),
 }
 
 impl<'a> Iterator for MapMutIterator<'a> {

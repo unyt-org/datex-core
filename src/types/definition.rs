@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -11,6 +12,10 @@ use datex_core::references::type_reference::TypeReference;
 use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
 use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::format;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
     // { x: integer, y: text }
@@ -46,7 +51,7 @@ pub enum TypeDefinition {
 }
 
 impl Hash for TypeDefinition {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeDefinition::Collection(value) => {
                 value.hash(state);

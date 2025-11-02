@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
@@ -20,9 +21,14 @@ use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use core::cell::RefCell;
 use core::fmt::Display;
-use crate::stdlib::hash::{Hash, Hasher};
+use core::hash::{Hash, Hasher};
 use crate::stdlib::rc::Rc;
-
+use core::ops::FnOnce;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use core::option::Option;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -115,9 +121,11 @@ pub enum ReferenceMutability {
 }
 
 pub mod mutability_as_int {
+    use core::prelude::rust_2024::*;
     use super::ReferenceMutability;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
+    use crate::stdlib::format;
 
     pub fn serialize<S>(
         value: &ReferenceMutability,
@@ -152,9 +160,11 @@ pub mod mutability_as_int {
     }
 }
 pub mod mutability_option_as_int {
+    use core::prelude::rust_2024::*;
     use super::ReferenceMutability;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
+    use crate::stdlib::format;
 
     pub fn serialize<S>(
         value: &Option<ReferenceMutability>,

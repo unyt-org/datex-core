@@ -20,7 +20,7 @@ pub enum VisitAction<T: Sized> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::structs::operator::binary::ArithmeticOperator;
+    use crate::global::operators::binary::ArithmeticOperator;
     use crate::ast::{
         parse,
         structs::{
@@ -28,9 +28,9 @@ mod tests {
                 BinaryOperation, DatexExpression, DatexExpressionData,
                 Statements,
             },
-            operator::BinaryOperator,
         },
     };
+    use crate::global::operators::BinaryOperator;
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitResult,
     };

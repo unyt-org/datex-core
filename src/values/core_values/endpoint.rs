@@ -1,7 +1,8 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::crypto::random;
 use core::fmt::{Debug, Display, Formatter};
-use crate::stdlib::hash::Hash;
+use core::hash::Hash;
 use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
@@ -13,6 +14,9 @@ use core::str;
 use serde::{Deserialize, Serialize};
 use crate::stdlib::io::Cursor;
 use core::str::FromStr;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,

@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::error;
 
 use super::super::com_interface::ComInterface;
@@ -21,7 +23,9 @@ use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;

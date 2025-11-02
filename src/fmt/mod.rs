@@ -3,11 +3,11 @@ use core::ops::Range;
 use crate::{
     ast::structs::{
         expression::{DatexExpression, VariableAccess},
-        operator::{BinaryOperator, ComparisonOperator, UnaryOperator},
         r#type::{
             FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
         },
     },
+    global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     libs::core::CoreLibPointerId,

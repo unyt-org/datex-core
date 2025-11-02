@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_interfaces::com_interface::ComInterfaceInfo;
 use crate::network::com_interfaces::com_interface_properties::{
@@ -12,7 +14,7 @@ use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
 
 use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;

@@ -1,4 +1,5 @@
-use std::io::Cursor;
+use core::prelude::rust_2024::*;
+use crate::stdlib::io::Cursor;
 use binrw::BinWrite;
 use datex_core::utils::buffers::{append_i128, append_i32, append_i64, append_u16, append_u64};
 use crate::compiler::context::CompilationContext;
@@ -17,6 +18,8 @@ use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {

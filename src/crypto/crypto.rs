@@ -1,4 +1,9 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::fmt::Display;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+
 
 use crate::stdlib::{future::Future, pin::Pin};
 pub trait CryptoTrait: Send + Sync {

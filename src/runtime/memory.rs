@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::references::reference::Reference;
 use crate::references::type_reference::TypeReference;

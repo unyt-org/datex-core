@@ -1,9 +1,8 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::{
-    compiler::{
-        CompileOptions, compile_script, extract_static_value_from_script,
-    },
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     serde::error::DeserializationError,
     values::{
@@ -18,6 +17,11 @@ use crate::{
 };
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::unreachable;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -80,8 +84,9 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX script string
     /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
+    #[cfg(feature = "compiler")]
     pub fn from_script(script: &'de str) -> Result<Self, DeserializationError> {
-        let (dxb, _) = compile_script(script, CompileOptions::default())
+        let (dxb, _) = crate::compiler::compile_script(script, crate::compiler::CompileOptions::default())
             .map_err(|err| {
                 DeserializationError::CanNotReadFile(err.to_string())
             })?;
@@ -98,10 +103,11 @@ impl<'de> DatexDeserializer {
     /// For example, the script `{ "key": 42 }` will work, but the script `{ "key": 40 + 2 }` will not
     /// because the latter requires execution to evaluate the expression
     /// and extract the value
+    #[cfg(feature = "compiler")]
     pub fn from_static_script(
         script: &'de str,
     ) -> Result<Self, DeserializationError> {
-        let value = extract_static_value_from_script(script)
+        let value = crate::compiler::extract_static_value_from_script(script)
             .map_err(DeserializationError::CompilerError)?;
         if value.is_none() {
             return Err(DeserializationError::NoStaticValueFound);
@@ -572,6 +578,9 @@ mod tests {
     use crate::serde::serializer::to_bytes;
     use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
+    use crate::compiler::{
+        CompileOptions, compile_script
+    };
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {

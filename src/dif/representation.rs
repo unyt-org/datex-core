@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::dif::r#type::{DIFTypeContainer, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
@@ -16,6 +18,9 @@ use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use core::cell::RefCell;
 use core::fmt;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::string::String;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {

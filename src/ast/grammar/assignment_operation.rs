@@ -2,7 +2,7 @@
 use crate::ast::DatexParserTrait;
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
-use crate::ast::structs::operator::AssignmentOperator;
+use crate::global::operators::AssignmentOperator;
 use chumsky::prelude::*;
 
 pub fn assignment_operation<'a>()

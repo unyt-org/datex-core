@@ -1,9 +1,10 @@
-use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::fmt::Display;
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use modular_bitfield::prelude::*;
+use crate::stdlib::vec::Vec;
 
 // 2 bit
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]

@@ -4,11 +4,11 @@ use crate::{
             BinaryOperation, ComparisonOperation, DatexExpression,
             DatexExpressionData, UnaryOperation,
         },
-        operator::{
-            BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
-            UnaryOperator,
-            binary::{ArithmeticOperator, LogicalOperator},
-        },
+    },
+    global::operators::{
+        BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
+        UnaryOperator,
+        binary::{ArithmeticOperator, LogicalOperator},
     },
     fmt::{
         Assoc, Format, Formatter, Operation, ParentContext,

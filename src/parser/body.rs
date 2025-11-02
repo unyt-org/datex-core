@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::decompiler::ScopeType;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{
@@ -13,10 +15,12 @@ use core::fmt;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
-use datex_core::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 use core::fmt::Display;
 use crate::stdlib::io::{BufRead, Cursor, Read, Seek};
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);

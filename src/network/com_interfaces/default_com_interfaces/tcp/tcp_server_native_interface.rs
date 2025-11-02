@@ -1,9 +1,11 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::stdlib::collections::{HashMap, VecDeque};
 use core::future::Future;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::{Arc};
 use crate::stdsync::Mutex;
-use crate::stdlib::time::Duration;
+use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::task::spawn;

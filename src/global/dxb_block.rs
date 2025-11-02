@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::fmt::Display;
 use crate::stdlib::io::{Cursor, Read};
 // FIXME #109 no-std
@@ -17,6 +18,7 @@ use futures_util::StreamExt;
 use log::error;
 use strum::Display;
 use thiserror::Error;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Display, Error)]
 pub enum HeaderParsingError {

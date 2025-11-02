@@ -20,7 +20,6 @@ extern crate mopa;
 extern crate num_integer;
 
 pub mod crypto;
-#[cfg(feature="dif")]
 pub mod dif;
 
 pub mod generator;
@@ -42,7 +41,6 @@ pub mod visitor;
 pub mod references;
 pub mod runtime;
 
-#[cfg(all(feature = "serde", feature = "compiler"))]
 pub mod serde;
 pub mod task;
 pub mod traits;
@@ -56,22 +54,19 @@ pub use datex_macros as macros;
 extern crate self as datex_core;
 extern crate core;
 
-#[cfg(feature = "std")]
-include!("./with_std.rs");
-
-#[cfg(not(feature = "std"))]
-include!("./without_std.rs");
 
 pub mod stdlib {
     #[cfg(feature = "std")]
-    pub use crate::with_std::*;
+    pub use std::*;
     #[cfg(not(feature = "std"))]
-    pub use crate::without_std::*;
+    pub use nostd::{
+        rc, sync, collections, fmt, cell, panic, vec, hash, string, future, pin, io, format, any
+    };
 }
 
 pub mod stdsync {
     #[cfg(feature = "std")]
-    pub use crate::with_std::sync::*;
+    pub use std::sync::*;
     #[cfg(not(feature = "std"))]
     pub use spin::*;
 }

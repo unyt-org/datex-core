@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use crate::stdlib::{future::Future, pin::Pin, time::Duration};
 use crate::stdsync::Mutex;
 // FIXME #209 no-std
