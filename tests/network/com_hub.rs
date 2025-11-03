@@ -508,7 +508,7 @@ pub async fn test_reconnect() {
         let mut base_interface =
             BaseInterface::new_with_properties(InterfaceProperties {
                 reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
-                    timeout: std::time::Duration::from_secs(1),
+                    timeout: core::time::Duration::from_secs(1),
                 },
                 ..InterfaceProperties::default()
             });
@@ -554,7 +554,7 @@ pub async fn test_reconnect() {
         );
 
         // wait for the reconnection to happen
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(core::time::Duration::from_secs(1)).await;
 
         // check that the interface is connected again
         // and that the close_timestamp is reset

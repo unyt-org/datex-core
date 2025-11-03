@@ -38,7 +38,7 @@ enum Signal {
 ///
 /// async fn example() {
 ///     run_async! {
-///         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+///         tokio::time::sleep(core::time::Duration::from_secs(1)).await;
 ///         spawn_with_panic_notify(async {
 ///             // Simulate a panic
 ///             core::panic!("This is a test panic");
@@ -178,7 +178,7 @@ where
 
 cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
-        pub fn timeout<F>(duration: std::time::Duration, fut: F) -> tokio::time::Timeout<F::IntoFuture>
+        pub fn timeout<F>(duration: core::time::Duration, fut: F) -> tokio::time::Timeout<F::IntoFuture>
         where
             F: IntoFuture,
         {
@@ -204,7 +204,7 @@ cfg_if! {
         {
             tokio::task::spawn_blocking(f)
         }
-        pub async fn sleep(dur: std::time::Duration) {
+        pub async fn sleep(dur: core::time::Duration) {
             tokio::time::sleep(dur).await;
         }
 
@@ -212,7 +212,7 @@ cfg_if! {
         use futures::future;
 
         pub async fn timeout<F, T>(
-            duration: std::time::Duration,
+            duration: core::time::Duration,
             fut: F,
         ) -> Result<T, &'static str>
         where
@@ -227,7 +227,7 @@ cfg_if! {
                 future::Either::Right(_) => Err("timed out"),
             }
         }
-        pub async fn sleep(dur: std::time::Duration) {
+        pub async fn sleep(dur: core::time::Duration) {
             gloo_timers::future::sleep(dur).await;
         }
 
@@ -249,7 +249,14 @@ cfg_if! {
         {
             core::panic!("`spawn_blocking` is not supported in the wasm runtime.");
         }
-    } else {
-        compile_error!("Unsupported runtime. Please enable either 'tokio_runtime' or 'wasm_runtime' feature.");
+    } else if #[cfg(feature = "embassy_runtime")] {
+        use embassy_time::{Duration, Timer};
+        pub async fn sleep(dur: core::time::Duration) {
+            let emb_dur = Duration::from_millis(dur.as_millis() as u64);
+            Timer::after(emb_dur).await;
+        }
+    }
+    else {
+        compile_error!("Unsupported runtime. Please enable either 'tokio_runtime', 'embassy_runtime' or 'wasm_runtime' feature.");
     }
 }

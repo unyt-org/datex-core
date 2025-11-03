@@ -16,7 +16,7 @@ use datex_core::run_async;
 use log::info;
 use ntest_timeout::timeout;
 use core::str::FromStr;
-use std::time::Duration;
+use core::time::Duration;
 use tokio::task;
 
 #[tokio::test]

@@ -16,7 +16,10 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
+use log::info;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::format;
+use crate::stdlib::vec::Vec;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
@@ -261,7 +264,7 @@ impl ExecutionContext {
     }
 
     fn print_dxb_debug(&self, dxb: &[u8]) -> Result<(), ExecutionError> {
-        println!(
+        info!(
             "\x1b[32m[Compiled Bytecode] {}",
             dxb.iter()
                 .map(|b| format!("{b:02x}"))
@@ -273,10 +276,10 @@ impl ExecutionContext {
         {
             let decompiled = crate::decompiler::decompile_body(dxb, crate::decompiler::DecompileOptions::colorized());
             if let Err(e) = decompiled {
-                println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
+                info!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
             } else {
                 let decompiled = decompiled?;
-                println!("[Decompiled]: {decompiled}");
+                info!("[Decompiled]: {decompiled}");
             }
         }
 

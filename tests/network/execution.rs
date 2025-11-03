@@ -6,7 +6,7 @@ use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
 use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::value_container::ValueContainer;
-use std::time::Duration;
+use core::time::Duration;
 
 #[tokio::test]
 pub async fn test_basic_remote_execution() {

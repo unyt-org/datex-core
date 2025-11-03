@@ -19,6 +19,7 @@ use crate::stdlib::rc::Rc;
 use core::time::Duration;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::borrow::ToOwned;
 
 impl RuntimeInternal {
     /// Starts the

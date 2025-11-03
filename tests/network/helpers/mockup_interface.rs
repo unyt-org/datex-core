@@ -25,7 +25,7 @@ use datex_macros::{com_interface, create_opener};
 use log::info;
 use core::cell::RefCell;
 use std::rc::Rc;
-use std::time::Duration;
+use core::time::Duration;
 use std::{
     future::Future,
     pin::Pin,
