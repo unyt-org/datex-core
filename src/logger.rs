@@ -2,7 +2,6 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
 use cfg_if::cfg_if;
 
-#[thread_local]
 static INIT: AtomicBool = AtomicBool::new(false);
 
 /// Initializes the logger with debug mode, logging all messages including debug messages.
