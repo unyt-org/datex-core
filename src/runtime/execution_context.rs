@@ -41,6 +41,7 @@ impl From<ExecutionError> for ScriptExecutionError {
 impl Display for ScriptExecutionError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            #[cfg(feature = "compiler")]
             ScriptExecutionError::CompilerError(err) => {
                 core::write!(f, "Compiler Error: {}", err)
             }

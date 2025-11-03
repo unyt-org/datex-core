@@ -1,10 +1,9 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use core::time::Duration;
 use crate::utils::time::Time;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use serde_with::{DurationMilliSeconds, DurationSeconds};
+use serde_with::{DurationMilliSeconds};
 use strum::EnumString;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
@@ -42,7 +41,7 @@ pub struct InterfaceProperties {
 
     /// Estimated mean latency for this interface type in milliseconds (round trip time).
     /// Lower latency interfaces are preferred over higher latency channels
-    #[serde_as(as = "DurationMilliSeconds<f64>")]
+    #[serde_as(as = "DurationMilliSeconds")]
     #[cfg_attr(feature = "wasm_runtime", tsify(type = "number"))]
     pub round_trip_time: Duration,
 
@@ -86,11 +85,11 @@ pub enum ReconnectionConfig {
     NoReconnect,
     InstantReconnect,
     ReconnectWithTimeout {
-        #[serde_as(as = "DurationSeconds<f64>")]
+        #[serde_as(as = "DurationMilliSeconds")]
         timeout: Duration,
     },
     ReconnectWithTimeoutAndAttempts {
-        #[serde_as(as = "DurationSeconds<f64>")]
+        #[serde_as(as = "DurationMilliSeconds")]
         timeout: Duration,
         attempts: u8,
     },

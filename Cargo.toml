@@ -23,7 +23,6 @@ harness = false
 
 [dependencies]
 # core dependencies
-byteorder = { version = "1", default-features = false }
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }
 mopa = { version = "0.2.2", default-features = false }
 num = {version = "0.4.3", default-features = false}
@@ -207,7 +206,6 @@ std = [
     "indexmap/std",
     "log/std",
     "futures-util/std",
-    "byteorder/std",
     "futures-core/std",
     "futures/std",
     "url/std",
