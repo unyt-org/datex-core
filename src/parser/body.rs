@@ -128,14 +128,6 @@ fn get_text_data(
     }
 }
 
-/// Copied from Cursor::has_data_left (unstable feature)
-fn reader_has_data_left(reader: &mut Cursor<&[u8]>) -> bool {
-    // rationale: We can use safe unwrap here, as our stream is no IO, but only
-    // bytes stream, so we can always access.
-    unsafe {
-        reader.fill_buf().map(|b| !b.is_empty()).unwrap_unchecked()
-    }
-}
 
 // TODO #221: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
@@ -145,11 +137,11 @@ pub fn iterate_instructions<'a>(
         #[coroutine]
         move || {
             // get reader for dxb_body
+            let len = dxb_body.len();
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                // TODO: maybe do this more efficiently
-                if !reader_has_data_left(&mut reader) {
+                if reader.position() as usize >= len {
                     return;
                 }
 
@@ -504,7 +496,7 @@ pub fn iterate_instructions<'a>(
                         let result: Result<
                             Vec<TypeInstruction>,
                             DXBParserError,
-                        > = iterate_type_space_instructions(&mut reader)
+                        > = iterate_type_space_instructions(&mut reader, len)
                             .collect();
                         if let Err(err) = result {
                             Err(err)
@@ -517,7 +509,7 @@ pub fn iterate_instructions<'a>(
                         let result: Result<
                             Vec<TypeInstruction>,
                             DXBParserError,
-                        > = iterate_type_space_instructions(&mut reader)
+                        > = iterate_type_space_instructions(&mut reader, len)
                             .collect();
                         if let Err(err) = result {
                             Err(err)
@@ -547,6 +539,7 @@ fn get_next_instruction_code(
 
 fn iterate_type_space_instructions(
     reader: &mut Cursor<&[u8]>,
+    len: usize
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
     core::iter::from_coroutine(
         #[coroutine]
@@ -554,7 +547,7 @@ fn iterate_type_space_instructions(
             loop {
                 // if cursor is at the end, break
 
-                if !reader_has_data_left(reader) {
+                if reader.position() as usize >= len {
                     return;
                 }
 

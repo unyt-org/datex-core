@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use core::fmt;
 use serde::de::Error;
 use serde::ser::StdError;
