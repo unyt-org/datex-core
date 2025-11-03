@@ -5,7 +5,7 @@ use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::runtime::{Runtime, RuntimeConfig};
+use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
 use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::value_container::ValueContainer;
@@ -613,6 +613,7 @@ impl Network {
         for endpoint in self.endpoints.iter_mut() {
             let runtime = Rc::new(Runtime::new(
                 RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone()),
+                AsyncContext::new()
             ));
 
             // register factories

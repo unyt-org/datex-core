@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
 use crate::stdlib::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
 #[cfg(feature = "debug")]
@@ -54,17 +53,12 @@ impl GlobalContext {
     }
 }
 
-thread_local! {
-    pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = const { RefCell::new(None) };
-}
+#[thread_local]
+pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = RefCell::new(None);
+
 pub fn set_global_context(c: GlobalContext) {
     GLOBAL_CONTEXT.replace(Some(c));
 }
 pub(crate) fn get_global_context() -> GlobalContext {
-    match GLOBAL_CONTEXT.with(|c| c.borrow().clone()) {
-        Some(c) => c,
-        None => core::panic!(
-            "Global context not initialized - call set_global_context first!"
-        ),
-    }
+    GLOBAL_CONTEXT.borrow().clone().expect("Global context not initialized - call set_global_context first!")
 }

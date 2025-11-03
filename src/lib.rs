@@ -14,6 +14,8 @@
 #![allow(unused_parens)]
 #![feature(associated_type_defaults)]
 #![feature(core_float_math)]
+#![feature(thread_local)]
+#![allow(static_mut_refs)]
 #[macro_use]
 extern crate mopa;
 

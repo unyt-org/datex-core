@@ -1,3 +1,4 @@
+use std::io::Read;
 use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
     CompileOptions, StaticValueOrDXB, compile_script,
@@ -11,7 +12,6 @@ use datex_core::runtime::execution::{
 use datex_core::values::value_container::ValueContainer;
 use json_syntax::Parse;
 use serde_json::Value;
-use crate::stdlib::io::Read;
 use datex_core::core_compiler::value_compiler::compile_value_container;
 
 pub fn get_json_test_string(file_path: &str) -> String {
@@ -20,7 +20,7 @@ pub fn get_json_test_string(file_path: &str) -> String {
     let file_path = std::path::Path::new(&file_path);
     let file =
         std::fs::File::open(file_path).expect("Failed to open test.json");
-    let mut reader = crate::stdlib::io::BufReader::new(file);
+    let mut reader = std::io::BufReader::new(file);
     let mut json_string = String::new();
     reader
         .read_to_string(&mut json_string)

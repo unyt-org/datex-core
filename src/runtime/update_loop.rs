@@ -1,6 +1,6 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::global::dxb_block::{DXBBlock, OutgoingContextId};
+use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType,
@@ -21,6 +21,42 @@ use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::borrow::ToOwned;
 
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn handle_incoming_section_task(runtime_rc: Rc<RuntimeInternal>, section: IncomingSection) {
+    let (result, endpoint, context_id) =
+        RuntimeInternal::execute_incoming_section(
+            runtime_rc.clone(),
+            section,
+        )
+            .await;
+        info!(
+            "Execution result (on {} from {}): {result:?}",
+            runtime_rc.endpoint, endpoint
+        );
+    // send response back to the sender
+    let res = RuntimeInternal::send_response_block(
+        runtime_rc.clone(),
+        result,
+        endpoint,
+        context_id,
+    );
+    // TODO #231: handle errors in sending response
+}
+
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn update_loop_task(runtime_rc: Rc<RuntimeInternal>) {
+    while *runtime_rc.update_loop_running.borrow() {
+        RuntimeInternal::update(runtime_rc.clone()).await;
+        sleep(Duration::from_millis(1)).await;
+    }
+    if let Some(sender) =
+        runtime_rc.update_loop_stop_sender.borrow_mut().take()
+    {
+        sender.send(()).expect("Failed to send stop signal");
+    }
+}
+
 impl RuntimeInternal {
     /// Starts the
     pub fn start_update_loop(self_rc: Rc<RuntimeInternal>) {
@@ -34,17 +70,7 @@ impl RuntimeInternal {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(async move {
-            while *self_rc.update_loop_running.borrow() {
-                RuntimeInternal::update(self_rc.clone()).await;
-                sleep(Duration::from_millis(1)).await;
-            }
-            if let Some(sender) =
-                self_rc.update_loop_stop_sender.borrow_mut().take()
-            {
-                sender.send(()).expect("Failed to send stop signal");
-            }
-        });
+        spawn_with_panic_notify(&self_rc.clone().async_context, update_loop_task(self_rc));
     }
 
     /// Stops the update loop for the Runtime, if it is running.
@@ -74,30 +100,12 @@ impl RuntimeInternal {
             .block_handler
             .incoming_sections_queue
             .borrow_mut();
+        let async_context = &self_rc.async_context;
         // get incoming sections from ComHub
         for section in sections.drain(..) {
             // execute the section in a separate task
             let self_rc = self_rc.clone();
-            spawn_with_panic_notify(async move {
-                let (result, endpoint, context_id) =
-                    RuntimeInternal::execute_incoming_section(
-                        self_rc.clone(),
-                        section,
-                    )
-                    .await;
-                info!(
-                    "Execution result (on {} from {}): {result:?}",
-                    self_rc.endpoint, endpoint
-                );
-                // send response back to the sender
-                let res = RuntimeInternal::send_response_block(
-                    self_rc.clone(),
-                    result,
-                    endpoint,
-                    context_id,
-                );
-                // TODO #231: handle errors in sending response
-            });
+            spawn_with_panic_notify(async_context, handle_incoming_section_task(self_rc, section));
         }
     }
 

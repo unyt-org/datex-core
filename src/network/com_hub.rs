@@ -38,6 +38,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
@@ -79,6 +80,8 @@ type InterfaceMap = HashMap<
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
+
+    pub async_context: AsyncContext,
 
     /// ComHub configuration options
     pub options: ComHubOptions,
@@ -142,24 +145,6 @@ struct EndpointIterateOptions<'a> {
     pub exclude_sockets: &'a [ComInterfaceSocketUUID],
 }
 
-impl Default for ComHub {
-    fn default() -> Self {
-        ComHub {
-            endpoint: Endpoint::default(),
-            options: ComHubOptions::default(),
-            interface_factories: RefCell::new(HashMap::new()),
-            interfaces: RefCell::new(HashMap::new()),
-            endpoint_sockets: RefCell::new(HashMap::new()),
-            block_handler: BlockHandler::new(),
-            sockets: RefCell::new(HashMap::new()),
-            fallback_sockets: RefCell::new(Vec::new()),
-            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum InterfacePriority {
     /// The interface will not be used for fallback routing if no other interface is available
@@ -198,11 +183,58 @@ pub enum SocketEndpointRegistrationError {
     SocketEndpointAlreadyRegistered,
 }
 
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn update_loop_task(self_rc: Rc<ComHub>) {
+    while *self_rc.update_loop_running.borrow() {
+        self_rc.update();
+        sleep(Duration::from_millis(1)).await;
+    }
+    if let Some(sender) =
+        self_rc.update_loop_stop_sender.borrow_mut().take()
+    {
+        sender.send(()).expect("Failed to send stop signal");
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
+    let interface = interface_rc.clone();
+    let mut interface = interface.borrow_mut();
+
+    let config = interface.get_properties_mut();
+    config.close_timestamp = None;
+
+    let current_attempts =
+        config.reconnect_attempts.unwrap_or(0);
+    config.reconnect_attempts =
+        Some(current_attempts + 1);
+
+    let res = interface.handle_open().await;
+    if res {
+        interface
+            .set_state(ComInterfaceState::Connected);
+        // config.reconnect_attempts = None;
+    } else {
+        interface
+            .set_state(ComInterfaceState::NotConnected);
+    }
+}
+
 impl ComHub {
-    pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
+    pub fn new(endpoint: impl Into<Endpoint>, async_context: AsyncContext) -> ComHub {
         ComHub {
             endpoint: endpoint.into(),
-            ..ComHub::default()
+            async_context,
+            options: ComHubOptions::default(),
+            interface_factories: RefCell::new(HashMap::new()),
+            interfaces: RefCell::new(HashMap::new()),
+            endpoint_sockets: RefCell::new(HashMap::new()),
+            block_handler: BlockHandler::new(),
+            sockets: RefCell::new(HashMap::new()),
+            fallback_sockets: RefCell::new(Vec::new()),
+            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
         }
     }
 
@@ -1262,17 +1294,7 @@ impl ComHub {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(async move {
-            while *self_rc.update_loop_running.borrow() {
-                self_rc.update();
-                sleep(Duration::from_millis(1)).await;
-            }
-            if let Some(sender) =
-                self_rc.update_loop_stop_sender.borrow_mut().take()
-            {
-                sender.send(()).expect("Failed to send stop signal");
-            }
-        });
+        spawn_with_panic_notify(&self_rc.clone().async_context, update_loop_task(self_rc));
     }
 
     /// Update all sockets and interfaces,
@@ -1708,28 +1730,7 @@ impl ComHub {
                     if reconnect_now {
                         debug!("Reconnecting interface {uuid}");
                         interface.set_state(ComInterfaceState::Connecting);
-                        spawn_with_panic_notify(async move {
-                            let interface = interface_rc.clone();
-                            let mut interface = interface.borrow_mut();
-
-                            let config = interface.get_properties_mut();
-                            config.close_timestamp = None;
-
-                            let current_attempts =
-                                config.reconnect_attempts.unwrap_or(0);
-                            config.reconnect_attempts =
-                                Some(current_attempts + 1);
-
-                            let res = interface.handle_open().await;
-                            if res {
-                                interface
-                                    .set_state(ComInterfaceState::Connected);
-                                // config.reconnect_attempts = None;
-                            } else {
-                                interface
-                                    .set_state(ComInterfaceState::NotConnected);
-                            }
-                        });
+                        spawn_with_panic_notify(&self.async_context, reconnect_interface_task(interface_rc));
                     } else {
                         debug!("Not reconnecting interface {uuid}");
                     }
@@ -1811,7 +1812,7 @@ impl ComHub {
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
         for (interface, _) in interfaces.values() {
-            com_interface::flush_outgoing_blocks(interface.clone());
+            com_interface::flush_outgoing_blocks(interface.clone(), &self.async_context);
         }
     }
 }

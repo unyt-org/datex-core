@@ -1,22 +1,22 @@
-use core::prelude::rust_2024::*;
-use crate::stdlib::sync::Once;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering;
 use cfg_if::cfg_if;
 
-static INIT: Once = Once::new();
+#[thread_local]
+static INIT: AtomicBool = AtomicBool::new(false);
 
 /// Initializes the logger with debug mode, logging all messages including debug messages.
 pub fn init_logger_debug() {
-    // TODO: nostd
-    INIT.call_once(|| {
+    if !INIT.swap(true, Ordering::SeqCst) {
         init(true);
-    });
+    }
 }
 
 /// Initializes the logger with default mode, only logging errors and above.
 pub fn init_logger() {
-    INIT.call_once(|| {
+    if !INIT.swap(true, Ordering::SeqCst) {
         init(false);
-    });
+    }
 }
 
 cfg_if! {

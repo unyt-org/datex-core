@@ -65,12 +65,25 @@ impl Debug for Runtime {
     }
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Runtime {
-            version: VERSION.to_string(),
-            internal: Rc::new(RuntimeInternal::default()),
-        }
+#[derive(Clone)]
+pub struct AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub spawner: embassy_executor::Spawner
+}
+impl AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub fn new(spawner: embassy_executor::Spawner) -> Self {
+        Self { spawner }
+    }
+    #[cfg(not(feature = "embassy_runtime"))]
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Debug for AsyncContext {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "AsyncContext")
     }
 }
 
@@ -88,20 +101,7 @@ pub struct RuntimeInternal {
     /// active execution contexts, stored by context_id
     pub execution_contexts:
         RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
-}
-
-impl Default for RuntimeInternal {
-    fn default() -> Self {
-        RuntimeInternal {
-            endpoint: Endpoint::default(),
-            config: RuntimeConfig::default(),
-            memory: RefCell::new(Memory::new(Endpoint::default())),
-            com_hub: ComHub::default(),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-            execution_contexts: RefCell::new(HashMap::new()),
-        }
-    }
+    pub async_context: AsyncContext
 }
 
 macro_rules! get_execution_context {
@@ -123,6 +123,20 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
+
+    fn new(async_context: AsyncContext) -> Self {
+        RuntimeInternal {
+            endpoint: Endpoint::default(),
+            config: RuntimeConfig::default(),
+            memory: RefCell::new(Memory::new(Endpoint::default())),
+            com_hub: ComHub::new(Endpoint::default(), async_context.clone()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
+            execution_contexts: RefCell::new(HashMap::new()),
+            async_context
+        }
+    }
+
     #[cfg(feature = "compiler")]
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
@@ -391,9 +405,9 @@ impl RuntimeConfig {
 /// publicly exposed wrapper impl for the Runtime
 /// around RuntimeInternal
 impl Runtime {
-    pub fn new(config: RuntimeConfig) -> Runtime {
+    pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
-        let com_hub = ComHub::new(endpoint.clone());
+        let com_hub = ComHub::new(endpoint.clone(), async_context.clone());
         let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
@@ -402,7 +416,7 @@ impl Runtime {
                 memory,
                 config,
                 com_hub,
-                ..RuntimeInternal::default()
+                ..RuntimeInternal::new(async_context)
             }),
         }
     }
@@ -410,6 +424,7 @@ impl Runtime {
     pub fn init(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
         set_global_context(global_context);
         if let Some(debug) = config.debug
@@ -423,7 +438,7 @@ impl Runtime {
             "Runtime initialized - Version {VERSION} Time: {}",
             Time::now()
         );
-        Self::new(config)
+        Self::new(config, async_context)
     }
 
     pub fn com_hub(&self) -> &ComHub {
@@ -441,13 +456,14 @@ impl Runtime {
         &self.internal.memory
     }
 
-    #[cfg(all(feature = "native_crypto", feature = "std"))]
+    #[cfg(all(feature = "native_crypto", feature = "std", not(feature = "embassy_runtime")))]
     pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(
             config,
             GlobalContext::new(Arc::new(CryptoNative), Arc::new(TimeNative)),
+            AsyncContext::new(),
         )
     }
 
@@ -494,14 +510,15 @@ impl Runtime {
     pub async fn create(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
-        let runtime = Self::init(config, global_context);
+        let runtime = Self::init(config, global_context, async_context);
         runtime.start().await;
         runtime
     }
 
     // inits a native runtime and starts the update loop
-    #[cfg(all(feature = "native_crypto", feature = "std"))]
+    #[cfg(all(feature = "native_crypto", feature = "std", not(feature = "embassy_runtime")))]
     pub async fn create_native(config: RuntimeConfig) -> Runtime {
         let runtime = Self::init_native(config);
         runtime.start().await;

@@ -81,9 +81,10 @@ logos = {version = "0.15.0", optional = true}
 internment = { version = "0.8.6", optional = true }
 foldhash = { version = "0.2.0", optional = true, default-features = false}
 spin = { version = "0.10.0", optional = true, default-features = false, features = ["spin_mutex", "mutex", "lock_api"]}
-embassy-sync = { version = "0.7.2", optional = true}
 embassy-time = { version = "0.5.0", optional = true}
-
+async-unsync = { version = "0.3.0", optional = true, default-features = false, features = ["alloc"] }
+embassy-executor = { version = "0.9.1", optional = true}
+embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
@@ -194,8 +195,10 @@ wasm_runtime = [
     "dep:wasm-bindgen",
 ]
 embassy_runtime = [
-    "dep:embassy-sync",
-    "dep:embassy-time"
+    "dep:embassy-executor",
+    "dep:embassy-time",
+    "dep:embassy-futures",
+    "dep:async-unsync"
 ]
 
 # only required for legacy syntax highlighting in decompiler, will be removed in the future

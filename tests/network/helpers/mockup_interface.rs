@@ -4,23 +4,18 @@ use datex_core::network::com_interfaces::com_interface::{
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::task::spawn_with_panic_notify;
-use datex_core::{
-    delegate_com_interface_info,
-    global::{
-        dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
+use datex_core::task::{spawn_with_panic_notify, spawn_with_panic_notify_default};
+use datex_core::{delegate_com_interface_info, global::{
+    dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
+}, network::com_interfaces::{
+    com_interface::{
+        ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+        ComInterfaceState,
     },
-    network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-            ComInterfaceState,
-        },
-        com_interface_properties::InterfaceProperties,
-        com_interface_socket::ComInterfaceSocketUUID,
-        socket_provider::SingleSocketProvider,
-    },
-    set_sync_opener,
-};
+    com_interface_properties::InterfaceProperties,
+    com_interface_socket::ComInterfaceSocketUUID,
+    socket_provider::SingleSocketProvider,
+}, set_sync_opener};
 use datex_macros::{com_interface, create_opener};
 use log::info;
 use core::cell::RefCell;
@@ -30,8 +25,7 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{mpsc, Arc, Mutex},
-};
-use serde::{Deserialize, Serialize};
+};use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug)]
 pub struct MockupInterface {
@@ -85,15 +79,13 @@ impl SingleSocketProvider for MockupInterface {
 
 type OptSender = Option<mpsc::Sender<Vec<u8>>>;
 type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
-thread_local! {
-    pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = const { RefCell::new(Vec::new()) };
-}
+#[thread_local]
+pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = RefCell::new(Vec::new());
+
 pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
-    CHANNELS.with(|channels| {
-        let mut channels = channels.borrow_mut();
-        channels.push((sender, receiver));
-        channels.len() - 1
-    })
+    let mut channels = CHANNELS.borrow_mut();
+    channels.push((sender, receiver));
+    channels.len() - 1
 }
 
 
@@ -146,27 +138,23 @@ impl MockupInterfaceSetupData {
     pub fn sender(
         &self,
     ) -> Option<mpsc::Sender<Vec<u8>>> {
-        CHANNELS.with(|channels| {
-            let mut channels = channels.borrow_mut();
-            if let Some(index) = self.channel_index {
-                channels.get_mut(index).unwrap().0.take()
-            } else {
-                None
-            }
-        })
+        let mut channels = CHANNELS.borrow_mut();
+        if let Some(index) = self.channel_index {
+            channels.get_mut(index).unwrap().0.take()
+        } else {
+            None
+        }
     }
 
     pub fn receiver(
         &self,
     ) -> Option<mpsc::Receiver<Vec<u8>>> {
-        CHANNELS.with(|channels| {
-            let mut channels = channels.borrow_mut();
-            if let Some(index) = self.channel_index {
-                channels.get_mut(index).unwrap().1.take()
-            } else {
-                None
-            }
-        })
+        let mut channels = CHANNELS.borrow_mut();
+        if let Some(index) = self.channel_index {
+            channels.get_mut(index).unwrap().1.take()
+        } else {
+            None
+        }
     }
 }
 
@@ -272,7 +260,7 @@ impl MockupInterface {
     pub fn start_update_loop(&mut self) {
         let receiver = self.receiver.clone();
         let sockets = self.info.com_interface_sockets();
-        spawn_with_panic_notify(async move {
+        spawn_with_panic_notify_default(async move {
             loop {
                 MockupInterface::_update(receiver.clone(), sockets.clone());
                 #[cfg(feature = "tokio_runtime")]

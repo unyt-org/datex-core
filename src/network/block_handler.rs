@@ -7,8 +7,7 @@ use crate::global::dxb_block::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::utils::time::Time;
-use futures::channel::mpsc;
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use crate::task::{create_unbounded_channel, UnboundedReceiver, UnboundedSender};
 use log::info;
 use ringmap::RingMap;
 use core::cell::RefCell;
@@ -272,7 +271,7 @@ impl BlockHandler {
                     );
                 } else {
                     // create a new block queue for the current section
-                    let (mut sender, receiver) = mpsc::unbounded();
+                    let (mut sender, receiver) = create_unbounded_channel();
 
                     // add the first block to the queue
                     new_blocks.push(IncomingSection::BlockStream((
@@ -372,7 +371,7 @@ impl BlockHandler {
         context_id: OutgoingContextId,
         section_index: OutgoingSectionIndex,
     ) -> UnboundedReceiver<IncomingSection> {
-        let (tx, rx) = mpsc::unbounded();
+        let (tx, rx) = create_unbounded_channel::<IncomingSection>();
         let tx = Rc::new(RefCell::new(tx));
 
         // create observer callback for scope id + block index

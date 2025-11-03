@@ -23,6 +23,7 @@ use crate::{
 };
 use log::{debug, error, warn};
 use serde::Deserialize;
+use crate::runtime::AsyncContext;
 use crate::stdlib::{
     any::Any,
     cell::Cell,
@@ -366,7 +367,29 @@ where
     fn get_default_properties() -> InterfaceProperties;
 }
 
-pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+pub async fn flush_outgoing_block_task(
+    interface: Rc<RefCell<dyn ComInterface>>,
+    socket_ref: Arc<Mutex<ComInterfaceSocket>>,
+    block: Vec<u8>,
+    uuid: ComInterfaceSocketUUID
+) {
+    // FIXME #194 borrow_mut across await point!
+    let has_been_send =
+        interface.borrow_mut().send_block(&block, uuid).await;
+    interface
+        .borrow()
+        .get_info()
+        .outgoing_blocks_count
+        .update(|x| x - 1);
+    if !has_been_send {
+        debug!("Failed to send block");
+        socket_ref.try_lock().unwrap().send_queue.push_back(block);
+        core::panic!("Failed to send block");
+    }
+}
+
+pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>, async_context: &AsyncContext) {
     fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
         let mut socket_mut = socket_ref.try_lock().unwrap();
         let blocks: Vec<Vec<u8>> =
@@ -386,21 +409,12 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
                 .get_info()
                 .outgoing_blocks_count
                 .update(|x| x + 1);
-            spawn_with_panic_notify(async move {
-                // FIXME #194 borrow_mut across await point!
-                let has_been_send =
-                    interface.borrow_mut().send_block(&block, uuid).await;
-                interface
-                    .borrow()
-                    .get_info()
-                    .outgoing_blocks_count
-                    .update(|x| x - 1);
-                if !has_been_send {
-                    debug!("Failed to send block");
-                    socket_ref.try_lock().unwrap().send_queue.push_back(block);
-                    core::panic!("Failed to send block");
-                }
-            });
+            spawn_with_panic_notify(async_context, flush_outgoing_block_task(
+                interface,
+                socket_ref,
+                block,
+                uuid
+            ));
         }
     }
 }

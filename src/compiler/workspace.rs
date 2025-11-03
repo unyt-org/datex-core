@@ -19,7 +19,6 @@ pub struct WorkspaceFile {
 }
 
 /// Represents the compiler workspace containing multiple files.
-#[derive(Default)]
 pub struct CompilerWorkspace {
     files: HashMap<PathBuf, WorkspaceFile>,
     runtime: Runtime,

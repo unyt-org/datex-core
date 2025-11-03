@@ -11,7 +11,7 @@ use crate::global::protocol_structures::routing_header::Receivers;
 use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
-use futures::channel::mpsc::UnboundedReceiver;
+use crate::task::UnboundedReceiver;
 use futures_util::StreamExt;
 use log::error;
 use strum::Display;

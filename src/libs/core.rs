@@ -25,8 +25,18 @@ use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 
-thread_local! {
-    pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
+type CoreLibTypes = HashMap<CoreLibPointerId, TypeContainer>;
+
+#[thread_local]
+pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
+
+fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes)-> R) -> R {
+    unsafe {
+        if CORE_LIB_TYPES.is_none() {
+            CORE_LIB_TYPES.replace(create_core_lib());
+        }
+        handler(CORE_LIB_TYPES.as_ref().unwrap_unchecked())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, LibTypeString)]
@@ -142,11 +152,9 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
 }
 
 pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
-    let id = id.into();
-    if !has_core_lib_type(id.clone()) {
-        core::panic!("Core lib type not found: {:?}", id);
-    }
-    CORE_LIB_TYPES.with(|core| core.get(&id).unwrap().clone())
+    with_core_lib(|core_lib_types| {
+        core_lib_types.get(&id.into()).unwrap().clone()
+    })
 }
 
 pub fn get_core_lib_type_reference(
@@ -163,13 +171,15 @@ fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
-    CORE_LIB_TYPES.with(|core| core.contains_key(&id.into()))
+    with_core_lib(|core_lib_types| {
+        core_lib_types.contains_key(&id.into())
+    })
 }
 
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
-    CORE_LIB_TYPES.with(|core| {
-        let structure = core
+    with_core_lib(|core_lib_types| {
+        let structure = core_lib_types
             .values()
             .map(|def| match def {
                 TypeContainer::TypeReference(def) => {
@@ -490,14 +500,14 @@ mod tests {
     #[ignore]
     #[test]
     fn print_core_lib_addresses_as_hex() {
-        let sorted_entries = CORE_LIB_TYPES.with(|core| {
-            core.keys()
+        with_core_lib(|core_lib_types| {
+            let sorted_entries = core_lib_types.keys()
                 .map(|k| (k.clone(), PointerAddress::from(k.clone())))
                 .sorted_by_key(|(_, address)| address.bytes().to_vec())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            for (core_lib_id, address) in sorted_entries {
+                println!("{:?}: {}", core_lib_id, address);
+            }
         });
-        for (core_lib_id, address) in sorted_entries {
-            println!("{:?}: {}", core_lib_id, address);
-        }
     }
 }
