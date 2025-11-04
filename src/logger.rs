@@ -59,10 +59,13 @@ cfg_if! {
     }
 
     else if #[cfg(feature = "esp_logger")] {
-        // TODO:
-        // use esp_idf_svc::log::EspLogger;
         fn init(debug: bool) {
-            // EspLogger::initialize_default();
+            if debug {
+                esp_println::logger::init_logger(log::LevelFilter::Debug);
+            }
+            else {
+                esp_println::logger::init_logger(log::LevelFilter::Info);
+            }
         }
     }
 
