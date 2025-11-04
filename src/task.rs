@@ -10,16 +10,13 @@ use crate::stdlib::string::ToString;
 use core::clone::Clone;
 
 type LocalPanicChannel =
-    RefCell<
-        Option<(
-            Option<RefCell<UnboundedSender<Signal>>>,
-            Option<UnboundedReceiver<Signal>>,
-        )>,
-    >;
+    Option<(
+        Option<RefCell<UnboundedSender<Signal>>>,
+        Option<UnboundedReceiver<Signal>>,
+    )>;
 
-
-#[thread_local]
-static LOCAL_PANIC_CHANNEL: LocalPanicChannel = RefCell::new(None);
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+static mut LOCAL_PANIC_CHANNEL: LocalPanicChannel = None;
 
 
 enum Signal {
@@ -83,63 +80,67 @@ macro_rules! run_async_thread {
 
 pub fn init_panic_notify() {
     let (tx, rx) = create_unbounded_channel::<Signal>();
-    let mut channel = LOCAL_PANIC_CHANNEL.borrow_mut();
-    if channel.is_none() {
-        *channel = Some((Some(RefCell::new(tx)), Some(rx)));
-    } else {
-        core::panic!("Panic channel already initialized");
+    unsafe {
+        let channel = &mut LOCAL_PANIC_CHANNEL;
+        if channel.is_none() {
+            *channel = Some((Some(RefCell::new(tx)), Some(rx)));
+        } else {
+            core::panic!("Panic channel already initialized");
+        }
     }
 }
 
 #[allow(clippy::await_holding_refcell_ref)]
 pub async fn close_panic_notify() {
-    let mut channel = LOCAL_PANIC_CHANNEL.borrow_mut();
-    if let Some((tx, _)) = &mut *channel {
-        tx
-            .take()
-            .clone()
-            .unwrap()
-            .borrow_mut()
-            .send(Signal::Exit)
-            .await
-            .expect("Failed to send exit signal");
-    } else {
-        core::panic!("Panic channel not initialized");
+    unsafe {
+        if let Some((tx, _)) = &mut LOCAL_PANIC_CHANNEL {
+            tx
+                .take()
+                .clone()
+                .unwrap()
+                .borrow_mut()
+                .send(Signal::Exit)
+                .await
+                .expect("Failed to send exit signal");
+        } else {
+            core::panic!("Panic channel not initialized");
+        }
     }
 }
 
 pub async fn unwind_local_spawn_panics() {
-    let mut channel = LOCAL_PANIC_CHANNEL.borrow_mut();
-    if let Some((_, rx)) = &mut *channel {
-        let mut rx = rx.take().unwrap();
-        info!("Waiting for local spawn panics...");
-        if let Some(panic_msg) = rx.next().await {
-            match panic_msg {
-                Signal::Exit => {}
-                Signal::Panic(panic_msg) => {
-                    core::panic!("Panic in local spawn: {panic_msg}");
+    unsafe {
+        if let Some((_, rx)) = &mut LOCAL_PANIC_CHANNEL {
+            let mut rx = rx.take().unwrap();
+            info!("Waiting for local spawn panics...");
+            if let Some(panic_msg) = rx.next().await {
+                match panic_msg {
+                    Signal::Exit => {}
+                    Signal::Panic(panic_msg) => {
+                        core::panic!("Panic in local spawn: {panic_msg}");
+                    }
                 }
             }
+        } else {
+            core::panic!("Panic channel not initialized");
         }
-    } else {
-        core::panic!("Panic channel not initialized");
     }
 }
 
 #[allow(clippy::await_holding_refcell_ref)]
 async fn send_panic(panic: String) {
-    let channel = LOCAL_PANIC_CHANNEL.borrow_mut();
-    if let Some((tx, _)) = &*channel {
-        tx.clone()
-            .expect("Panic channel not initialized")
-            .borrow_mut()
-            .send(Signal::Panic(panic))
-            .await
-            .expect("Failed to send panic");
-    } else {
-        core::panic!("Panic channel not initialized");
+    unsafe {
+        if let Some((tx, _)) = &LOCAL_PANIC_CHANNEL {
+            tx.clone()
+                .expect("Panic channel not initialized")
+                .borrow_mut()
+                .send(Signal::Panic(panic))
+                .await
+                .expect("Failed to send panic");
+        } else {
+            core::panic!("Panic channel not initialized");
+        }
     }
-
 }
 #[cfg(feature = "embassy_runtime")]
 pub fn spawn_with_panic_notify<S>(async_context: &AsyncContext, spawn_token: embassy_executor::SpawnToken<S>) {

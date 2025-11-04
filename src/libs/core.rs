@@ -27,7 +27,7 @@ use crate::stdlib::string::ToString;
 
 type CoreLibTypes = HashMap<CoreLibPointerId, TypeContainer>;
 
-#[thread_local]
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
 
 fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes)-> R) -> R {

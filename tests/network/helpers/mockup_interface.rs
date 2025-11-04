@@ -79,13 +79,15 @@ impl SingleSocketProvider for MockupInterface {
 
 type OptSender = Option<mpsc::Sender<Vec<u8>>>;
 type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
-#[thread_local]
-pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = RefCell::new(Vec::new());
+
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+pub static mut CHANNELS: Vec<(OptSender, OptReceiver)> = Vec::new();
 
 pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
-    let mut channels = CHANNELS.borrow_mut();
-    channels.push((sender, receiver));
-    channels.len() - 1
+    unsafe {
+        CHANNELS.push((sender, receiver));
+        CHANNELS.len() - 1
+    }
 }
 
 
@@ -138,22 +140,24 @@ impl MockupInterfaceSetupData {
     pub fn sender(
         &self,
     ) -> Option<mpsc::Sender<Vec<u8>>> {
-        let mut channels = CHANNELS.borrow_mut();
-        if let Some(index) = self.channel_index {
-            channels.get_mut(index).unwrap().0.take()
-        } else {
-            None
+        unsafe {
+            if let Some(index) = self.channel_index {
+                CHANNELS.get_mut(index).unwrap().0.take()
+            } else {
+                None
+            }
         }
     }
 
     pub fn receiver(
         &self,
     ) -> Option<mpsc::Receiver<Vec<u8>>> {
-        let mut channels = CHANNELS.borrow_mut();
-        if let Some(index) = self.channel_index {
-            channels.get_mut(index).unwrap().1.take()
-        } else {
-            None
+        unsafe {
+            if let Some(index) = self.channel_index {
+                CHANNELS.get_mut(index).unwrap().1.take()
+            } else {
+                None
+            }
         }
     }
 }
