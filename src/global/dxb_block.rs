@@ -12,7 +12,6 @@ use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
 use crate::task::UnboundedReceiver;
-use futures_util::StreamExt;
 use log::error;
 use strum::Display;
 use thiserror::Error;
