@@ -17,7 +17,7 @@
 #![feature(thread_local)]
 #![allow(static_mut_refs)]
 
-// #![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[macro_use]
 extern crate mopa;
