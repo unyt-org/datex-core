@@ -21,6 +21,11 @@ members = ["macros"]
 name = "mod"
 harness = false
 
+[lints.clippy]
+std_instead_of_core = "deny"
+alloc_instead_of_core = "deny"
+std_instead_of_alloc = "deny"
+
 [dependencies]
 # core dependencies
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }

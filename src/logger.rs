@@ -71,7 +71,8 @@ cfg_if! {
 
     else {
         fn init(debug: bool) {
-            println!("No logger enabled. Logs will not be recorded.");
+            #[cfg(feature = "std")]
+            {println!("No logger enabled. Logs will not be recorded.");}
         }
     }
 }

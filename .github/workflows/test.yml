@@ -6,7 +6,7 @@ jobs:
         runs-on: ubuntu-latest
         name: Test
         concurrency:
-            group: ${{ github.workflow }}-${{ github.ref }}
+            group: ${{ github.workflow }}-${{ github.ref }}-test
             cancel-in-progress: true
         env:
             PROJECT_NAME_UNDERSCORE: datex_core
@@ -65,3 +65,35 @@ jobs:
                   check_name: Test Results
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   files: target/nextest/ci/report.xml
+    test-nostd:
+        runs-on : macos-latest
+        name: Test
+        concurrency:
+          group: ${{ github.workflow }}-${{ github.ref }}-test-embedded
+          cancel-in-progress: true
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                toolchain: nightly
+                components: clippy
+            - run: rustup target add thumbv7em-none-eabihf
+
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              env:
+                cache-name: cache-dependencies
+              with:
+                path: |
+                  ~/.cargo/.crates.toml
+                  ~/.cargo/.crates2.json
+                  ~/.cargo/bin
+                  ~/.cargo/registry/index
+                  ~/.cargo/registry/cache
+                  target
+                key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+
+            - name: Test nostd build
+              run: cargo build --no-default-features --features nostd,embassy_runtime,debug,com_websocket --target thumbv7em-none-eabihf
