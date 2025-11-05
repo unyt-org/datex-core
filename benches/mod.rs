@@ -1,4 +1,5 @@
 #![feature(custom_test_frameworks)]
+#![feature(thread_local)]
 #![test_runner(criterion::runner)]
 use crate::json::{
     get_json_test_string, json_to_dxb, json_to_runtime_value_baseline_serde,
