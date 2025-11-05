@@ -2,7 +2,7 @@ use core::prelude::rust_2024::*;
 use log::error;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
-use crate::std_sync::Mutex; // FIXME #192 no-std
+use crate::std_sync::Mutex;
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
 
 #[derive(Debug)]

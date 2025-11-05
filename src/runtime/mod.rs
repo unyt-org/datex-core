@@ -70,6 +70,13 @@ pub struct AsyncContext {
     #[cfg(feature = "embassy_runtime")]
     pub spawner: embassy_executor::Spawner
 }
+#[cfg(not(feature = "embassy_runtime"))]
+impl Default for AsyncContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AsyncContext {
     #[cfg(feature = "embassy_runtime")]
     pub fn new(spawner: embassy_executor::Spawner) -> Self {

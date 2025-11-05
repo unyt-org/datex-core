@@ -24,7 +24,6 @@ use crate::stdlib::vec::Vec;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::boxed::Box;
-use crate::stdlib::borrow::ToOwned;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {

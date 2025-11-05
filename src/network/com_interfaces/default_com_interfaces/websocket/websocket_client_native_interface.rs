@@ -2,7 +2,6 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use crate::stdlib::{future::Future, pin::Pin, time::Duration};
 use crate::std_sync::Mutex;
-// FIXME #209 no-std
 
 use crate::{
     delegate_com_interface_info,
@@ -30,7 +29,7 @@ use super::websocket_common::{
     parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
 };
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use crate::task::{spawn_with_panic_notify, spawn_with_panic_notify_default};
+use crate::task::spawn_with_panic_notify_default;
 
 #[derive(Debug)]
 pub struct WebSocketClientNativeInterface {

@@ -17,7 +17,6 @@ use binrw::BinRead;
 use crate::global::operators::assignment::AssignmentOperator;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 use core::fmt::Display;
-use crate::stdlib::io::{BufRead};
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::string::FromUtf8Error;

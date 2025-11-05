@@ -2,11 +2,10 @@ mod ast_decompiler;
 mod ast_from_value_container;
 mod ast_to_source_code;
 
-use crate::stdlib::collections::HashMap; // FIXME #222 no-std
+use crate::stdlib::collections::HashMap;
 use crate::stdlib::collections::HashSet;
 use core::fmt::Write;
 use binrw::io::Cursor;
-// FIXME #223 no-std
 
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::spanned::Spanned;

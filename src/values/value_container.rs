@@ -11,7 +11,7 @@ use crate::serde::deserializer::DatexDeserializer;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
 use datex_core::references::reference::Reference;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::ops::{Add, Neg, Sub};

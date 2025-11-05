@@ -4,7 +4,6 @@ use futures_util::{FutureExt, SinkExt, StreamExt};
 use log::info;
 use core::cell::RefCell;
 use core::future::Future;
-use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use core::clone::Clone;

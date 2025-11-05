@@ -18,7 +18,6 @@ use crate::{
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
 use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;

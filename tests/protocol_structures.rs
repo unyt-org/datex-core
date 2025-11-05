@@ -17,7 +17,6 @@ use std::{
     io::{Cursor, Seek, SeekFrom},
     str::FromStr,
 };
-// FIXME #214 no-std
 
 #[test]
 pub fn parse_encrypted_header() {

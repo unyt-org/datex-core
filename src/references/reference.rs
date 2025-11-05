@@ -24,8 +24,6 @@ use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use crate::stdlib::rc::Rc;
 use core::ops::FnOnce;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
 use core::option::Option;
 use crate::stdlib::string::String;
 use core::unreachable;

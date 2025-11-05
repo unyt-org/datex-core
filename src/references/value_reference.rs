@@ -1,5 +1,4 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
 use crate::traits::value_eq::ValueEq;

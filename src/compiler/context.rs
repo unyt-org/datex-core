@@ -1,13 +1,7 @@
 use crate::global::instruction_codes::InstructionCode;
-use crate::utils::buffers::{
-    append_f32, append_f64, append_i8, append_i16, append_i32, append_i64,
-    append_i128, append_u8, append_u32, append_u128,
-};
-use crate::values::core_values::integer::Integer;
-use crate::values::pointer::PointerAddress;
+use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
 use itertools::Itertools;
-use core::cell::{Cell, RefCell};
 use core::cmp::PartialEq;
 use datex_core::core_compiler::value_compiler::append_instruction_code;
 use crate::core_compiler::value_compiler::append_value_container;

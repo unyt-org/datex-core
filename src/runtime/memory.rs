@@ -16,8 +16,6 @@ use binrw::io::Cursor;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 
-// FIXME #105 no-std
-
 #[derive(Debug, Default)]
 pub struct Memory {
     local_endpoint: Endpoint,

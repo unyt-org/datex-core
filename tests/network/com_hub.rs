@@ -13,7 +13,6 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use datex_core::stdlib::io::Write;
 use std::sync::mpsc;
-// FIXME #217 no-std
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{

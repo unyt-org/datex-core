@@ -164,7 +164,6 @@ default = [
     "com_webrtc",
     "com_serial",
     "com_websocket",
-    # "debug", # temporary to fix linting and allow tests to run
 ]
 
 # embedded build with nostd
