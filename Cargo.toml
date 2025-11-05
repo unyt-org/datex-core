@@ -148,7 +148,6 @@ default = [
     "native_http",
     "native_serial",
     "native_webrtc",
-    "wasm_webrtc",
     "flexi_logger",
     "tokio_runtime",
     "compiler",
@@ -179,8 +178,6 @@ native_time = []                                        # use native time
 native_rand = ["rand"]                                  # use native websocket
 native_uuid = ["uuid"]                                  # use native uuid
 native_crypto = ["openssl"]                             # use native crypto
-
-wasm_webrtc = ["com_webrtc"] # use webrtc
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
