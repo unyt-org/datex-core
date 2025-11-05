@@ -1,6 +1,6 @@
-use core::prelude::rust_2024::*;
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
+use crate::stdlib::rc::Rc;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;
@@ -9,7 +9,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use crate::stdlib::rc::Rc;
+use core::prelude::rust_2024::*;
 
 pub struct ValueReference {
     /// the value that this reference points to

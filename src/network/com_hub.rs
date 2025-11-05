@@ -1,10 +1,10 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use futures::channel::oneshot::Sender;
 use futures_util::StreamExt;
@@ -189,9 +189,7 @@ async fn update_loop_task(self_rc: Rc<ComHub>) {
         self_rc.update();
         sleep(Duration::from_millis(1)).await;
     }
-    if let Some(sender) =
-        self_rc.update_loop_stop_sender.borrow_mut().take()
-    {
+    if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
         sender.send(()).expect("Failed to send stop signal");
     }
 }
@@ -204,24 +202,23 @@ async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
     let config = interface.get_properties_mut();
     config.close_timestamp = None;
 
-    let current_attempts =
-        config.reconnect_attempts.unwrap_or(0);
-    config.reconnect_attempts =
-        Some(current_attempts + 1);
+    let current_attempts = config.reconnect_attempts.unwrap_or(0);
+    config.reconnect_attempts = Some(current_attempts + 1);
 
     let res = interface.handle_open().await;
     if res {
-        interface
-            .set_state(ComInterfaceState::Connected);
+        interface.set_state(ComInterfaceState::Connected);
         // config.reconnect_attempts = None;
     } else {
-        interface
-            .set_state(ComInterfaceState::NotConnected);
+        interface.set_state(ComInterfaceState::NotConnected);
     }
 }
 
 impl ComHub {
-    pub fn new(endpoint: impl Into<Endpoint>, async_context: AsyncContext) -> ComHub {
+    pub fn new(
+        endpoint: impl Into<Endpoint>,
+        async_context: AsyncContext,
+    ) -> ComHub {
         ComHub {
             endpoint: endpoint.into(),
             async_context,
@@ -952,10 +949,9 @@ impl ComHub {
 
     /// Removes a socket from the socket list
     fn delete_socket(&self, socket_uuid: &ComInterfaceSocketUUID) {
-        self.sockets
-            .borrow_mut()
-            .remove(socket_uuid)
-            .or_else(|| core::panic!("Socket {socket_uuid} not found in ComHub"));
+        self.sockets.borrow_mut().remove(socket_uuid).or_else(|| {
+            core::panic!("Socket {socket_uuid} not found in ComHub")
+        });
 
         // remove socket from endpoint socket list
         // remove endpoint key from endpoint_sockets if not sockets present
@@ -1294,7 +1290,10 @@ impl ComHub {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(&self_rc.clone().async_context, update_loop_task(self_rc));
+        spawn_with_panic_notify(
+            &self_rc.clone().async_context,
+            update_loop_task(self_rc),
+        );
     }
 
     /// Update all sockets and interfaces,
@@ -1730,7 +1729,10 @@ impl ComHub {
                     if reconnect_now {
                         debug!("Reconnecting interface {uuid}");
                         interface.set_state(ComInterfaceState::Connecting);
-                        spawn_with_panic_notify(&self.async_context, reconnect_interface_task(interface_rc));
+                        spawn_with_panic_notify(
+                            &self.async_context,
+                            reconnect_interface_task(interface_rc),
+                        );
                     } else {
                         debug!("Not reconnecting interface {uuid}");
                     }
@@ -1812,7 +1814,10 @@ impl ComHub {
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
         for (interface, _) in interfaces.values() {
-            com_interface::flush_outgoing_blocks(interface.clone(), &self.async_context);
+            com_interface::flush_outgoing_blocks(
+                interface.clone(),
+                &self.async_context,
+            );
         }
     }
 }

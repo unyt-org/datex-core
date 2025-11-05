@@ -1,24 +1,24 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use crate::values::core_values::endpoint::Endpoint;
+use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceInfo;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{delegate_com_interface_info, set_sync_opener};
-use datex_macros::{com_interface, create_opener};
-use core::future::Future;
-use crate::stdlib::pin::Pin;
-use crate::stdlib::sync::{Arc};
 use crate::std_sync::Mutex;
-use core::time::Duration;
 use crate::stdlib::boxed::Box;
-use super::super::com_interface::ComInterface;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::stdlib::pin::Pin;
 use crate::stdlib::string::ToString;
+use crate::stdlib::sync::Arc;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::{delegate_com_interface_info, set_sync_opener};
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
+use datex_macros::{com_interface, create_opener};
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.

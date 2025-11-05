@@ -15,29 +15,29 @@ use crate::runtime::execution_context::{
 };
 use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::sync::Arc;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::slice;
+use core::unreachable;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use crate::stdlib::collections::HashMap;
-use core::fmt::Debug;
-use core::slice;
-use crate::stdlib::pin::Pin;
-use crate::stdlib::sync::Arc;
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use core::unreachable;
-use crate::stdlib::boxed::Box;
-use crate::stdlib::borrow::ToOwned;
 
 pub mod dif_interface;
 pub mod execution;
@@ -68,7 +68,7 @@ impl Debug for Runtime {
 #[derive(Clone)]
 pub struct AsyncContext {
     #[cfg(feature = "embassy_runtime")]
-    pub spawner: embassy_executor::Spawner
+    pub spawner: embassy_executor::Spawner,
 }
 #[cfg(not(feature = "embassy_runtime"))]
 impl Default for AsyncContext {
@@ -108,7 +108,7 @@ pub struct RuntimeInternal {
     /// active execution contexts, stored by context_id
     pub execution_contexts:
         RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
-    pub async_context: AsyncContext
+    pub async_context: AsyncContext,
 }
 
 macro_rules! get_execution_context {
@@ -130,7 +130,6 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
-
     fn new(async_context: AsyncContext) -> Self {
         RuntimeInternal {
             endpoint: Endpoint::default(),
@@ -140,7 +139,7 @@ impl RuntimeInternal {
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             execution_contexts: RefCell::new(HashMap::new()),
-            async_context
+            async_context,
         }
     }
 
@@ -275,9 +274,8 @@ impl RuntimeInternal {
         let mut block =
             DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
 
-        block.set_receivers(slice::from_ref(
-            &remote_execution_context.endpoint,
-        ));
+        block
+            .set_receivers(slice::from_ref(&remote_execution_context.endpoint));
 
         let response = self_rc
             .com_hub
@@ -463,7 +461,11 @@ impl Runtime {
         &self.internal.memory
     }
 
-    #[cfg(all(feature = "native_crypto", feature = "std", not(feature = "embassy_runtime")))]
+    #[cfg(all(
+        feature = "native_crypto",
+        feature = "std",
+        not(feature = "embassy_runtime")
+    ))]
     pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
@@ -525,7 +527,11 @@ impl Runtime {
     }
 
     // inits a native runtime and starts the update loop
-    #[cfg(all(feature = "native_crypto", feature = "std", not(feature = "embassy_runtime")))]
+    #[cfg(all(
+        feature = "native_crypto",
+        feature = "std",
+        not(feature = "embassy_runtime")
+    ))]
     pub async fn create_native(config: RuntimeConfig) -> Runtime {
         let runtime = Self::init_native(config);
         runtime.start().await;

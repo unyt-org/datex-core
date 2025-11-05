@@ -1,36 +1,36 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::references::reference::Reference;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
 use crate::runtime::memory::Memory;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
+use core::cell::RefCell;
+use core::iter::once;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
-use core::cell::RefCell;
-use crate::stdlib::collections::HashMap;
-use core::iter::once;
-use crate::stdlib::rc::Rc;
 use strum::IntoEnumIterator;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
 
 type CoreLibTypes = HashMap<CoreLibPointerId, TypeContainer>;
 
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
 
-fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes)-> R) -> R {
+fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes) -> R) -> R {
     unsafe {
         if CORE_LIB_TYPES.is_none() {
             CORE_LIB_TYPES.replace(create_core_lib());
@@ -171,9 +171,7 @@ fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
-    with_core_lib(|core_lib_types| {
-        core_lib_types.contains_key(&id.into())
-    })
+    with_core_lib(|core_lib_types| core_lib_types.contains_key(&id.into()))
 }
 
 /// Loads the core library into the provided memory instance.
@@ -344,8 +342,8 @@ mod tests {
     use crate::values::core_values::endpoint::Endpoint;
 
     use super::*;
-    use itertools::Itertools;
     use crate::stdlib::{assert_matches::assert_matches, str::FromStr};
+    use itertools::Itertools;
 
     #[test]
     fn core_lib() {
@@ -501,7 +499,8 @@ mod tests {
     #[test]
     fn print_core_lib_addresses_as_hex() {
         with_core_lib(|core_lib_types| {
-            let sorted_entries = core_lib_types.keys()
+            let sorted_entries = core_lib_types
+                .keys()
                 .map(|k| (k.clone(), PointerAddress::from(k.clone())))
                 .sorted_by_key(|(_, address)| address.bytes().to_vec())
                 .collect::<Vec<_>>();

@@ -1,7 +1,7 @@
-use core::prelude::rust_2024::*;
 use crate::crypto::uuid::generate_uuid;
-use core::fmt::Display;
 use crate::stdlib::string::String;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UUID(String);

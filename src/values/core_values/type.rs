@@ -1,10 +1,14 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 #[cfg(feature = "compiler")]
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -17,12 +21,8 @@ use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
-use crate::stdlib::rc::Rc;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::boxed::Box;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::unimplemented;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

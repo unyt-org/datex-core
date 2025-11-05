@@ -1,15 +1,13 @@
+use super::super::core_value_trait::CoreValueTrait;
+use crate::stdlib::ops::{Add, AddAssign};
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::traits::structural_eq::StructuralEq;
+use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::traits::structural_eq::StructuralEq;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::{
-    ops::{Add, AddAssign},
-};
-use core::fmt::Display;
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::ToString;
-use super::super::core_value_trait::CoreValueTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Text(pub String);

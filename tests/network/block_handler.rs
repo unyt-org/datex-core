@@ -2,6 +2,7 @@ use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN, get_mock_setup_and_socket,
 };
+use core::cell::RefCell;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -9,7 +10,6 @@ use datex_core::global::protocol_structures::block_header::{
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::run_async;
 use log::info;
-use core::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
 

@@ -1,12 +1,7 @@
+use crate::std_sync::Mutex;
+use crate::stdlib::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc},
-    time::Duration,
-};
-use crate::std_sync::Mutex;
 
 use super::serial_common::{SerialError, SerialInterfaceSetupData};
 use crate::network::com_interfaces::com_interface::{

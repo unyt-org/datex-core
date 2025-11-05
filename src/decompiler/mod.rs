@@ -4,11 +4,11 @@ mod ast_to_source_code;
 
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::collections::HashSet;
-use core::fmt::Write;
 use binrw::io::Cursor;
+use core::fmt::Write;
 
-use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::DatexExpressionData;
 use crate::decompiler::ast_to_source_code::AstToSourceCodeFormatter;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;

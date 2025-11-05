@@ -1,27 +1,25 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::format;
+use crate::stdlib::ops::{Add, AddAssign, Sub};
+use crate::stdlib::string::String;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::num::ParseFloatError;
+use core::ops::Neg;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use core::hash::Hash;
-use core::num::ParseFloatError;
-use core::ops::Neg;
-use crate::stdlib::{
-    ops::{Add, AddAssign, Sub},
-};
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
-use core::fmt::Display;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use core::unreachable;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).
@@ -465,8 +463,12 @@ impl TypedDecimal {
 impl Display for TypedDecimal {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => core::write!(f, "{}", value.into_inner()),
-            TypedDecimal::F64(value) => core::write!(f, "{}", value.into_inner()),
+            TypedDecimal::F32(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
+            TypedDecimal::F64(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
             TypedDecimal::Decimal(value) => core::write!(f, "{value}"),
         }
     }

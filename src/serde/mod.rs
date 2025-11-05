@@ -1,7 +1,7 @@
-use serde::Serialize;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::values::value_container::ValueContainer;
 use core::result::Result;
+use serde::Serialize;
 
 pub mod deserializer;
 pub mod error;
@@ -28,12 +28,12 @@ mod tests {
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
     };
+    use crate::stdlib::collections::{HashMap, HashSet};
     use crate::traits::structural_eq::StructuralEq;
     use crate::values::value_container::ValueContainer;
     use datex_core::decompiler::decompile_body;
     use log::info;
     use serde::{Deserialize, Serialize};
-    use crate::stdlib::collections::{HashMap, HashSet};
 
     // Tuple Struct
     #[derive(Deserialize, Serialize, Debug, PartialEq)]

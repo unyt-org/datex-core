@@ -1,22 +1,22 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use core::fmt::Display;
-use binrw::io::{Cursor, Read};
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
 use crate::global::protocol_structures::routing_header::Receivers;
+use crate::stdlib::vec::Vec;
+use crate::task::UnboundedReceiver;
 use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
+use binrw::io::{Cursor, Read};
 use binrw::{BinRead, BinWrite};
-use crate::task::UnboundedReceiver;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
 use log::error;
 use strum::Display;
 use thiserror::Error;
-use crate::stdlib::vec::Vec;
-use core::unimplemented;
 
 #[derive(Debug, Display, Error)]
 pub enum HeaderParsingError {

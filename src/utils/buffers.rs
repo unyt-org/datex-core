@@ -1,10 +1,10 @@
-use core::fmt::Write;
-use itertools::Itertools;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use core::convert::TryInto;
+use core::fmt::Write;
 use core::iter::FromIterator;
+use itertools::Itertools;
 
 /*
 read functions for primitive data types on a u8 array, also increments the index
@@ -286,7 +286,8 @@ pub fn buffer_to_hex_advanced(
             // 0 count, max 15
             if zero_count <= 0xf {
                 i += 1;
-                core::write!(s, "x{zero_count:01X}").expect("could not parse buffer");
+                core::write!(s, "x{zero_count:01X}")
+                    .expect("could not parse buffer");
             } else {
                 i = initial_i;
                 core::write!(s, "{byte:02X}").expect("could not parse buffer");

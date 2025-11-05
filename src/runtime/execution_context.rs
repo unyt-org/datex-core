@@ -1,10 +1,7 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 #[cfg(feature = "compiler")]
 use crate::compiler::{
-    error::SpannedCompilerError,
+    CompileOptions, compile_template, error::SpannedCompilerError,
     scope::CompilationScope,
-    CompileOptions, compile_template
 };
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
@@ -12,14 +9,16 @@ use crate::runtime::execution::{
     ExecutionError, ExecutionInput, ExecutionOptions, MemoryDump,
     RuntimeExecutionContext, execute_dxb, execute_dxb_sync,
 };
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::info;
-use crate::stdlib::rc::Rc;
-use crate::stdlib::format;
-use crate::stdlib::vec::Vec;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
@@ -274,7 +273,10 @@ impl ExecutionContext {
 
         #[cfg(feature = "compiler")]
         {
-            let decompiled = crate::decompiler::decompile_body(dxb, crate::decompiler::DecompileOptions::colorized());
+            let decompiled = crate::decompiler::decompile_body(
+                dxb,
+                crate::decompiler::DecompileOptions::colorized(),
+            );
             if let Err(e) = decompiled {
                 info!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
             } else {

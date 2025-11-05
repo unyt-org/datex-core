@@ -1,5 +1,3 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::DIFUpdateData;
 use crate::dif::value::DIFValueContainer;
@@ -11,12 +9,14 @@ use crate::references::reference::{
     TypeError,
 };
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::boxed::Box;
 use crate::values::pointer::PointerAddress;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::dif::reference::DIFReference;
 use datex_core::dif::update::DIFUpdate;
 use datex_core::dif::value::DIFReferenceNotFoundError;
-use core::fmt::Display;
-use crate::stdlib::boxed::Box;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -80,11 +80,15 @@ impl Display for DIFUpdateError {
             DIFUpdateError::InvalidUpdate => {
                 core::write!(f, "Invalid update operation")
             }
-            DIFUpdateError::AccessError(e) => core::write!(f, "Access error: {}", e),
+            DIFUpdateError::AccessError(e) => {
+                core::write!(f, "Access error: {}", e)
+            }
             DIFUpdateError::AssignmentError(e) => {
                 core::write!(f, "Assignment error: {}", e)
             }
-            DIFUpdateError::TypeError(e) => core::write!(f, "Type error: {}", e),
+            DIFUpdateError::TypeError(e) => {
+                core::write!(f, "Type error: {}", e)
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
-use crate::stdlib::{collections::HashSet, io::Write, ops::Range, format};
-use core::prelude::rust_2024::*;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::{collections::HashSet, format, io::Write, ops::Range};
+use core::prelude::rust_2024::*;
 
 use crate::{
     ast::{

@@ -1,22 +1,22 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
 use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use super::value::Value;
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
-use datex_core::references::reference::Reference;
-use serde::Deserialize;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
-use core::ops::{Add, Neg, Sub};
-use crate::stdlib::rc::Rc;
 use core::ops::FnOnce;
+use core::ops::{Add, Neg, Sub};
+use datex_core::references::reference::Reference;
+use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -250,7 +250,9 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => core::todo!("#309 implement apply for Value"),
+            ValueContainer::Value(value) => {
+                core::todo!("#309 implement apply for Value")
+            }
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }

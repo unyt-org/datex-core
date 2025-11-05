@@ -1,13 +1,17 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use crate::references::value_reference::ValueReference;
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
@@ -17,18 +21,14 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use num_enum::TryFromPrimitive;
-use serde::{Deserialize, Serialize};
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
-use crate::stdlib::rc::Rc;
 use core::ops::FnOnce;
 use core::option::Option;
-use crate::stdlib::string::String;
 use core::unreachable;
-use crate::stdlib::boxed::Box;
-use crate::stdlib::string::ToString;
+use num_enum::TryFromPrimitive;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -88,7 +88,8 @@ impl Display for TypeError {
             TypeError::TypeMismatch { expected, found } => core::write!(
                 f,
                 "Type mismatch: expected {}, found {}",
-                expected, found
+                expected,
+                found
             ),
         }
     }
@@ -106,7 +107,9 @@ impl Display for AssignmentError {
             AssignmentError::ImmutableReference => {
                 core::write!(f, "Cannot assign to an immutable reference")
             }
-            AssignmentError::TypeError(e) => core::write!(f, "Type error: {}", e),
+            AssignmentError::TypeError(e) => {
+                core::write!(f, "Type error: {}", e)
+            }
         }
     }
 }
@@ -121,11 +124,11 @@ pub enum ReferenceMutability {
 }
 
 pub mod mutability_as_int {
-    use core::prelude::rust_2024::*;
     use super::ReferenceMutability;
+    use crate::stdlib::format;
+    use core::prelude::rust_2024::*;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
-    use crate::stdlib::format;
 
     pub fn serialize<S>(
         value: &ReferenceMutability,
@@ -160,11 +163,11 @@ pub mod mutability_as_int {
     }
 }
 pub mod mutability_option_as_int {
-    use core::prelude::rust_2024::*;
     use super::ReferenceMutability;
+    use crate::stdlib::format;
+    use core::prelude::rust_2024::*;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
-    use crate::stdlib::format;
 
     pub fn serialize<S>(
         value: &Option<ReferenceMutability>,
@@ -842,7 +845,9 @@ impl Apply for Reference {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => core::todo!("#298 Undescribed by author."),
+            Reference::ValueReference(vr) => {
+                core::todo!("#298 Undescribed by author.")
+            }
         }
     }
 }
@@ -852,10 +857,10 @@ mod tests {
     use super::*;
     use crate::runtime::global_context::{GlobalContext, set_global_context};
     use crate::runtime::memory::Memory;
+    use crate::stdlib::assert_matches::assert_matches;
     use crate::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
-    use crate::stdlib::assert_matches::assert_matches;
 
     #[test]
     fn try_mut_from() {

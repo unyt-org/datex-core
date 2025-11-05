@@ -1,4 +1,4 @@
-use core::prelude::rust_2024::*;
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -10,6 +10,12 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::utils::time::Time;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
@@ -18,21 +24,15 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::time::Duration;
+use core::unreachable;
+use core::writeln;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use core::fmt::Display;
-use core::time::Duration;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use core::writeln;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use core::unreachable;
-use crate::core_compiler::value_compiler::compile_value_container;
-use crate::stdlib::string::ToString;
-use crate::stdlib::borrow::ToOwned;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {

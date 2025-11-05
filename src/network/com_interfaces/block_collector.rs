@@ -1,9 +1,9 @@
-use core::prelude::rust_2024::*;
-use log::error;
+use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
+use crate::std_sync::Mutex;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
-use crate::std_sync::Mutex;
-use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
+use core::prelude::rust_2024::*;
+use log::error;
 
 #[derive(Debug)]
 pub struct BlockCollector {

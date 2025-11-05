@@ -1,6 +1,6 @@
-use core::prelude::rust_2024::*;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::references::type_reference::TypeReference;
+use crate::stdlib::rc::Rc;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
@@ -9,7 +9,7 @@ use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::hash::Hash;
-use crate::stdlib::rc::Rc;
+use core::prelude::rust_2024::*;
 
 // TODO #376: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]

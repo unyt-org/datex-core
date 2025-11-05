@@ -1,7 +1,7 @@
-use core::prelude::rust_2024::*;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::collections::hash_map::{Iter, IterMut};
 use crate::stdlib::vec::Vec;
+use core::prelude::rust_2024::*;
 
 pub trait NextKey: Copy + Eq + core::hash::Hash + Default {
     fn next_key(&mut self) -> Self;

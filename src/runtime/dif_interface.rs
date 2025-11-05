@@ -1,4 +1,3 @@
-use core::prelude::rust_2024::*;
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
@@ -6,6 +5,8 @@ use crate::dif::update::{DIFProperty, DIFUpdateData};
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::runtime::RuntimeInternal;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::ToString;
 use crate::values::value_container::ValueContainer;
 use crate::{
     dif::{
@@ -18,10 +19,9 @@ use crate::{
     references::reference::Reference,
     values::pointer::PointerAddress,
 };
-use datex_core::dif::update::DIFUpdate;
-use crate::stdlib::rc::Rc;
+use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::string::ToString;
+use datex_core::dif::update::DIFUpdate;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -159,7 +159,9 @@ impl DIFInterface for RuntimeInternal {
         let reference = self.resolve_in_memory_reference(&address);
         match reference {
             Some(ptr) => Ok(DIFReference::from_reference(&ptr, &self.memory)),
-            None => core::todo!("#399 Implement async resolution of references"),
+            None => {
+                core::todo!("#399 Implement async resolution of references")
+            }
         }
     }
 
@@ -261,12 +263,12 @@ mod tests {
     use crate::references::reference::ReferenceMutability;
     use crate::runtime::Runtime;
     use crate::runtime::memory::Memory;
+    use crate::stdlib::rc::Rc;
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::map::Map;
     use crate::values::value_container::ValueContainer;
-    use datex_core::runtime::RuntimeConfig;
     use core::cell::RefCell;
-    use crate::stdlib::rc::Rc;
+    use datex_core::runtime::RuntimeConfig;
 
     #[test]
     fn struct_serde() {

@@ -1,25 +1,24 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
 use crate::serde::error::SerializationError;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::value_container::ValueContainer;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
-use datex_core::core_compiler::value_compiler::compile_value_container;
-use crate::stdlib::vec;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
-
 
 pub struct DatexSerializer {}
 
@@ -608,11 +607,11 @@ mod tests {
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::map::Map;
 
+    use crate::stdlib::assert_matches::assert_matches;
     use crate::values::{
         core_value::CoreValue, value::Value, value_container::ValueContainer,
     };
     use serde::{Deserialize, Serialize};
-    use crate::stdlib::assert_matches::assert_matches;
 
     #[derive(Serialize)]
     struct TestStruct {

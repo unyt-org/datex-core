@@ -1,10 +1,9 @@
-use std::io::Read;
 use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
     CompileOptions, StaticValueOrDXB, compile_script,
-    compile_script_or_return_static_value,
-    extract_static_value_from_script,
+    compile_script_or_return_static_value, extract_static_value_from_script,
 };
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use datex_core::decompiler::{DecompileOptions, decompile_body};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
@@ -12,7 +11,7 @@ use datex_core::runtime::execution::{
 use datex_core::values::value_container::ValueContainer;
 use json_syntax::Parse;
 use serde_json::Value;
-use datex_core::core_compiler::value_compiler::compile_value_container;
+use std::io::Read;
 
 pub fn get_json_test_string(file_path: &str) -> String {
     // read json from test file

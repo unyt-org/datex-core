@@ -1,11 +1,11 @@
+use crate::core_compiler::value_compiler::append_value_container;
 use crate::global::instruction_codes::InstructionCode;
+use crate::stdlib::collections::HashMap;
 use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
-use itertools::Itertools;
 use core::cmp::PartialEq;
 use datex_core::core_compiler::value_compiler::append_instruction_code;
-use crate::core_compiler::value_compiler::append_value_container;
-use crate::stdlib::collections::HashMap;
+use itertools::Itertools;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {

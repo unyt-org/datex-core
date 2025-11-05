@@ -1,7 +1,7 @@
+use crate::std_sync::Mutex;
+use crate::stdlib::{future::Future, pin::Pin, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::{future::Future, pin::Pin, time::Duration};
-use crate::std_sync::Mutex;
 
 use crate::{
     delegate_com_interface_info,
@@ -19,17 +19,17 @@ use datex_macros::{com_interface, create_opener};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
 };
-use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
 
 use super::websocket_common::{
-    parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
+    WebSocketClientInterfaceSetupData, WebSocketError, parse_url,
 };
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use crate::task::spawn_with_panic_notify_default;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
@@ -96,7 +96,10 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {e}");
-                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

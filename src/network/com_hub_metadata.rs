@@ -1,7 +1,6 @@
 use core::prelude::rust_2024::*;
 use log::info;
 
-use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
@@ -9,12 +8,13 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::stdlib::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::values::core_values::endpoint::Endpoint;
 use core::fmt::Display;
 use itertools::Itertools;
-use crate::stdlib::string::ToString;
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
 
 pub struct ComHubMetadataInterfaceSocket {
     pub uuid: String,
@@ -61,14 +61,13 @@ impl Display for ComHubMetadata {
             )?;
 
             // print sockets
-            let sorted_sockets = interface
-                .sockets
-                .iter()
-                .sorted_by_key(|s| match &s.properties {
+            let sorted_sockets = interface.sockets.iter().sorted_by_key(|s| {
+                match &s.properties {
                     Some(properties) => properties.distance,
                     None => i8::MAX,
-                });
-            
+                }
+            });
+
             for socket in sorted_sockets {
                 writeln!(
                     f,
@@ -152,14 +151,12 @@ impl ComHub {
                 sockets_by_com_interface_uuid
                     .get_mut(&com_interface_uuid)
                     .unwrap()
-                    .push(
-                    ComHubMetadataInterfaceSocket {
+                    .push(ComHubMetadataInterfaceSocket {
                         uuid: socket_uuid.0.to_string(),
                         direction: socket.direction.clone(),
                         endpoint: None,
                         properties: None,
-                    },
-                );
+                    });
                 continue;
             }
         }

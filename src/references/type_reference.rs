@@ -4,6 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::libs::core::CoreLibPointerId;
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::string::ToString;
+use crate::stdlib::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+    string::String,
+};
 use crate::traits::apply::Apply;
 use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
@@ -11,14 +18,7 @@ use crate::values::value_container::ValueContainer;
 use crate::{
     types::definition::TypeDefinition, values::core_values::r#type::Type,
 };
-use crate::stdlib::{
-    cell::RefCell,
-    fmt::{Display, Formatter},
-    rc::Rc,
-    string::String,
-};
 use core::option::Option;
-use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NominalTypeDeclaration {
@@ -187,7 +187,9 @@ impl Display for TypeReference {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         if let Some(nominal) = &self.nominal_type_declaration {
             // special exception: for Unit, display "()"
-            if self.pointer_address == Some(PointerAddress::from(CoreLibPointerId::Unit)) {
+            if self.pointer_address
+                == Some(PointerAddress::from(CoreLibPointerId::Unit))
+            {
                 return core::write!(f, "()");
             }
             core::write!(f, "{}", nominal)

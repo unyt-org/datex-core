@@ -1,9 +1,13 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::dif::r#type::{DIFTypeContainer, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::runtime::memory::Memory;
+use crate::std_random::RandomState;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::typed_decimal::{
@@ -11,19 +15,15 @@ use crate::values::core_values::decimal::typed_decimal::{
 };
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use core::cell::RefCell;
+use core::fmt;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-use core::cell::RefCell;
-use core::fmt;
-use crate::std_random::RandomState;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::boxed::Box;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {
@@ -131,7 +131,9 @@ impl DIFValueRepresentation {
                 }
             }
             _ => {
-                core::todo!("#388 Other DIFRepresentationValue variants not supported yet")
+                core::todo!(
+                    "#388 Other DIFRepresentationValue variants not supported yet"
+                )
             }
         })
     }
@@ -176,7 +178,9 @@ impl DIFValueRepresentation {
             DIFTypeContainer::Type(dif_type) => {
                 match &dif_type.type_definition {
                     DIFTypeDefinition::Structural(s) => {
-                        core::todo!("#390 Structural type conversion not supported yet")
+                        core::todo!(
+                            "#390 Structural type conversion not supported yet"
+                        )
                     }
                     DIFTypeDefinition::Unit => Value {
                         actual_type: Box::new(get_core_lib_type(
@@ -184,7 +188,9 @@ impl DIFValueRepresentation {
                         )),
                         inner: CoreValue::Null,
                     },
-                    _ => core::todo!("#391 Other type definitions not supported yet"),
+                    _ => core::todo!(
+                        "#391 Other type definitions not supported yet"
+                    ),
                 }
             }
         })

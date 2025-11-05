@@ -1,5 +1,11 @@
-use crate::ast::structs::expression::{ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, List, Map, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
 use crate::ast::structs::apply_operation::ApplyOperation;
+use crate::ast::structs::expression::{
+    ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
+    DatexExpression, DatexExpressionData, Deref, DerefAssignment,
+    FunctionDeclaration, List, Map, RemoteExecution, SlotAssignment,
+    Statements, TypeDeclaration, UnaryOperation, VariableAssignment,
+    VariableDeclaration,
+};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;

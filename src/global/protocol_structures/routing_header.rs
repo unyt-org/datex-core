@@ -1,10 +1,10 @@
-use core::prelude::rust_2024::*;
-use core::fmt::Display;
 use super::serializable::Serializable;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use modular_bitfield::prelude::*;
-use crate::stdlib::vec::Vec;
 
 // 2 bit
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
@@ -235,12 +235,18 @@ impl Display for Receivers {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Receivers::None => core::write!(f, "No receivers"),
-            Receivers::PointerId(pid) => core::write!(f, "Pointer ID: {:?}", pid),
+            Receivers::PointerId(pid) => {
+                core::write!(f, "Pointer ID: {:?}", pid)
+            }
             Receivers::Endpoints(endpoints) => {
                 core::write!(f, "Endpoints: {:?}", endpoints)
             }
             Receivers::EndpointsWithKeys(endpoints_with_keys) => {
-                core::write!(f, "Endpoints with keys: {:?}", endpoints_with_keys)
+                core::write!(
+                    f,
+                    "Endpoints with keys: {:?}",
+                    endpoints_with_keys
+                )
             }
         }
     }

@@ -9,11 +9,9 @@ use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 use crate::{
-    ast::{
-        structs::expression::{
-            DatexExpression, DatexExpressionData, FunctionDeclaration,
-            VariableAccess, VariableAssignment, VariableDeclaration,
-        },
+    ast::structs::expression::{
+        DatexExpression, DatexExpressionData, FunctionDeclaration,
+        VariableAccess, VariableAssignment, VariableDeclaration,
     },
     decompiler::FormattingMode,
 };
@@ -268,8 +266,12 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpressionData::FixedSizeList(fixed_size_list) => core::todo!("#472 Undescribed by author."),
-            TypeExpressionData::SliceList(type_expression) => core::todo!("#473 Undescribed by author."),
+            TypeExpressionData::FixedSizeList(fixed_size_list) => {
+                core::todo!("#472 Undescribed by author.")
+            }
+            TypeExpressionData::SliceList(type_expression) => {
+                core::todo!("#473 Undescribed by author.")
+            }
             TypeExpressionData::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
                     .0
@@ -286,7 +288,9 @@ impl AstToSourceCodeFormatter {
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpressionData::GenericAccess(generic_access) => core::todo!("#474 Undescribed by author."),
+            TypeExpressionData::GenericAccess(generic_access) => {
+                core::todo!("#474 Undescribed by author.")
+            }
             TypeExpressionData::Function(FunctionType {
                 parameters,
                 return_type,
@@ -322,7 +326,10 @@ impl AstToSourceCodeFormatter {
                         format!(
                             "{}:{}{}",
                             self.key_type_expression_to_source_code(k),
-                            if core::matches!(self.mode, FormattingMode::Compact) {
+                            if core::matches!(
+                                self.mode,
+                                FormattingMode::Compact
+                            ) {
                                 ""
                             } else {
                                 " "
@@ -709,15 +716,13 @@ mod tests {
     use indoc::indoc;
 
     use super::*;
-    use crate::{
-        ast::spanned::Spanned,
-        ast::{
-            parse, structs::expression::VariableKind,
-        },
-        values::core_values::decimal::Decimal,
-    };
     use crate::ast::structs::expression::Deref;
     use crate::global::operators::assignment::AssignmentOperator;
+    use crate::{
+        ast::spanned::Spanned,
+        ast::{parse, structs::expression::VariableKind},
+        values::core_values::decimal::Decimal,
+    };
 
     fn compact() -> AstToSourceCodeFormatter {
         AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)
@@ -922,13 +927,15 @@ mod tests {
 
     #[test]
     fn test_deref() {
-        let deref_ast = DatexExpressionData::Deref(Deref {expression: Box::new(
-            DatexExpressionData::VariableAccess(VariableAccess {
-                id: 0,
-                name: "ptr".to_string(),
-            })
-            .with_default_span(),
-        )});
+        let deref_ast = DatexExpressionData::Deref(Deref {
+            expression: Box::new(
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 0,
+                    name: "ptr".to_string(),
+                })
+                .with_default_span(),
+            ),
+        });
         assert_eq!(compact().format(&deref_ast.with_default_span()), "*ptr");
     }
 

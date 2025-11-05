@@ -2,9 +2,9 @@ use core::fmt::Display;
 
 use crate::values::pointer::PointerAddress;
 
+pub mod apply_operation;
 pub mod expression;
 pub mod r#type;
-pub mod apply_operation;
 
 pub type VariableId = usize;
 
@@ -18,7 +18,9 @@ impl Display for ResolvedVariable {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ResolvedVariable::VariableId(id) => core::write!(f, "#{}", id),
-            ResolvedVariable::PointerAddress(addr) => core::write!(f, "{}", addr),
+            ResolvedVariable::PointerAddress(addr) => {
+                core::write!(f, "{}", addr)
+            }
         }
     }
 }

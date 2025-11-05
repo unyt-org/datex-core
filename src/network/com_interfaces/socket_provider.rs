@@ -1,12 +1,12 @@
-use core::prelude::rust_2024::*;
-use crate::stdlib::sync::{Arc};
-use crate::std_sync::Mutex;
-use crate::values::core_values::endpoint::Endpoint;
 use super::{
     com_interface::ComInterfaceSockets,
     com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
 };
+use crate::std_sync::Mutex;
+use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
+use crate::values::core_values::endpoint::Endpoint;
+use core::prelude::rust_2024::*;
 
 // TODO #197 we can put them to the datex_core as macro
 // We might consider using #[com_interface(multiple)] and #[com_interface(single)]
@@ -33,7 +33,7 @@ pub trait MultipleSocketProvider {
     ) -> Option<ComInterfaceSocketUUID> {
         let sockets = self.provide_sockets();
         let sockets = sockets.try_lock().unwrap();
-        
+
         sockets
             .sockets
             .values()
@@ -48,7 +48,7 @@ pub trait MultipleSocketProvider {
     ) -> Option<ComInterfaceSocketUUID> {
         let sockets = self.provide_sockets();
         let sockets = sockets.try_lock().unwrap();
-        
+
         sockets
             .sockets
             .values()
@@ -61,7 +61,7 @@ pub trait MultipleSocketProvider {
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         let sockets = self.provide_sockets();
         let sockets = sockets.try_lock().unwrap();
-        
+
         sockets.sockets.values().nth(index).cloned()
     }
 
@@ -80,7 +80,7 @@ pub trait MultipleSocketProvider {
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         let sockets = self.provide_sockets();
         let sockets = sockets.try_lock().unwrap();
-        
+
         sockets.sockets.get(&socket_uuid).cloned()
     }
 }
@@ -99,7 +99,8 @@ pub trait SingleSocketProvider {
     }
 
     fn get_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
-        self.get_socket().map(|s| s.try_lock().unwrap().uuid.clone())
+        self.get_socket()
+            .map(|s| s.try_lock().unwrap().uuid.clone())
     }
     fn has_socket_with_uuid(
         &self,

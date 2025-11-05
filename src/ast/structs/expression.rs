@@ -2,11 +2,13 @@ use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
 use crate::ast::structs::apply_operation::ApplyOperation;
+use crate::ast::structs::r#type::TypeExpression;
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
 use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
-use crate::ast::structs::r#type::TypeExpression;
+use crate::references::reference::ReferenceMutability;
+use crate::stdlib::vec::Vec;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -19,8 +21,6 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::ops::{Neg, Range};
-use crate::references::reference::ReferenceMutability;
-use crate::stdlib::vec::Vec;
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
@@ -28,7 +28,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-    // TODO: store optional type here, not in DatexExpressionData
+                                // TODO: store optional type here, not in DatexExpressionData
 }
 impl DatexExpression {
     pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
@@ -416,7 +416,6 @@ pub struct VariantAccess {
     pub variant: String,
     pub base: ResolvedVariable,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Deref {

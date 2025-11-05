@@ -1,9 +1,9 @@
-use core::prelude::rust_2024::*;
-use serde::{Deserialize, Serialize};
 use crate::dif::{DIFConvertible, value::DIFValueContainer};
 use crate::references::observers::TransceiverId;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
+use core::prelude::rust_2024::*;
+use serde::{Deserialize, Serialize};
 
 /// Represents a property in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

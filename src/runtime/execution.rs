@@ -2,6 +2,8 @@ use super::stack::{Scope, ScopeStack};
 
 use crate::global::operators::assignment::AssignmentOperator;
 
+use crate::core_compiler::value_compiler::compile_value_container;
+use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
 use crate::global::operators::binary::{
@@ -11,16 +13,23 @@ use crate::global::operators::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
-use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::*;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::references::reference::Reference;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
@@ -38,25 +47,16 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
-use crate::references::reference::Reference;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
+use core::unreachable;
+use core::writeln;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
-use core::cell::RefCell;
-use crate::stdlib::collections::HashMap;
-use core::fmt::Display;
-use crate::core_compiler::value_compiler::compile_value_container;
-use crate::stdlib::rc::Rc;
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use core::writeln;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use core::unreachable;
-use core::unimplemented;
-use crate::stdlib::string::ToString;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -99,8 +99,10 @@ impl Display for MemoryDump {
         for (address, value) in &self.slots {
             match value {
                 Some(vc) => {
-                    let decompiled =
-                        crate::decompiler::decompile_value(vc, crate::decompiler::DecompileOptions::colorized());
+                    let decompiled = crate::decompiler::decompile_value(
+                        vc,
+                        crate::decompiler::DecompileOptions::colorized(),
+                    );
                     writeln!(f, "#{address}: {decompiled}")?
                 }
                 None => writeln!(f, "#{address}: <uninitialized>")?,
@@ -511,8 +513,12 @@ impl Display for ExecutionError {
             ExecutionError::DXBParserError(err) => {
                 core::write!(f, "Parser error: {err}")
             }
-            ExecutionError::Unknown => core::write!(f, "Unknown execution error"),
-            ExecutionError::ValueError(err) => core::write!(f, "Value error: {err}"),
+            ExecutionError::Unknown => {
+                core::write!(f, "Unknown execution error")
+            }
+            ExecutionError::ValueError(err) => {
+                core::write!(f, "Value error: {err}")
+            }
             ExecutionError::InvalidProgram(err) => {
                 core::write!(f, "Invalid program error: {err}")
             }
@@ -1445,7 +1451,9 @@ fn handle_unary_operation(
         UnaryOperator::Arithmetic(arithmetic) => {
             handle_unary_arithmetic_operation(arithmetic, value_container)
         }
-        _ => core::todo!("#102 Unary instruction not implemented: {operator:?}"),
+        _ => {
+            core::todo!("#102 Unary instruction not implemented: {operator:?}")
+        }
     }
 }
 
@@ -1527,7 +1535,10 @@ fn handle_arithmetic_operation(
         //     Ok((active_value_container / &value_container)?)
         // }
         _ => {
-            core::todo!("#408 Implement arithmetic operation for {:?}", operator);
+            core::todo!(
+                "#408 Implement arithmetic operation for {:?}",
+                operator
+            );
         }
     }
 }

@@ -1,11 +1,11 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use core::cell::RefCell;
-use core::future::Future;
+use crate::std_sync::Mutex;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::sync::{Arc};
-use crate::std_sync::Mutex;
+use crate::stdlib::sync::Arc;
+use core::cell::RefCell;
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use core::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
@@ -27,8 +27,8 @@ use crate::{delegate_com_interface_info, set_opener};
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
+use tokio::net::tcp::OwnedWriteHalf;
 use url::Url;
 
 pub struct TCPClientNativeInterface {
@@ -84,7 +84,10 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
-                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                     Ok(n) => {
@@ -93,7 +96,10 @@ impl TCPClientNativeInterface {
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
-                        state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

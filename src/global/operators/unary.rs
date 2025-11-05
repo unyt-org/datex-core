@@ -1,6 +1,6 @@
-use core::prelude::rust_2024::*;
-use core::fmt::{Display, Formatter};
 use crate::global::instruction_codes::InstructionCode;
+use core::fmt::{Display, Formatter};
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
@@ -34,9 +34,9 @@ impl Display for UnaryOperator {
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ReferenceUnaryOperator {
-    CreateRef,      // &
-    CreateRefMut,   // &mut
-    Deref,          // *
+    CreateRef,    // &
+    CreateRefMut, // &mut
+    Deref,        // *
 }
 
 impl From<&ReferenceUnaryOperator> for InstructionCode {

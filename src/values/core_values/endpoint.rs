@@ -1,23 +1,23 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::crypto::random;
-use core::fmt::{Debug, Display, Formatter};
-use core::hash::Hash;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::value_container::{ValueContainer, ValueError};
-use binrw::{BinRead, BinWrite};
-use hex::decode;
-use core::str;
-use serde::{Deserialize, Serialize};
 use binrw::io::Cursor;
+use binrw::{BinRead, BinWrite};
+use core::fmt::{Debug, Display, Formatter};
+use core::hash::Hash;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::str;
 use core::str::FromStr;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::ToString;
+use hex::decode;
+use serde::{Deserialize, Serialize};
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -157,7 +157,10 @@ impl Display for InvalidEndpointError {
                 )
             }
             InvalidEndpointError::MinLengthNotMet => {
-                core::write!(f, "Endpoint name must be at least 3 characters long")
+                core::write!(
+                    f,
+                    "Endpoint name must be at least 3 characters long"
+                )
             }
             InvalidEndpointError::InvalidInstance => {
                 core::write!(f, "Endpoint instance must be between 1 and 65534")
@@ -592,7 +595,9 @@ impl Display for Endpoint {
         match self.instance {
             EndpointInstance::Any => (),
             EndpointInstance::All => f.write_str("/*")?,
-            EndpointInstance::Instance(instance) => core::write!(f, "/{instance}")?,
+            EndpointInstance::Instance(instance) => {
+                core::write!(f, "/{instance}")?
+            }
         };
 
         Ok(())

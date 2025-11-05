@@ -1,9 +1,5 @@
-use crate::stdlib::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc},
-};
 use crate::std_sync::Mutex;
+use crate::stdlib::{cell::RefCell, rc::Rc, sync::Arc};
 
 use async_trait::async_trait;
 use futures::channel::oneshot;
@@ -134,7 +130,10 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         let description = from_bytes::<RTCSessionDescriptionDX>(&description)
             .map_err(|_| WebRTCError::InvalidSdp)?;
         self.handle_set_remote_description(description).await?;
-        self.get_commons().try_lock().unwrap().is_remote_description_set = true;
+        self.get_commons()
+            .try_lock()
+            .unwrap()
+            .is_remote_description_set = true;
         let candidates = {
             let commons = self.get_commons();
             let mut commons = commons.try_lock().unwrap();

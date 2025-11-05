@@ -12,7 +12,10 @@ impl core::fmt::Display for NumberParseError {
                 core::write!(f, "The number format is invalid.")
             }
             NumberParseError::OutOfRange => {
-                core::write!(f, "The number is out of range for the specified type.")
+                core::write!(
+                    f,
+                    "The number is out of range for the specified type."
+                )
             }
         }
     }

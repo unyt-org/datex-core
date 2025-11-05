@@ -4,15 +4,15 @@ use strum_macros::EnumIs;
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use core::fmt::Display;
-use crate::stdlib::{collections::VecDeque, sync::Arc};
-use crate::utils::uuid::UUID;
-use crate::{
-    values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
-};
 use crate::std_sync::Mutex;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
+use crate::stdlib::{collections::VecDeque, sync::Arc};
+use crate::utils::uuid::UUID;
+use crate::{
+    global::dxb_block::DXBBlock, values::core_values::endpoint::Endpoint,
+};
+use core::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {

@@ -1,4 +1,10 @@
-use core::prelude::rust_2024::*;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
+use crate::values::core_values::r#type::Type;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -7,15 +13,9 @@ use crate::{
         type_container::TypeContainer,
     },
 };
-use datex_core::references::type_reference::TypeReference;
-use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
-use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
-use crate::stdlib::boxed::Box;
+use core::prelude::rust_2024::*;
+use datex_core::references::type_reference::TypeReference;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -28,7 +28,7 @@ pub enum TypeDefinition {
 
     // type A = B
     Reference(Rc<RefCell<TypeReference>>),
-    
+
     Type(Box<Type>),
 
     // A & B & C
@@ -137,7 +137,12 @@ impl Display for TypeDefinition {
                     .iter()
                     .map(|(name, ty)| format!("{}: {}", name, ty))
                     .collect();
-                core::write!(f, "({}) -> {}", params_str.join(", "), return_type)
+                core::write!(
+                    f,
+                    "({}) -> {}",
+                    params_str.join(", "),
+                    return_type
+                )
             }
         }
     }

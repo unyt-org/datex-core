@@ -1,20 +1,20 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::references::reference::Reference;
 use crate::references::type_reference::TypeReference;
 use crate::references::value_reference::ValueReference;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::types::error::IllegalTypeError;
 use crate::types::type_container::TypeContainer;
 use crate::utils::time::Time;
 use crate::values::pointer::PointerAddress;
+use binrw::io::Cursor;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
 use datex_core::values::core_values::endpoint::Endpoint;
-use core::cell::RefCell;
-use crate::stdlib::collections::HashMap;
-use binrw::io::Cursor;
-use crate::stdlib::rc::Rc;
-use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Default)]
 pub struct Memory {

@@ -1,10 +1,10 @@
+use crate::std_sync::Mutex;
+use crate::stdlib::collections::{HashMap, VecDeque};
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::Arc;
+use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::collections::{HashMap, VecDeque};
-use core::future::Future;
-use crate::stdlib::pin::Pin;
-use crate::stdlib::sync::{Arc};
-use crate::std_sync::Mutex;
 use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
@@ -12,8 +12,8 @@ use crate::task::spawn;
 use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use url::Url;
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
@@ -169,7 +169,9 @@ impl ComInterface for TCPServerNativeInterface {
             return Box::pin(async { false });
         }
         let tx = tx.unwrap().clone();
-        Box::pin(async move { tx.try_lock().unwrap().write(block).await.is_ok() })
+        Box::pin(
+            async move { tx.try_lock().unwrap().write(block).await.is_ok() },
+        )
     }
     fn init_properties(&self) -> InterfaceProperties {
         Self::get_default_properties()

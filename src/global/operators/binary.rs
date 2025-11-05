@@ -1,8 +1,8 @@
-use core::prelude::rust_2024::*;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use core::fmt::Display;
 use crate::stdlib::string::ToString;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
@@ -189,7 +189,10 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::UNION => {
                 BinaryOperator::Bitwise(BitwiseOperator::And)
             }
-            _ => core::todo!("#154 Binary operator for {:?} not implemented", code),
+            _ => core::todo!(
+                "#154 Binary operator for {:?} not implemented",
+                code
+            ),
         }
     }
 }

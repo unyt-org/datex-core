@@ -10,8 +10,8 @@ use datex_core::network::com_interfaces::{
     socket_provider::SingleSocketProvider,
 };
 
-use std::{cell::RefCell, rc::Rc};
 use datex_core::run_async;
+use std::{cell::RefCell, rc::Rc};
 
 #[tokio::test]
 pub async fn test_create_socket_connection() {

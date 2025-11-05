@@ -1,17 +1,23 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use super::{
     com_interface_properties::{InterfaceDirection, InterfaceProperties},
     com_interface_socket::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::utils::{time::Time, uuid::UUID};
-use crate::serde::deserializer::from_value_container;
-use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
-use crate::{values::core_values::endpoint::Endpoint};
-use core::fmt::Display;
+use crate::runtime::AsyncContext;
+use crate::serde::deserializer::from_value_container;
+use crate::std_sync::Mutex;
+use crate::stdlib::{
+    any::Any,
+    cell::Cell,
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+};
+use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
+use crate::utils::{time::Time, uuid::UUID};
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::value_container::ValueContainer;
 use crate::{
     stdlib::{
         cell::RefCell,
@@ -21,22 +27,11 @@ use crate::{
     },
     task::spawn_with_panic_notify,
 };
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::{debug, error, warn};
 use serde::Deserialize;
-use crate::runtime::AsyncContext;
-use crate::stdlib::{
-    any::Any,
-    cell::Cell,
-    collections::{HashMap, VecDeque},
-    pin::Pin,
-};
-use crate::stdlib::{
-    future::Future,
-    sync::{Arc},
-    vec::Vec,
-    boxed::Box,
-};
-use crate::std_sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
@@ -372,11 +367,10 @@ pub async fn flush_outgoing_block_task(
     interface: Rc<RefCell<dyn ComInterface>>,
     socket_ref: Arc<Mutex<ComInterfaceSocket>>,
     block: Vec<u8>,
-    uuid: ComInterfaceSocketUUID
+    uuid: ComInterfaceSocketUUID,
 ) {
     // FIXME #194 borrow_mut across await point!
-    let has_been_send =
-        interface.borrow_mut().send_block(&block, uuid).await;
+    let has_been_send = interface.borrow_mut().send_block(&block, uuid).await;
     interface
         .borrow()
         .get_info()
@@ -389,7 +383,10 @@ pub async fn flush_outgoing_block_task(
     }
 }
 
-pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>, async_context: &AsyncContext) {
+pub fn flush_outgoing_blocks(
+    interface: Rc<RefCell<dyn ComInterface>>,
+    async_context: &AsyncContext,
+) {
     fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
         let mut socket_mut = socket_ref.try_lock().unwrap();
         let blocks: Vec<Vec<u8>> =
@@ -409,12 +406,10 @@ pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>, async_con
                 .get_info()
                 .outgoing_blocks_count
                 .update(|x| x + 1);
-            spawn_with_panic_notify(async_context, flush_outgoing_block_task(
-                interface,
-                socket_ref,
-                block,
-                uuid
-            ));
+            spawn_with_panic_notify(
+                async_context,
+                flush_outgoing_block_task(interface, socket_ref, block, uuid),
+            );
         }
     }
 }
@@ -525,13 +520,15 @@ pub trait ComInterface: Any {
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.add_socket(socket);
     }
 
     // Remove socket from the interface
     fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
-        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         let socket = sockets.get_socket_by_uuid(socket_uuid);
         socket.unwrap().try_lock().unwrap().state = SocketState::Destroyed;
         sockets.remove_socket(socket_uuid);
@@ -544,7 +541,8 @@ pub trait ComInterface: Any {
         endpoint: Endpoint,
         distance: u8,
     ) -> Result<(), ComInterfaceError> {
-        let mut sockets = self.get_info().com_interface_sockets.try_lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.register_socket_endpoint(socket_uuid, endpoint, distance)
     }
 

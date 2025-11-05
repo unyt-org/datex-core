@@ -1,14 +1,14 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use super::super::core_value_trait::CoreValueTrait;
+use crate::stdlib::ops::Index;
+use crate::stdlib::vec::Vec;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::{
     core_value::CoreValue,
     value_container::{ValueContainer, ValueError},
 };
-use crate::stdlib::{ops::Index};
 use core::fmt::Display;
-use crate::stdlib::vec::Vec;
-use crate::traits::structural_eq::StructuralEq;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);

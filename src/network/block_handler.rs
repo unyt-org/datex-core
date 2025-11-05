@@ -1,4 +1,3 @@
-use core::prelude::rust_2024::*;
 use crate::global::dxb_block::{
     BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
     IncomingEndpointContextId, IncomingEndpointContextSectionId,
@@ -6,18 +5,21 @@ use crate::global::dxb_block::{
     OutgoingSectionIndex,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::utils::time::Time;
-use crate::task::{create_unbounded_channel, UnboundedReceiver, UnboundedSender};
-use log::info;
-use ringmap::RingMap;
-use core::cell::RefCell;
-use crate::stdlib::collections::{BTreeMap, HashMap, VecDeque};
-use core::fmt::Debug;
 use crate::std_random::RandomState;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::collections::{BTreeMap, HashMap, VecDeque};
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
-use crate::stdlib::boxed::Box;
+use crate::task::{
+    UnboundedReceiver, UnboundedSender, create_unbounded_channel,
+};
+use crate::utils::time::Time;
+use core::cell::RefCell;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
+use log::info;
+use ringmap::RingMap;
 
 // TODO #170: store scope memory
 #[derive(Debug)]
@@ -74,7 +76,8 @@ pub struct BlockHandler {
     >,
 
     /// history of all incoming blocks
-    pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData, RandomState>>,
+    pub incoming_blocks_history:
+        RefCell<RingMap<BlockId, BlockHistoryData, RandomState>>,
 }
 
 impl Debug for BlockHandler {
@@ -101,7 +104,9 @@ impl BlockHandler {
             block_cache: RefCell::new(HashMap::new()),
             incoming_sections_queue: RefCell::new(VecDeque::new()),
             section_observers: RefCell::new(HashMap::new()),
-            incoming_blocks_history: RefCell::new(RingMap::with_capacity_and_hasher(500, RandomState::default())),
+            incoming_blocks_history: RefCell::new(
+                RingMap::with_capacity_and_hasher(500, RandomState::default()),
+            ),
         }
     }
 

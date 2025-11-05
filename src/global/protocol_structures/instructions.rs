@@ -1,5 +1,7 @@
-use core::prelude::rust_2024::*;
 use crate::global::operators::AssignmentOperator;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::{
@@ -7,9 +9,7 @@ use crate::values::core_values::{
 };
 use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -122,9 +122,13 @@ impl Display for Instruction {
             Instruction::UInt16(data) => core::write!(f, "UINT_16 {}", data.0),
             Instruction::UInt32(data) => core::write!(f, "UINT_32 {}", data.0),
             Instruction::UInt64(data) => core::write!(f, "UINT_64 {}", data.0),
-            Instruction::UInt128(data) => core::write!(f, "UINT_128 {}", data.0),
+            Instruction::UInt128(data) => {
+                core::write!(f, "UINT_128 {}", data.0)
+            }
 
-            Instruction::Apply(count) => core::write!(f, "APPLY {}", count.arg_count),
+            Instruction::Apply(count) => {
+                core::write!(f, "APPLY {}", count.arg_count)
+            }
 
             Instruction::BigInteger(data) => {
                 core::write!(f, "BIG_INTEGER {}", data.0)
@@ -140,15 +144,25 @@ impl Display for Instruction {
                 core::write!(f, "DECIMAL_AS_INT_32 {}", data.0)
             }
             Instruction::DecimalF32(data) => {
-                core::write!(f, "DECIMAL_F32 {}", decimal_to_string(data.0, false))
+                core::write!(
+                    f,
+                    "DECIMAL_F32 {}",
+                    decimal_to_string(data.0, false)
+                )
             }
             Instruction::DecimalF64(data) => {
-                core::write!(f, "DECIMAL_F64 {}", decimal_to_string(data.0, false))
+                core::write!(
+                    f,
+                    "DECIMAL_F64 {}",
+                    decimal_to_string(data.0, false)
+                )
             }
             Instruction::Decimal(data) => {
                 core::write!(f, "DECIMAL_BIG {}", data.0)
             }
-            Instruction::ShortText(data) => core::write!(f, "SHORT_TEXT {}", data.0),
+            Instruction::ShortText(data) => {
+                core::write!(f, "SHORT_TEXT {}", data.0)
+            }
             Instruction::Text(data) => core::write!(f, "TEXT {}", data.0),
             Instruction::True => core::write!(f, "TRUE"),
             Instruction::False => core::write!(f, "FALSE"),
@@ -158,7 +172,9 @@ impl Display for Instruction {
             Instruction::MapStart => core::write!(f, "MAP_START"),
             Instruction::StructStart => core::write!(f, "STRUCT_START"),
             Instruction::ScopeEnd => core::write!(f, "SCOPE_END"),
-            Instruction::KeyValueDynamic => core::write!(f, "KEY_VALUE_DYNAMIC"),
+            Instruction::KeyValueDynamic => {
+                core::write!(f, "KEY_VALUE_DYNAMIC")
+            }
             Instruction::KeyValueShortText(data) => {
                 core::write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
@@ -242,7 +258,8 @@ impl Display for Instruction {
                 core::write!(
                     f,
                     "EXECUTION_BLOCK (length: {}, injected_slot_count: {})",
-                    block.length, block.injected_slot_count
+                    block.length,
+                    block.injected_slot_count
                 )
             }
             Instruction::RemoteExecution => core::write!(f, "REMOTE_EXECUTION"),
@@ -261,12 +278,20 @@ impl Display for Instruction {
             Instruction::TypeInstructions(instr) => {
                 let instr_strings: Vec<String> =
                     instr.iter().map(|i| i.to_string()).collect();
-                core::write!(f, "TYPE_INSTRUCTIONS [{}]", instr_strings.join(", "))
+                core::write!(
+                    f,
+                    "TYPE_INSTRUCTIONS [{}]",
+                    instr_strings.join(", ")
+                )
             }
             Instruction::TypeExpression(instr) => {
                 let instr_strings: Vec<String> =
                     instr.iter().map(|i| i.to_string()).collect();
-                core::write!(f, "TYPE_EXPRESSION [{}]", instr_strings.join(", "))
+                core::write!(
+                    f,
+                    "TYPE_EXPRESSION [{}]",
+                    instr_strings.join(", ")
+                )
             }
             Instruction::UnaryMinus => core::write!(f, "-"),
             Instruction::UnaryPlus => core::write!(f, "+"),

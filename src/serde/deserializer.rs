@@ -1,5 +1,7 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
 use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::{
@@ -15,13 +17,11 @@ use crate::{
         value_container::ValueContainer,
     },
 };
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
-use crate::stdlib::vec;
-use crate::stdlib::format;
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use core::unreachable;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -65,7 +65,9 @@ impl<'de> DatexDeserializer {
     /// Create a deserializer from a DX file path
     /// This will read the file, compile it to DXB, execute it and extract the
     #[cfg(feature = "std")]
-    pub fn from_dx_file(path: std::path::PathBuf) -> Result<Self, DeserializationError> {
+    pub fn from_dx_file(
+        path: std::path::PathBuf,
+    ) -> Result<Self, DeserializationError> {
         let input = std::fs::read_to_string(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
@@ -75,7 +77,9 @@ impl<'de> DatexDeserializer {
     /// Create a deserializer from a DXB file path
     /// This will read the file, execute it and extract the resulting value for deserialization
     #[cfg(feature = "std")]
-    pub fn from_dxb_file(path: std::path::PathBuf) -> Result<Self, DeserializationError> {
+    pub fn from_dxb_file(
+        path: std::path::PathBuf,
+    ) -> Result<Self, DeserializationError> {
         let input = std::fs::read(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
@@ -86,10 +90,11 @@ impl<'de> DatexDeserializer {
     /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
     #[cfg(feature = "compiler")]
     pub fn from_script(script: &'de str) -> Result<Self, DeserializationError> {
-        let (dxb, _) = crate::compiler::compile_script(script, crate::compiler::CompileOptions::default())
-            .map_err(|err| {
-                DeserializationError::CanNotReadFile(err.to_string())
-            })?;
+        let (dxb, _) = crate::compiler::compile_script(
+            script,
+            crate::compiler::CompileOptions::default(),
+        )
+        .map_err(|err| DeserializationError::CanNotReadFile(err.to_string()))?;
         DatexDeserializer::from_bytes(&dxb)
     }
 
@@ -175,7 +180,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
-                CoreValue::Decimal(d) => core::todo!("#394 Unsupported decimal: {:?}", d),
+                CoreValue::Decimal(d) => {
+                    core::todo!("#394 Unsupported decimal: {:?}", d)
+                }
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
                     TypedDecimal::F64(v) => visitor.visit_f64(v.0),
@@ -575,12 +582,10 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::{CompileOptions, compile_script};
     use crate::serde::serializer::to_bytes;
     use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
-    use crate::compiler::{
-        CompileOptions, compile_script
-    };
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct TestStruct {

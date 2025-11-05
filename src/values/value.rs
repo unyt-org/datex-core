@@ -1,15 +1,15 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
+use crate::stdlib::boxed::Box;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::value_container::ValueError;
-use log::error;
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
-use crate::stdlib::boxed::Box;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use log::error;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -68,7 +68,10 @@ impl Value {
         core::matches!(self.inner, CoreValue::Text(_))
     }
     pub fn is_integer_i8(&self) -> bool {
-        core::matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
+        core::matches!(
+            &self.inner,
+            CoreValue::TypedInteger(TypedInteger::I8(_))
+        )
     }
     pub fn is_bool(&self) -> bool {
         core::matches!(self.inner, CoreValue::Boolean(_))
@@ -177,8 +180,8 @@ mod tests {
             list::List,
         },
     };
-    use log::{debug, info};
     use core::str::FromStr;
+    use log::{debug, info};
 
     #[test]
     fn endpoint() {

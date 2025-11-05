@@ -1,20 +1,20 @@
-use core::prelude::rust_2024::*;
 use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
 use crate::runtime::memory::Memory;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
-use crate::values::pointer::PointerAddress;
-use serde::{Deserialize, Serialize};
-use core::cell::RefCell;
 use crate::values::core_values::r#type::Type;
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::boxed::Box;
+use crate::values::pointer::PointerAddress;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def", rename_all = "lowercase")]
@@ -89,9 +89,9 @@ impl DIFTypeDefinition {
                     type_ref.borrow().pointer_address.clone().unwrap(),
                 )
             }
-            TypeDefinition::Type(type_val) => {
-                DIFTypeDefinition::Type(Box::new(DIFType::from_type(type_val.as_ref(), memory)))
-            }
+            TypeDefinition::Type(type_val) => DIFTypeDefinition::Type(
+                Box::new(DIFType::from_type(type_val.as_ref(), memory)),
+            ),
             TypeDefinition::Intersection(types) => {
                 DIFTypeDefinition::Intersection(
                     types
@@ -195,7 +195,9 @@ impl DIFTypeContainer {
         memory: &RefCell<Memory>,
     ) -> Self {
         match type_container {
-            TypeContainer::Type(ty) => DIFTypeContainer::Type(DIFType::from_type(ty, memory)),
+            TypeContainer::Type(ty) => {
+                DIFTypeContainer::Type(DIFType::from_type(ty, memory))
+            }
             TypeContainer::TypeReference(type_ref) => {
                 let type_ref_borrow = type_ref.borrow();
                 let address = if let Some(ref address) =

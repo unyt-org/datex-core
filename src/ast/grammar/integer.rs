@@ -1,8 +1,8 @@
 use crate::ast::DatexExpressionData;
 use crate::ast::DatexParserTrait;
 use crate::ast::ParserRecoverExt;
-use crate::ast::spanned::Spanned;
 use crate::ast::lexer::{IntegerLiteral, Token};
+use crate::ast::spanned::Spanned;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use chumsky::prelude::*;

@@ -30,10 +30,10 @@ use crate::ast::structs::expression::{
 };
 use chumsky::extra::Err;
 use chumsky::prelude::*;
-use lexer::Token;
-use logos::Logos;
 use core::ops::Range;
 use core::result::Result;
+use lexer::Token;
+use logos::Logos;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -333,9 +333,8 @@ mod tests {
             },
         },
         global::operators::{
-            ArithmeticUnaryOperator,
-            AssignmentOperator, BinaryOperator, ComparisonOperator,
-            LogicalUnaryOperator, UnaryOperator,
+            ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator,
+            ComparisonOperator, LogicalUnaryOperator, UnaryOperator,
             binary::{ArithmeticOperator, BitwiseOperator},
         },
         values::{
@@ -350,14 +349,17 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::structs::expression::{CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation, VariableDeclaration, VariableKind};
-    use datex_core::ast::structs::expression::VariableAssignment;
+    use crate::ast::structs::apply_operation::ApplyOperation;
+    use crate::ast::structs::expression::{
+        CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation,
+        VariableDeclaration, VariableKind,
+    };
+    use crate::references::reference::ReferenceMutability;
     use crate::stdlib::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
-    use crate::references::reference::ReferenceMutability;
-    use crate::ast::structs::apply_operation::ApplyOperation;
+    use datex_core::ast::structs::expression::VariableAssignment;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {
@@ -3903,10 +3905,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Deref {expression: Box::new(
-                DatexExpressionData::Identifier("x".to_string())
-                    .with_default_span()
-            )})
+            DatexExpressionData::Deref(Deref {
+                expression: Box::new(
+                    DatexExpressionData::Identifier("x".to_string())
+                        .with_default_span()
+                )
+            })
         );
     }
 
@@ -3916,13 +3920,17 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Deref {expression: Box::new(
-                DatexExpressionData::Deref(Deref {expression: Box::new(
-                    DatexExpressionData::Identifier("x".to_string())
-                        .with_default_span()
-                )})
-                .with_default_span()
-            )})
+            DatexExpressionData::Deref(Deref {
+                expression: Box::new(
+                    DatexExpressionData::Deref(Deref {
+                        expression: Box::new(
+                            DatexExpressionData::Identifier("x".to_string())
+                                .with_default_span()
+                        )
+                    })
+                    .with_default_span()
+                )
+            })
         );
     }
 
@@ -4032,7 +4040,7 @@ mod tests {
                                 DatexExpressionData::Integer(Integer::from(3))
                                     .with_default_span(),
                             ]))
-                                .with_default_span()
+                            .with_default_span()
                         )
                     })
                     .with_default_span()
@@ -4063,8 +4071,11 @@ mod tests {
                                     .with_default_span(),
                                 DatexExpressionData::Integer(Integer::from(3))
                                     .with_default_span(),
-                            ])).with_default_span()
-                        )}).with_default_span()
+                            ]))
+                            .with_default_span()
+                        )
+                    })
+                    .with_default_span()
                 ),
             })
         );

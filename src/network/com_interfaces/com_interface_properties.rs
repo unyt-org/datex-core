@@ -1,12 +1,12 @@
-use core::prelude::rust_2024::*;
-use core::time::Duration;
-use crate::utils::time::Time;
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
-use serde_with::{DurationMilliSeconds};
-use strum::EnumString;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
+use crate::utils::time::Time;
+use core::prelude::rust_2024::*;
+use core::time::Duration;
+use serde::{Deserialize, Serialize};
+use serde_with::DurationMilliSeconds;
+use serde_with::serde_as;
+use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
@@ -149,7 +149,10 @@ impl InterfaceProperties {
     }
 
     pub fn shall_reconnect(&self) -> bool {
-        !core::matches!(self.reconnection_config, ReconnectionConfig::NoReconnect)
+        !core::matches!(
+            self.reconnection_config,
+            ReconnectionConfig::NoReconnect
+        )
     }
 
     pub fn can_receive(&self) -> bool {

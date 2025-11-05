@@ -1,4 +1,3 @@
-
 use crate::ast::DatexParserTrait;
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;

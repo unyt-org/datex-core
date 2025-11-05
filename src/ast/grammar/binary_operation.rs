@@ -3,11 +3,11 @@ use crate::ast::grammar::utils::operation;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::BinaryOperation;
+use crate::ast::{DatexExpression, DatexExpressionData};
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::binary::ArithmeticOperator;
 use crate::global::operators::binary::BitwiseOperator;
 use crate::global::operators::binary::LogicalOperator;
-use crate::ast::{DatexExpression, DatexExpressionData};
 use chumsky::prelude::*;
 
 /// Generic helper for left-associative infix chains

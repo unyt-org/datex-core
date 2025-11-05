@@ -1,14 +1,14 @@
-use core::cell::RefCell;
 use crate::ast::structs::VariableId;
-use crate::global::operators::assignment::AssignmentOperator;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
 };
 use crate::global::dxb_block::DXBBlock;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
+use core::cell::RefCell;
 
 use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::structs::expression::{
@@ -29,21 +29,26 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
-use precompiler::options::PrecompilerOptions;
-use precompiler::precompile_ast;
-use precompiler::precompiled_ast::{
-    AstMetadata, RichAst, VariableMetadata,
+use crate::core_compiler::value_compiler::{
+    append_boolean, append_decimal, append_encoded_integer, append_endpoint,
+    append_float_as_i16, append_float_as_i32, append_instruction_code,
+    append_text, append_typed_decimal, append_typed_integer,
+    append_value_container,
 };
+use crate::references::reference::ReferenceMutability;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use log::info;
-use datex_core::core_compiler::value_compiler::{append_get_ref, append_key_string};
+use datex_core::core_compiler::value_compiler::{
+    append_get_ref, append_key_string,
+};
 use datex_core::utils::buffers::append_u32;
-use crate::core_compiler::value_compiler::{append_boolean, append_decimal, append_encoded_integer, append_endpoint, append_float_as_i16, append_float_as_i32, append_instruction_code, append_text, append_typed_decimal, append_typed_integer, append_value_container};
-use crate::stdlib::rc::Rc;
-use crate::references::reference::ReferenceMutability;
-use crate::stdlib::vec::Vec;
+use log::info;
+use precompiler::options::PrecompilerOptions;
+use precompiler::precompile_ast;
+use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
 
 pub mod context;
 pub mod error;
@@ -52,9 +57,9 @@ pub mod scope;
 pub mod type_compiler;
 pub mod type_inference;
 
+pub mod precompiler;
 #[cfg(feature = "std")]
 pub mod workspace;
-pub mod precompiler;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions<'a> {
@@ -287,10 +292,7 @@ pub fn compile_script_or_return_static_value<'a>(
     // FIXME #480: no clone here
     let scope = compile_ast(ast.clone(), &mut compilation_context, options)?;
     if compilation_context.has_non_static_value {
-        Ok((
-            StaticValueOrDXB::DXB(compilation_context.buffer),
-            scope,
-        ))
+        Ok((StaticValueOrDXB::DXB(compilation_context.buffer), scope))
     } else {
         // try to extract static value from AST
         extract_static_value_from_ast(ast.ast.as_ref().unwrap())
@@ -450,7 +452,7 @@ fn precompile_to_rich_ast(
             valid_parse_result,
             &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
             precompiler_data.rich_ast.metadata.clone(),
-            precompiler_options
+            precompiler_options,
         )?
     } else {
         // if no precompiler data, just use the AST with default metadata
@@ -489,9 +491,8 @@ fn compile_expression(
         DatexExpressionData::Integer(int) => {
             append_encoded_integer(
                 &mut compilation_context.buffer,
-                &int.to_smallest_fitting()
+                &int.to_smallest_fitting(),
             );
-
         }
         DatexExpressionData::TypedInteger(typed_int) => {
             append_typed_integer(&mut compilation_context.buffer, &typed_int);
@@ -511,7 +512,10 @@ fn compile_expression(
             }
         },
         DatexExpressionData::TypedDecimal(typed_decimal) => {
-            append_typed_decimal(&mut compilation_context.buffer, &typed_decimal);
+            append_typed_decimal(
+                &mut compilation_context.buffer,
+                &typed_decimal,
+            );
         }
         DatexExpressionData::Text(text) => {
             append_text(&mut compilation_context.buffer, &text);
@@ -523,7 +527,10 @@ fn compile_expression(
             append_endpoint(&mut compilation_context.buffer, &endpoint);
         }
         DatexExpressionData::Null => {
-            append_instruction_code(&mut compilation_context.buffer, InstructionCode::NULL);
+            append_instruction_code(
+                &mut compilation_context.buffer,
+                InstructionCode::NULL,
+            );
         }
         DatexExpressionData::List(list) => {
             compilation_context
@@ -939,11 +946,8 @@ fn compile_expression(
             )?;
 
             // compile remote execution block
-            let mut execution_block_ctx = CompilationContext::new(
-                Vec::with_capacity(256),
-                vec![],
-                true,
-            );
+            let mut execution_block_ctx =
+                CompilationContext::new(Vec::with_capacity(256), vec![], true);
             let external_scope = compile_rich_ast(
                 &mut execution_block_ctx,
                 RichAst::new(*script, &metadata),
@@ -959,15 +963,23 @@ fn compile_expression(
             compilation_context
                 .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
             // set block size (len of compilation_context.buffer)
-            append_u32(&mut compilation_context.buffer, execution_block_ctx.buffer.len() as u32);
+            append_u32(
+                &mut compilation_context.buffer,
+                execution_block_ctx.buffer.len() as u32,
+            );
             // set injected slot count
-            append_u32(&mut compilation_context.buffer, external_slots.len() as u32);
+            append_u32(
+                &mut compilation_context.buffer,
+                external_slots.len() as u32,
+            );
             for slot in external_slots {
                 compilation_context.insert_virtual_slot_address(slot.upgrade());
             }
 
             // insert block body (compilation_context.buffer)
-            compilation_context.buffer.extend_from_slice(&execution_block_ctx.buffer);
+            compilation_context
+                .buffer
+                .extend_from_slice(&execution_block_ctx.buffer);
         }
 
         // named slot
@@ -976,7 +988,10 @@ fn compile_expression(
                 "endpoint" => {
                     compilation_context
                         .append_instruction_code(InstructionCode::GET_SLOT);
-                    append_u32(&mut compilation_context.buffer, InternalSlot::ENDPOINT as u32);
+                    append_u32(
+                        &mut compilation_context.buffer,
+                        InternalSlot::ENDPOINT as u32,
+                    );
                 }
                 "core" => append_get_ref(
                     &mut compilation_context.buffer,
@@ -997,11 +1012,16 @@ fn compile_expression(
         // refs
         DatexExpressionData::CreateRef(create_ref) => {
             compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(match create_ref.mutability {
-                    ReferenceMutability::Immutable => InstructionCode::CREATE_REF,
-                    ReferenceMutability::Mutable => InstructionCode::CREATE_REF_MUT,
-                });
+            compilation_context.append_instruction_code(
+                match create_ref.mutability {
+                    ReferenceMutability::Immutable => {
+                        InstructionCode::CREATE_REF
+                    }
+                    ReferenceMutability::Mutable => {
+                        InstructionCode::CREATE_REF_MUT
+                    }
+                },
+            );
             scope = compile_expression(
                 compilation_context,
                 RichAst::new(*create_ref.expression, &metadata),
@@ -1009,7 +1029,7 @@ fn compile_expression(
                 scope,
             )?;
         }
-        
+
         DatexExpressionData::Type(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
@@ -1087,9 +1107,9 @@ pub mod tests {
         compile_template, parse_datex_script_to_rich_ast_simple_error,
     };
     use crate::stdlib::assert_matches::assert_matches;
-    use core::cell::RefCell;
     use crate::stdlib::io::Read;
     use crate::stdlib::vec;
+    use core::cell::RefCell;
 
     use crate::ast::parse;
     use crate::global::type_instruction_codes::TypeSpaceInstructionCode;

@@ -1,8 +1,8 @@
-use core::prelude::rust_2024::*;
-use core::fmt::Display;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 

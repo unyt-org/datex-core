@@ -1,6 +1,5 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::global::instruction_codes::InstructionCode;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
@@ -10,17 +9,18 @@ use crate::global::protocol_structures::instructions::{
     UInt64Data, UInt128Data,
 };
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
-use core::fmt;
+use crate::stdlib::string::FromUtf8Error;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
-use crate::global::operators::assignment::AssignmentOperator;
-use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
-use core::fmt::Display;
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::string::FromUtf8Error;
 use binrw::io::Cursor;
+use core::fmt;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -126,7 +126,6 @@ fn get_text_data(
         }
     }
 }
-
 
 // TODO #221: refactor: pass a ParserState struct instead of individual parameters
 pub fn iterate_instructions<'a>(
@@ -538,7 +537,7 @@ fn get_next_instruction_code(
 
 fn iterate_type_space_instructions(
     reader: &mut Cursor<&[u8]>,
-    len: usize
+    len: usize,
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
     core::iter::from_coroutine(
         #[coroutine]

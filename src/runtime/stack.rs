@@ -2,15 +2,15 @@ use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
 use crate::global::operators::UnaryOperator;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::runtime::execution::InvalidProgramError;
-use crate::values::value_container::ValueContainer;
 use crate::references::reference::Reference;
+use crate::runtime::execution::InvalidProgramError;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::vec;
 use core::writeln;
-use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {

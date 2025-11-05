@@ -1,14 +1,14 @@
-use datex_core::values::core_values::endpoint::Endpoint;
+use super::mockup_interface::MockupInterface;
+use core::str::FromStr;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::stdlib::cell::RefCell;
-use datex_core::stdlib::rc::Rc;
-use core::str::FromStr;
-use std::sync::{mpsc, Arc, Mutex};
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
-use super::mockup_interface::MockupInterface;
+use datex_core::stdlib::cell::RefCell;
+use datex_core::stdlib::rc::Rc;
+use datex_core::values::core_values::endpoint::Endpoint;
+use std::sync::{Arc, Mutex, mpsc};
 
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
@@ -64,7 +64,8 @@ pub async fn get_runtime_with_mock_interface(
     priority: InterfacePriority,
 ) -> (Runtime, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
+    let runtime =
+        Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
 
     // init mockup interface
     let mockup_interface_ref =
@@ -201,14 +202,16 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     (com_hub.clone(), mockup_interface_ref, socket)
 }
 
-
 pub async fn get_mock_setup_runtime(
     local_endpoint: Endpoint,
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
 ) -> Runtime {
-    let (runtime, mockup_interface_ref) =
-        get_runtime_with_mock_interface(local_endpoint, InterfacePriority::default()).await;
+    let (runtime, mockup_interface_ref) = get_runtime_with_mock_interface(
+        local_endpoint,
+        InterfacePriority::default(),
+    )
+    .await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
     mockup_interface_ref.borrow_mut().receiver =
@@ -234,17 +237,18 @@ pub async fn get_mock_setup_with_two_runtimes(
         endpoint_a.clone(),
         Some(sender_a),
         Some(receiver_b),
-    ).await;
+    )
+    .await;
 
     let runtime_b = get_mock_setup_runtime(
         endpoint_b.clone(),
         Some(sender_b),
         Some(receiver_a),
-    ).await;
+    )
+    .await;
 
     (runtime_a, runtime_b)
 }
-
 
 pub async fn send_block_with_body(
     to: &[Endpoint],

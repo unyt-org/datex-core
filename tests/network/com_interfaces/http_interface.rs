@@ -1,12 +1,12 @@
+use core::str::FromStr;
 use datex_core::{
-    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::ComInterface,
         default_com_interfaces::http::http_server_interface::HTTPServerNativeInterface,
         socket_provider::MultipleSocketProvider,
     },
+    values::core_values::endpoint::Endpoint,
 };
-use core::str::FromStr;
 
 use crate::context::init_global_context;
 

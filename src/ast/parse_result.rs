@@ -1,6 +1,6 @@
-use core::ops::Range;
 use crate::ast::DatexExpression;
 use crate::ast::error::error::ParseError;
+use core::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct ValidDatexParseResult {
@@ -28,28 +28,44 @@ impl DatexParseResult {
     pub fn unwrap(self) -> ValidDatexParseResult {
         match self {
             DatexParseResult::Valid(result) => result,
-            DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. }) => {
+            DatexParseResult::Invalid(InvalidDatexParseResult {
+                errors,
+                ..
+            }) => {
                 core::panic!("Parsing failed with errors: {:?}", errors)
             }
         }
     }
     pub fn errors(&self) -> &Vec<ParseError> {
         match self {
-            DatexParseResult::Valid { .. } => core::panic!("No errors in valid parse result"),
-            DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. })  => errors,
+            DatexParseResult::Valid { .. } => {
+                core::panic!("No errors in valid parse result")
+            }
+            DatexParseResult::Invalid(InvalidDatexParseResult {
+                errors,
+                ..
+            }) => errors,
         }
     }
     pub fn spans(&self) -> &Vec<Range<usize>> {
         match self {
-            DatexParseResult::Valid(ValidDatexParseResult{ spans, .. })  => spans,
-            DatexParseResult::Invalid(InvalidDatexParseResult{ spans, .. })  => spans,
+            DatexParseResult::Valid(ValidDatexParseResult {
+                spans, ..
+            }) => spans,
+            DatexParseResult::Invalid(InvalidDatexParseResult {
+                spans,
+                ..
+            }) => spans,
         }
     }
 
     pub fn to_result(self) -> Result<ValidDatexParseResult, Vec<ParseError>> {
         match self {
             DatexParseResult::Valid(result) => Ok(result),
-            DatexParseResult::Invalid(InvalidDatexParseResult{ errors, .. }) => Err(errors),
+            DatexParseResult::Invalid(InvalidDatexParseResult {
+                errors,
+                ..
+            }) => Err(errors),
         }
     }
 }

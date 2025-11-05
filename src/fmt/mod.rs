@@ -7,11 +7,11 @@ use crate::{
             FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
         },
     },
-    global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
+    compiler::precompiler::precompiled_ast::RichAst,
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
+    global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
     libs::core::CoreLibPointerId,
-    compiler::precompiler::precompiled_ast::RichAst,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;

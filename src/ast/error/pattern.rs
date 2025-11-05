@@ -1,6 +1,6 @@
-use core::prelude::rust_2024::*;
-use core::fmt;
 use crate::ast::lexer::Token;
+use core::fmt;
+use core::prelude::rust_2024::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {

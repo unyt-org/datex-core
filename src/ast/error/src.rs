@@ -1,5 +1,5 @@
-use internment::Intern;
 use core::fmt;
+use internment::Intern;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SrcId(Intern<Vec<String>>);

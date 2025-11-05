@@ -6,8 +6,8 @@ pub use binary::BinaryOperator;
 pub mod comparison;
 pub use comparison::ComparisonOperator;
 
-pub mod unary;
 pub mod assignment;
+pub mod unary;
 
 pub use unary::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,

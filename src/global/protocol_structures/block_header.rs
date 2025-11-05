@@ -1,7 +1,7 @@
-use core::prelude::rust_2024::*;
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
+use core::prelude::rust_2024::*;
 use modular_bitfield::{Specifier, bitfield, prelude::B43};
 use strum_macros::Display;
 

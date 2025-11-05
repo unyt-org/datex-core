@@ -1,5 +1,3 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
 use crate::global::protocol_structures::block_header::{
@@ -9,30 +7,32 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::task::{sleep, spawn_with_panic_notify};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use futures::channel::oneshot;
 use log::info;
-use datex_core::core_compiler::value_compiler::compile_value_container;
-use crate::stdlib::rc::Rc;
-use core::time::Duration;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::borrow::ToOwned;
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn handle_incoming_section_task(runtime_rc: Rc<RuntimeInternal>, section: IncomingSection) {
+async fn handle_incoming_section_task(
+    runtime_rc: Rc<RuntimeInternal>,
+    section: IncomingSection,
+) {
     let (result, endpoint, context_id) =
-        RuntimeInternal::execute_incoming_section(
-            runtime_rc.clone(),
-            section,
-        )
+        RuntimeInternal::execute_incoming_section(runtime_rc.clone(), section)
             .await;
-        info!(
-            "Execution result (on {} from {}): {result:?}",
-            runtime_rc.endpoint, endpoint
-        );
+    info!(
+        "Execution result (on {} from {}): {result:?}",
+        runtime_rc.endpoint, endpoint
+    );
     // send response back to the sender
     let res = RuntimeInternal::send_response_block(
         runtime_rc.clone(),
@@ -43,15 +43,13 @@ async fn handle_incoming_section_task(runtime_rc: Rc<RuntimeInternal>, section: 
     // TODO #231: handle errors in sending response
 }
 
-
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn update_loop_task(runtime_rc: Rc<RuntimeInternal>) {
     while *runtime_rc.update_loop_running.borrow() {
         RuntimeInternal::update(runtime_rc.clone()).await;
         sleep(Duration::from_millis(1)).await;
     }
-    if let Some(sender) =
-        runtime_rc.update_loop_stop_sender.borrow_mut().take()
+    if let Some(sender) = runtime_rc.update_loop_stop_sender.borrow_mut().take()
     {
         sender.send(()).expect("Failed to send stop signal");
     }
@@ -70,7 +68,10 @@ impl RuntimeInternal {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(&self_rc.clone().async_context, update_loop_task(self_rc));
+        spawn_with_panic_notify(
+            &self_rc.clone().async_context,
+            update_loop_task(self_rc),
+        );
     }
 
     /// Stops the update loop for the Runtime, if it is running.
@@ -105,7 +106,10 @@ impl RuntimeInternal {
         for section in sections.drain(..) {
             // execute the section in a separate task
             let self_rc = self_rc.clone();
-            spawn_with_panic_notify(async_context, handle_incoming_section_task(self_rc, section));
+            spawn_with_panic_notify(
+                async_context,
+                handle_incoming_section_task(self_rc, section),
+            );
         }
     }
 

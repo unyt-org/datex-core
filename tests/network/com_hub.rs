@@ -36,7 +36,8 @@ use datex_core::values::core_values::endpoint::Endpoint;
 #[tokio::test]
 pub async fn test_add_and_remove() {
     init_global_context();
-    let com_hub = Rc::new(ComHub::new(Endpoint::default(), AsyncContext::new()));
+    let com_hub =
+        Rc::new(ComHub::new(Endpoint::default(), AsyncContext::new()));
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));

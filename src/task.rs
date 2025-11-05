@@ -1,22 +1,20 @@
-use core::prelude::rust_2024::*;
-use cfg_if::cfg_if;
-use futures_util::{FutureExt, SinkExt, StreamExt};
-use log::info;
-use core::cell::RefCell;
-use core::future::Future;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
+use cfg_if::cfg_if;
+use core::cell::RefCell;
 use core::clone::Clone;
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use futures_util::{FutureExt, SinkExt, StreamExt};
+use log::info;
 
-type LocalPanicChannel =
-    Option<(
-        Option<RefCell<UnboundedSender<Signal>>>,
-        Option<UnboundedReceiver<Signal>>,
-    )>;
+type LocalPanicChannel = Option<(
+    Option<RefCell<UnboundedSender<Signal>>>,
+    Option<UnboundedReceiver<Signal>>,
+)>;
 
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 static mut LOCAL_PANIC_CHANNEL: LocalPanicChannel = None;
-
 
 enum Signal {
     Panic(String),
@@ -93,8 +91,7 @@ pub fn init_panic_notify() {
 pub async fn close_panic_notify() {
     unsafe {
         if let Some((tx, _)) = &mut LOCAL_PANIC_CHANNEL {
-            tx
-                .take()
+            tx.take()
                 .clone()
                 .unwrap()
                 .borrow_mut()
@@ -142,8 +139,14 @@ async fn send_panic(panic: String) {
     }
 }
 #[cfg(feature = "embassy_runtime")]
-pub fn spawn_with_panic_notify<S>(async_context: &AsyncContext, spawn_token: embassy_executor::SpawnToken<S>) {
-    async_context.spawner.spawn(spawn_token).expect("Spawn Error");
+pub fn spawn_with_panic_notify<S>(
+    async_context: &AsyncContext,
+    spawn_token: embassy_executor::SpawnToken<S>,
+) {
+    async_context
+        .spawner
+        .spawn(spawn_token)
+        .expect("Spawn Error");
 }
 
 #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
@@ -173,7 +176,6 @@ where
         }
     });
 }
-
 
 cfg_if! {
     if #[cfg(feature = "tokio_runtime")] {
@@ -280,14 +282,20 @@ cfg_if! {
     }
 }
 
-
-#[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-use futures::channel::mpsc::{UnboundedReceiver as _UnboundedReceiver, UnboundedSender as _UnboundedSender, Receiver as _Receiver, Sender as _Sender};
 #[cfg(feature = "embassy_runtime")]
 pub use async_unsync::bounded::{Receiver as _Receiver, Sender as _Sender};
 #[cfg(feature = "embassy_runtime")]
-pub use async_unsync::unbounded::{UnboundedReceiver as _UnboundedReceiver, UnboundedSender as _UnboundedSender};
+pub use async_unsync::unbounded::{
+    UnboundedReceiver as _UnboundedReceiver,
+    UnboundedSender as _UnboundedSender,
+};
 use datex_core::runtime::AsyncContext;
+#[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
+use futures::channel::mpsc::{
+    Receiver as _Receiver, Sender as _Sender,
+    UnboundedReceiver as _UnboundedReceiver,
+    UnboundedSender as _UnboundedSender,
+};
 
 #[derive(Debug)]
 pub struct Receiver<T>(_Receiver<T>);
@@ -298,9 +306,13 @@ impl<T> Receiver<T> {
 
     pub async fn next(&mut self) -> Option<T> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        { self.0.next().await}
+        {
+            self.0.next().await
+        }
         #[cfg(feature = "embassy_runtime")]
-        { self.0.recv().await }
+        {
+            self.0.recv().await
+        }
     }
 }
 
@@ -312,11 +324,14 @@ impl<T> UnboundedReceiver<T> {
     }
     pub async fn next(&mut self) -> Option<T> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        { self.0.next().await}
+        {
+            self.0.next().await
+        }
         #[cfg(feature = "embassy_runtime")]
-        { self.0.recv().await }
+        {
+            self.0.recv().await
+        }
     }
-
 }
 
 #[derive(Debug)]
@@ -334,21 +349,31 @@ impl<T> Sender<T> {
 
     pub fn start_send(&mut self, item: T) -> Result<(), ()> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.start_send(item).map_err(|_| ())}
+        {
+            self.0.start_send(item).map_err(|_| ())
+        }
         #[cfg(feature = "embassy_runtime")]
-        {self.0.try_send(item).map_err(|_| ())}
+        {
+            self.0.try_send(item).map_err(|_| ())
+        }
     }
 
     pub async fn send(&mut self, item: T) -> Result<(), ()> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.send(item).await.map_err(|_| ()).map(|_| ())}
+        {
+            self.0.send(item).await.map_err(|_| ()).map(|_| ())
+        }
         #[cfg(feature = "embassy_runtime")]
-        {self.0.send(item).await.map(|_| ()).map_err(|_| ())}
+        {
+            self.0.send(item).await.map(|_| ()).map_err(|_| ())
+        }
     }
 
     pub fn close_channel(&mut self) {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.close_channel();}
+        {
+            self.0.close_channel();
+        }
         #[cfg(feature = "embassy_runtime")]
         {}
     }
@@ -371,27 +396,35 @@ impl<T> UnboundedSender<T> {
 
     pub fn start_send(&mut self, item: T) -> Result<(), ()> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.start_send(item).map_err(|_| ())}
+        {
+            self.0.start_send(item).map_err(|_| ())
+        }
         #[cfg(feature = "embassy_runtime")]
-        {self.0.send(item).map_err(|_| ())}
+        {
+            self.0.send(item).map_err(|_| ())
+        }
     }
 
     pub async fn send(&mut self, item: T) -> Result<(), ()> {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.send(item).await.map_err(|_| ()).map(|_| ())}
+        {
+            self.0.send(item).await.map_err(|_| ()).map(|_| ())
+        }
         #[cfg(feature = "embassy_runtime")]
-        {self.0.send(item).map(|_| ()).map_err(|_| ())}
+        {
+            self.0.send(item).map(|_| ()).map_err(|_| ())
+        }
     }
 
     pub fn close_channel(&self) {
         #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))]
-        {self.0.close_channel();}
+        {
+            self.0.close_channel();
+        }
         #[cfg(feature = "embassy_runtime")]
         {}
     }
 }
-
-
 
 cfg_if! {
     if #[cfg(any(feature = "tokio_runtime", feature = "wasm_runtime"))] {

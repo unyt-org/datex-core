@@ -1,31 +1,39 @@
-use datex_core::values::core_values::endpoint::Endpoint;
+use core::cell::RefCell;
+use core::time::Duration;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::task::{spawn_with_panic_notify, spawn_with_panic_notify_default};
-use datex_core::{delegate_com_interface_info, global::{
-    dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
-}, network::com_interfaces::{
-    com_interface::{
-        ComInterface, ComInterfaceInfo, ComInterfaceSockets,
-        ComInterfaceState,
+use datex_core::task::{
+    spawn_with_panic_notify, spawn_with_panic_notify_default,
+};
+use datex_core::values::core_values::endpoint::Endpoint;
+use datex_core::{
+    delegate_com_interface_info,
+    global::{
+        dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
     },
-    com_interface_properties::InterfaceProperties,
-    com_interface_socket::ComInterfaceSocketUUID,
-    socket_provider::SingleSocketProvider,
-}, set_sync_opener};
+    network::com_interfaces::{
+        com_interface::{
+            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+            ComInterfaceState,
+        },
+        com_interface_properties::InterfaceProperties,
+        com_interface_socket::ComInterfaceSocketUUID,
+        socket_provider::SingleSocketProvider,
+    },
+    set_sync_opener,
+};
 use datex_macros::{com_interface, create_opener};
 use log::info;
-use core::cell::RefCell;
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use core::time::Duration;
 use std::{
     future::Future,
     pin::Pin,
-    sync::{mpsc, Arc, Mutex},
-};use serde::{Deserialize, Serialize};
+    sync::{Arc, Mutex, mpsc},
+};
 
 #[derive(Default, Debug)]
 pub struct MockupInterface {
@@ -83,13 +91,15 @@ type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CHANNELS: Vec<(OptSender, OptReceiver)> = Vec::new();
 
-pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
+pub fn store_sender_and_receiver(
+    sender: OptSender,
+    receiver: OptReceiver,
+) -> usize {
     unsafe {
         CHANNELS.push((sender, receiver));
         CHANNELS.len() - 1
     }
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MockupInterfaceSetupData {
@@ -137,9 +147,7 @@ impl MockupInterfaceSetupData {
         setup_data
     }
 
-    pub fn sender(
-        &self,
-    ) -> Option<mpsc::Sender<Vec<u8>>> {
+    pub fn sender(&self) -> Option<mpsc::Sender<Vec<u8>>> {
         unsafe {
             if let Some(index) = self.channel_index {
                 CHANNELS.get_mut(index).unwrap().0.take()
@@ -149,9 +157,7 @@ impl MockupInterfaceSetupData {
         }
     }
 
-    pub fn receiver(
-        &self,
-    ) -> Option<mpsc::Receiver<Vec<u8>>> {
+    pub fn receiver(&self) -> Option<mpsc::Receiver<Vec<u8>>> {
         unsafe {
             if let Some(index) = self.channel_index {
                 CHANNELS.get_mut(index).unwrap().1.take()
@@ -249,7 +255,8 @@ impl MockupInterface {
             let socket = sockets.sockets.values().next();
             if let Some(socket) = socket {
                 let socket = socket.try_lock().unwrap();
-                let mut receive_queue = socket.receive_queue.try_lock().unwrap();
+                let mut receive_queue =
+                    socket.receive_queue.try_lock().unwrap();
                 while let Ok(block) = receiver.try_recv() {
                     receive_queue.extend(block);
                 }
@@ -282,12 +289,13 @@ impl ComInterface for MockupInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME #219 this should be inside the async body, why is it not working?
         let is_hello = {
-            match DXBBlock::from_bytes(block) { Ok(block) => {
-                block.block_header.flags_and_timestamp.block_type()
-                    == BlockType::Hello
-            } _ => {
-                false
-            }}
+            match DXBBlock::from_bytes(block) {
+                Ok(block) => {
+                    block.block_header.flags_and_timestamp.block_type()
+                        == BlockType::Hello
+                }
+                _ => false,
+            }
         };
         if !is_hello {
             self.outgoing_queue.push((socket_uuid, block.to_vec()));

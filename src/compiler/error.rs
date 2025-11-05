@@ -1,11 +1,11 @@
-use crate::ast::structs::expression::DatexExpression;
 use crate::ast::error::error::{ParseError, SpanOrToken};
+use crate::ast::structs::expression::DatexExpression;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::serde::error::DeserializationError;
-use datex_core::compiler::type_inference::SpannedTypeError;
 use core::fmt::{Display, Formatter};
 use core::ops::Range;
-use crate::compiler::precompiler::precompiled_ast::RichAst;
+use datex_core::compiler::type_inference::SpannedTypeError;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
@@ -222,7 +222,9 @@ impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     }
 }
 
-impl From<SpannedCompilerError> for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+impl From<SpannedCompilerError>
+    for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst
+{
     fn from(
         value: SpannedCompilerError,
     ) -> SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
@@ -269,7 +271,10 @@ impl Display for CompilerError {
                 Ok(())
             }
             CompilerError::SubvariantNotFound(name, variant) => {
-                core::write!(f, "Subvariant {variant} does not exist for {name}")
+                core::write!(
+                    f,
+                    "Subvariant {variant} does not exist for {name}"
+                )
             }
             CompilerError::SerializationError => {
                 core::write!(f, "Serialization error")

@@ -3,6 +3,9 @@ use core::result::Result;
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
@@ -23,10 +26,6 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
-use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::vec::Vec;
-
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -490,7 +489,9 @@ impl Add for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    core::todo!("#317 TypedInteger + Integer not implemented yet");
+                    core::todo!(
+                        "#317 TypedInteger + Integer not implemented yet"
+                    );
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() + rhs.clone()))
                 }
                 CoreValue::Decimal(_) => {
@@ -614,7 +615,9 @@ impl Sub for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    core::todo!("#318 TypedInteger - Integer not implemented yet");
+                    core::todo!(
+                        "#318 TypedInteger - Integer not implemented yet"
+                    );
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() - rhs.clone()))
                 }
                 //     Ok(CoreValue::TypedInteger(

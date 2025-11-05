@@ -6,17 +6,17 @@ use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
 use crate::network::helpers::network::{
-    test_routes, InterfaceConnection, Network, Node, Route, RouteAssertionError,
+    InterfaceConnection, Network, Node, Route, RouteAssertionError, test_routes,
 };
-use datex_core::values::core_values::endpoint::Endpoint;
+use core::str::FromStr;
+use core::time::Duration;
 use datex_core::network::com_hub::{InterfacePriority, ResponseOptions};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::run_async;
+use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
 use ntest_timeout::timeout;
-use core::str::FromStr;
-use core::time::Duration;
 use tokio::task;
 
 #[tokio::test]

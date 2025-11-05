@@ -1,7 +1,7 @@
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
-    get_mock_setup_and_socket_for_endpoint_and_update_loop, TEST_ENDPOINT_A,
-    TEST_ENDPOINT_B,
+    TEST_ENDPOINT_A, TEST_ENDPOINT_B,
+    get_mock_setup_and_socket_for_endpoint_and_update_loop,
 };
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::{run_async, run_async_thread};

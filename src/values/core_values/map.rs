@@ -1,19 +1,19 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use super::super::core_value_trait::CoreValueTrait;
+use crate::std_random::RandomState;
+use crate::stdlib::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use indexmap::IndexMap;
-use crate::stdlib::collections::HashMap;
 use core::fmt::{self, Display};
 use core::hash::{Hash, Hasher};
-use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
-use crate::stdlib::string::ToString;
-use crate::std_random::RandomState;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use indexmap::IndexMap;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
@@ -51,7 +51,9 @@ impl Default for Map {
 }
 
 impl Map {
-    pub fn new(entries: IndexMap<ValueContainer, ValueContainer, RandomState>) -> Self {
+    pub fn new(
+        entries: IndexMap<ValueContainer, ValueContainer, RandomState>,
+    ) -> Self {
         Map::Dynamic(entries)
     }
 
@@ -579,7 +581,9 @@ where
 }
 
 impl From<IndexMap<ValueContainer, ValueContainer, RandomState>> for Map {
-    fn from(map: IndexMap<ValueContainer, ValueContainer, RandomState>) -> Self {
+    fn from(
+        map: IndexMap<ValueContainer, ValueContainer, RandomState>,
+    ) -> Self {
         Map::new(map)
     }
 }

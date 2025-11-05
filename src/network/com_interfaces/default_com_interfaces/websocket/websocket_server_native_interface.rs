@@ -1,10 +1,10 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use core::time::Duration;
+use crate::std_sync::Mutex;
 use crate::stdlib::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
 };
-use crate::std_sync::Mutex;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{

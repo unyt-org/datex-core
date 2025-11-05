@@ -1,10 +1,11 @@
-use core::prelude::rust_2024::*;
-use binrw::BinWrite;
-use datex_core::utils::buffers::{append_i128, append_i32, append_i64, append_u16, append_u64};
 use crate::global::instruction_codes::InstructionCode;
 use crate::libs::core::CoreLibPointerId;
 use crate::references::reference::ReferenceMutability;
-use crate::utils::buffers::{append_f32, append_f64, append_i16, append_i8, append_u128, append_u32, append_u8};
+use crate::stdlib::vec::Vec;
+use crate::utils::buffers::{
+    append_f32, append_f64, append_i8, append_i16, append_u8, append_u32,
+    append_u128,
+};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -15,8 +16,12 @@ use crate::values::core_values::integer::utils::smallest_fitting_signed;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::stdlib::vec::Vec;
+use binrw::BinWrite;
 use binrw::io::Cursor;
+use core::prelude::rust_2024::*;
+use datex_core::utils::buffers::{
+    append_i32, append_i64, append_i128, append_u16, append_u64,
+};
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {
@@ -26,7 +31,10 @@ pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {
     buffer
 }
 
-pub fn append_value_container(buffer: &mut Vec<u8>, value_container: &ValueContainer) {
+pub fn append_value_container(
+    buffer: &mut Vec<u8>,
+    value_container: &ValueContainer,
+) {
     match value_container {
         ValueContainer::Value(value) => append_value(buffer, value),
         ValueContainer::Reference(reference) => {
@@ -134,9 +142,10 @@ pub fn append_endpoint(buffer: &mut Vec<u8>, endpoint: &Endpoint) {
 /// Appends a typed integer with explicit type casts
 pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
     append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(buffer, PointerAddress::from(CoreLibPointerId::from(
-        integer,
-    )));
+    append_get_ref(
+        buffer,
+        PointerAddress::from(CoreLibPointerId::from(integer)),
+    );
     append_encoded_integer(buffer, &integer.to_smallest_fitting());
 }
 
@@ -191,10 +200,7 @@ pub fn append_encoded_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
 }
 
 pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
-    fn append_f32_or_f64(
-        buffer: &mut Vec<u8>,
-        decimal: &TypedDecimal,
-    ) {
+    fn append_f32_or_f64(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
         match decimal {
             TypedDecimal::F32(val) => {
                 append_float32(buffer, val.into_inner());
@@ -251,9 +257,10 @@ pub fn append_big_integer(buffer: &mut Vec<u8>, integer: &Integer) {
 
 pub fn append_typed_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
     append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(buffer, PointerAddress::from(CoreLibPointerId::from(
-        decimal,
-    )));
+    append_get_ref(
+        buffer,
+        PointerAddress::from(CoreLibPointerId::from(decimal)),
+    );
     append_encoded_decimal(buffer, decimal);
 }
 
@@ -292,16 +299,13 @@ pub fn append_key_value_pair(
     match key {
         // if text, append_key_string, else dynamic
         ValueContainer::Value(Value {
-                                  inner: CoreValue::Text(text),
-                                  ..
-                              }) => {
+            inner: CoreValue::Text(text),
+            ..
+        }) => {
             append_key_string(buffer, &text.0);
         }
         _ => {
-            append_instruction_code(
-                buffer,
-                InstructionCode::KEY_VALUE_DYNAMIC,
-            );
+            append_instruction_code(buffer, InstructionCode::KEY_VALUE_DYNAMIC);
             append_value_container(buffer, key);
         }
     }
@@ -322,7 +326,6 @@ pub fn append_key_string(buffer: &mut Vec<u8>, key_string: &str) {
         append_text(buffer, key_string);
     }
 }
-
 
 pub fn append_instruction_code(buffer: &mut Vec<u8>, code: InstructionCode) {
     append_u8(buffer, code as u8);

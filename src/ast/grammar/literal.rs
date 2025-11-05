@@ -1,6 +1,6 @@
-use crate::ast::structs::expression::Slot;
-use crate::ast::spanned::Spanned;
 use crate::ast::lexer::Token;
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::Slot;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use crate::values::pointer::PointerAddress;
 use chumsky::prelude::*;

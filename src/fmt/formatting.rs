@@ -2,6 +2,7 @@ use core::ops::Range;
 
 use pretty::DocAllocator;
 
+use crate::references::reference::ReferenceMutability;
 use crate::{
     ast::structs::expression::{
         BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
@@ -16,7 +17,6 @@ use crate::{
         integer::typed_integer::TypedInteger,
     },
 };
-use crate::references::reference::ReferenceMutability;
 
 impl<'a> Formatter<'a> {
     pub fn datex_expression_to_source_code(

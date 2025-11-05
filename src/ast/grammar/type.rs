@@ -579,7 +579,10 @@ mod tests {
                     ..
                 }) => value.data.clone(),
                 _ => {
-                    core::panic!("Expected TypeDeclaration, got {:?}", statements[0])
+                    core::panic!(
+                        "Expected TypeDeclaration, got {:?}",
+                        statements[0]
+                    )
                 }
             }
         } else {

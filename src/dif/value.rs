@@ -1,10 +1,9 @@
-use core::prelude::rust_2024::*;
-use core::result::Result;
 use crate::dif::DIFConvertible;
 use crate::dif::{
     representation::DIFValueRepresentation, r#type::DIFTypeContainer,
 };
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::string::ToString;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -14,11 +13,12 @@ use crate::values::core_values::map::MapKey;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
-use core::cell::RefCell;
-use crate::stdlib::string::ToString;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -141,7 +141,9 @@ impl DIFValue {
         let core_value = &value.inner;
 
         let dif_core_value = match core_value {
-            CoreValue::Type(ty) => core::todo!("#382 Type value not supported in DIF"),
+            CoreValue::Type(ty) => {
+                core::todo!("#382 Type value not supported in DIF")
+            }
             CoreValue::Null => DIFValueRepresentation::Null,
             CoreValue::Boolean(bool) => DIFValueRepresentation::Boolean(bool.0),
             CoreValue::Integer(integer) => {
@@ -298,8 +300,8 @@ mod tests {
         libs::core::CoreLibPointerId,
         values::core_values::integer::typed_integer::IntegerTypeVariant,
     };
-    use datex_core::values::value::Value;
     use core::cell::RefCell;
+    use datex_core::values::value::Value;
 
     fn get_mock_memory() -> RefCell<Memory> {
         RefCell::new(Memory::new(Endpoint::default()))

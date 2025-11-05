@@ -1,6 +1,8 @@
 use super::mockup_interface::{MockupInterface, store_sender_and_receiver};
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
+use core::fmt::{self, Debug, Display};
 use core::panic;
+use core::str::FromStr;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
@@ -13,10 +15,8 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
-use core::fmt::{self, Debug, Display};
 use std::path::Path;
 use std::rc::Rc;
-use core::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
 
@@ -221,14 +221,19 @@ pub async fn test_routes(
         if route.hops[0].0 != start {
             core::panic!(
                 "Route start endpoints must all be the same. Found {} instead of {}",
-                route.hops[0].0, start
+                route.hops[0].0,
+                start
             );
         }
     }
 
     for end in ends {
         if start != end {
-            core::panic!("Route start {} does not match receiver {}", start, end);
+            core::panic!(
+                "Route start {} does not match receiver {}",
+                start,
+                end
+            );
         }
     }
 
@@ -613,7 +618,7 @@ impl Network {
         for endpoint in self.endpoints.iter_mut() {
             let runtime = Rc::new(Runtime::new(
                 RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone()),
-                AsyncContext::new()
+                AsyncContext::new(),
             ));
 
             // register factories
