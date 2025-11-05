@@ -1,4 +1,4 @@
-use crate::ast::tree::DatexExpressionData;
+use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
@@ -296,7 +296,6 @@ impl Display for Type {
                 .map_or("".to_string(), |m| match m {
                     ReferenceMutability::Immutable => "&".to_string(),
                     ReferenceMutability::Mutable => "&mut ".to_string(),
-                    ReferenceMutability::Final => "&final ".to_string(),
                 });
         let base = self
             .base_type

@@ -13,7 +13,7 @@
 #![feature(try_trait_v2)]
 // FIXME #228: remove in the future, not required in edition 2024, but RustRover complains
 #![allow(unused_parens)]
-
+#![feature(associated_type_defaults)]
 #[macro_use]
 extern crate mopa;
 
@@ -24,14 +24,17 @@ pub mod compiler;
 pub mod crypto;
 pub mod decompiler;
 pub mod dif;
+pub mod fmt;
 pub mod generator;
 pub mod global;
 pub mod libs;
 pub mod logger;
 pub mod network;
 pub mod parser;
+pub mod precompiler;
 pub mod references;
 pub mod runtime;
+pub mod visitor;
 
 #[cfg(feature = "serde")]
 pub mod serde;

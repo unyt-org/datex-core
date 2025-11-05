@@ -1,11 +1,13 @@
-use std::collections::HashMap;
-use std::path::{PathBuf};
-use datex_core::compiler::precompiler::{RichAst};
 use crate::compiler::error::DetailedCompilerErrors;
-use crate::compiler::{parse_datex_script_to_rich_ast_detailed_errors, CompileOptions};
-use crate::runtime::Runtime;
 use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
+use crate::compiler::{
+    CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
+};
+use crate::precompiler::precompiled_ast::RichAst;
+use crate::runtime::Runtime;
 use crate::types::type_container::TypeContainer;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Represents a file in the compiler workspace with its path, cached content and AST.
 pub struct WorkspaceFile {
@@ -16,31 +18,33 @@ pub struct WorkspaceFile {
     pub errors: Option<DetailedCompilerErrors>,
 }
 
-
 /// Represents the compiler workspace containing multiple files.
 #[derive(Default)]
 pub struct CompilerWorkspace {
     files: HashMap<PathBuf, WorkspaceFile>,
-    runtime: Runtime
+    runtime: Runtime,
 }
-
 
 impl CompilerWorkspace {
     /// Creates a new compiler workspace with the given runtime.
     pub fn new(runtime: Runtime) -> Self {
         Self {
             files: HashMap::new(),
-            runtime
+            runtime,
         }
     }
-    
+
     pub fn files(&self) -> &HashMap<PathBuf, WorkspaceFile> {
         &self.files
     }
 
     /// Loads a file into the workspace, caching its content and AST.
     /// Returns a compiler error if parsing or precompilation fails.
-    pub fn load_file(&mut self, path: PathBuf, content: String) -> &WorkspaceFile {
+    pub fn load_file(
+        &mut self,
+        path: PathBuf,
+        content: String,
+    ) -> &WorkspaceFile {
         let result = self.get_rich_ast_for_file(&path, content.clone());
         let workspace_file = match result {
             Ok(rich_ast) => WorkspaceFile {
@@ -67,11 +71,22 @@ impl CompilerWorkspace {
         self.files.get(path)
     }
 
+    pub fn get_file_mut(&mut self, path: &PathBuf) -> Option<&mut WorkspaceFile> {
+        self.files.get_mut(path)
+    }
+
     /// Retrieves the AST with metadata for a given file path and content after parsing and compilation.
     /// Returns a compiler error if parsing or compilation fails.
-    fn get_rich_ast_for_file(&self, path: &PathBuf, content: String) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
+    fn get_rich_ast_for_file(
+        &self,
+        path: &PathBuf,
+        content: String,
+    ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
-        let rich_ast = parse_datex_script_to_rich_ast_detailed_errors(&content, &mut options)?;
+        let rich_ast = parse_datex_script_to_rich_ast_detailed_errors(
+            &content,
+            &mut options,
+        )?;
         Ok(rich_ast)
     }
 }

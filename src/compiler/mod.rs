@@ -1,37 +1,53 @@
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binding::VariableId;
-use crate::compiler::error::{CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError, SpannedCompilerError};
+use crate::ast::structs::VariableId;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::compiler::error::{
+    CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
+    SpannedCompilerError,
+};
 use crate::global::dxb_block::DXBBlock;
 use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 
+use crate::ast::parse_result::ValidDatexParseResult;
+use crate::ast::structs::expression::{
+    BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
+    DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
+    VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
+};
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
+use crate::compiler::error::{
+    DetailedCompilerErrorsWithMaybeRichAst,
+    SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
+};
 use crate::compiler::metadata::CompileMetadata;
-use crate::compiler::precompiler::{AstMetadata, RichAst, VariableMetadata, PrecompilerOptions, precompile_ast};
 use crate::compiler::scope::CompilationScope;
 use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
+
+use crate::precompiler::options::PrecompilerOptions;
+use crate::precompiler::precompile_ast;
+use crate::precompiler::precompiled_ast::{
+    AstMetadata, RichAst, VariableMetadata,
+};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use log::info;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::ast::parse_result::ValidDatexParseResult;
-use crate::ast::tree::{DatexExpression, DatexExpressionData, Slot, Statements, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
-use crate::compiler::error::{DetailedCompilerErrorsWithMaybeRichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst};
+use crate::references::reference::ReferenceMutability;
 
 pub mod context;
 pub mod error;
 pub mod metadata;
-pub mod precompiler;
+// pub mod precompiler;
 pub mod scope;
-mod type_compiler;
-mod type_inference;
+pub mod type_compiler;
+pub mod type_inference;
 pub mod workspace;
 
 #[derive(Clone, Default)]
@@ -205,7 +221,9 @@ impl Variable {
 
 /// Compiles a DATEX script text into a single DXB block including routing and block headers.
 /// This function is used to create a block that can be sent over the network.
-pub fn compile_block(datex_script: &str) -> Result<Vec<u8>, SimpleOrDetailedCompilerError> {
+pub fn compile_block(
+    datex_script: &str,
+) -> Result<Vec<u8>, SimpleOrDetailedCompilerError> {
     let (body, _) = compile_script(datex_script, CompileOptions::default())?;
 
     let routing_header = RoutingHeader::default();
@@ -236,13 +254,13 @@ pub fn compile_script<'a>(
 pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, SpannedCompilerError> {
-    let valid_parse_result = parse(datex_script).to_result()
+    let valid_parse_result = parse(datex_script)
+        .to_result()
         .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
     extract_static_value_from_ast(&valid_parse_result.ast)
         .map(Some)
         .map_err(SpannedCompilerError::from)
 }
-
 
 /// Converts a DATEX script template text with inserted values into an AST with metadata
 /// If the script does not contain any dynamic values or operations, the static result value is
@@ -263,7 +281,10 @@ pub fn compile_script_or_return_static_value<'a>(
     // FIXME #480: no clone here
     let scope = compile_ast(ast.clone(), &compilation_context, options)?;
     if *compilation_context.has_non_static_value.borrow() {
-        Ok((StaticValueOrDXB::DXB(compilation_context.buffer.take()), scope))
+        Ok((
+            StaticValueOrDXB::DXB(compilation_context.buffer.take()),
+            scope,
+        ))
     } else {
         // try to extract static value from AST
         extract_static_value_from_ast(ast.ast.as_ref().unwrap())
@@ -289,15 +310,21 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //     return Ok((result, options.compile_scope));
     // }
 
-    let valid_parse_result = parse(datex_script).to_result()
+    let valid_parse_result = parse(datex_script)
+        .to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
-    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: false})
-        .map_err(|e | match e {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
-            _ => unreachable!(), // because detailed_errors: false
-        })
+    precompile_to_rich_ast(
+        valid_parse_result,
+        &mut options.compile_scope,
+        PrecompilerOptions {
+            detailed_errors: false,
+        },
+    )
+    .map_err(|e| match e {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
+        _ => unreachable!(), // because detailed_errors: false
+    })
 }
-
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Returns all occurring errors and the AST if one or more errors occur.
@@ -305,13 +332,26 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
     datex_script: &'a str,
     options: &mut CompileOptions<'a>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
-    let valid_parse_result = parse(datex_script).to_result()
-        .map_err(|errs| DetailedCompilerErrorsWithMaybeRichAst {errors: DetailedCompilerErrors::from(errs), ast: None})?;
-    precompile_to_rich_ast(valid_parse_result, &mut options.compile_scope, PrecompilerOptions { detailed_errors: true})
-        .map_err(|e | match e {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e)=> e.into(),
-            _ => unreachable!(), // because detailed_errors: true
-        })
+    let valid_parse_result =
+        parse(datex_script).to_result().map_err(|errs| {
+            DetailedCompilerErrorsWithMaybeRichAst {
+                errors: DetailedCompilerErrors::from(errs),
+                ast: None,
+            }
+        })?;
+    precompile_to_rich_ast(
+        valid_parse_result,
+        &mut options.compile_scope,
+        PrecompilerOptions {
+            detailed_errors: true,
+        },
+    )
+    .map_err(|e| match e {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e) => {
+            e.into()
+        }
+        _ => unreachable!(), // because detailed_errors: true
+    })
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
@@ -341,7 +381,8 @@ fn compile_ast<'a>(
     compilation_context: &CompilationContext,
     options: CompileOptions<'a>,
 ) -> Result<CompilationScope, CompilerError> {
-    let compilation_scope = compile_rich_ast(compilation_context, ast, options.compile_scope)?;
+    let compilation_scope =
+        compile_rich_ast(compilation_context, ast, options.compile_scope)?;
     Ok(compilation_scope)
 }
 
@@ -363,7 +404,8 @@ fn extract_static_value_from_ast(
     if let DatexExpressionData::Placeholder = ast.data {
         return Err(CompilerError::NonStaticValue);
     }
-    ValueContainer::try_from(&ast.data).map_err(|_| CompilerError::NonStaticValue)
+    ValueContainer::try_from(&ast.data)
+        .map_err(|_| CompilerError::NonStaticValue)
 }
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
@@ -394,30 +436,32 @@ fn precompile_to_rich_ast(
     // if once is set to true in already used, return error
     if scope.once {
         if scope.was_used {
-            return Err(SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                SpannedCompilerError::from(CompilerError::OnceScopeUsedMultipleTimes)
-            ));
+            return Err(
+                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                    SpannedCompilerError::from(
+                        CompilerError::OnceScopeUsedMultipleTimes,
+                    ),
+                ),
+            );
         }
         // set was_used to true
         scope.was_used = true;
     }
-    let rich_ast =
-        if let Some(precompiler_data) = &scope.precompiler_data {
-            // precompile the AST, adding metadata for variables etc.
-            precompile_ast(
-                valid_parse_result,
-                precompiler_data.rich_ast.metadata.clone(),
-                &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
-                precompiler_options
-            )?
-        } else {
-            // if no precompiler data, just use the AST with default metadata
-            RichAst::new_without_metadata(valid_parse_result.ast)
-        };
+    let rich_ast = if let Some(precompiler_data) = &scope.precompiler_data {
+        // precompile the AST, adding metadata for variables etc.
+        precompile_ast(
+            valid_parse_result,
+            &mut precompiler_data.precompiler_scope_stack.borrow_mut(),
+            precompiler_data.rich_ast.metadata.clone(),
+            precompiler_options
+        )?
+    } else {
+        // if no precompiler data, just use the AST with default metadata
+        RichAst::new_without_metadata(valid_parse_result.ast)
+    };
 
     Ok(rich_ast)
 }
-
 
 pub fn compile_rich_ast(
     compilation_context: &CompilationContext,
@@ -523,16 +567,16 @@ fn compile_expression(
         }
 
         // statements
-        DatexExpressionData::Statements(Statements {mut statements, is_terminated}) => {
+        DatexExpressionData::Statements(Statements {
+            mut statements,
+            is_terminated,
+        }) => {
             compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
             if statements.len() == 1 && !is_terminated {
                 scope = compile_expression(
                     compilation_context,
-                    RichAst::new(
-                        statements.remove(0),
-                        &metadata,
-                    ),
+                    RichAst::new(statements.remove(0), &metadata),
                     CompileMetadata::default(),
                     scope,
                 )?;
@@ -583,7 +627,10 @@ fn compile_expression(
         }
 
         // unary operations (negation, not, etc.)
-        DatexExpressionData::UnaryOperation(UnaryOperation {operator, expression}) => {
+        DatexExpressionData::UnaryOperation(UnaryOperation {
+            operator,
+            expression,
+        }) => {
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
@@ -595,47 +642,56 @@ fn compile_expression(
         }
 
         // operations (add, subtract, multiply, divide, etc.)
-        DatexExpressionData::BinaryOperation(operator, a, b, _) => {
+        DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator,
+            left,
+            right,
+            ..
+        }) => {
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*a, &metadata),
+                RichAst::new(*left, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*b, &metadata),
+                RichAst::new(*right, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
         }
 
         // comparisons (e.g., equal, not equal, greater than, etc.)
-        DatexExpressionData::ComparisonOperation(operator, a, b) => {
+        DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            operator,
+            left,
+            right,
+        }) => {
             compilation_context.mark_has_non_static_value();
             // append binary code for operation if not already current binary operator
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*a, &metadata),
+                RichAst::new(*left, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*b, &metadata),
+                RichAst::new(*right, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
         }
 
         // apply
-        DatexExpressionData::ApplyChain(val, operands) => {
+        DatexExpressionData::ApplyChain(_) => {
             compilation_context.mark_has_non_static_value();
             // TODO #150
         }
@@ -643,11 +699,11 @@ fn compile_expression(
         // variables
         // declaration
         DatexExpressionData::VariableDeclaration(VariableDeclaration {
-             id,
-             name,
-             kind,
-             type_annotation,
-             init_expression: value,
+            id,
+            name,
+            kind,
+            type_annotation,
+            init_expression: value,
         }) => {
             compilation_context.mark_has_non_static_value();
 
@@ -733,7 +789,8 @@ fn compile_expression(
         DatexExpressionData::VariableAssignment(VariableAssignment {
             operator,
             name,
-            expression, ..
+            expression,
+            ..
         }) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
@@ -800,12 +857,12 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        DatexExpressionData::DerefAssignment {
+        DatexExpressionData::DerefAssignment(DerefAssignment {
             operator,
             deref_count,
             deref_expression,
             assigned_expression,
-        } => {
+        }) => {
             compilation_context.mark_has_non_static_value();
 
             compilation_context
@@ -847,7 +904,9 @@ fn compile_expression(
         }
 
         // variable access
-        DatexExpressionData::VariableAccess(VariableAccess { name, .. }) => {
+        DatexExpressionData::VariableAccess(VariableAccess {
+            name, ..
+        }) => {
             compilation_context.mark_has_non_static_value();
             // get variable slot address
             let (virtual_slot, ..) = scope
@@ -862,7 +921,10 @@ fn compile_expression(
         }
 
         // remote execution
-        DatexExpressionData::RemoteExecution(caller, script) => {
+        DatexExpressionData::RemoteExecution(RemoteExecution {
+            left: caller,
+            right: script,
+        }) => {
             compilation_context.mark_has_non_static_value();
 
             // insert remote execution code
@@ -935,40 +997,21 @@ fn compile_expression(
         }
 
         // refs
-        DatexExpressionData::CreateRef(expression) => {
+        DatexExpressionData::CreateRef(create_ref) => {
             compilation_context.mark_has_non_static_value();
             compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF);
+                .append_instruction_code(match create_ref.mutability {
+                    ReferenceMutability::Immutable => InstructionCode::CREATE_REF,
+                    ReferenceMutability::Mutable => InstructionCode::CREATE_REF_MUT,
+                });
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*expression, &metadata),
+                RichAst::new(*create_ref.expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
         }
-        DatexExpressionData::CreateRefMut(expression) => {
-            compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF_MUT);
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*expression, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-        }
-        DatexExpressionData::CreateRefFinal(expression) => {
-            compilation_context.mark_has_non_static_value();
-            compilation_context
-                .append_instruction_code(InstructionCode::CREATE_REF_FINAL);
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*expression, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-        }
-
+        
         DatexExpressionData::Type(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
@@ -980,12 +1023,12 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpressionData::Deref(expression) => {
+        DatexExpressionData::Deref(deref) => {
             compilation_context.mark_has_non_static_value();
             compilation_context.append_instruction_code(InstructionCode::DEREF);
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*expression, &metadata),
+                RichAst::new(*deref.expression, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -993,7 +1036,8 @@ fn compile_expression(
                 .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
-        _ => {
+        e => {
+            println!("Unhandled expression in compiler: {:?}", e);
             return Err(CompilerError::UnexpectedTerm(Box::new(
                 rich_ast.ast.unwrap(),
             )));
@@ -1039,7 +1083,11 @@ fn compile_key_value_entry(
 
 #[cfg(test)]
 pub mod tests {
-    use super::{CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB, compile_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error};
+    use super::{
+        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
+        compile_ast, compile_script, compile_script_or_return_static_value,
+        compile_template, parse_datex_script_to_rich_ast_simple_error,
+    };
     use std::assert_matches::assert_matches;
     use std::cell::RefCell;
     use std::io::Read;
@@ -1073,15 +1121,16 @@ pub mod tests {
 
     fn get_compilation_context(script: &str) -> CompilationContext {
         let mut options = CompileOptions::default();
-        let ast = parse_datex_script_to_rich_ast_simple_error(script, &mut options).unwrap();
+        let ast =
+            parse_datex_script_to_rich_ast_simple_error(script, &mut options)
+                .unwrap();
 
         let compilation_context = CompilationContext::new(
             RefCell::new(Vec::with_capacity(256)),
             vec![],
             options.compile_scope.once,
         );
-        compile_ast(ast, &compilation_context, options)
-            .unwrap();
+        compile_ast(ast, &compilation_context, options).unwrap();
         compilation_context
     }
 

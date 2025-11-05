@@ -1,5 +1,6 @@
-use crate::ast::tree::{DatexExpressionData, List, Map, TypeExpression};
-use crate::references::reference::ReferenceMutability;
+use crate::ast::structs::expression::{CreateRef, DatexExpressionData, List, Map};
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::r#type::TypeExpressionData;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
@@ -13,32 +14,14 @@ impl From<&ValueContainer> for DatexExpressionData {
         match value {
             ValueContainer::Value(value) => value_to_datex_expression(value),
             ValueContainer::Reference(reference) => {
-                match reference.mutability() {
-                    ReferenceMutability::Mutable => {
-                        DatexExpressionData::CreateRefMut(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                    ReferenceMutability::Immutable => {
-                        DatexExpressionData::CreateRef(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                    ReferenceMutability::Final => {
-                        DatexExpressionData::CreateRefFinal(Box::new(
-                            DatexExpressionData::from(
-                                &reference.value_container(),
-                            )
-                            .with_default_span(),
-                        ))
-                    }
-                }
+                DatexExpressionData::CreateRef(CreateRef {
+                    mutability: reference.mutability(),
+                    expression: Box::new(
+                        DatexExpressionData::from(
+                            &reference.value_container(),
+                        ).with_default_span(),
+                    )
+                })
             }
         }
     }
@@ -85,7 +68,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             match &type_value.type_definition {
                 TypeDefinition::Structural(struct_type) => match struct_type {
                     StructuralTypeDefinition::Integer(integer) => {
-                        TypeExpression::Integer(integer.clone())
+                        TypeExpressionData::Integer(integer.clone())
+                            .with_default_span()
                     }
                     _ => todo!("#416 Undescribed by author."),
                 },
@@ -97,7 +81,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::tree::{DatexExpressionData, List};
+    use crate::ast::structs::expression::{DatexExpressionData, List};
+    use crate::ast::spanned::Spanned;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;

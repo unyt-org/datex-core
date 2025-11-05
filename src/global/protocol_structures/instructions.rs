@@ -1,4 +1,4 @@
-use crate::ast::assignment_operation::AssignmentOperator;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::{
@@ -82,7 +82,6 @@ pub enum Instruction {
 
     CreateRef,
     CreateRefMut,
-    CreateRefFinal,
 
     // &ABCDE
     GetRef(RawFullPointerAddress),
@@ -217,7 +216,6 @@ impl Display for Instruction {
             }
             Instruction::CreateRef => write!(f, "CREATE_REF"),
             Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
-            Instruction::CreateRefFinal => write!(f, "CREATE_REF_FINAL"),
             Instruction::GetOrCreateRef(data) => {
                 write!(
                     f,

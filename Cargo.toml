@@ -87,6 +87,7 @@ futures-core = "0.3.31"
 internment = "0.8.6"
 serde-big-array = "0.5.1"
 indoc = "2.0.6"
+pretty = "0.12.5"
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

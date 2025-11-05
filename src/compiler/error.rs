@@ -1,12 +1,11 @@
+use crate::ast::structs::expression::DatexExpression;
 use crate::ast::error::error::{ParseError, SpanOrToken};
-use crate::ast::tree::DatexExpression;
+use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
+use crate::precompiler::precompiled_ast::RichAst;
+use crate::serde::error::DeserializationError;
+use datex_core::compiler::type_inference::SpannedTypeError;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use chumsky::prelude::SimpleSpan;
-use datex_core::compiler::type_inference::SpannedTypeError;
-use crate::compiler::precompiler::RichAst;
-use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
-use crate::serde::error::DeserializationError;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
@@ -35,21 +34,32 @@ pub enum CompilerError {
 #[derive(Debug)]
 pub struct SpannedCompilerError {
     pub error: CompilerError,
-    pub span: Option<Range<usize>>
+    pub span: Option<Range<usize>>,
 }
 
 impl SpannedCompilerError {
-    pub fn new_with_simple_span(error: CompilerError, span: SimpleSpan) -> SpannedCompilerError {
+    pub fn new_with_span(
+        error: CompilerError,
+        span: Range<usize>,
+    ) -> SpannedCompilerError {
         SpannedCompilerError {
             error,
-            span: Some(span.start..span.end)
+            span: Some(span),
         }
     }
 }
 
 impl Display for SpannedCompilerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.error, self.span.as_ref().map(|s|format!("{}..{}", s.start, s.end)).unwrap_or("?".to_string()))
+        write!(
+            f,
+            "{} ({})",
+            self.error,
+            self.span
+                .as_ref()
+                .map(|s| format!("{}..{}", s.start, s.end))
+                .unwrap_or("?".to_string())
+        )
     }
 }
 
@@ -67,7 +77,7 @@ impl From<ParseError> for SpannedCompilerError {
         SpannedCompilerError {
             span: match &value.span {
                 SpanOrToken::Span(range) => Some(range.clone()),
-                _ => panic!("expected byte range, got token span")
+                _ => panic!("expected byte range, got token span"),
             },
             error: CompilerError::ParseError(value),
         }
@@ -78,7 +88,7 @@ impl From<CompilerError> for SpannedCompilerError {
     fn from(value: CompilerError) -> Self {
         SpannedCompilerError {
             error: value,
-            span: None
+            span: None,
         }
     }
 }
@@ -89,10 +99,9 @@ impl From<SpannedCompilerError> for DeserializationError {
     }
 }
 
-
 #[derive(Debug, Default)]
 pub struct DetailedCompilerErrors {
-    pub errors: Vec<SpannedCompilerError>
+    pub errors: Vec<SpannedCompilerError>,
 }
 
 impl DetailedCompilerErrors {
@@ -115,8 +124,15 @@ impl Display for DetailedCompilerErrors {
 }
 
 impl DetailedCompilerErrors {
-    pub fn record_error_with_span(&mut self, error: CompilerError, span: Range<usize>) {
-        self.record_error(SpannedCompilerError { error, span: Some(span) });
+    pub fn record_error_with_span(
+        &mut self,
+        error: CompilerError,
+        span: Range<usize>,
+    ) {
+        self.record_error(SpannedCompilerError {
+            error,
+            span: Some(span),
+        });
     }
 }
 
@@ -127,7 +143,7 @@ impl From<DetailedTypeErrors> for DetailedCompilerErrors {
                 .errors
                 .into_iter()
                 .map(SpannedCompilerError::from)
-                .collect()
+                .collect(),
         }
     }
 }
@@ -136,7 +152,6 @@ impl ErrorCollector<SpannedCompilerError> for DetailedCompilerErrors {
     fn record_error(&mut self, error: SpannedCompilerError) {
         self.errors.push(error);
     }
-
 }
 
 #[derive(Debug)]
@@ -157,25 +172,25 @@ impl From<SpannedCompilerError> for SimpleOrDetailedCompilerError {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct DetailedCompilerErrorsWithRichAst {
     pub errors: DetailedCompilerErrors,
-    pub ast: RichAst
+    pub ast: RichAst,
 }
 
 #[derive(Debug)]
 pub struct DetailedCompilerErrorsWithMaybeRichAst {
     pub errors: DetailedCompilerErrors,
-    pub ast: Option<RichAst>
+    pub ast: Option<RichAst>,
 }
 
-impl From<DetailedCompilerErrorsWithRichAst> for DetailedCompilerErrorsWithMaybeRichAst {
+impl From<DetailedCompilerErrorsWithRichAst>
+    for DetailedCompilerErrorsWithMaybeRichAst
+{
     fn from(value: DetailedCompilerErrorsWithRichAst) -> Self {
         DetailedCompilerErrorsWithMaybeRichAst {
             errors: value.errors,
-            ast: Some(value.ast)
+            ast: Some(value.ast),
         }
     }
 }
@@ -187,26 +202,38 @@ pub enum SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
     /// DetailedCompilerError with additional RichAst
     Detailed(DetailedCompilerErrorsWithRichAst),
     /// simple SpannedCompilerError
-    Simple(SpannedCompilerError)
+    Simple(SpannedCompilerError),
 }
 
-impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> for SimpleOrDetailedCompilerError {
-    fn from(value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst) -> Self {
+impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
+    for SimpleOrDetailedCompilerError
+{
+    fn from(
+        value: SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
+    ) -> Self {
         match value {
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(error) => SimpleOrDetailedCompilerError::Simple(error),
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(error_with_ast) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors)
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                error,
+            ) => SimpleOrDetailedCompilerError::Simple(error),
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+                error_with_ast,
+            ) => SimpleOrDetailedCompilerError::Detailed(error_with_ast.errors),
         }
     }
 }
 
+impl From<SpannedCompilerError> for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+    fn from(
+        value: SpannedCompilerError,
+    ) -> SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(value)
+    }
+}
 
 impl From<Vec<ParseError>> for DetailedCompilerErrors {
     fn from(value: Vec<ParseError>) -> Self {
         DetailedCompilerErrors {
-            errors: value
-                .into_iter()
-                .map(SpannedCompilerError::from)
-                .collect()
+            errors: value.into_iter().map(SpannedCompilerError::from).collect(),
         }
     }
 }
@@ -214,7 +241,9 @@ impl From<Vec<ParseError>> for DetailedCompilerErrors {
 impl From<TypeError> for SimpleOrDetailedCompilerError {
     fn from(value: TypeError) -> Self {
         // TODO #479: also store and map span from type error
-        SimpleOrDetailedCompilerError::Simple(SpannedCompilerError::from(CompilerError::from(value)))
+        SimpleOrDetailedCompilerError::Simple(SpannedCompilerError::from(
+            CompilerError::from(value),
+        ))
     }
 }
 
@@ -291,15 +320,13 @@ impl Display for CompilerError {
     }
 }
 
-
-
 /// Describes an optional action that is only executed if an Ok result
 /// was returned (used in collect_or_pass_error);
 pub enum MaybeAction<T> {
     // optional action should not be performed
     Skip,
     // action should be performed with the provided value
-    Do(T)
+    Do(T),
 }
 
 pub trait ErrorCollector<E> {
@@ -315,18 +342,14 @@ pub fn collect_or_pass_error<T, E, Collector: ErrorCollector<E>>(
     collected_errors: &mut Option<Collector>,
     result: Result<T, E>,
 ) -> Result<MaybeAction<T>, E> {
-    if let Ok(result) = result {
-        Ok(MaybeAction::Do(result))
-    }
-    else {
-        let error = unsafe { result.unwrap_err_unchecked() };
+    if let Err(error) = result {
         if let Some(collected_errors) = collected_errors {
             collected_errors.record_error(error);
             Ok(MaybeAction::Skip)
-        }
-        else {
+        } else {
             Err(error)
         }
+    } else {
+        result.map(MaybeAction::Do)
     }
 }
-

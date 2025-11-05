@@ -1,11 +1,13 @@
 use super::stack::{Scope, ScopeStack};
 
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::{
-    ArithmeticOperator, BinaryOperator, BitwiseOperator, LogicalOperator,
+use crate::ast::structs::operator::assignment::AssignmentOperator;
+
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::ComparisonOperator;
+use crate::ast::structs::operator::binary::{
+    ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };
-use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::unary_operation::{
+use crate::ast::structs::operator::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
@@ -1057,17 +1059,6 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::CreateRefFinal => {
-                context.borrow_mut().scope_stack.create_scope(
-                    Scope::UnaryOperation {
-                        operator: UnaryOperator::Reference(
-                            ReferenceUnaryOperator::CreateRefFinal,
-                        ),
-                    },
-                );
-                None
-            }
-
             // remote execution
             Instruction::RemoteExecution => {
                 context
@@ -1410,9 +1401,6 @@ fn handle_unary_reference_operation(
         ReferenceUnaryOperator::CreateRef => {
             ValueContainer::Reference(Reference::from(value_container))
         }
-        ReferenceUnaryOperator::CreateRefFinal => ValueContainer::Reference(
-            Reference::try_final_from(value_container)?,
-        ),
         ReferenceUnaryOperator::CreateRefMut => {
             ValueContainer::Reference(Reference::try_mut_from(value_container)?)
         }
@@ -1590,9 +1578,6 @@ fn handle_binary_operation(
             value_container,
             logical_op,
         ),
-        BinaryOperator::VariantAccess => {
-            todo!("#411 Implement variant access operation")
-        }
     }
 }
 

@@ -1,11 +1,11 @@
-use crate::ast::assignment_operation::AssignmentOperator;
-use crate::ast::binary_operation::BinaryOperator;
-use crate::ast::comparison_operation::ComparisonOperator;
-use crate::ast::unary_operation::UnaryOperator;
+use crate::ast::structs::operator::BinaryOperator;
+use crate::ast::structs::operator::ComparisonOperator;
+use crate::ast::structs::operator::UnaryOperator;
+use crate::ast::structs::operator::assignment::AssignmentOperator;
 use crate::runtime::execution::InvalidProgramError;
 use crate::values::value_container::ValueContainer;
-use std::fmt::Display;
 use datex_core::references::reference::Reference;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -44,7 +44,7 @@ pub enum Scope {
     Apply {
         arg_count: u16,
         args: Vec<ValueContainer>,
-    }
+    },
 }
 
 impl ScopeContainer {

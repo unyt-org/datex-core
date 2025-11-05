@@ -1,16 +1,24 @@
 use std::fmt::{self};
 
+use crate::ast::structs::expression::{
+    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
+    DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
+    TypeDeclaration, VariantAccess,
+};
+use crate::ast::structs::r#type::{
+    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
+};
 use crate::{
     ast::{
-        chain::ApplyOperation,
-        tree::{
-            DatexExpression, DatexExpressionData, TypeExpression,
+        structs::expression::{
+            DatexExpression, DatexExpressionData, FunctionDeclaration,
             VariableAccess, VariableAssignment, VariableDeclaration,
         },
+        structs::operator::ApplyOperation,
     },
     decompiler::FormattingMode,
 };
-use crate::ast::tree::{List, Map};
+use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Default)]
 pub enum BraceStyle {
@@ -191,10 +199,10 @@ impl AstToSourceCodeFormatter {
         &self,
         key: &TypeExpression,
     ) -> String {
-        match key {
-            TypeExpression::Text(t) => self.key_to_string(t),
-            TypeExpression::Integer(i) => i.to_string(),
-            TypeExpression::TypedInteger(ti) => {
+        match &key.data {
+            TypeExpressionData::Text(t) => self.key_to_string(t),
+            TypeExpressionData::Integer(i) => i.to_string(),
+            TypeExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
                     ti.to_string_with_suffix()
                 } else {
@@ -210,72 +218,78 @@ impl AstToSourceCodeFormatter {
         &self,
         type_expr: &TypeExpression,
     ) -> String {
-        match type_expr {
-            TypeExpression::Integer(ti) => ti.to_string(),
-            TypeExpression::Decimal(td) => td.to_string(),
-            TypeExpression::Boolean(boolean) => boolean.to_string(),
-            TypeExpression::Text(text) => text.to_string(),
-            TypeExpression::Endpoint(endpoint) => endpoint.to_string(),
-            TypeExpression::Null => "null".to_string(),
-            TypeExpression::Ref(inner) => {
+        match &type_expr.data {
+            TypeExpressionData::VariantAccess(TypeVariantAccess {
+                name,
+                variant,
+                ..
+            }) => {
+                format!("{}/{}", name, variant)
+            }
+            TypeExpressionData::Integer(ti) => ti.to_string(),
+            TypeExpressionData::Decimal(td) => td.to_string(),
+            TypeExpressionData::Boolean(boolean) => boolean.to_string(),
+            TypeExpressionData::Text(text) => text.to_string(),
+            TypeExpressionData::Endpoint(endpoint) => endpoint.to_string(),
+            TypeExpressionData::Null => "null".to_string(),
+            TypeExpressionData::Ref(inner) => {
                 format!("&{}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpression::RefMut(inner) => {
+            TypeExpressionData::RefMut(inner) => {
                 format!("&mut {}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpression::RefFinal(inner) => {
-                format!(
-                    "&final {}",
-                    self.type_expression_to_source_code(inner,)
-                )
-            }
-            TypeExpression::Literal(literal) => literal.to_string(),
-            TypeExpression::Variable(_, name) => name.to_string(),
-            TypeExpression::GetReference(pointer_address) => {
+            TypeExpressionData::Literal(literal) => literal.to_string(),
+            TypeExpressionData::VariableAccess(VariableAccess {
+                name, ..
+            }) => name.to_string(),
+            TypeExpressionData::GetReference(pointer_address) => {
                 format!("{}", pointer_address) // FIXME #471
             }
-            TypeExpression::TypedInteger(typed_integer) => {
+            TypeExpressionData::TypedInteger(typed_integer) => {
                 if self.add_variant_suffix() {
                     typed_integer.to_string_with_suffix()
                 } else {
                     typed_integer.to_string()
                 }
             }
-            TypeExpression::TypedDecimal(typed_decimal) => {
+            TypeExpressionData::TypedDecimal(typed_decimal) => {
                 if self.add_variant_suffix() {
                     typed_decimal.to_string_with_suffix()
                 } else {
                     typed_decimal.to_string()
                 }
             }
-            TypeExpression::StructuralList(type_expressions) => {
+            TypeExpressionData::StructuralList(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_list_elements(elements)
             }
-            TypeExpression::FixedSizeList(type_expression, _) => todo!("#472 Undescribed by author."),
-            TypeExpression::SliceList(type_expression) => todo!("#473 Undescribed by author."),
-            TypeExpression::Intersection(type_expressions) => {
+            TypeExpressionData::FixedSizeList(fixed_size_list) => todo!("#472 Undescribed by author."),
+            TypeExpressionData::SliceList(type_expression) => todo!("#473 Undescribed by author."),
+            TypeExpressionData::Intersection(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_intersection_elements(elements)
             }
-            TypeExpression::Union(type_expressions) => {
+            TypeExpressionData::Union(type_expressions) => {
                 let elements: Vec<String> = type_expressions
+                    .0
                     .iter()
                     .map(|e| self.type_expression_to_source_code(e))
                     .collect();
                 self.wrap_union_elements(elements)
             }
-            TypeExpression::Generic(_, type_expressions) => todo!("#474 Undescribed by author."),
-            TypeExpression::Function {
+            TypeExpressionData::GenericAccess(generic_access) => todo!("#474 Undescribed by author."),
+            TypeExpressionData::Function(FunctionType {
                 parameters,
                 return_type,
-            } => {
+            }) => {
                 let params_code: Vec<String> = parameters
                     .iter()
                     .map(|(param_name, param_type)| {
@@ -299,8 +313,9 @@ impl AstToSourceCodeFormatter {
                     return_type_code
                 )
             }
-            TypeExpression::StructuralMap(items) => {
+            TypeExpressionData::StructuralMap(items) => {
                 let elements: Vec<String> = items
+                    .0
                     .iter()
                     .map(|(k, v)| {
                         format!(
@@ -401,10 +416,7 @@ impl AstToSourceCodeFormatter {
     }
 
     /// Convert a map (key/value pairs) to source code using join_elements.
-    fn map_to_source_code(
-        &self,
-        map: &Map,
-    ) -> String {
+    fn map_to_source_code(&self, map: &Map) -> String {
         let elements: Vec<String> = map
             .entries
             .iter()
@@ -434,6 +446,14 @@ impl AstToSourceCodeFormatter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
+            DatexExpressionData::VariantAccess(VariantAccess {
+                name,
+                variant,
+                ..
+            }) => {
+                format!("{}/{}", name, variant)
+            }
+            DatexExpressionData::Noop => "".to_string(),
             DatexExpressionData::Integer(i) => i.to_string(),
             DatexExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
@@ -456,31 +476,33 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Null => "null".to_string(),
             DatexExpressionData::Identifier(l) => l.to_string(),
             DatexExpressionData::Map(map) => self.map_to_source_code(map),
-            DatexExpressionData::List(list) => {
-                self.list_to_source_code(list)
+            DatexExpressionData::List(list) => self.list_to_source_code(list),
+            DatexExpressionData::CreateRef(create_ref) => {
+                match &create_ref.mutability {
+                    ReferenceMutability::Mutable => {
+                        format!("&mut {}", self.format(&create_ref.expression))
+                    }
+                    ReferenceMutability::Immutable => {
+                        format!("&{}", self.format(&create_ref.expression))
+                    }
+                }
             }
-            DatexExpressionData::CreateRef(expr) => {
-                format!("&{}", self.format(expr))
-            }
-            DatexExpressionData::CreateRefMut(expr) => {
-                format!("&mut {}", self.format(expr))
-            }
-            DatexExpressionData::CreateRefFinal(expr) => {
-                format!("&final {}", self.format(expr))
-            }
-            DatexExpressionData::BinaryOperation(
+            DatexExpressionData::BinaryOperation(BinaryOperation {
                 operator,
                 left,
                 right,
-                _type,
-            ) => {
+                ..
+            }) => {
                 let left_code = self.key_expression_to_source_code(left);
                 let right_code = self.key_expression_to_source_code(right);
                 ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
             }
-            DatexExpressionData::ApplyChain(operand, applies) => {
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base,
+                operations,
+            }) => {
                 let mut applies_code = vec![];
-                for apply in applies {
+                for apply in operations {
                     match apply {
                         ApplyOperation::FunctionCall(args) => {
                             let args_code = self.format(args);
@@ -504,7 +526,7 @@ impl AstToSourceCodeFormatter {
                         _ => todo!("#419 Undescribed by author."),
                     }
                 }
-                format!("{}{}", self.format(operand), applies_code.join(""))
+                format!("{}{}", self.format(base), applies_code.join(""))
             }
             DatexExpressionData::TypeExpression(type_expr) => {
                 format!(
@@ -529,11 +551,11 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::GetReference(pointer_address) => {
                 format!("{}", pointer_address) // FIXME #475
             }
-            DatexExpressionData::Conditional {
+            DatexExpressionData::Conditional(Conditional {
                 condition,
                 then_branch,
                 else_branch,
-            } => todo!("#476 Undescribed by author."),
+            }) => todo!("#476 Undescribed by author."),
             DatexExpressionData::VariableDeclaration(VariableDeclaration {
                 id: _,
                 kind,
@@ -571,12 +593,12 @@ impl AstToSourceCodeFormatter {
                 name,
                 ..
             }) => name.to_string(),
-            DatexExpressionData::TypeDeclaration {
+            DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: _,
                 name,
                 value,
                 hoisted: _,
-            } => {
+            }) => {
                 ast_fmt!(
                     &self,
                     "type {}%s=%s{}",
@@ -587,12 +609,12 @@ impl AstToSourceCodeFormatter {
             DatexExpressionData::Type(type_expression) => {
                 self.type_expression_to_source_code(type_expression)
             }
-            DatexExpressionData::FunctionDeclaration {
+            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
                 name,
                 parameters,
                 return_type,
                 body,
-            } => {
+            }) => {
                 let params_code: Vec<String> = parameters
                     .iter()
                     .map(|(param_name, param_type)| {
@@ -623,34 +645,37 @@ impl AstToSourceCodeFormatter {
                     body_code
                 )
             }
-            DatexExpressionData::Deref(datex_expression) => {
-                format!("*{}", self.format(datex_expression))
+            DatexExpressionData::Deref(deref) => {
+                format!("*{}", self.format(&deref.expression))
             }
             DatexExpressionData::Slot(slot) => slot.to_string(),
-            DatexExpressionData::SlotAssignment(slot, datex_expression) => {
-                format!("{}%s=%s{}", slot, self.format(datex_expression))
+            DatexExpressionData::SlotAssignment(SlotAssignment {
+                slot,
+                expression,
+            }) => {
+                format!("{}%s=%s{}", slot, self.format(expression))
             }
             DatexExpressionData::PointerAddress(pointer_address) => {
                 pointer_address.to_string()
             }
-            DatexExpressionData::ComparisonOperation(
-                comparison_operator,
-                datex_expression,
-                datex_expression1,
-            ) => {
+            DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                operator,
+                left,
+                right,
+            }) => {
                 ast_fmt!(
                     &self,
-                    "{}%s{comparison_operator}%s{}",
-                    self.format(datex_expression),
-                    self.format(datex_expression1)
+                    "{}%s{operator}%s{}",
+                    self.format(left),
+                    self.format(right)
                 )
             }
-            DatexExpressionData::DerefAssignment {
+            DatexExpressionData::DerefAssignment(DerefAssignment {
                 operator,
                 deref_count,
                 deref_expression,
                 assigned_expression,
-            } => {
+            }) => {
                 let deref_prefix = "*".repeat(*deref_count);
                 ast_fmt!(
                     &self,
@@ -668,15 +693,11 @@ impl AstToSourceCodeFormatter {
                 )
             }
             DatexExpressionData::Placeholder => "?".to_string(),
-            DatexExpressionData::RemoteExecution(
-                datex_expression,
-                datex_expression1,
-            ) => {
-                format!(
-                    "{}%s::%s{}",
-                    self.format(datex_expression),
-                    self.format(datex_expression1)
-                )
+            DatexExpressionData::RemoteExecution(RemoteExecution {
+                left,
+                right,
+            }) => {
+                format!("{}%s::%s{}", self.format(left), self.format(right))
             }
         }
     }
@@ -688,11 +709,14 @@ mod tests {
 
     use super::*;
     use crate::{
+        ast::spanned::Spanned,
         ast::{
-            assignment_operation::AssignmentOperator, parse, tree::VariableKind,
+            parse, structs::expression::VariableKind,
+            structs::operator::assignment::AssignmentOperator,
         },
         values::core_values::decimal::Decimal,
     };
+    use crate::ast::structs::expression::Deref;
 
     fn compact() -> AstToSourceCodeFormatter {
         AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)
@@ -897,32 +921,33 @@ mod tests {
 
     #[test]
     fn test_deref() {
-        let deref_ast = DatexExpressionData::Deref(Box::new(
+        let deref_ast = DatexExpressionData::Deref(Deref {expression: Box::new(
             DatexExpressionData::VariableAccess(VariableAccess {
                 id: 0,
                 name: "ptr".to_string(),
             })
             .with_default_span(),
-        ));
+        )});
         assert_eq!(compact().format(&deref_ast.with_default_span()), "*ptr");
     }
 
     #[test]
     fn test_deref_assignment() {
-        let deref_assign_ast = DatexExpressionData::DerefAssignment {
-            operator: AssignmentOperator::Assign,
-            deref_count: 2,
-            deref_expression: Box::new(
-                DatexExpressionData::VariableAccess(VariableAccess {
-                    id: 0,
-                    name: "ptr".to_string(),
-                })
-                .with_default_span(),
-            ),
-            assigned_expression: Box::new(
-                DatexExpressionData::Integer(42.into()).with_default_span(),
-            ),
-        };
+        let deref_assign_ast =
+            DatexExpressionData::DerefAssignment(DerefAssignment {
+                operator: AssignmentOperator::Assign,
+                deref_count: 2,
+                deref_expression: Box::new(
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "ptr".to_string(),
+                    })
+                    .with_default_span(),
+                ),
+                assigned_expression: Box::new(
+                    DatexExpressionData::Integer(42.into()).with_default_span(),
+                ),
+            });
         assert_eq!(
             compact().format(&deref_assign_ast.with_default_span()),
             "**ptr=42"
@@ -940,9 +965,13 @@ mod tests {
                     DatexExpressionData::TypedInteger(10u8.into())
                         .with_default_span(),
                 ),
-                type_annotation: Some(TypeExpression::RefMut(Box::new(
-                    TypeExpression::Literal("integer/u8".to_owned()),
-                ))),
+                type_annotation: Some(
+                    TypeExpressionData::RefMut(Box::new(
+                        TypeExpressionData::Literal("integer/u8".to_owned())
+                            .with_default_span(),
+                    ))
+                    .with_default_span(),
+                ),
             })
             .with_default_span();
         assert_eq!(

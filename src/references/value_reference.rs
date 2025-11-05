@@ -85,8 +85,4 @@ impl ValueReference {
     pub fn is_mutable(&self) -> bool {
         matches!(self.mutability, ReferenceMutability::Mutable)
     }
-
-    pub fn is_final(&self) -> bool {
-        matches!(self.mutability, ReferenceMutability::Final)
-    }
 }

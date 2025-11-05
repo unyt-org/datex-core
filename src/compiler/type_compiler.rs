@@ -1,12 +1,12 @@
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::scope::CompilationScope;
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+use crate::precompiler::precompiled_ast::AstMetadata;
 use crate::values::core_values::integer::Integer;
-use datex_core::compiler::precompiler::AstMetadata;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::ast::tree::TypeExpression;
 
 /// Compilation functions for type expressions.
 impl CompilationContext {
@@ -30,8 +30,8 @@ pub fn compile_type_expression(
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    match expr {
-        TypeExpression::Integer(integer) => {
+    match &expr.data {
+        TypeExpressionData::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
         _ => todo!("#453 Undescribed by author."),

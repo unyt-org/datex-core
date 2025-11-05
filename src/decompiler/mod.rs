@@ -8,7 +8,8 @@ use std::fmt::Write;
 use std::io::Cursor;
 // FIXME #223 no-std
 
-use crate::ast::tree::DatexExpressionData;
+use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::spanned::Spanned;
 use crate::decompiler::ast_to_source_code::AstToSourceCodeFormatter;
 use crate::global::protocol_structures::instructions::Int128Data;
 use crate::global::protocol_structures::instructions::IntegerData;
@@ -872,18 +873,7 @@ fn decompile_loop(
                 state.get_current_scope().skip_comma_for_next_item = true;
                 write!(output, "&mut ")?;
             }
-
-            Instruction::CreateRefFinal => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.get_current_scope().skip_comma_for_next_item = true;
-                write!(output, "&final ")?;
-            }
-
+            
             Instruction::RemoteExecution => {
                 handle_before_term(
                     state,

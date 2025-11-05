@@ -398,18 +398,6 @@ mod tests {
             42.into(),
             None,
             None,
-            ReferenceMutability::Final,
-        )
-        .unwrap();
-        assert_matches!(
-            r.try_set_value(0, 43, memory),
-            Err(AccessError::ImmutableReference)
-        );
-
-        let r = Reference::try_new_from_value_container(
-            42.into(),
-            None,
-            None,
             ReferenceMutability::Immutable,
         )
         .unwrap();
