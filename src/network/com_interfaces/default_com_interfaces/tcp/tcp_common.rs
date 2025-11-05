@@ -1,5 +1,5 @@
 use core::prelude::rust_2024::*;
-use core::result::Result;
+use crate::stdlib::string::String;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;

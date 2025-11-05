@@ -65,7 +65,7 @@ jobs:
                   check_name: Test Results
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   files: target/nextest/ci/report.xml
-    test-nostd:
+    test-embedded:
         runs-on : macos-latest
         name: Test
         concurrency:
@@ -96,4 +96,4 @@ jobs:
                 key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
 
             - name: Test nostd build
-              run: cargo build --no-default-features --features nostd,embassy_runtime,debug,com_websocket --target thumbv7em-none-eabihf
+              run: cargo build --no-default-features --features embedded,debug --target thumbv7em-none-eabihf

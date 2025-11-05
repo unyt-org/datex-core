@@ -142,8 +142,10 @@ indoc = "2.0.6"
 
 
 [features]
+
+# default: build with all features enabled + native features (com interfaces, crypto)
 default = [
-    "nostd", # default to nostd
+    "std",
     "native_websocket",
     "native_tcp",
     "native_rand",
@@ -163,6 +165,16 @@ default = [
     "com_serial",
     "com_websocket",
     # "debug", # temporary to fix linting and allow tests to run
+]
+
+# embedded build with nostd
+embedded = [
+    "nostd",
+    "embassy_runtime",
+    "com_websocket",
+    "com_serial",
+    "com_tcp",
+    "com_http"
 ]
 
 # com interfaces base
@@ -236,6 +248,7 @@ std = [
     "bytes/std",
     "ringmap/std",
 ]   # use std
+
 nostd = [
     "dep:nostd",
     "dep:foldhash",
@@ -251,6 +264,7 @@ nostd = [
     "num/alloc",
     "num/libm",
 ]
+
 debug = [
     "dep:serde-big-array"
 ]
