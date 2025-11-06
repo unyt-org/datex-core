@@ -533,7 +533,15 @@ mod tests {
     };
 
     use crate::{
-        ast::parse,
+        ast::{
+            parse,
+            parse_result::ValidDatexParseResult,
+            spanned::Spanned,
+            structs::expression::{
+                DatexExpression, DatexExpressionData, List, Map,
+                VariableDeclaration, VariableKind,
+            },
+        },
         compiler::precompiler::{
             precompile_ast_simple_error,
             precompiled_ast::{AstMetadata, RichAst},
@@ -553,19 +561,24 @@ mod tests {
             structural_type_definition::StructuralTypeDefinition,
             type_container::TypeContainer,
         },
-        values::core_values::{
-            boolean::Boolean,
-            decimal::{Decimal, typed_decimal::TypedDecimal},
-            endpoint::Endpoint,
-            integer::{
-                Integer,
-                typed_integer::{IntegerTypeVariant, TypedInteger},
+        values::{
+            core_value::CoreValue,
+            core_values::{
+                boolean::Boolean,
+                decimal::{Decimal, typed_decimal::TypedDecimal},
+                endpoint::Endpoint,
+                integer::{
+                    Integer,
+                    typed_integer::{IntegerTypeVariant, TypedInteger},
+                },
+                r#type::Type,
             },
-            r#type::Type,
         },
     };
 
-    fn infer_get_errors(src: &str) -> Vec<SpannedTypeError> {
+    /// Infers type errors for the given source code.
+    /// Panics if parsing or precompilation succeeds.
+    fn errors_for_script(src: &str) -> Vec<SpannedTypeError> {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
@@ -581,7 +594,7 @@ mod tests {
     /// Infers the AST of the given source code.
     /// Panics if parsing, precompilation or type inference fails.
     /// Returns the RichAst containing the inferred types.
-    fn infer_get_ast(src: &str) -> RichAst {
+    fn ast_for_script(src: &str) -> RichAst {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
@@ -593,13 +606,32 @@ mod tests {
         res
     }
 
+    /// Infers the AST of the given expression.
+    /// Panics if type inference fails.
+    fn ast_for_expression(expr: &mut DatexExpression) -> RichAst {
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let mut rich_ast = precompile_ast_simple_error(
+            ValidDatexParseResult {
+                ast: expr.clone(),
+                spans: vec![],
+            },
+            &mut scope_stack,
+            ast_metadata,
+        )
+        .expect("Precompilation failed");
+        infer_expression_type_simple_error(&mut rich_ast)
+            .expect("Type inference failed");
+        rich_ast
+    }
+
     /// Infers the type of the given source code.
     /// Panics if parsing, precompilation or type inference fails.
     /// Returns the inferred type of the full script expression. For example,
     /// for "var x = 42; x", it returns the type of "x", as this is the last expression of the statements.
     /// For "var x = 42;", it returns the never type, as the statement is terminated.
     /// For "10 + 32", it returns the type of the binary operation.
-    fn infer_get_type(src: &str) -> TypeContainer {
+    fn infer_from_script(src: &str) -> TypeContainer {
         let ast = parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
@@ -610,12 +642,120 @@ mod tests {
             .expect("Type inference failed")
     }
 
+    /// Infers the type of the given expression.
+    /// Panics if type inference fails.
+    fn infer_from_expression(expr: &mut DatexExpression) -> TypeContainer {
+        let mut rich_ast = RichAst {
+            ast: expr.clone(),
+            metadata: Rc::new(RefCell::new(AstMetadata::default())),
+        };
+        infer_expression_type_simple_error(&mut rich_ast)
+            .expect("Type inference failed")
+    }
+
+    #[test]
+    fn infer_literal_types() {
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Boolean(true).with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Boolean(false).with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Null.with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Null)
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Decimal(Decimal::from(1.23))
+                    .with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Decimal(Decimal::from(
+                1.23
+            )))
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Integer(Integer::from(42))
+                    .with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                42
+            )))
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::List(List::new(vec![
+                    DatexExpressionData::Integer(Integer::from(1))
+                        .with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(2))
+                        .with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(3))
+                        .with_default_span()
+                ]))
+                .with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::List(vec![
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(1)
+                ))),
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(2)
+                ))),
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(3)
+                )))
+            ]))
+        );
+
+        assert_eq!(
+            infer_from_expression(
+                &mut DatexExpressionData::Map(Map::new(vec![(
+                    DatexExpressionData::Text("a".to_string())
+                        .with_default_span(),
+                    DatexExpressionData::Integer(Integer::from(1))
+                        .with_default_span()
+                )]))
+                .with_default_span()
+            )
+            .as_type(),
+            Type::structural(StructuralTypeDefinition::Map(vec![(
+                Type::structural(StructuralTypeDefinition::Text(
+                    "a".to_string().into()
+                ))
+                .as_type_container(),
+                TypeContainer::Type(Type::from(CoreValue::from(
+                    Integer::from(1)
+                )))
+            )]))
+        );
+    }
+
     #[test]
     fn nominal_type_declaration() {
         let src = r#"
         type A = integer;
         "#;
-        let metadata = infer_get_ast(src).metadata;
+        let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
 
@@ -628,6 +768,27 @@ mod tests {
             None,
         );
         assert_eq!(var_a.var_type, Some(nominal_ref.as_type_container()));
+
+        // FIXME
+        // let inferred_type = infer_get_type("type X = integer/u8");
+        // assert_eq!(
+        //     inferred_type,
+        //     get_core_lib_type(CoreLibPointerId::Integer(Some(
+        //         IntegerTypeVariant::U8,
+        //     )))
+        // );
+
+        // let inferred_type = infer_get_type("type X = decimal");
+        // assert_eq!(
+        //     inferred_type,
+        //     get_core_lib_type(CoreLibPointerId::Decimal(None))
+        // );
+
+        // let inferred_type = infer_get_type("type X = boolean");
+        // assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
+
+        // let inferred_type = infer_get_type("type X = text");
+        // assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Text));
     }
 
     #[test]
@@ -635,7 +796,7 @@ mod tests {
         let src = r#"
         typedef A = integer;
         "#;
-        let metadata = infer_get_ast(src).metadata;
+        let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
         let var_type = var_a.var_type.as_ref().unwrap();
@@ -649,7 +810,7 @@ mod tests {
         type A = { b: B };
         type B = { a: A };
         "#;
-        let metadata = infer_get_ast(src).metadata;
+        let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
@@ -664,7 +825,7 @@ mod tests {
             next: LinkedList | null
         };
         "#;
-        let metadata = infer_get_ast(src).metadata;
+        let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
@@ -701,14 +862,14 @@ mod tests {
 
     #[test]
     fn infer_structural() {
-        let inferred = infer_get_type("42");
+        let inferred = infer_from_script("42");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
                 .as_type_container()
         );
 
-        let inferred = infer_get_type("@endpoint");
+        let inferred = infer_from_script("@endpoint");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Endpoint(
@@ -717,7 +878,7 @@ mod tests {
             .as_type_container()
         );
 
-        let inferred = infer_get_type("'hello world'");
+        let inferred = infer_from_script("'hello world'");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Text(
@@ -726,14 +887,14 @@ mod tests {
             .as_type_container()
         );
 
-        let inferred = infer_get_type("true");
+        let inferred = infer_from_script("true");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Boolean(true.into()))
                 .as_type_container()
         );
 
-        let inferred = infer_get_type("null");
+        let inferred = infer_from_script("null");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Null)
@@ -743,20 +904,20 @@ mod tests {
 
     #[test]
     fn statements_expression() {
-        let inferred = infer_get_type("10; 20; 30");
+        let inferred = infer_from_script("10; 20; 30");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(30.into()))
                 .as_type_container()
         );
 
-        let inferred = infer_get_type("10; 20; 30;");
+        let inferred = infer_from_script("10; 20; 30;");
         assert_eq!(inferred, TypeContainer::never());
     }
 
     #[test]
     fn var_declaration() {
-        let inferred = infer_get_type("var x = 42");
+        let inferred = infer_from_script("var x = 42");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
@@ -766,34 +927,34 @@ mod tests {
 
     #[test]
     fn var_declaration_and_access() {
-        let inferred = infer_get_type("var x = 42; x");
+        let inferred = infer_from_script("var x = 42; x");
         assert_eq!(
             inferred,
             Type::structural(StructuralTypeDefinition::Integer(42.into()))
                 .as_type_container()
         );
 
-        let inferred = infer_get_type("var y: integer = 100u8; y");
+        let inferred = infer_from_script("var y: integer = 100u8; y");
         assert_eq!(inferred, TypeContainer::integer());
     }
 
     #[test]
     fn var_declaration_with_type_annotation() {
-        let inferred = infer_get_type("var x: integer = 42");
+        let inferred = infer_from_script("var x: integer = 42");
         assert_eq!(inferred, TypeContainer::integer());
-        let inferred = infer_get_type("var x: integer/u8 = 42");
+        let inferred = infer_from_script("var x: integer/u8 = 42");
         assert_eq!(
             inferred,
             TypeContainer::typed_integer(IntegerTypeVariant::U8)
         );
 
-        let inferred = infer_get_type("var x: decimal = 42");
+        let inferred = infer_from_script("var x: decimal = 42");
         assert_eq!(inferred, TypeContainer::decimal());
 
-        let inferred = infer_get_type("var x: boolean = true");
+        let inferred = infer_from_script("var x: boolean = true");
         assert_eq!(inferred, TypeContainer::boolean());
 
-        let inferred = infer_get_type("var x: text = 'hello'");
+        let inferred = infer_from_script("var x: text = 'hello'");
         assert_eq!(inferred, TypeContainer::text());
     }
 
@@ -804,7 +965,7 @@ mod tests {
         a = "hello";
         a = 45;
         "#;
-        let metadata = infer_get_ast(src).metadata;
+        let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
@@ -823,7 +984,7 @@ mod tests {
         var a: integer = 42;
         a = "hello"; // type error
         "#;
-        let errors = infer_get_errors(src);
+        let errors = errors_for_script(src);
         let error = errors.first().unwrap();
 
         assert_matches!(
@@ -838,16 +999,16 @@ mod tests {
 
     #[test]
     fn binary_operation() {
-        let inferred = infer_get_type("10 + 32");
+        let inferred = infer_from_script("10 + 32");
         assert_eq!(inferred, TypeContainer::integer());
 
-        let inferred = infer_get_type("10 + 'test'");
+        let inferred = infer_from_script("10 + 'test'");
         assert_eq!(inferred, TypeContainer::never());
     }
 
     #[test]
     fn infer_typed_literal() {
-        let inferred_type = infer_get_type("type X = 42u8").as_type();
+        let inferred_type = infer_from_script("type X = 42u8").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
@@ -855,7 +1016,7 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_get_type("type X = 42i32").as_type();
+        let inferred_type = infer_from_script("type X = 42i32").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
@@ -863,7 +1024,7 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_get_type("type X = 42.69f32").as_type();
+        let inferred_type = infer_from_script("type X = 42.69f32").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedDecimal(
@@ -874,7 +1035,7 @@ mod tests {
 
     #[test]
     fn infer_type_simple_literal() {
-        let inferred_type = infer_get_type("type X = 42").as_type();
+        let inferred_type = infer_from_script("type X = 42").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
@@ -882,7 +1043,7 @@ mod tests {
             )))
         );
 
-        let inferred_type = infer_get_type("type X = 3/4").as_type();
+        let inferred_type = infer_from_script("type X = 3/4").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Decimal(
@@ -890,24 +1051,130 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_get_type("type X = true").as_type();
+        let inferred_type = infer_from_script("type X = true").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
         );
 
-        let inferred_type = infer_get_type("type X = false").as_type();
+        let inferred_type = infer_from_script("type X = false").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
         );
 
-        let inferred_type = infer_get_type(r#"type X = "hello""#).as_type();
+        let inferred_type = infer_from_script(r#"type X = "hello""#).as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Text(
                 "hello".to_string().into()
             ))
+        );
+    }
+
+    #[test]
+    // TODO #451 resolve intersection and union types properly
+    // by merging the member types if one is base (one level higher) than the other
+    fn infer_intersection_type_expression() {
+        let inferred_type =
+            infer_from_script("type X = integer/u8 & 42").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::intersection(vec![
+                get_core_lib_type(CoreLibPointerId::Integer(Some(
+                    IntegerTypeVariant::U8
+                ))),
+                Type::structural(StructuralTypeDefinition::Integer(
+                    Integer::from(42)
+                ))
+                .as_type_container()
+            ])
+        );
+    }
+
+    #[test]
+    fn infer_union_type_expression() {
+        let inferred_type =
+            infer_from_script("type X = integer/u8 | decimal").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::union(vec![
+                get_core_lib_type(CoreLibPointerId::Integer(Some(
+                    IntegerTypeVariant::U8
+                ))),
+                get_core_lib_type(CoreLibPointerId::Decimal(None))
+            ])
+        );
+    }
+
+    #[test]
+    fn infer_empty_struct_type_expression() {
+        let inferred_type = infer_from_script("type X = {}").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Map(vec![]))
+        );
+    }
+
+    #[test]
+    fn infer_struct_type_expression() {
+        let inferred_type =
+            infer_from_script("type X = { a: integer/u8, b: decimal }")
+                .as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Map(vec![
+                (
+                    Type::structural(StructuralTypeDefinition::Text(
+                        "a".to_string().into()
+                    ))
+                    .as_type_container(),
+                    get_core_lib_type(CoreLibPointerId::Integer(Some(
+                        IntegerTypeVariant::U8
+                    )))
+                ),
+                (
+                    Type::structural(StructuralTypeDefinition::Text(
+                        "b".to_string().into()
+                    ))
+                    .as_type_container(),
+                    get_core_lib_type(CoreLibPointerId::Decimal(None))
+                )
+            ]))
+        );
+    }
+
+    #[test]
+    fn infer_variable_declaration() {
+        /*
+        const x = 10
+        */
+        let mut expr =
+            DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                id: None,
+                kind: VariableKind::Const,
+                name: "x".to_string(),
+                type_annotation: None,
+                init_expression: Box::new(
+                    DatexExpressionData::Integer(Integer::from(10))
+                        .with_default_span(),
+                ),
+            })
+            .with_default_span();
+
+        let infer = ast_for_expression(&mut expr);
+
+        // check that the variable metadata has been updated
+        let metadata = infer.metadata.borrow();
+        let var_metadata = metadata.variable_metadata(0).unwrap();
+        assert_eq!(
+            var_metadata.var_type,
+            Some(
+                Type::structural(StructuralTypeDefinition::Integer(
+                    Integer::from(10)
+                ))
+                .as_type_container()
+            ),
         );
     }
 }
