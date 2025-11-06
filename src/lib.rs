@@ -62,7 +62,7 @@ pub mod stdlib {
     #[cfg(not(feature = "std"))]
     pub use nostd::{
         any, borrow, boxed, cell, collections, fmt, format, future, hash, io,
-        ops, panic, pin, rc, string, sync, vec,
+        ops, panic, pin, rc, string, sync, vec, time
     };
     #[cfg(feature = "std")]
     pub use std::*;
