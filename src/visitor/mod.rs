@@ -16,10 +16,12 @@ pub enum VisitAction<T: Sized> {
     ReplaceRecurseChildNodes(T),
     /// Replace the current node with a new one, and recurse into it
     ReplaceRecurse(T),
+    /// Set the type annotation of the current node, and recurse into child nodes
+    SetTypeRecurseChildNodes(TypeContainer),
+    /// Set the type annotation of the current node, skipping child nodes
+    SetTypeSkipChildren(TypeContainer),
     /// Convert the current node to a no-op
     ToNoop,
-
-    SetTypeAnnotation(TypeContainer),
 }
 
 #[cfg(test)]
