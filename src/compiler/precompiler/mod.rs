@@ -1,4 +1,5 @@
 use crate::stdlib::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
+use crate::type_inference::infer_expression_type_detailed_errors;
 use core::str::FromStr;
 use core::unreachable;
 
@@ -24,14 +25,11 @@ use crate::{
             VariableKind,
         },
     },
-    compiler::{
-        error::{
-            CompilerError, DetailedCompilerErrors,
-            DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
-            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
-            SpannedCompilerError, collect_or_pass_error,
-        },
-        type_inference::infer_expression_type_detailed_errors,
+    compiler::error::{
+        CompilerError, DetailedCompilerErrors,
+        DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
+        SpannedCompilerError, collect_or_pass_error,
     },
     global::operators::{BinaryOperator, binary::ArithmeticOperator},
     libs::core::CoreLibPointerId,
@@ -199,10 +197,7 @@ impl<'a> Precompiler<'a> {
         // type inference - currently only if detailed errors are enabled
         // FIXME: always do type inference here, not only for detailed errors
         if options.detailed_errors {
-            let type_res = infer_expression_type_detailed_errors(
-                &mut rich_ast.ast,
-                rich_ast.metadata.clone(),
-            );
+            let type_res = infer_expression_type_detailed_errors(&mut rich_ast);
 
             // append type errors to collected_errors if any
             if let Some(collected_errors) = self.collected_errors.as_mut()

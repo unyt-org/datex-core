@@ -1,10 +1,10 @@
 use crate::{
-    ast::structs::expression::{CreateRef, VariableAssignment},
+    ast::structs::expression::{CreateRef, List, Map, VariableAssignment},
     global::operators::{
         AssignmentOperator, BinaryOperator, binary::ArithmeticOperator,
     },
     stdlib::rc::Rc,
-    type_inference::error::TypeError,
+    type_inference::{error::TypeError, options::ErrorHandling},
     types::definition::TypeDefinition,
 };
 
@@ -55,34 +55,66 @@ use crate::{
 pub mod error;
 pub mod options;
 
+pub enum InferOutcome {
+    Ok(TypeContainer),
+    OkWithErrors {
+        ty: TypeContainer,
+        errors: DetailedTypeErrors,
+    },
+}
+impl From<InferOutcome> for TypeContainer {
+    fn from(outcome: InferOutcome) -> Self {
+        match outcome {
+            InferOutcome::Ok(ty) => ty,
+            InferOutcome::OkWithErrors { ty, .. } => ty,
+        }
+    }
+}
+
 pub fn infer_expression_type_simple_error(
     rich_ast: &mut RichAst,
 ) -> Result<TypeContainer, SpannedTypeError> {
-    infer_expression_type(
+    match infer_expression_type(
         rich_ast,
         InferExpressionTypeOptions {
             detailed_errors: false,
+            error_handling: ErrorHandling::FailFast,
         },
-    )
-    .map_err(|error| match error {
-        SimpleOrDetailedTypeError::Simple(error) => error,
-        _ => unreachable!(), // because detailed_errors: false
-    })
+    ) {
+        Ok(InferOutcome::Ok(ty)) => Ok(ty),
+        Ok(InferOutcome::OkWithErrors { ty, .. }) => Ok(ty),
+        Err(SimpleOrDetailedTypeError::Simple(e)) => Err(e),
+        Err(SimpleOrDetailedTypeError::Detailed(_)) => unreachable!(),
+    }
 }
 
 pub fn infer_expression_type_detailed_errors(
     rich_ast: &mut RichAst,
 ) -> Result<TypeContainer, DetailedTypeErrors> {
+    match infer_expression_type(
+        rich_ast,
+        InferExpressionTypeOptions {
+            detailed_errors: true,
+            error_handling: ErrorHandling::Collect,
+        },
+    ) {
+        Ok(InferOutcome::Ok(ty)) => Ok(ty),
+        Ok(InferOutcome::OkWithErrors { .. }) => unreachable!(),
+        Err(SimpleOrDetailedTypeError::Detailed(e)) => Err(e),
+        Err(SimpleOrDetailedTypeError::Simple(_)) => unreachable!(),
+    }
+}
+
+pub fn infer_expression_type_with_errors(
+    rich_ast: &mut RichAst,
+) -> Result<InferOutcome, SimpleOrDetailedTypeError> {
     infer_expression_type(
         rich_ast,
         InferExpressionTypeOptions {
             detailed_errors: true,
+            error_handling: ErrorHandling::CollectAndReturnType,
         },
     )
-    .map_err(|error| match error {
-        SimpleOrDetailedTypeError::Detailed(error) => error,
-        _ => unreachable!(), // because detailed_errors: true
-    })
 }
 
 /// Infers the type of an expression as precisely as possible.
@@ -90,11 +122,10 @@ pub fn infer_expression_type_detailed_errors(
 fn infer_expression_type(
     rich_ast: &mut RichAst,
     options: InferExpressionTypeOptions,
-) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
+) -> Result<InferOutcome, SimpleOrDetailedTypeError> {
     TypeInference::new(rich_ast.metadata.clone())
         .infer(&mut rich_ast.ast, options)
 }
-
 pub struct TypeInference {
     errors: Option<DetailedTypeErrors>,
     metadata: Rc<RefCell<AstMetadata>>,
@@ -112,22 +143,53 @@ impl TypeInference {
         &mut self,
         ast: &mut DatexExpression,
         options: InferExpressionTypeOptions,
-    ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
-        self.errors = if options.detailed_errors {
-            Some(DetailedTypeErrors { errors: vec![] })
+    ) -> Result<InferOutcome, SimpleOrDetailedTypeError> {
+        // Enable error collection if needed
+        if options.detailed_errors {
+            self.errors = Some(DetailedTypeErrors { errors: vec![] });
         } else {
-            None
-        };
+            self.errors = None;
+        }
+        println!("Starting type inference... {:?}", ast);
 
         let result = self.infer_expression(ast);
-        if let Some(collected_errors) = self.errors.take()
-            && collected_errors.has_errors()
-        {
-            Err(SimpleOrDetailedTypeError::Detailed(collected_errors))
-        } else {
-            result.map_err(SimpleOrDetailedTypeError::from)
+        let collected_errors = self.errors.take();
+        let has_errors = collected_errors
+            .as_ref()
+            .map(|e| e.has_errors())
+            .unwrap_or(false);
+
+        match options.error_handling {
+            ErrorHandling::FailFast => result
+                .map(InferOutcome::Ok)
+                .map_err(SimpleOrDetailedTypeError::from),
+
+            ErrorHandling::Collect => {
+                if has_errors {
+                    Err(SimpleOrDetailedTypeError::Detailed(
+                        collected_errors.unwrap(),
+                    ))
+                } else {
+                    result
+                        .map(InferOutcome::Ok)
+                        .map_err(SimpleOrDetailedTypeError::from)
+                }
+            }
+
+            ErrorHandling::CollectAndReturnType => {
+                let ty = result.unwrap_or_else(|_| TypeContainer::never());
+                if has_errors {
+                    Ok(InferOutcome::OkWithErrors {
+                        ty,
+                        errors: collected_errors.unwrap(),
+                    })
+                } else {
+                    Ok(InferOutcome::Ok(ty))
+                }
+            }
         }
     }
+
     fn infer_expression(
         &mut self,
         expr: &mut DatexExpression,
@@ -135,6 +197,7 @@ impl TypeInference {
         self.visit_datex_expression(expr)?;
         Ok(expr.r#type.clone().unwrap_or(TypeContainer::never()))
     }
+
     fn infer_type_expression(
         &mut self,
         type_expr: &mut TypeExpression,
@@ -181,6 +244,7 @@ fn mark_type<E>(
 ) -> Result<VisitAction<E>, SpannedTypeError> {
     Ok(VisitAction::SetTypeAnnotation(type_container))
 }
+
 impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_integer_type(
         &mut self,
@@ -586,6 +650,33 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         }
         mark_type(type_def)
     }
+
+    fn visit_list(
+        &mut self,
+        list: &mut List,
+        _: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        mark_structural_type(StructuralTypeDefinition::List(
+            list.items
+                .iter_mut()
+                .map(|elem_type_expr| self.infer_expression(elem_type_expr))
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
+    }
+
+    fn visit_map(
+        &mut self,
+        map: &mut Map,
+        _: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let mut fields = vec![];
+        for (key_expr, value_expr) in map.entries.iter_mut() {
+            let key_type = self.infer_expression(key_expr)?;
+            let value_type = self.infer_expression(value_expr)?;
+            fields.push((key_type, value_type));
+        }
+        mark_structural_type(StructuralTypeDefinition::Map(fields))
+    }
 }
 
 #[cfg(test)]
@@ -617,8 +708,9 @@ mod tests {
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
             error::{DetailedTypeErrors, SpannedTypeError, TypeError},
-            infer_expression_type_detailed_errors,
+            infer_expression_type, infer_expression_type_detailed_errors,
             infer_expression_type_simple_error,
+            infer_expression_type_with_errors,
         },
         types::{
             definition::TypeDefinition,
@@ -650,8 +742,7 @@ mod tests {
             precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
                 .expect("Precompilation failed");
         infer_expression_type_detailed_errors(&mut res)
-            .err()
-            .expect("Expected type errors")
+            .expect_err("Expected type errors")
             .errors
     }
 
@@ -672,8 +763,7 @@ mod tests {
         )
         .expect("Precompilation failed");
         infer_expression_type_detailed_errors(&mut rich_ast)
-            .err()
-            .expect("Expected type errors")
+            .expect_err("Expected type errors")
             .errors
     }
 
@@ -712,7 +802,7 @@ mod tests {
     }
 
     /// Infers the type of the given source code.
-    /// Panics if parsing, precompilation or type inference fails.
+    /// Panics if parsing, precompilation. Type errors are collected and ignored.
     /// Returns the inferred type of the full script expression. For example,
     /// for "var x = 42; x", it returns the type of "x", as this is the last expression of the statements.
     /// For "var x = 42;", it returns the never type, as the statement is terminated.
@@ -724,17 +814,26 @@ mod tests {
         let mut res =
             precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
                 .expect("Precompilation failed");
-        infer_expression_type_simple_error(&mut res)
+        infer_expression_type_with_errors(&mut res)
             .expect("Type inference failed")
+            .into()
     }
 
     /// Infers the type of the given expression.
     /// Panics if type inference fails.
     fn infer_from_expression(expr: &mut DatexExpression) -> TypeContainer {
-        let mut rich_ast = RichAst {
-            ast: expr.clone(),
-            metadata: Rc::new(RefCell::new(AstMetadata::default())),
-        };
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+
+        let mut rich_ast = precompile_ast_simple_error(
+            ValidDatexParseResult {
+                ast: expr.clone(),
+                spans: vec![],
+            },
+            &mut scope_stack,
+            ast_metadata,
+        )
+        .expect("Precompilation failed");
         infer_expression_type_simple_error(&mut rich_ast)
             .expect("Type inference failed")
     }
@@ -786,7 +885,6 @@ mod tests {
                 42
             )))
         );
-
         assert_eq!(
             infer_from_expression(
                 &mut DatexExpressionData::List(List::new(vec![
@@ -998,7 +1096,7 @@ mod tests {
         );
 
         let inferred = infer_from_script("10; 20; 30;");
-        assert_eq!(inferred, TypeContainer::never());
+        assert_eq!(inferred, TypeContainer::unit());
     }
 
     #[test]
