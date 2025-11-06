@@ -9,6 +9,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum TypeError {
     // only for debugging purposes
+    InvalidDerefType(TypeContainer),
     Unimplemented(String),
     MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
 
@@ -22,6 +23,9 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeError::InvalidDerefType(ty) => {
+                write!(f, "Cannot dereference value of type {}", ty)
+            }
             TypeError::Unimplemented(msg) => {
                 write!(f, "Unimplemented type inference case: {}", msg)
             }
