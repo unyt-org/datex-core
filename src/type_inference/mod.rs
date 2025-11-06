@@ -455,10 +455,6 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         variable_declaration: &mut VariableDeclaration,
         _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        println!(
-            "Inferring variable declaration id {:#?}",
-            variable_declaration
-        );
         let inner =
             self.infer_expression(&mut variable_declaration.init_expression)?;
 
@@ -499,23 +495,20 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let type_id = type_declaration.id.expect(
             "TypeDeclaration should have an id assigned during precompilation",
         );
-        println!("Inferring type declaration id {:#?}", type_declaration);
-        let muttype_def = self.variable_type(type_id);
-
-        let inferred_type_def =
-            self.infer_type_expression(&mut type_declaration.value)?;
-
-        if type_def.is_none() {
-            type_def.replace(inferred_type_def);
-        }
-        let type_def = type_def.as_ref().unwrap();
-
-        let reference = match type_def {
+        let type_def = self
+            .variable_type(type_id)
+            .as_ref()
+            .expect("TypeDeclaration type should have been inferred already")
+            .clone();
+        let reference = match &type_def {
             TypeContainer::TypeReference(r) => r.clone(),
             _ => {
                 panic!("TypeDeclaration var_type should be a TypeReference")
             }
         };
+
+        let inferred_type_def =
+            self.infer_type_expression(&mut type_declaration.value)?;
 
         println!("Inferring type declaration id {:#?}", reference);
         // let inner_ref = reference.borrow();
@@ -528,7 +521,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 // reference.swap(&r);
             }
         }
-        mark_type(type_def.clone())
+        mark_type(type_def)
     }
 }
 
@@ -561,9 +554,13 @@ mod tests {
             type_container::TypeContainer,
         },
         values::core_values::{
-            decimal::typed_decimal::TypedDecimal,
+            boolean::Boolean,
+            decimal::{Decimal, typed_decimal::TypedDecimal},
             endpoint::Endpoint,
-            integer::typed_integer::{IntegerTypeVariant, TypedInteger},
+            integer::{
+                Integer,
+                typed_integer::{IntegerTypeVariant, TypedInteger},
+            },
             r#type::Type,
         },
     };
@@ -849,33 +846,68 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn infer_typed_literal() {
-        let inferred_type = infer_get_type("type X = 42u8");
+        let inferred_type = infer_get_type("type X = 42u8").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
                 TypedInteger::U8(42)
             ))
-            .as_type_container()
         );
 
-        let inferred_type = infer_get_type("type X = 42i32");
+        let inferred_type = infer_get_type("type X = 42i32").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
                 TypedInteger::I32(42)
             ))
-            .as_type_container()
         );
 
-        let inferred_type = infer_get_type("type X = 42.69f32");
+        let inferred_type = infer_get_type("type X = 42.69f32").as_type();
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedDecimal(
                 TypedDecimal::from(42.69_f32)
             ))
-            .as_type_container()
+        );
+    }
+
+    #[test]
+    fn infer_type_simple_literal() {
+        let inferred_type = infer_get_type("type X = 42").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                42
+            )))
+        );
+
+        let inferred_type = infer_get_type("type X = 3/4").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Decimal(
+                Decimal::from_string("3/4").unwrap()
+            ))
+        );
+
+        let inferred_type = infer_get_type("type X = true").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
+        );
+
+        let inferred_type = infer_get_type("type X = false").as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
+        );
+
+        let inferred_type = infer_get_type(r#"type X = "hello""#).as_type();
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Text(
+                "hello".to_string().into()
+            ))
         );
     }
 }
