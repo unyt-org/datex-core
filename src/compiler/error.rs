@@ -1,11 +1,12 @@
 use crate::ast::error::error::{ParseError, SpanOrToken};
 use crate::ast::structs::expression::DatexExpression;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
-use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
 use crate::serde::error::DeserializationError;
+use crate::type_inference::error::{
+    DetailedTypeErrors, SpannedTypeError, TypeError,
+};
 use core::fmt::{Display, Formatter};
 use core::ops::Range;
-use datex_core::compiler::type_inference::SpannedTypeError;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
