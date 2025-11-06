@@ -1,4 +1,6 @@
-use std::{cell::RefCell, ops::Range, rc::Rc};
+use crate::stdlib::rc::Rc;
+
+use core::{cell::RefCell, ops::Range};
 
 use crate::{
     ast::structs::{
@@ -10,8 +12,8 @@ use crate::{
             Intersection, StructuralList, StructuralMap, TypeExpression, Union,
         },
     },
+    compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
     libs::core::{CoreLibPointerId, get_core_lib_type},
-    precompiler::precompiled_ast::{AstMetadata, RichAst},
     type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -470,17 +472,18 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 }
 
 #[cfg(test)]
+#[allow(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
 mod tests {
     use std::{cell::RefCell, rc::Rc, str::FromStr};
 
     use crate::{
         ast::parse,
-        libs::core::{CoreLibPointerId, get_core_lib_type_reference},
-        precompiler::{
+        compiler::precompiler::{
             precompile_ast_simple_error,
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
+        libs::core::{CoreLibPointerId, get_core_lib_type_reference},
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::infer_expression_type_simple_error,
         types::{
