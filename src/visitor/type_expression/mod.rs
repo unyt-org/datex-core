@@ -120,7 +120,12 @@ pub trait TypeExpressionVisitor<E>: Sized {
         };
 
         let result = match action {
-            VisitAction::SetTypeAnnotation(type_annotation) => {
+            VisitAction::SetTypeRecurseChildNodes(type_annotation) => {
+                expr.r#type = Some(type_annotation);
+                expr.walk_children(self)?;
+                Ok(())
+            }
+            VisitAction::SetTypeSkipChildren(type_annotation) => {
                 expr.r#type = Some(type_annotation);
                 Ok(())
             }

@@ -168,9 +168,13 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             Err(error) => self.handle_expression_error(error, expr)?,
         };
         let result = match action {
-            VisitAction::SetTypeAnnotation(type_annotation) => {
+            VisitAction::SetTypeRecurseChildNodes(type_annotation) => {
                 expr.r#type = Some(type_annotation);
-                // expr.walk_children(self)?;
+                expr.walk_children(self)?;
+                Ok(())
+            }
+            VisitAction::SetTypeSkipChildren(type_annotation) => {
+                expr.r#type = Some(type_annotation);
                 Ok(())
             }
             VisitAction::SkipChildren => Ok(()),
