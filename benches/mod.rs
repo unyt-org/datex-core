@@ -1,6 +1,10 @@
 #![feature(custom_test_frameworks)]
 #![feature(thread_local)]
 #![test_runner(criterion::runner)]
+#![allow(clippy::std_instead_of_alloc)]
+#![allow(clippy::alloc_instead_of_core)]
+#![allow(clippy::std_instead_of_core)]
+
 use core::hint::black_box;
 
 use crate::json::{

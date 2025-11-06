@@ -1,8 +1,9 @@
-use std::{fmt::Display, ops::Range};
+use core::{fmt::Display, ops::Range};
 
 use crate::{
-    ast::structs::operator::binary::ArithmeticOperator,
-    compiler::error::ErrorCollector, types::type_container::TypeContainer,
+    compiler::error::ErrorCollector,
+    global::operators::binary::ArithmeticOperator,
+    types::type_container::TypeContainer,
 };
 
 #[derive(Debug, Clone)]
@@ -17,7 +18,7 @@ pub enum TypeError {
 }
 
 impl Display for TypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeError::MismatchedOperands(op, lhs, rhs) => {
                 write!(
