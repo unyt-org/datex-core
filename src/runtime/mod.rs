@@ -410,6 +410,10 @@ impl RuntimeConfig {
 /// publicly exposed wrapper impl for the Runtime
 /// around RuntimeInternal
 impl Runtime {
+    /// Creates a new runtime instance with the given configuration and async context.
+    /// Note: If the endpoint is not specified in the config, a random endpoint will be generated.
+    /// This required setting the global context before using `set_global_context`,
+    /// otherwise the runtime will panic here.
     pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
         let com_hub = ComHub::new(endpoint.clone(), async_context.clone());
@@ -426,6 +430,8 @@ impl Runtime {
         }
     }
 
+    /// Initializes the runtime with the given configuration, global context, and async context.
+    /// This function also sets up logging and logs the initialization time.
     pub fn init(
         config: RuntimeConfig,
         global_context: GlobalContext,
