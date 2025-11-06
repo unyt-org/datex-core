@@ -179,8 +179,16 @@ impl<'a> Precompiler<'a> {
         }
         self.spans = ast.spans.clone(); // FIXME make better
 
+        // Hoist top-level type declaration if any
+        if let DatexExpressionData::TypeDeclaration(type_declaration) =
+            &mut ast.ast.data
+        {
+            self.hoist_variable(type_declaration);
+        }
+
         // visit ast recursively
         // returns Error directly if early exit on first error is enabled
+
         self.visit_datex_expression(&mut ast.ast)?;
 
         let mut rich_ast = RichAst {
@@ -273,6 +281,32 @@ impl<'a> Precompiler<'a> {
         match &expr.data {
             DatexExpressionData::RemoteExecution(_) => NewScopeType::None,
             _ => NewScopeType::NewScope,
+        }
+    }
+
+    /// Hoist a variable declaration by marking it as hoisted and
+    /// registering it in the current scope and metadata.
+    fn hoist_variable(&mut self, data: &mut TypeDeclaration) {
+        // set hoisted to true
+        data.hoisted = true;
+
+        // register variable
+        let type_id =
+            self.add_new_variable(data.name.clone(), VariableShape::Type);
+
+        // register placeholder ref in metadata
+        let reference = Rc::new(RefCell::new(TypeReference::nominal(
+            Type::UNIT,
+            NominalTypeDeclaration::from(data.name.clone()),
+            None,
+        )));
+        let type_def = TypeContainer::TypeReference(reference.clone());
+        {
+            self.ast_metadata
+                .borrow_mut()
+                .variable_metadata_mut(type_id)
+                .expect("TypeDeclaration should have variable metadata")
+                .var_type = Some(type_def.clone());
         }
     }
 }
@@ -405,40 +439,18 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
     ) -> ExpressionVisitResult<SpannedCompilerError> {
         let mut registered_names = HashSet::new();
         for statements in statements.statements.iter_mut() {
-            if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                name,
-                hoisted,
-                ..
-            }) = &mut statements.data
+            if let DatexExpressionData::TypeDeclaration(type_declaration) =
+                &mut statements.data
             {
-                // set hoisted to true
-                *hoisted = true;
+                let name = &type_declaration.name;
                 if registered_names.contains(name) {
-                    self.collect_error(SpannedCompilerError::new_with_span(
-                        CompilerError::InvalidRedeclaration(name.clone()),
-                        statements.span.clone(),
-                    ))?;
+                    self.collect_error(
+                        CompilerError::InvalidRedeclaration(name.clone())
+                            .into(),
+                    )?
                 }
                 registered_names.insert(name.clone());
-
-                // register variable
-                let type_id =
-                    self.add_new_variable(name.clone(), VariableShape::Type);
-
-                // register placeholder ref in metadata
-                let reference = Rc::new(RefCell::new(TypeReference::nominal(
-                    Type::UNIT,
-                    NominalTypeDeclaration::from(name.to_string()),
-                    None,
-                )));
-                let type_def = TypeContainer::TypeReference(reference.clone());
-                {
-                    self.ast_metadata
-                        .borrow_mut()
-                        .variable_metadata_mut(type_id)
-                        .expect("TypeDeclaration should have variable metadata")
-                        .var_type = Some(type_def.clone());
-                }
+                self.hoist_variable(type_declaration);
             }
         }
         Ok(VisitAction::VisitChildren)
@@ -1098,7 +1110,7 @@ mod tests {
                     CoreLibPointerId::Integer(None)
                 ))
                 .with_default_span(),
-                hoisted: false,
+                hoisted: true,
             })
             .with_default_span()
         );
