@@ -238,8 +238,14 @@ impl TypeInference {
         error: SpannedTypeError,
     ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
         if let Some(collected_errors) = &mut self.errors {
+            let action = match error.error {
+                TypeError::Unimplemented(_) => {
+                    VisitAction::SetTypeRecurseChildNodes(TypeContainer::never())
+                }
+                _ => VisitAction::SetTypeSkipChildren(TypeContainer::never()),
+            };
             collected_errors.errors.push(error);
-            Ok(VisitAction::SetTypeRecurseChildNodes(TypeContainer::never()))
+            Ok(action)
         } else {
             Err(error)
         }
@@ -254,7 +260,7 @@ fn mark_structural_type<E>(
 fn mark_type<E>(
     type_container: TypeContainer,
 ) -> Result<VisitAction<E>, SpannedTypeError> {
-    Ok(VisitAction::SetTypeRecurseChildNodes(type_container))
+    Ok(VisitAction::SetTypeSkipChildren(type_container))
 }
 
 impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
