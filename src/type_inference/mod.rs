@@ -1,7 +1,7 @@
 use crate::{
     ast::structs::expression::{CreateRef, List, Map, VariableAssignment},
     global::operators::{
-        AssignmentOperator, BinaryOperator, binary::ArithmeticOperator,
+        AssignmentOperator, BinaryOperator,
     },
     stdlib::rc::Rc,
     type_inference::{error::TypeError, options::ErrorHandling},
