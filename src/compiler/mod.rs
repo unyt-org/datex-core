@@ -55,7 +55,6 @@ pub mod error;
 pub mod metadata;
 pub mod scope;
 pub mod type_compiler;
-pub mod type_inference;
 
 pub mod precompiler;
 #[cfg(feature = "std")]
