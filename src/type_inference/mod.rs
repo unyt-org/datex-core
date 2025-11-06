@@ -1,10 +1,11 @@
 use crate::{
-    ast::structs::expression::VariableAssignment,
+    ast::structs::expression::{CreateRef, VariableAssignment},
     global::operators::{
         AssignmentOperator, BinaryOperator, binary::ArithmeticOperator,
     },
     stdlib::rc::Rc,
     type_inference::error::TypeError,
+    types::definition::TypeDefinition,
 };
 
 use core::{cell::RefCell, ops::Range, panic};
@@ -326,6 +327,26 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
 }
 
 impl ExpressionVisitor<SpannedTypeError> for TypeInference {
+    fn visit_create_ref(
+        &mut self,
+        create_ref: &mut CreateRef,
+        _: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let inner_type = self.infer_expression(&mut create_ref.expression)?;
+        mark_type(match &inner_type {
+            TypeContainer::Type(t) => TypeContainer::Type(Type {
+                type_definition: TypeDefinition::Type(Box::new(t.clone())),
+                reference_mutability: Some(create_ref.mutability.clone()),
+                base_type: None,
+            }),
+            // TODO #490: check if defined mutability of type reference matches
+            TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
+                type_definition: TypeDefinition::Reference(r.clone()),
+                reference_mutability: Some(create_ref.mutability.clone()),
+                base_type: None,
+            }),
+        })
+    }
     fn handle_expression_error(
         &mut self,
         error: SpannedTypeError,
@@ -333,19 +354,25 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
         self.record_error(error)
     }
+
     fn visit_statements(
         &mut self,
         statements: &mut Statements,
         _: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        let mut inferred_type = TypeContainer::never();
-        let size = statements.statements.len();
-        for (i, statement) in statements.statements.iter_mut().enumerate() {
-            let inner_type = self.infer_expression(statement)?;
-            if !statements.is_terminated && i == size - 1 {
-                inferred_type = inner_type;
-            }
+        let mut inferred_type = TypeContainer::unit();
+
+        // Infer type for each statement in order
+        for statement in statements.statements.iter_mut() {
+            inferred_type = self.infer_expression(statement)?;
         }
+
+        // If the statements block ends with a terminator (semicolon, etc.),
+        // it returns the unit type, otherwise, it returns the last inferred type.
+        if statements.is_terminated {
+            inferred_type = TypeContainer::unit();
+        }
+
         Ok(VisitAction::SetTypeAnnotation(inferred_type))
     }
 
@@ -462,17 +489,27 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_variable_declaration(
         &mut self,
         variable_declaration: &mut VariableDeclaration,
-        _: &Range<usize>,
+        span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        let inner =
+        let init_type =
             self.infer_expression(&mut variable_declaration.init_expression)?;
 
         let actual_type =
             if let Some(specific) = &mut variable_declaration.type_annotation {
                 // FIXME check if matches
-                self.infer_type_expression(specific)?
+                let annotated_type = self.infer_type_expression(specific)?;
+                if !annotated_type.matches_type(&init_type) {
+                    self.record_error(SpannedTypeError::new_with_span(
+                        TypeError::AssignmentTypeMismatch {
+                            annotated_type: annotated_type.clone(),
+                            assigned_type: init_type,
+                        },
+                        span.clone(),
+                    ))?;
+                }
+                annotated_type
             } else {
-                inner
+                init_type
             };
         self.update_variable_type(
             variable_declaration.id.unwrap(),
@@ -480,6 +517,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         );
         mark_type(actual_type)
     }
+
     fn visit_binary_operation(
         &mut self,
         binary_operation: &mut BinaryOperation,
@@ -538,15 +576,12 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let inferred_type_def =
             self.infer_type_expression(&mut type_declaration.value)?;
 
-        println!("Inferring type declaration id {:#?}", reference);
-        // let inner_ref = reference.borrow();
         match inferred_type_def {
             TypeContainer::Type(t) => {
                 reference.borrow_mut().type_value = t;
             }
             TypeContainer::TypeReference(r) => {
                 reference.borrow_mut().type_value = Type::reference(r, None);
-                // reference.swap(&r);
             }
         }
         mark_type(type_def)

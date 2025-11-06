@@ -102,6 +102,9 @@ impl StructuralEq for TypeContainer {
 }
 
 impl TypeContainer {
+    pub fn unit() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unit)
+    }
     pub fn null() -> Self {
         get_core_lib_type(CoreLibPointerId::Null)
     }
