@@ -1,6 +1,9 @@
 use crate::{
     ast::structs::expression::VariableAssignment,
-    global::operators::AssignmentOperator, stdlib::rc::Rc,
+    global::operators::{
+        AssignmentOperator, BinaryOperator, binary::ArithmeticOperator,
+    },
+    stdlib::rc::Rc,
     type_inference::error::TypeError,
 };
 
@@ -152,6 +155,17 @@ impl TypeInference {
             var_meta.var_type = Some(var_type);
         } else {
             panic!("Variable metadata not found for id {}", id);
+        }
+    }
+    fn record_error(
+        &mut self,
+        error: SpannedTypeError,
+    ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
+        if let Some(collected_errors) = &mut self.errors {
+            collected_errors.errors.push(error);
+            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
+        } else {
+            Err(error)
         }
     }
 }
@@ -317,12 +331,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         error: SpannedTypeError,
         _: &DatexExpression,
     ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
-        if let Some(collected_errors) = &mut self.errors {
-            collected_errors.errors.push(error);
-            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
-        } else {
-            Err(error)
-        }
+        self.record_error(error)
     }
     fn visit_statements(
         &mut self,
@@ -474,16 +483,35 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_binary_operation(
         &mut self,
         binary_operation: &mut BinaryOperation,
-        _: &Range<usize>,
+        span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let left_type = self.infer_expression(&mut binary_operation.left)?;
         let right_type = self.infer_expression(&mut binary_operation.right)?;
-        // if base types are the same, use that as result type
-        if left_type.base_type() == right_type.base_type() {
-            mark_type(left_type.base_type())
-        } else {
-            // otherwise, use never type
-            mark_type(TypeContainer::never())
+
+        match binary_operation.operator {
+            BinaryOperator::Arithmetic(op) => {
+                // if base types are the same, use that as result type
+                if left_type.base_type() == right_type.base_type() {
+                    mark_type(left_type.base_type())
+                } else {
+                    Err(SpannedTypeError {
+                        error: TypeError::MismatchedOperands(
+                            op, left_type, right_type,
+                        ),
+                        span: Some(span.clone()),
+                    })
+                }
+            }
+            _ => {
+                //  otherwise, use never type
+                self.record_error(SpannedTypeError {
+                    error: TypeError::Unimplemented(
+                        "Binary operation not implemented".into(),
+                    ),
+                    span: Some(span.clone()),
+                })?;
+                mark_type(TypeContainer::never())
+            }
         }
     }
 
@@ -538,8 +566,8 @@ mod tests {
             parse_result::ValidDatexParseResult,
             spanned::Spanned,
             structs::expression::{
-                DatexExpression, DatexExpressionData, List, Map,
-                VariableDeclaration, VariableKind,
+                BinaryOperation, DatexExpression, DatexExpressionData, List,
+                Map, VariableDeclaration, VariableKind,
             },
         },
         compiler::precompiler::{
@@ -547,6 +575,7 @@ mod tests {
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
+        global::operators::{BinaryOperator, binary::ArithmeticOperator},
         libs::core::{
             CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
         },
@@ -586,6 +615,28 @@ mod tests {
             precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
                 .expect("Precompilation failed");
         infer_expression_type_detailed_errors(&mut res)
+            .err()
+            .expect("Expected type errors")
+            .errors
+    }
+
+    /// Infers type errors for the given expression.
+    /// Panics if precompilation succeeds.
+    fn errors_for_expression(
+        expr: &mut DatexExpression,
+    ) -> Vec<SpannedTypeError> {
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let mut rich_ast = precompile_ast_simple_error(
+            ValidDatexParseResult {
+                ast: expr.clone(),
+                spans: vec![],
+            },
+            &mut scope_stack,
+            ast_metadata,
+        )
+        .expect("Precompilation failed");
+        infer_expression_type_detailed_errors(&mut rich_ast)
             .err()
             .expect("Expected type errors")
             .errors
@@ -1176,5 +1227,64 @@ mod tests {
                 .as_type_container()
             ),
         );
+    }
+
+    #[test]
+    fn infer_binary_expression_types() {
+        let integer = get_core_lib_type(CoreLibPointerId::Integer(None));
+        let decimal = get_core_lib_type(CoreLibPointerId::Decimal(None));
+
+        // integer - integer = integer
+        let mut expr = DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
+            left: Box::new(
+                DatexExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+            ),
+            right: Box::new(
+                DatexExpressionData::Integer(Integer::from(2))
+                    .with_default_span(),
+            ),
+            r#type: None,
+        })
+        .with_default_span();
+
+        assert_eq!(infer_from_expression(&mut expr), integer);
+
+        // decimal + decimal = decimal
+        let mut expr = DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Add),
+            left: Box::new(
+                DatexExpressionData::Decimal(Decimal::from(1.0))
+                    .with_default_span(),
+            ),
+            right: Box::new(
+                DatexExpressionData::Decimal(Decimal::from(2.0))
+                    .with_default_span(),
+            ),
+            r#type: None,
+        })
+        .with_default_span();
+        assert_eq!(infer_from_expression(&mut expr), decimal);
+
+        // integer + decimal = type error
+        let mut expr = DatexExpressionData::BinaryOperation(BinaryOperation {
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Add),
+            left: Box::new(
+                DatexExpressionData::Integer(Integer::from(1))
+                    .with_default_span(),
+            ),
+            right: Box::new(
+                DatexExpressionData::Decimal(Decimal::from(2.0))
+                    .with_default_span(),
+            ),
+            r#type: None,
+        })
+        .with_default_span();
+
+        assert!(matches!(
+            errors_for_expression(&mut expr).first().unwrap().error,
+            TypeError::MismatchedOperands(_, _, _)
+        ));
     }
 }
