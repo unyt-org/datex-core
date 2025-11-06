@@ -44,6 +44,7 @@ pub mod references;
 pub mod runtime;
 #[cfg(feature = "compiler")]
 pub mod type_inference;
+#[cfg(feature = "compiler")]
 pub mod visitor;
 
 pub mod core_compiler;
