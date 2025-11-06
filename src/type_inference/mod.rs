@@ -1,8 +1,20 @@
 use crate::{
-    ast::structs::expression::{CreateRef, List, Map, VariableAssignment},
-    global::operators::{
-        AssignmentOperator, BinaryOperator,
+    ast::structs::{
+        expression::{
+            ApplyChain, ComparisonOperation, Conditional, CreateRef, Deref,
+            DerefAssignment, FunctionDeclaration, List, Map, RemoteExecution,
+            Slot, SlotAssignment, UnaryOperation, VariableAssignment,
+            VariantAccess,
+        },
+        r#type::{
+            FixedSizeList, FunctionType, GenericAccess, SliceList,
+            TypeVariantAccess,
+        },
     },
+    global::operators::{
+        AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
+    },
+    references::reference::ReferenceMutability,
     stdlib::rc::Rc,
     type_inference::{error::TypeError, options::ErrorHandling},
     types::definition::TypeDefinition,
@@ -227,7 +239,7 @@ impl TypeInference {
     ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
         if let Some(collected_errors) = &mut self.errors {
             collected_errors.errors.push(error);
-            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
+            Ok(VisitAction::SetTypeRecurseChildNodes(TypeContainer::never()))
         } else {
             Err(error)
         }
@@ -242,7 +254,7 @@ fn mark_structural_type<E>(
 fn mark_type<E>(
     type_container: TypeContainer,
 ) -> Result<VisitAction<E>, SpannedTypeError> {
-    Ok(VisitAction::SetTypeAnnotation(type_container))
+    Ok(VisitAction::SetTypeRecurseChildNodes(type_container))
 }
 
 impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
@@ -388,6 +400,91 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
                 .unwrap_or(TypeContainer::never()),
         )
     }
+    fn visit_fixed_size_list_type(
+        &mut self,
+        fixed_size_list: &mut FixedSizeList,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "FixedSizeList type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_function_type(
+        &mut self,
+        function_type: &mut FunctionType,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "FunctionType type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_generic_access_type(
+        &mut self,
+        generic_access: &mut GenericAccess,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "GenericAccess type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_literal_type(
+        &mut self,
+        literal: &mut String,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        unreachable!(
+            "Literal type expressions should have been resolved during precompilation"
+        );
+    }
+    fn visit_ref_mut_type(
+        &mut self,
+        type_ref_mut: &mut TypeExpression,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        let inner_type = self.infer_type_expression(type_ref_mut)?;
+        mark_type(inner_type)
+    }
+    fn visit_ref_type(
+        &mut self,
+        type_ref: &mut TypeExpression,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        let inner_type = self.infer_type_expression(type_ref)?;
+        mark_type(inner_type)
+    }
+    fn visit_slice_list_type(
+        &mut self,
+        slice_list: &mut SliceList,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "SliceList type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_variant_access_type(
+        &mut self,
+        variant_access: &mut TypeVariantAccess,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "VariantAccess type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
 }
 
 impl ExpressionVisitor<SpannedTypeError> for TypeInference {
@@ -437,7 +534,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             inferred_type = TypeContainer::unit();
         }
 
-        Ok(VisitAction::SetTypeAnnotation(inferred_type))
+        Ok(VisitAction::SetTypeSkipChildren(inferred_type))
     }
 
     fn visit_variable_access(
@@ -676,6 +773,212 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             fields.push((key_type, value_type));
         }
         mark_structural_type(StructuralTypeDefinition::Map(fields))
+    }
+    fn visit_apply_chain(
+        &mut self,
+        apply_chain: &mut ApplyChain,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "ApplyChain type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_comparison_operation(
+        &mut self,
+        comparison_operation: &mut ComparisonOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        mark_type(TypeContainer::boolean())
+    }
+    fn visit_conditional(
+        &mut self,
+        conditional: &mut Conditional,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "Conditional type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_create_mut(
+        &mut self,
+        datex_expression: &mut DatexExpression,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let inner_type = self.infer_expression(datex_expression)?;
+        mark_type(match &inner_type {
+            TypeContainer::Type(t) => TypeContainer::Type(Type {
+                type_definition: TypeDefinition::Type(Box::new(t.clone())),
+                reference_mutability: Some(ReferenceMutability::Mutable),
+                base_type: None,
+            }),
+            TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
+                type_definition: TypeDefinition::Reference(r.clone()),
+                reference_mutability: Some(ReferenceMutability::Mutable),
+                base_type: None,
+            }),
+        })
+    }
+    fn visit_deref(
+        &mut self,
+        deref: &mut Deref,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let inner_type = self.infer_expression(&mut deref.expression)?;
+        match &inner_type {
+            TypeContainer::Type(t) => {
+                if let TypeDefinition::Reference(r) = &t.type_definition {
+                    let bor = r.borrow();
+                    mark_type(bor.type_value.clone().as_type_container())
+                } else {
+                    self.record_error(SpannedTypeError {
+                        error: TypeError::InvalidDerefType(inner_type),
+                        span: Some(span.clone()),
+                    })
+                }
+            }
+            TypeContainer::TypeReference(r) => {
+                let bor = r.borrow();
+                mark_type(bor.type_value.clone().as_type_container())
+            }
+        }
+    }
+    fn visit_function_declaration(
+        &mut self,
+        function_declaration: &mut FunctionDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "FunctionDeclaration type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_unary_operation(
+        &mut self,
+        unary_operation: &mut UnaryOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let op = unary_operation.operator;
+        let inner = self.infer_expression(&mut unary_operation.expression)?;
+        mark_type(match op {
+            UnaryOperator::Logical(op) => match op {
+                LogicalUnaryOperator::Not => TypeContainer::boolean(),
+            },
+            UnaryOperator::Arithmetic(_) | UnaryOperator::Bitwise(_) => {
+                inner.base_type()
+            }
+            UnaryOperator::Reference(_) => return Err(SpannedTypeError {
+                error: TypeError::Unimplemented(
+                    "Unary reference operator type inference not implemented"
+                        .into(),
+                ),
+                span: Some(span.clone()),
+            }),
+        })
+    }
+    fn visit_variant_access(
+        &mut self,
+        variant_access: &mut VariantAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "VariantAccess type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_slot(
+        &mut self,
+        slot: &Slot,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "Slot type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_identifier(
+        &mut self,
+        identifier: &mut String,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Ok(VisitAction::SkipChildren)
+    }
+    fn visit_placeholder(
+        &mut self,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Ok(VisitAction::SkipChildren)
+    }
+    fn visit_deref_assignment(
+        &mut self,
+        deref_assignment: &mut DerefAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "DerefAssignment type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_get_reference(
+        &mut self,
+        pointer_address: &mut PointerAddress,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "GetReference type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_slot_assignment(
+        &mut self,
+        slot_assignment: &mut SlotAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "SlotAssignment type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_pointer_address(
+        &mut self,
+        pointer_address: &PointerAddress,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "PointerAddress type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+    fn visit_remote_execution(
+        &mut self,
+        remote_execution: &mut RemoteExecution,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "RemoteExecution type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
     }
 }
 
