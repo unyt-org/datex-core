@@ -1,6 +1,10 @@
-use crate::stdlib::rc::Rc;
+use crate::{
+    ast::structs::expression::VariableAssignment,
+    global::operators::AssignmentOperator, stdlib::rc::Rc,
+    type_inference::error::TypeError,
+};
 
-use core::{cell::RefCell, ops::Range};
+use core::{cell::RefCell, ops::Range, panic};
 
 use crate::{
     ast::structs::{
@@ -88,12 +92,16 @@ fn infer_expression_type(
 }
 
 pub struct TypeInference {
+    errors: Option<DetailedTypeErrors>,
     metadata: Rc<RefCell<AstMetadata>>,
 }
 
 impl TypeInference {
     pub fn new(metadata: Rc<RefCell<AstMetadata>>) -> Self {
-        TypeInference { metadata }
+        TypeInference {
+            metadata,
+            errors: None,
+        }
     }
 
     pub fn infer(
@@ -101,14 +109,14 @@ impl TypeInference {
         ast: &mut DatexExpression,
         options: InferExpressionTypeOptions,
     ) -> Result<TypeContainer, SimpleOrDetailedTypeError> {
-        let collected_errors = &mut if options.detailed_errors {
+        self.errors = if options.detailed_errors {
             Some(DetailedTypeErrors { errors: vec![] })
         } else {
             None
         };
 
         let result = self.infer_expression(ast);
-        if let Some(collected_errors) = collected_errors.take()
+        if let Some(collected_errors) = self.errors.take()
             && collected_errors.has_errors()
         {
             Err(SimpleOrDetailedTypeError::Detailed(collected_errors))
@@ -304,6 +312,18 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
 }
 
 impl ExpressionVisitor<SpannedTypeError> for TypeInference {
+    fn handle_expression_error(
+        &mut self,
+        error: SpannedTypeError,
+        _: &DatexExpression,
+    ) -> Result<VisitAction<DatexExpression>, SpannedTypeError> {
+        if let Some(collected_errors) = &mut self.errors {
+            collected_errors.errors.push(error);
+            Ok(VisitAction::SetTypeAnnotation(TypeContainer::never()))
+        } else {
+            Err(error)
+        }
+    }
     fn visit_statements(
         &mut self,
         statements: &mut Statements,
@@ -329,6 +349,40 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             self.variable_type(var_access.id)
                 .unwrap_or(TypeContainer::never()),
         )
+    }
+
+    fn visit_variable_assignment(
+        &mut self,
+        variable_assignment: &mut VariableAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        let Some(id) = variable_assignment.id else {
+            panic!(
+                "VariableAssignment should have an id assigned during precompilation"
+            );
+        };
+        let assigned_type =
+            self.infer_expression(&mut variable_assignment.expression)?;
+        let annotated_type =
+            self.variable_type(id).unwrap_or(TypeContainer::never());
+
+        match variable_assignment.operator {
+            AssignmentOperator::Assign => {
+                if !annotated_type.matches_type(&assigned_type) {
+                    return Err(SpannedTypeError {
+                        error: TypeError::AssignmentTypeMismatch {
+                            annotated_type,
+                            assigned_type,
+                        },
+                        span: Some(span.clone()),
+                    });
+                }
+            }
+            _ => {
+                panic!("Unsupported assignment operator");
+            }
+        }
+        mark_type(annotated_type)
     }
 
     fn visit_integer(
@@ -474,7 +528,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 #[cfg(test)]
 #[allow(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc, str::FromStr};
+    use std::{
+        assert_matches::assert_matches, cell::RefCell, rc::Rc, str::FromStr,
+    };
 
     use crate::{
         ast::parse,
@@ -483,9 +539,15 @@ mod tests {
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
-        libs::core::{CoreLibPointerId, get_core_lib_type_reference},
+        libs::core::{
+            CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+        },
         references::type_reference::{NominalTypeDeclaration, TypeReference},
-        type_inference::infer_expression_type_simple_error,
+        type_inference::{
+            error::{DetailedTypeErrors, SpannedTypeError, TypeError},
+            infer_expression_type_detailed_errors,
+            infer_expression_type_simple_error,
+        },
         types::{
             definition::TypeDefinition,
             structural_type_definition::StructuralTypeDefinition,
@@ -496,6 +558,19 @@ mod tests {
             r#type::Type,
         },
     };
+
+    fn infer_get_errors(src: &str) -> Vec<SpannedTypeError> {
+        let ast = parse(src).unwrap();
+        let mut scope_stack = PrecompilerScopeStack::default();
+        let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
+        let mut res =
+            precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
+                .expect("Precompilation failed");
+        infer_expression_type_detailed_errors(&mut res)
+            .err()
+            .expect("Expected type errors")
+            .errors
+    }
 
     /// Infers the AST of the given source code.
     /// Panics if parsing, precompilation or type inference fails.
@@ -558,6 +633,20 @@ mod tests {
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
         let var_type = var_a.var_type.as_ref().unwrap();
+        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        // FIXME assert_eq!(var_type.borrow().pointer_address, Some(CoreLibPointerId::Integer(None).into()));
+    }
+
+    #[test]
+    fn recursive_types() {
+        let src = r#"
+        type A = { b: B };
+        type B = { a: A };
+        "#;
+        let metadata = infer_get_ast(src).metadata;
+        let metadata = metadata.borrow();
+        let var = metadata.variable_metadata(0).unwrap();
+        let var_type = var.var_type.as_ref().unwrap();
         assert!(matches!(var_type, TypeContainer::TypeReference(_)));
     }
 
@@ -700,6 +789,45 @@ mod tests {
 
         let inferred = infer_get_type("var x: text = 'hello'");
         assert_eq!(inferred, TypeContainer::text());
+    }
+
+    #[test]
+    fn var_declaration_reassignment() {
+        let src = r#"
+        var a: text | integer = 42;
+        a = "hello";
+        a = 45;
+        "#;
+        let metadata = infer_get_ast(src).metadata;
+        let metadata = metadata.borrow();
+        let var = metadata.variable_metadata(0).unwrap();
+        let var_type = var.var_type.as_ref().unwrap();
+        assert_eq!(
+            var_type.as_type(),
+            Type::union(vec![
+                get_core_lib_type(CoreLibPointerId::Text),
+                get_core_lib_type(CoreLibPointerId::Integer(None))
+            ])
+        );
+    }
+
+    #[test]
+    fn assignment_type_mismatch() {
+        let src = r#"
+        var a: integer = 42;
+        a = "hello"; // type error
+        "#;
+        let errors = infer_get_errors(src);
+        let error = errors.first().unwrap();
+
+        assert_matches!(
+            &error.error,
+            TypeError::AssignmentTypeMismatch {
+                annotated_type,
+                assigned_type
+            } if *annotated_type == get_core_lib_type(CoreLibPointerId::Integer(None))
+              && assigned_type.as_type() == Type::structural(StructuralTypeDefinition::Text("hello".to_string().into()))
+        );
     }
 
     #[test]
