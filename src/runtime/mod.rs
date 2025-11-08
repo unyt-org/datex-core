@@ -396,6 +396,7 @@ impl RuntimeConfigInterface {
 pub struct RuntimeConfig {
     pub endpoint: Option<Endpoint>,
     pub interfaces: Option<Vec<RuntimeConfigInterface>>,
+    pub env: Option<Vec<(String, String)>>,
     /// if set to true, the runtime will log debug messages
     pub debug: Option<bool>,
 }
@@ -405,6 +406,7 @@ impl RuntimeConfig {
         RuntimeConfig {
             endpoint: Some(endpoint),
             interfaces: None,
+            env: None,
             debug: None,
         }
     }
