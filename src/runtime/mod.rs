@@ -369,8 +369,26 @@ impl RuntimeInternal {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RuntimeConfigInterface {
-    r#type: String,
-    config: ValueContainer,
+    pub interface_type: String,
+    pub config: ValueContainer,
+}
+
+impl RuntimeConfigInterface {
+
+    pub fn new<T: Serialize>(interface_type: &str, config: T) -> Result<RuntimeConfigInterface, SerializationError> {
+       Ok(RuntimeConfigInterface {
+           interface_type: interface_type.to_string(),
+           config: to_value_container(&config)?
+       })
+    }
+
+    pub fn new_from_value_container(interface_type: &str, config: ValueContainer) -> RuntimeConfigInterface {
+        RuntimeConfigInterface {
+            interface_type: interface_type.to_string(),
+            config,
+        }
+    }
+
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -392,11 +410,11 @@ impl RuntimeConfig {
 
     pub fn add_interface<T: Serialize>(
         &mut self,
-        r#type: String,
+        interface_type: String,
         config: T,
     ) -> Result<(), SerializationError> {
         let config = to_value_container(&config)?;
-        let interface = RuntimeConfigInterface { r#type, config };
+        let interface = RuntimeConfigInterface { interface_type, config };
         if let Some(interfaces) = &mut self.interfaces {
             interfaces.push(interface);
         } else {
@@ -501,19 +519,19 @@ impl Runtime {
 
         // create interfaces
         if let Some(interfaces) = &self.internal.config.interfaces {
-            for RuntimeConfigInterface { r#type, config } in interfaces.iter() {
+            for RuntimeConfigInterface { interface_type, config } in interfaces.iter() {
                 if let Err(err) = self
                     .com_hub()
                     .create_interface(
-                        r#type,
+                        interface_type,
                         config.clone(),
                         InterfacePriority::default(),
                     )
                     .await
                 {
-                    error!("Failed to create interface {type}: {err:?}");
+                    error!("Failed to create interface {interface_type}: {err:?}");
                 } else {
-                    info!("Created interface: {type}");
+                    info!("Created interface: {interface_type}");
                 }
             }
         }
