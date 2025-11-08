@@ -369,6 +369,7 @@ impl RuntimeInternal {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RuntimeConfigInterface {
+    #[serde(rename = "type")]
     pub interface_type: String,
     pub config: ValueContainer,
 }
