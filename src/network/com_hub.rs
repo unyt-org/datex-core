@@ -77,14 +77,10 @@ type InterfaceMap = HashMap<
 >;
 
 pub type IncomingBlockInterceptor =
-    Arc<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + Send + Sync + 'static>;
+    Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
 
-pub type OutgoingBlockInterceptor = Arc<
-    dyn Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint])
-        + Send
-        + Sync
-        + 'static,
->;
+pub type OutgoingBlockInterceptor =
+    Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint]) + 'static>;
 
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
@@ -313,24 +309,21 @@ impl ComHub {
     /// Register an incoming block interceptor
     pub fn register_incoming_block_interceptor<F>(&self, interceptor: F)
     where
-        F: Fn(&DXBBlock, &ComInterfaceSocketUUID) + Send + Sync + 'static,
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static,
     {
         self.incoming_block_interceptors
             .borrow_mut()
-            .push(Arc::new(interceptor));
+            .push(Box::new(interceptor));
     }
 
     /// Register an outgoing block interceptor
     pub fn register_outgoing_block_interceptor<F>(&self, interceptor: F)
     where
-        F: Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint])
-            + Send
-            + Sync
-            + 'static,
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint]) + 'static,
     {
         self.outgoing_block_interceptors
             .borrow_mut()
-            .push(Arc::new(interceptor));
+            .push(Box::new(interceptor));
     }
 
     pub fn get_interface_by_uuid<T: ComInterface>(
