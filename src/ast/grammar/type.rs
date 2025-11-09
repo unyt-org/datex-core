@@ -1,7 +1,9 @@
 use crate::stdlib::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::structs::expression::{
+    DatexExpressionData, TypeDeclarationKind,
+};
 use crate::ast::structs::r#type::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
@@ -486,6 +488,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
                 name: name.to_string(),
                 value: expr,
                 hoisted: false,
+                kind: TypeDeclarationKind::Nominal,
             })
             .with_span(e.span())
         })
@@ -505,6 +508,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
                 name: name.to_string(),
                 value: expr,
                 hoisted: false,
+                kind: TypeDeclarationKind::Structural,
             })
             .with_span(e.span())
         })

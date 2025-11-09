@@ -1399,8 +1399,14 @@ mod tests {
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
         let var_type = var_a.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
-        // FIXME assert_eq!(var_type.borrow().pointer_address, Some(CoreLibPointerId::Integer(None).into()));
+        if let TypeContainer::TypeReference(r) = var_type {
+            assert_eq!(
+                r,
+                &get_core_lib_type_reference(CoreLibPointerId::Integer(None))
+            );
+        } else {
+            panic!("Expected TypeReference");
+        }
     }
 
     #[test]

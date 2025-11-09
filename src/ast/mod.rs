@@ -324,7 +324,7 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration,
+                    FunctionDeclaration, TypeDeclaration, TypeDeclarationKind,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -3125,6 +3125,7 @@ mod tests {
                     ))
                     .with_default_span(),
                     hoisted: false,
+                    kind: TypeDeclarationKind::Nominal
                 })
                 .with_default_span()
             ]))

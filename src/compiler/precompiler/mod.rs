@@ -9,7 +9,8 @@ pub mod scope;
 pub mod scope_stack;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::{
-    DatexExpression, FunctionDeclaration, RemoteExecution, VariantAccess,
+    DatexExpression, FunctionDeclaration, RemoteExecution, TypeDeclarationKind,
+    VariantAccess,
 };
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
@@ -289,12 +290,21 @@ impl<'a> Precompiler<'a> {
         let type_id =
             self.add_new_variable(data.name.clone(), VariableShape::Type);
 
+        let reference = match data.kind {
+            TypeDeclarationKind::Nominal => {
+                Rc::new(RefCell::new(TypeReference::nominal(
+                    Type::UNIT,
+                    NominalTypeDeclaration::from(data.name.clone()),
+                    None,
+                )))
+            }
+            TypeDeclarationKind::Structural => Rc::new(RefCell::new(
+                TypeReference::anonymous(Type::UNIT, None),
+            )),
+        };
+
         // register placeholder ref in metadata
-        let reference = Rc::new(RefCell::new(TypeReference::nominal(
-            Type::UNIT,
-            NominalTypeDeclaration::from(data.name.clone()),
-            None,
-        )));
+
         let type_def = TypeContainer::TypeReference(reference.clone());
         {
             self.ast_metadata
@@ -834,6 +844,7 @@ mod tests {
                         )
                         .with_default_span(),
                         hoisted: true,
+                        kind: TypeDeclarationKind::Nominal,
                     })
                     .with_default_span(),
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
@@ -844,6 +855,7 @@ mod tests {
                         )
                         .with_default_span(),
                         hoisted: true,
+                        kind: TypeDeclarationKind::Nominal
                     })
                     .with_default_span(),
                     DatexExpressionData::VariantAccess(VariantAccess {
@@ -942,6 +954,7 @@ mod tests {
                     value: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
+                    kind: TypeDeclarationKind::Nominal
                 })
                 .with_default_span(),
                 DatexExpressionData::VariableDeclaration(VariableDeclaration {
@@ -993,6 +1006,7 @@ mod tests {
                     value: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
+                    kind: TypeDeclarationKind::Nominal
                 })
                 .with_default_span(),
             ]))
@@ -1017,6 +1031,7 @@ mod tests {
                     })
                     .with_default_span(),
                     hoisted: true,
+                    kind: TypeDeclarationKind::Nominal
                 })
                 .with_default_span(),
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
@@ -1028,6 +1043,7 @@ mod tests {
                     })
                     .with_default_span(),
                     hoisted: true,
+                    kind: TypeDeclarationKind::Nominal
                 })
                 .with_default_span(),
             ]))
@@ -1061,6 +1077,7 @@ mod tests {
                         )
                         .with_default_span(),
                         hoisted: true,
+                        kind: TypeDeclarationKind::Nominal
                     })
                     .with_default_span(),
                     DatexExpressionData::Statements(
@@ -1079,6 +1096,7 @@ mod tests {
                                     )
                                     .with_default_span(),
                                     hoisted: true,
+                                    kind: TypeDeclarationKind::Nominal
                                 }
                             )
                             .with_default_span(),
@@ -1106,6 +1124,7 @@ mod tests {
                 ))
                 .with_default_span(),
                 hoisted: true,
+                kind: TypeDeclarationKind::Nominal
             })
             .with_default_span()
         );

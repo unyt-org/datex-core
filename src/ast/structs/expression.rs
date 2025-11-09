@@ -287,11 +287,26 @@ pub struct Conditional {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum TypeDeclarationKind {
+    Nominal,
+    Structural,
+}
+impl Display for TypeDeclarationKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            TypeDeclarationKind::Nominal => core::write!(f, "type"),
+            TypeDeclarationKind::Structural => core::write!(f, "typealias"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct TypeDeclaration {
     pub id: Option<VariableId>,
     pub name: String,
     pub value: TypeExpression,
     pub hoisted: bool,
+    pub kind: TypeDeclarationKind,
 }
 
 #[derive(Clone, Debug, PartialEq)]

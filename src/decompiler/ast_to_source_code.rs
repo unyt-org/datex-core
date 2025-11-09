@@ -606,11 +606,13 @@ impl AstToSourceCodeFormatter {
                 name,
                 value,
                 hoisted: _,
+                kind,
             }) => {
                 ast_fmt!(
                     &self,
-                    "type {}%s=%s{}",
+                    "{} {}%s=%s{}",
                     name,
+                    kind,
                     self.type_expression_to_source_code(value)
                 )
             }
