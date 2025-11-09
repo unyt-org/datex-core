@@ -67,6 +67,7 @@ use crate::{
 pub mod error;
 pub mod options;
 
+// TODO: refactor InferOutcome to a struct containing type, errors and warnings
 pub enum InferOutcome {
     Ok(TypeContainer),
     OkWithErrors {
