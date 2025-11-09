@@ -4,7 +4,7 @@ use bytes::Bytes;
 use core::cell::RefCell;
 
 use crate::std_sync::Mutex;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::net::SocketAddr;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;

@@ -3,7 +3,7 @@ use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
 use crate::runtime::memory::Memory;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;

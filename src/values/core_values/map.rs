@@ -1,6 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::std_random::RandomState;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;

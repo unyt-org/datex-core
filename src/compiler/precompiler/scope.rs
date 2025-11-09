@@ -1,4 +1,4 @@
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 
 #[derive(Default, Debug, Clone)]
 pub struct PrecompilerScope {

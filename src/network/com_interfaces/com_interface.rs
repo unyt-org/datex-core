@@ -11,9 +11,10 @@ use crate::std_sync::Mutex;
 use crate::stdlib::{
     any::Any,
     cell::Cell,
-    collections::{HashMap, VecDeque},
+    collections::{VecDeque},
     pin::Pin,
 };
+use crate::collections::HashMap;
 use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
 use crate::utils::{time::Time, uuid::UUID};
 use crate::values::core_values::endpoint::Endpoint;

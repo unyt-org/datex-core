@@ -23,7 +23,7 @@ use crate::references::reference::Reference;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;

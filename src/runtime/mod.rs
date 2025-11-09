@@ -17,7 +17,7 @@ use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
 use crate::stdlib::borrow::ToOwned;
 use crate::stdlib::boxed::Box;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
@@ -396,7 +396,7 @@ impl RuntimeConfigInterface {
 pub struct RuntimeConfig {
     pub endpoint: Option<Endpoint>,
     pub interfaces: Option<Vec<RuntimeConfigInterface>>,
-    pub env: Option<Vec<(String, String)>>,
+    pub env: Option<HashMap<String, String>>,
     /// if set to true, the runtime will log debug messages
     pub debug: Option<bool>,
 }

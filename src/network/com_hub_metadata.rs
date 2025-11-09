@@ -7,7 +7,7 @@ use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;

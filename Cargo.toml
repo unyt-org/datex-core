@@ -69,7 +69,7 @@ tokio = { version = "1.43.0", optional = true, features = [
     "rt",
     "time",
 ], default-features = false }
-nostd = { version = "0.1.4", optional = true, features = ["hashbrown", "io", "alloc"] }
+nostd = { version = "0.1.4", optional = true, features = ["io", "alloc"] }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
@@ -91,6 +91,7 @@ async-unsync = { version = "0.3.0", optional = true, default-features = false, f
 embassy-executor = { version = "0.9.1", optional = true}
 embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 esp-println = { version = "0.16.1", optional = true }
+hashbrown = { version = "0.16.0", features = ["serde"], optional = true}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
@@ -252,6 +253,7 @@ nostd = [
     "dep:nostd",
     "dep:foldhash",
     "dep:spin",
+    "dep:hashbrown",
     "serde/alloc",
     "serde_with/alloc",
     "serde_json/alloc",

@@ -1,5 +1,5 @@
-use crate::stdlib::collections::HashMap;
-use crate::stdlib::collections::hash_map::{Iter, IterMut};
+use crate::collections::HashMap;
+use crate::collections::hash_map::{Iter, IterMut};
 use crate::stdlib::vec::Vec;
 use core::prelude::rust_2024::*;
 
@@ -122,7 +122,7 @@ impl<K: NextKey, T> FreeHashMap<K, T> {
 
 impl<K: NextKey, T> IntoIterator for FreeHashMap<K, T> {
     type Item = (K, T);
-    type IntoIter = crate::stdlib::collections::hash_map::IntoIter<K, T>;
+    type IntoIter = crate::collections::hash_map::IntoIter<K, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.entries.into_iter()

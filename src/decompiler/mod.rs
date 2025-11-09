@@ -2,8 +2,8 @@ mod ast_decompiler;
 mod ast_from_value_container;
 mod ast_to_source_code;
 
-use crate::stdlib::collections::HashMap;
-use crate::stdlib::collections::HashSet;
+use crate::collections::HashMap;
+use crate::collections::HashSet;
 use binrw::io::Cursor;
 use core::fmt::Write;
 
