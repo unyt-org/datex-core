@@ -1,8 +1,8 @@
+use crate::collections::HashMap;
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::references::reference::Reference;
 use crate::references::type_reference::TypeReference;
 use crate::references::value_reference::ValueReference;
-use crate::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::types::error::IllegalTypeError;

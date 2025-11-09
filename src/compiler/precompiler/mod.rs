@@ -9,8 +9,7 @@ pub mod scope;
 pub mod scope_stack;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::{
-    DatexExpression, RemoteExecution, TypeDeclarationKind,
-    VariantAccess,
+    DatexExpression, RemoteExecution, TypeDeclarationKind, VariantAccess,
 };
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,

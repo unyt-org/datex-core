@@ -1,9 +1,9 @@
+use crate::collections::HashMap;
 use crate::references::reference::Reference;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
 use crate::runtime::memory::Memory;
-use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;

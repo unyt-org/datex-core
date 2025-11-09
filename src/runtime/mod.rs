@@ -1,3 +1,4 @@
+use crate::collections::HashMap;
 #[cfg(all(feature = "native_crypto", feature = "std"))]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::global::dxb_block::{
@@ -17,7 +18,6 @@ use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
 use crate::stdlib::borrow::ToOwned;
 use crate::stdlib::boxed::Box;
-use crate::collections::HashMap;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
@@ -375,21 +375,25 @@ pub struct RuntimeConfigInterface {
 }
 
 impl RuntimeConfigInterface {
-
-    pub fn new<T: Serialize>(interface_type: &str, config: T) -> Result<RuntimeConfigInterface, SerializationError> {
-       Ok(RuntimeConfigInterface {
-           interface_type: interface_type.to_string(),
-           config: to_value_container(&config)?
-       })
+    pub fn new<T: Serialize>(
+        interface_type: &str,
+        config: T,
+    ) -> Result<RuntimeConfigInterface, SerializationError> {
+        Ok(RuntimeConfigInterface {
+            interface_type: interface_type.to_string(),
+            config: to_value_container(&config)?,
+        })
     }
 
-    pub fn new_from_value_container(interface_type: &str, config: ValueContainer) -> RuntimeConfigInterface {
+    pub fn new_from_value_container(
+        interface_type: &str,
+        config: ValueContainer,
+    ) -> RuntimeConfigInterface {
         RuntimeConfigInterface {
             interface_type: interface_type.to_string(),
             config,
         }
     }
-
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -417,7 +421,10 @@ impl RuntimeConfig {
         config: T,
     ) -> Result<(), SerializationError> {
         let config = to_value_container(&config)?;
-        let interface = RuntimeConfigInterface { interface_type, config };
+        let interface = RuntimeConfigInterface {
+            interface_type,
+            config,
+        };
         if let Some(interfaces) = &mut self.interfaces {
             interfaces.push(interface);
         } else {
@@ -522,7 +529,11 @@ impl Runtime {
 
         // create interfaces
         if let Some(interfaces) = &self.internal.config.interfaces {
-            for RuntimeConfigInterface { interface_type, config } in interfaces.iter() {
+            for RuntimeConfigInterface {
+                interface_type,
+                config,
+            } in interfaces.iter()
+            {
                 if let Err(err) = self
                     .com_hub()
                     .create_interface(
@@ -532,7 +543,9 @@ impl Runtime {
                     )
                     .await
                 {
-                    error!("Failed to create interface {interface_type}: {err:?}");
+                    error!(
+                        "Failed to create interface {interface_type}: {err:?}"
+                    );
                 } else {
                     info!("Created interface: {interface_type}");
                 }

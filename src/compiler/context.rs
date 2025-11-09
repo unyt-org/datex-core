@@ -1,6 +1,6 @@
+use crate::collections::HashMap;
 use crate::core_compiler::value_compiler::append_value_container;
 use crate::global::instruction_codes::InstructionCode;
-use crate::collections::HashMap;
 use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
 use core::cmp::PartialEq;

@@ -64,7 +64,7 @@ pub mod stdlib {
     #[cfg(not(feature = "std"))]
     pub use nostd::{
         any, borrow, boxed, cell, collections, fmt, format, future, hash, io,
-        ops, panic, pin, rc, string, sync, time, vec
+        ops, panic, pin, rc, string, sync, time, vec,
     };
 
     #[cfg(feature = "std")]
@@ -76,9 +76,9 @@ pub mod collections {
     #[cfg(not(feature = "std"))]
     pub use hashbrown::hash_map;
     #[cfg(not(feature = "std"))]
-    pub use hashbrown::hash_set;
-    #[cfg(not(feature = "std"))]
     pub use hashbrown::hash_map::HashMap;
+    #[cfg(not(feature = "std"))]
+    pub use hashbrown::hash_set;
     #[cfg(not(feature = "std"))]
     pub use hashbrown::hash_set::HashSet;
     #[cfg(feature = "std")]

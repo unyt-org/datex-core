@@ -64,10 +64,7 @@ impl DIFValue {
 
 impl From<DIFValueRepresentation> for DIFValue {
     fn from(value: DIFValueRepresentation) -> Self {
-        DIFValue {
-            value,
-            ty: None,
-        }
+        DIFValue { value, ty: None }
     }
 }
 

@@ -1,8 +1,8 @@
 use crate::ast::structs::expression::VariableKind;
+use crate::collections::HashMap;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
-use crate::collections::HashMap;
 use core::cell::RefCell;
 
 #[derive(Debug, Default, Clone)]
