@@ -182,6 +182,9 @@ impl<E> VisitableExpression<E> for FunctionDeclaration {
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
+        if let Some(return_type) = &mut self.return_type {
+            visitor.visit_type_expression(return_type)?;
+        }
         for (_, param_type) in &mut self.parameters {
             visitor.visit_type_expression(param_type)?;
         }

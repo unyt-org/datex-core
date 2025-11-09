@@ -233,9 +233,12 @@ impl Type {
         }
         false
     }
+
+    /// Matches if the current type matches the other type reference
+    /// 42 matches integer/u8 -> true
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        core::todo!("#326 implement type reference matching");
-        // self.type_matches(&other.type_value)
+        self.matches_type(&other.borrow().type_value)
+        // core::todo!("#326 implement type reference matching");
     }
 
     /// Matches a value against a type

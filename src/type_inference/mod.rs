@@ -162,7 +162,6 @@ impl TypeInference {
         } else {
             self.errors = None;
         }
-        println!("Starting type inference... {:?}", ast);
 
         let result = self.infer_expression(ast);
         let collected_errors = self.errors.take();
@@ -873,18 +872,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             } else {
                 None
             };
-        println!(
-            "Inferring function return type for function {:?}...",
-            function_declaration.name
-        );
         let inferred_return_type = self
             .infer_expression(&mut function_declaration.body)
             .unwrap_or(TypeContainer::never());
-
-        println!(
-            "Inferred return type: {:?}, annotated return type: {:?}",
-            inferred_return_type, annotated_return_type
-        );
 
         let parameters = function_declaration
             .parameters
@@ -899,9 +889,15 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
         // Check if annotated return type matches inferred return type
         // if an annotated return type is provided
-        if let Some(annotated_type) = annotated_return_type
-            && !annotated_type.matches_type(&inferred_return_type)
-        {
+        if let Some(annotated_type) = annotated_return_type {
+            // If they match, use the annotated type
+            if annotated_type.matches_type(&inferred_return_type) {
+                return mark_type(
+                    Type::function(parameters, annotated_type)
+                        .as_type_container(),
+                );
+            }
+            // If they don't match, record an error
             self.record_error(SpannedTypeError {
                 error: TypeError::AssignmentTypeMismatch {
                     annotated_type: annotated_type.clone(),
@@ -909,6 +905,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 },
                 span: Some(span.clone()),
             })?;
+            // Use the annotated type despite the mismatch
             mark_type(
                 Type::function(parameters, annotated_type).as_type_container(),
             )
@@ -1202,7 +1199,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn infer_function_types() {
         let src = r#"
         function add(a: integer, b: integer) -> integer (
@@ -1210,9 +1206,50 @@ mod tests {
         )
         "#;
 
-        let rich_ast = ast_for_script(src);
-        let metadata = rich_ast.metadata.borrow();
-        let var_add = metadata.variable_metadata(0).unwrap();
+        let res = infer_from_script(src);
+        assert_eq!(
+            res.as_type(),
+            Type::function(
+                vec![
+                    (
+                        "a".to_string(),
+                        get_core_lib_type(CoreLibPointerId::Integer(None))
+                    ),
+                    (
+                        "b".to_string(),
+                        get_core_lib_type(CoreLibPointerId::Integer(None))
+                    ),
+                ],
+                get_core_lib_type(CoreLibPointerId::Integer(None))
+            )
+        );
+
+        let src = r#"
+        function add(a: integer, b: integer) (
+            42
+        )
+        "#;
+
+        let res = infer_from_script(src);
+        assert_eq!(
+            res.as_type(),
+            Type::function(
+                vec![
+                    (
+                        "a".to_string(),
+                        get_core_lib_type(CoreLibPointerId::Integer(None))
+                    ),
+                    (
+                        "b".to_string(),
+                        get_core_lib_type(CoreLibPointerId::Integer(None))
+                    ),
+                ],
+                Type::structural(StructuralTypeDefinition::Integer(
+                    Integer::from(42)
+                ))
+                .as_type_container()
+            )
+        );
     }
 
     #[test]
