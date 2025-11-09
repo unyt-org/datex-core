@@ -5,6 +5,7 @@ use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use crate::stdlib::boxed::Box;
 
 use futures::channel::oneshot::Sender;
 use itertools::Itertools;
