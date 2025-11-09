@@ -759,10 +759,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                         Type::reference(r, None);
                 }
             }
+            mark_type(type_def.clone())
         } else {
-            self.update_variable_type(type_id, inferred_type_def);
+            self.update_variable_type(type_id, inferred_type_def.clone());
+            mark_type(inferred_type_def.clone())
         }
-        mark_type(type_def.clone())
     }
 
     fn visit_list(
@@ -1071,8 +1072,8 @@ mod tests {
         },
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
-            error::{DetailedTypeErrors, SpannedTypeError, TypeError},
-            infer_expression_type, infer_expression_type_detailed_errors,
+            error::{SpannedTypeError, TypeError},
+            infer_expression_type_detailed_errors,
             infer_expression_type_simple_error,
             infer_expression_type_with_errors,
         },
