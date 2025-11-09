@@ -119,11 +119,6 @@ impl TypeReference {
     }
 
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        println!(
-            "Matching type reference {:?} against type reference {:?}",
-            self,
-            other.borrow()
-        );
         core::todo!("#300 implement type matching");
     }
 
