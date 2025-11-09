@@ -9,9 +9,9 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
         compile_script(datex_script, CompileOptions::default()).unwrap();
 
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
-        .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
+        .unwrap_or_else(|err| core::panic!("Failed to decompile: {err:?}"));
     // let decompiled_color = decompile_body(&dxb_body, true, true, true)
-    //     .unwrap_or_else(|err| panic!("Failed to decompile with color: {err:?}"));
+    //     .unwrap_or_else(|err| core::panic!("Failed to decompile with color: {err:?}"));
 
     info!("original   : {datex_script}");
     info!("decompiled : {decompiled}");
@@ -32,9 +32,9 @@ fn compare_compiled(datex_script: &str, expected: &str) {
             ..Default::default()
         },
     )
-    .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
+    .unwrap_or_else(|err| core::panic!("Failed to decompile: {err:?}"));
     let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
-        .unwrap_or_else(|err| panic!("Failed to decompile: {err:?}"));
+        .unwrap_or_else(|err| core::panic!("Failed to decompile: {err:?}"));
 
     info!("original   : {datex_script}");
     info!("expected : {expected}");

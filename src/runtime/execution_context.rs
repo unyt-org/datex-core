@@ -1,25 +1,33 @@
-use crate::compiler::error::SpannedCompilerError;
-use crate::compiler::scope::CompilationScope;
-use crate::compiler::{CompileOptions, compile_template};
-use crate::decompiler::{DecompileOptions, decompile_body};
+#[cfg(feature = "compiler")]
+use crate::compiler::{
+    CompileOptions, compile_template, error::SpannedCompilerError,
+    scope::CompilationScope,
+};
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::{
     ExecutionError, ExecutionInput, ExecutionOptions, MemoryDump,
     RuntimeExecutionContext, execute_dxb, execute_dxb_sync,
 };
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Display;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use log::info;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {
+    #[cfg(feature = "compiler")]
     CompilerError(SpannedCompilerError),
     ExecutionError(ExecutionError),
 }
 
+#[cfg(feature = "compiler")]
 impl From<SpannedCompilerError> for ScriptExecutionError {
     fn from(err: SpannedCompilerError) -> Self {
         ScriptExecutionError::CompilerError(err)
@@ -33,13 +41,14 @@ impl From<ExecutionError> for ScriptExecutionError {
 }
 
 impl Display for ScriptExecutionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            #[cfg(feature = "compiler")]
             ScriptExecutionError::CompilerError(err) => {
-                write!(f, "Compiler Error: {}", err)
+                core::write!(f, "Compiler Error: {}", err)
             }
             ScriptExecutionError::ExecutionError(err) => {
-                write!(f, "Execution Error: {}", err)
+                core::write!(f, "Execution Error: {}", err)
             }
         }
     }
@@ -47,6 +56,7 @@ impl Display for ScriptExecutionError {
 
 #[derive(Debug, Clone, Default)]
 pub struct RemoteExecutionContext {
+    #[cfg(feature = "compiler")]
     pub compile_scope: CompilationScope,
     pub endpoint: Endpoint,
     pub context_id: Option<OutgoingContextId>,
@@ -56,6 +66,7 @@ impl RemoteExecutionContext {
     /// Creates a new remote execution context with the given endpoint.
     pub fn new(endpoint: impl Into<Endpoint>, once: bool) -> Self {
         RemoteExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             endpoint: endpoint.into(),
             context_id: None,
@@ -65,6 +76,7 @@ impl RemoteExecutionContext {
 
 #[derive(Debug, Clone, Default)]
 pub struct LocalExecutionContext {
+    #[cfg(feature = "compiler")]
     compile_scope: CompilationScope,
     runtime_execution_context: Rc<RefCell<RuntimeExecutionContext>>,
     execution_options: ExecutionOptions,
@@ -74,6 +86,7 @@ pub struct LocalExecutionContext {
 impl LocalExecutionContext {
     pub fn new(once: bool) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::default(),
@@ -86,6 +99,7 @@ impl LocalExecutionContext {
     /// Creates a new local execution context with the given compile scope.
     pub fn debug(once: bool) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             execution_options: ExecutionOptions { verbose: true },
             verbose: true,
@@ -98,6 +112,7 @@ impl LocalExecutionContext {
         once: bool,
     ) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::new(runtime_internal),
@@ -112,6 +127,7 @@ impl LocalExecutionContext {
         once: bool,
     ) -> Self {
         LocalExecutionContext {
+            #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
             runtime_execution_context: Rc::new(RefCell::new(
                 RuntimeExecutionContext::new(runtime_internal),
@@ -195,6 +211,7 @@ impl ExecutionContext {
         ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, false))
     }
 
+    #[cfg(feature = "compiler")]
     fn compile_scope(&self) -> &CompilationScope {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
@@ -208,6 +225,7 @@ impl ExecutionContext {
         }
     }
 
+    #[cfg(feature = "compiler")]
     fn set_compile_scope(&mut self, new_compile_scope: CompilationScope) {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
@@ -222,6 +240,7 @@ impl ExecutionContext {
     }
 
     /// Compiles a script using the compile scope of the execution context
+    #[cfg(feature = "compiler")]
     pub fn compile(
         &mut self,
         script: &str,
@@ -244,7 +263,7 @@ impl ExecutionContext {
     }
 
     fn print_dxb_debug(&self, dxb: &[u8]) -> Result<(), ExecutionError> {
-        println!(
+        info!(
             "\x1b[32m[Compiled Bytecode] {}",
             dxb.iter()
                 .map(|b| format!("{b:02x}"))
@@ -252,12 +271,18 @@ impl ExecutionContext {
                 .join(", ")
         );
 
-        let decompiled = decompile_body(dxb, DecompileOptions::colorized());
-        if let Err(e) = decompiled {
-            println!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
-        } else {
-            let decompiled = decompiled?;
-            println!("[Decompiled]: {decompiled}");
+        #[cfg(feature = "compiler")]
+        {
+            let decompiled = crate::decompiler::decompile_body(
+                dxb,
+                crate::decompiler::DecompileOptions::colorized(),
+            );
+            if let Err(e) = decompiled {
+                info!("\x1b[31m[Decompiler Error] {e}\x1b[0m");
+            } else {
+                let decompiled = decompiled?;
+                info!("[Decompiled]: {decompiled}");
+            }
         }
 
         Ok(())
@@ -278,7 +303,7 @@ impl ExecutionContext {
             }) => (local_execution_context, execution_options, *verbose),
             // remote execution is not supported directly in execution context
             ExecutionContext::Remote(_) => {
-                panic!("Remote execution requires a Runtime");
+                core::panic!("Remote execution requires a Runtime");
             }
         };
 
@@ -309,6 +334,7 @@ impl ExecutionContext {
     }
 
     /// Executes a script in a local execution context.
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         &mut self,
         script: &str,
@@ -332,11 +358,12 @@ impl ExecutionContext {
             }
             // remote execution is not supported directly in execution context
             ExecutionContext::Remote { .. } => {
-                panic!("Remote execution requires a Runtime");
+                core::panic!("Remote execution requires a Runtime");
             }
         }
     }
 
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         &mut self,
         script: &str,

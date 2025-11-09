@@ -1,5 +1,7 @@
-use crate::ast::structs::expression::{CreateRef, DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::{
+    CreateRef, DatexExpressionData, List, Map,
+};
 use crate::ast::structs::r#type::TypeExpressionData;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -17,10 +19,9 @@ impl From<&ValueContainer> for DatexExpressionData {
                 DatexExpressionData::CreateRef(CreateRef {
                     mutability: reference.mutability(),
                     expression: Box::new(
-                        DatexExpressionData::from(
-                            &reference.value_container(),
-                        ).with_default_span(),
-                    )
+                        DatexExpressionData::from(&reference.value_container())
+                            .with_default_span(),
+                    ),
                 })
             }
         }
@@ -71,9 +72,9 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                         TypeExpressionData::Integer(integer.clone())
                             .with_default_span()
                     }
-                    _ => todo!("#416 Undescribed by author."),
+                    _ => core::todo!("#416 Undescribed by author."),
                 },
-                _ => todo!("#417 Undescribed by author."),
+                _ => core::todo!("#417 Undescribed by author."),
             },
         ),
     }
@@ -81,8 +82,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::structs::expression::{DatexExpressionData, List};
     use crate::ast::spanned::Spanned;
+    use crate::ast::structs::expression::{DatexExpressionData, List};
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;

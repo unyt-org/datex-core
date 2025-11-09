@@ -1,5 +1,5 @@
-use crate::decompiler::ScopeType;
 use crate::global::instruction_codes::InstructionCode;
+use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
@@ -9,14 +9,18 @@ use crate::global::protocol_structures::instructions::{
     UInt64Data, UInt128Data,
 };
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
-use crate::stdlib::fmt;
+use crate::stdlib::string::FromUtf8Error;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
-use datex_core::ast::structs::operator::assignment::AssignmentOperator;
+use binrw::io::Cursor;
+use core::fmt;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
-use std::fmt::Display;
-use std::io::{BufRead, Cursor, Read, Seek};
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
@@ -30,11 +34,7 @@ pub enum DXBParserError {
     FailedToReadInstructionCode,
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
-    FromUtf8Error(std::string::FromUtf8Error),
-    InvalidScopeEndType {
-        expected: ScopeType,
-        found: ScopeType,
-    },
+    FromUtf8Error(FromUtf8Error),
 }
 
 impl From<fmt::Error> for DXBParserError {
@@ -49,8 +49,8 @@ impl From<binrw::Error> for DXBParserError {
     }
 }
 
-impl From<std::string::FromUtf8Error> for DXBParserError {
-    fn from(error: std::string::FromUtf8Error) -> Self {
+impl From<FromUtf8Error> for DXBParserError {
+    fn from(error: FromUtf8Error) -> Self {
         DXBParserError::FromUtf8Error(error)
     }
 }
@@ -59,28 +59,22 @@ impl Display for DXBParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DXBParserError::InvalidBinaryCode(code) => {
-                write!(f, "Invalid binary code: {code}")
+                core::write!(f, "Invalid binary code: {code}")
             }
             DXBParserError::InvalidEndpoint(endpoint) => {
-                write!(f, "Invalid endpoint: {endpoint}")
+                core::write!(f, "Invalid endpoint: {endpoint}")
             }
             DXBParserError::FailedToReadInstructionCode => {
-                write!(f, "Failed to read instruction code")
+                core::write!(f, "Failed to read instruction code")
             }
             DXBParserError::FmtError(err) => {
-                write!(f, "Formatting error: {err}")
+                core::write!(f, "Formatting error: {err}")
             }
             DXBParserError::BinRwError(err) => {
-                write!(f, "Binary read/write error: {err}")
+                core::write!(f, "Binary read/write error: {err}")
             }
             DXBParserError::FromUtf8Error(err) => {
-                write!(f, "UTF-8 conversion error: {err}")
-            }
-            DXBParserError::InvalidScopeEndType { expected, found } => {
-                write!(
-                    f,
-                    "Invalid scope end type: expected {expected:?}, found {found:?}"
-                )
+                core::write!(f, "UTF-8 conversion error: {err}")
             }
         }
     }
@@ -137,19 +131,16 @@ fn get_text_data(
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             // get reader for dxb_body
+            let len = dxb_body.len();
             let mut reader = Cursor::new(dxb_body);
             loop {
                 // if cursor is at the end, break
-                // rationale: We can use safe unwrap here, as our stream is no IO, but only
-                // bytes stream, so we can always access.
-                unsafe {
-                    if !reader.has_data_left().unwrap_unchecked() {
-                        return;
-                    }
+                if reader.position() as usize >= len {
+                    return;
                 }
 
                 let instruction_code = get_next_instruction_code(&mut reader);
@@ -503,7 +494,7 @@ pub fn iterate_instructions<'a>(
                         let result: Result<
                             Vec<TypeInstruction>,
                             DXBParserError,
-                        > = iterate_type_space_instructions(&mut reader)
+                        > = iterate_type_space_instructions(&mut reader, len)
                             .collect();
                         if let Err(err) = result {
                             Err(err)
@@ -516,7 +507,7 @@ pub fn iterate_instructions<'a>(
                         let result: Result<
                             Vec<TypeInstruction>,
                             DXBParserError,
-                        > = iterate_type_space_instructions(&mut reader)
+                        > = iterate_type_space_instructions(&mut reader, len)
                             .collect();
                         if let Err(err) = result {
                             Err(err)
@@ -544,20 +535,18 @@ fn get_next_instruction_code(
         .map_err(|_| DXBParserError::FailedToReadInstructionCode)
 }
 
-fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
-    reader: &mut R,
+fn iterate_type_space_instructions(
+    reader: &mut Cursor<&[u8]>,
+    len: usize,
 ) -> impl Iterator<Item = Result<TypeInstruction, DXBParserError>> {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             loop {
                 // if cursor is at the end, break
-                unsafe {
-                    // rationale: We can use safe unwrap here, as our stream is no IO, but only
-                    // bytes stream, so we can always access.
-                    if !reader.has_data_left().unwrap_unchecked() {
-                        return;
-                    }
+
+                if reader.position() as usize >= len {
+                    return;
                 }
 
                 let instruction_code = u8::read(reader);
@@ -590,7 +579,7 @@ fn iterate_type_space_instructions<R: Read + Seek + BufRead>(
                             ))
                         }
                     }
-                    _ => todo!("#426 Undescribed by author."),
+                    _ => core::todo!("#426 Undescribed by author."),
                 }
             }
         },

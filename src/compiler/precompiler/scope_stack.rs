@@ -1,7 +1,6 @@
-
 use crate::{
     compiler::error::CompilerError,
-    precompiler::{
+    compiler::precompiler::{
         precompiled_ast::{AstMetadata, VariableMetadata, VariableShape},
         scope::PrecompilerScope,
     },
@@ -86,9 +85,11 @@ impl PrecompilerScopeStack {
     }
 
     pub fn set_variable(&mut self, name: String, id: usize) {
-        self.get_active_scope_mut().variable_ids_by_name.insert(name, id);
+        self.get_active_scope_mut()
+            .variable_ids_by_name
+            .insert(name, id);
     }
-    
+
     fn get_active_scope_index(&self) -> usize {
         // get the second last scope or the last one if there is only one scope
         if self.scopes.len() > 1 {
@@ -97,11 +98,11 @@ impl PrecompilerScopeStack {
             0
         }
     }
-    
+
     pub fn get_active_scope(&self) -> &PrecompilerScope {
         self.scopes.get(self.get_active_scope_index()).unwrap()
     }
-    
+
     pub fn get_active_scope_mut(&mut self) -> &mut PrecompilerScope {
         let index = self.get_active_scope_index();
         self.scopes.get_mut(index).unwrap()

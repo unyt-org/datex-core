@@ -1,7 +1,9 @@
+use crate::stdlib::sync::OnceLock;
+use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
 use crate::stdlib::{future::Future, pin::Pin};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use rand::Rng;
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::crypto::{CryptoError, CryptoTrait};
 use uuid::Uuid;

@@ -1,6 +1,25 @@
+use crate::core_compiler::value_compiler::compile_value_container;
+use crate::values::value_container::ValueContainer;
+use core::result::Result;
+use serde::Serialize;
+
+
+pub use serde::Deserialize;
 pub mod deserializer;
 pub mod error;
 pub mod serializer;
+
+impl Serialize for ValueContainer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct(
+            "datex::value",
+            &compile_value_container(self),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -11,12 +30,12 @@ mod tests {
         deserializer::{from_bytes, from_value_container},
         serializer::{to_bytes, to_value_container},
     };
+    use crate::stdlib::collections::{HashMap, HashSet};
     use crate::traits::structural_eq::StructuralEq;
     use crate::values::value_container::ValueContainer;
     use datex_core::decompiler::decompile_body;
     use log::info;
     use serde::{Deserialize, Serialize};
-    use std::collections::{HashMap, HashSet};
 
     // Tuple Struct
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -264,7 +283,7 @@ mod tests {
     #[test]
     fn special_types_serde() {
         // floats
-        let val = std::f64::consts::PI;
+        let val = core::f64::consts::PI;
         let s = to_bytes(&val).unwrap();
         let d: f64 = from_bytes(&s).unwrap();
         assert_eq!(val, d);

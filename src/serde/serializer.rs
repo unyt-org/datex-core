@@ -1,18 +1,25 @@
-use crate::compiler::compile_value;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
 use crate::serde::error::SerializationError;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
 use crate::values::value_container::ValueContainer;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
     SerializeTupleVariant, Serializer,
 };
-use std::vec;
+
 pub struct DatexSerializer {}
 
 impl Default for DatexSerializer {
@@ -32,7 +39,7 @@ where
     T: Serialize,
 {
     let value_container = to_value_container(value)?;
-    compile_value(&value_container).map_err(|e| e.into())
+    Ok(compile_value_container(&value_container))
 }
 pub fn to_value_container<T>(
     value: &T,
@@ -427,7 +434,7 @@ impl Serializer for &mut DatexSerializer {
     }
 
     fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Self::Error> {
-        todo!("#134 Undescribed by author.")
+        core::todo!("#134 Undescribed by author.")
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
@@ -600,11 +607,11 @@ mod tests {
     use crate::values::core_values::endpoint::Endpoint;
     use crate::values::core_values::map::Map;
 
+    use crate::stdlib::assert_matches::assert_matches;
     use crate::values::{
         core_value::CoreValue, value::Value, value_container::ValueContainer,
     };
     use serde::{Deserialize, Serialize};
-    use std::assert_matches::assert_matches;
 
     #[derive(Serialize)]
     struct TestStruct {

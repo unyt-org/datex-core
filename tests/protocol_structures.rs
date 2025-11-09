@@ -1,4 +1,5 @@
 use binrw::{BinRead, BinWrite};
+use core::str::FromStr;
 use datex_core::global::{
     dxb_block::DXBBlock,
     protocol_structures::{
@@ -13,11 +14,7 @@ use datex_core::values::core_values::endpoint::{
 };
 use serde::Serialize;
 use serde_json::ser::{Formatter, PrettyFormatter};
-use std::{
-    io::{Cursor, Seek, SeekFrom},
-    str::FromStr,
-};
-// FIXME #214 no-std
+use std::io::{Cursor, Seek, SeekFrom};
 
 #[test]
 pub fn parse_encrypted_header() {

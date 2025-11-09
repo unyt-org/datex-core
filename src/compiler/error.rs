@@ -1,11 +1,11 @@
-use crate::ast::structs::expression::DatexExpression;
 use crate::ast::error::error::{ParseError, SpanOrToken};
+use crate::ast::structs::expression::DatexExpression;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::type_inference::{DetailedTypeErrors, TypeError};
-use crate::precompiler::precompiled_ast::RichAst;
 use crate::serde::error::DeserializationError;
+use core::fmt::{Display, Formatter};
+use core::ops::Range;
 use datex_core::compiler::type_inference::SpannedTypeError;
-use std::fmt::{Display, Formatter};
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
@@ -50,8 +50,8 @@ impl SpannedCompilerError {
 }
 
 impl Display for SpannedCompilerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{} ({})",
             self.error,
@@ -77,7 +77,7 @@ impl From<ParseError> for SpannedCompilerError {
         SpannedCompilerError {
             span: match &value.span {
                 SpanOrToken::Span(range) => Some(range.clone()),
-                _ => panic!("expected byte range, got token span"),
+                _ => core::panic!("expected byte range, got token span"),
             },
             error: CompilerError::ParseError(value),
         }
@@ -115,7 +115,7 @@ impl DetailedCompilerErrors {
 }
 
 impl Display for DetailedCompilerErrors {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         for error in self.errors.iter() {
             writeln!(f, "{}", error)?;
         }
@@ -222,7 +222,9 @@ impl From<SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     }
 }
 
-impl From<SpannedCompilerError> for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
+impl From<SpannedCompilerError>
+    for SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst
+{
     fn from(
         value: SpannedCompilerError,
     ) -> SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst {
@@ -254,13 +256,13 @@ impl From<TypeError> for CompilerError {
 }
 
 impl Display for CompilerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             CompilerError::InvalidRedeclaration(name) => {
-                write!(f, "Invalid redeclaration of {name}")
+                core::write!(f, "Invalid redeclaration of {name}")
             }
             CompilerError::UnexpectedTerm(rule) => {
-                write!(f, "Unexpected term: {rule:?}")
+                core::write!(f, "Unexpected term: {rule:?}")
             }
             CompilerError::ParseErrors(error) => {
                 for e in error {
@@ -269,52 +271,55 @@ impl Display for CompilerError {
                 Ok(())
             }
             CompilerError::SubvariantNotFound(name, variant) => {
-                write!(f, "Subvariant {variant} does not exist for {name}")
+                core::write!(
+                    f,
+                    "Subvariant {variant} does not exist for {name}"
+                )
             }
             CompilerError::SerializationError => {
-                write!(f, "Serialization error")
+                core::write!(f, "Serialization error")
             }
             CompilerError::BigDecimalOutOfBoundsError => {
-                write!(f, "BigDecimal out of bounds error")
+                core::write!(f, "BigDecimal out of bounds error")
             }
             CompilerError::IntegerOutOfBoundsError => {
-                write!(f, "Integer out of bounds error")
+                core::write!(f, "Integer out of bounds error")
             }
             CompilerError::InvalidPlaceholderCount => {
-                write!(f, "Invalid placeholder count")
+                core::write!(f, "Invalid placeholder count")
             }
             CompilerError::NonStaticValue => {
-                write!(f, "Encountered non-static value")
+                core::write!(f, "Encountered non-static value")
             }
             CompilerError::UndeclaredVariable(var) => {
-                write!(f, "Undeclared variable: {var}")
+                core::write!(f, "Undeclared variable: {var}")
             }
             CompilerError::ScopePopError => {
-                write!(f, "Could not pop scope, stack is empty")
+                core::write!(f, "Could not pop scope, stack is empty")
             }
             CompilerError::InvalidSlotName(name) => {
-                write!(f, "Slot #{name} does not exist")
+                core::write!(f, "Slot #{name} does not exist")
             }
             CompilerError::AssignmentToConst(name) => {
-                write!(f, "Cannot assign new value to const {name}")
+                core::write!(f, "Cannot assign new value to const {name}")
             }
             CompilerError::OnceScopeUsedMultipleTimes => {
-                write!(
+                core::write!(
                     f,
                     "Scope cannot be used multiple times, set 'once' to false to use a scope multiple times"
                 )
             }
             CompilerError::AssignmentToImmutableValue(name) => {
-                write!(f, "Cannot assign to immutable value: {name}")
+                core::write!(f, "Cannot assign to immutable value: {name}")
             }
             CompilerError::AssignmentToImmutableReference(name) => {
-                write!(f, "Cannot assign to immutable reference: {name}")
+                core::write!(f, "Cannot assign to immutable reference: {name}")
             }
             CompilerError::TypeError(err) => {
-                write!(f, "{}", err)
+                core::write!(f, "{}", err)
             }
             CompilerError::ParseError(err) => {
-                write!(f, "{:?}", err)
+                core::write!(f, "{:?}", err)
             }
         }
     }

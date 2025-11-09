@@ -1,3 +1,4 @@
+use crate::stdlib::string::String;
 use serde::{Deserialize, Serialize};
 
 pub mod interface;
@@ -43,9 +44,9 @@ mod tests {
             value_container::ValueContainer,
         },
     };
+    use core::cell::RefCell;
     use datex_core::dif::r#type::DIFTypeDefinition;
     use datex_core::values::core_values::endpoint::Endpoint;
-    use std::cell::RefCell;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
         let memory = RefCell::new(Memory::new(Endpoint::default()));
@@ -117,7 +118,7 @@ mod tests {
                 ))
             );
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 
@@ -132,7 +133,7 @@ mod tests {
             );
             assert_eq!(dif_value.r#type, None);
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 }

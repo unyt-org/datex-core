@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 pub(crate) trait Spanned: Sized {
     type Output;

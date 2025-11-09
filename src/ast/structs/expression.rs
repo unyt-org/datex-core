@@ -1,12 +1,14 @@
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
-use crate::ast::structs::operator::ApplyOperation;
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
-use crate::ast::structs::operator::{ArithmeticUnaryOperator, UnaryOperator};
+use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::ast::structs::r#type::TypeExpression;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::assignment::AssignmentOperator;
+use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
+use crate::references::reference::ReferenceMutability;
+use crate::stdlib::vec::Vec;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -17,9 +19,8 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::fmt::Display;
-use std::ops::{Neg, Range};
-use crate::references::reference::ReferenceMutability;
+use core::fmt::Display;
+use core::ops::{Neg, Range};
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
@@ -27,7 +28,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-    // TODO: store optional type here, not in DatexExpressionData
+                                // TODO: store optional type here, not in DatexExpressionData
 }
 impl DatexExpression {
     pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
@@ -380,10 +381,10 @@ pub enum VariableKind {
 }
 
 impl Display for VariableKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            VariableKind::Const => write!(f, "const"),
-            VariableKind::Var => write!(f, "var"),
+            VariableKind::Const => core::write!(f, "const"),
+            VariableKind::Var => core::write!(f, "var"),
         }
     }
 }
@@ -394,11 +395,11 @@ pub enum Slot {
     Named(String),
 }
 impl Display for Slot {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#")?;
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "#")?;
         match self {
-            Slot::Addressed(addr) => write!(f, "{}", addr),
-            Slot::Named(name) => write!(f, "{}", name),
+            Slot::Addressed(addr) => core::write!(f, "{}", addr),
+            Slot::Named(name) => core::write!(f, "{}", name),
         }
     }
 }
@@ -415,7 +416,6 @@ pub struct VariantAccess {
     pub variant: String,
     pub base: ResolvedVariable,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Deref {

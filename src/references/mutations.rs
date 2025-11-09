@@ -1,22 +1,28 @@
 use crate::dif::update::{DIFProperty, DIFUpdateData};
 use crate::dif::value::DIFValueContainer;
+use crate::references::observers::TransceiverId;
 use crate::runtime::memory::Memory;
+use crate::stdlib::format;
+use crate::stdlib::string::ToString;
 use crate::{
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
 };
-use std::cell::RefCell;
-use crate::references::observers::TransceiverId;
+use core::cell::RefCell;
+use core::ops::FnOnce;
+use core::prelude::rust_2024::*;
 
 impl Reference {
-
-
     /// Internal function that handles updates
     /// - Checks if the reference is mutable
     /// - Calls the provided handler to perform the update and get the DIFUpdateData
     /// - Notifies observers with the update data
     /// - Returns any AccessError encountered
-    fn handle_update(&self, source_id: TransceiverId, handler: impl FnOnce() -> Result<DIFUpdateData, AccessError>) -> Result<(), AccessError> {
+    fn handle_update(
+        &self,
+        source_id: TransceiverId,
+        handler: impl FnOnce() -> Result<DIFUpdateData, AccessError>,
+    ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
@@ -51,7 +57,7 @@ impl Reference {
                 }
                 Ok(DIFUpdateData::set(
                     DIFValueContainer::from_value_container(&key, memory),
-                    DIFValueContainer::from_value_container(&val, memory)
+                    DIFValueContainer::from_value_container(&val, memory),
                 ))
             })
         })
@@ -83,7 +89,8 @@ impl Reference {
                     }
                 }
                 Ok(DIFUpdateData::set(
-                    key, DIFValueContainer::from_value_container(&val, memory)
+                    key,
+                    DIFValueContainer::from_value_container(&val, memory),
                 ))
             })
         })
@@ -150,7 +157,10 @@ impl Reference {
                 core_value.inner =
                     value_container.to_value().borrow().inner.clone();
                 Ok(DIFUpdateData::replace(
-                    DIFValueContainer::from_value_container(value_container, memory),
+                    DIFValueContainer::from_value_container(
+                        value_container,
+                        memory,
+                    ),
                 ))
             })
         })
@@ -180,9 +190,14 @@ impl Reference {
                         )));
                     }
                 }
-                Ok(DIFUpdateData::push(DIFValueContainer::from_value_container(&value_container, memory)))
+                Ok(DIFUpdateData::push(
+                    DIFValueContainer::from_value_container(
+                        &value_container,
+                        memory,
+                    ),
+                ))
             })
-        })        
+        })
     }
 
     /// Tries to delete a property from the reference if it is a map.
@@ -212,7 +227,10 @@ impl Reference {
         })
     }
 
-    pub fn try_clear(&self, source_id: TransceiverId) -> Result<(), AccessError> {
+    pub fn try_clear(
+        &self,
+        source_id: TransceiverId,
+    ) -> Result<(), AccessError> {
         self.handle_update(source_id, move || {
             self.with_value_unchecked(|value| {
                 match value.inner {
@@ -238,14 +256,14 @@ mod tests {
         AccessError, AssignmentError, ReferenceMutability,
     };
     use crate::runtime::memory::Memory;
+    use crate::stdlib::assert_matches::assert_matches;
     use crate::values::core_values::list::List;
     use crate::values::core_values::map::Map;
     use crate::{
         references::reference::Reference,
         values::value_container::ValueContainer,
     };
-    use std::assert_matches::assert_matches;
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     #[test]
     fn push() {
@@ -264,13 +282,16 @@ mod tests {
         assert_eq!(updated_value, ValueContainer::from(4));
 
         // Try to push to immutable value
-        let int_ref = Reference::from(List::from(vec![ValueContainer::from(42)]));
-        let result = int_ref.try_push_value(0, ValueContainer::from(99), memory);
+        let int_ref =
+            Reference::from(List::from(vec![ValueContainer::from(42)]));
+        let result =
+            int_ref.try_push_value(0, ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::ImmutableReference));
 
         // Try to push to non-list value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let result = int_ref.try_push_value(0, ValueContainer::from(99), memory);
+        let result =
+            int_ref.try_push_value(0, ValueContainer::from(99), memory);
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
@@ -286,7 +307,12 @@ mod tests {
             Reference::try_mut_from(ValueContainer::from(map)).unwrap();
         // Set existing property
         map_ref
-            .try_set_property(0, "key1".into(), ValueContainer::from(42), memory)
+            .try_set_property(
+                0,
+                "key1".into(),
+                ValueContainer::from(42),
+                memory,
+            )
             .expect("Failed to set existing property");
         let updated_value = map_ref
             .try_get_property(ValueContainer::from("key1"))
@@ -359,7 +385,12 @@ mod tests {
 
         // Set existing property
         struct_ref
-            .try_set_text_property(0, "name", ValueContainer::from("Bob"), memory)
+            .try_set_text_property(
+                0,
+                "name",
+                ValueContainer::from("Bob"),
+                memory,
+            )
             .expect("Failed to set existing property");
         let name = struct_ref.try_get_text_property("name").unwrap();
         assert_eq!(name, "Bob".into());

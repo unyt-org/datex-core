@@ -37,14 +37,14 @@ pub async fn test_construct() {
 
     let mut server = TCPServerNativeInterface::new(PORT).unwrap();
     server.open().await.unwrap_or_else(|e| {
-        panic!("Failed to create TCPServerInterface: {e:?}");
+        core::panic!("Failed to create TCPServerInterface: {e:?}");
     });
 
     let mut client =
         TCPClientNativeInterface::new(&format!("ws://localhost:{PORT}"))
             .unwrap();
     client.open().await.unwrap_or_else(|e| {
-        panic!("Failed to create WebSocketClientInterface: {e}");
+        core::panic!("Failed to create WebSocketClientInterface: {e}");
     });
     let client_uuid = client.get_socket_uuid().unwrap();
 
@@ -68,10 +68,10 @@ pub async fn test_construct() {
         client
             .get_socket()
             .unwrap()
-            .lock()
+            .try_lock()
             .unwrap()
             .receive_queue
-            .lock()
+            .try_lock()
             .unwrap()
             .drain(..)
             .collect::<Vec<_>>(),
@@ -83,10 +83,10 @@ pub async fn test_construct() {
         let server_socket = server.get_socket_with_uuid(server_uuid).unwrap();
         assert_eq!(
             server_socket
-                .lock()
+                .try_lock()
                 .unwrap()
                 .receive_queue
-                .lock()
+                .try_lock()
                 .unwrap()
                 .drain(..)
                 .collect::<Vec<_>>(),
@@ -102,7 +102,7 @@ pub async fn test_construct() {
         let client_uuid = client_uuid.clone();
         futures.push(async move {
             client
-                .lock()
+                .try_lock()
                 .unwrap()
                 .send_block(CLIENT_TO_SERVER_MSG, client_uuid.clone())
                 .await;

@@ -1,31 +1,27 @@
-use std::str::FromStr;
-use std::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
-use chumsky::container::Seq;
+use crate::stdlib::{cell::RefCell, collections::HashSet, ops::Range, rc::Rc};
+use core::str::FromStr;
+use core::unreachable;
 
 pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
-use crate::ast::structs::{ResolvedVariable, VariableId};
+use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::{
     DatexExpression, RemoteExecution, VariantAccess,
 };
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
-use crate::precompiler::scope::NewScopeType;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
         parse_result::ValidDatexParseResult,
         spanned::Spanned,
-        structs::{
-            expression::{
-                BinaryOperation, DatexExpressionData, Statements,
-                TypeDeclaration, VariableAccess, VariableAssignment,
-                VariableDeclaration, VariableKind,
-            },
-            operator::{BinaryOperator, binary::ArithmeticOperator},
+        structs::expression::{
+            BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
+            VariableAccess, VariableAssignment, VariableDeclaration,
+            VariableKind,
         },
     },
     compiler::{
@@ -37,14 +33,8 @@ use crate::{
         },
         type_inference::infer_expression_type_detailed_errors,
     },
+    global::operators::{BinaryOperator, binary::ArithmeticOperator},
     libs::core::CoreLibPointerId,
-    precompiler::{
-        options::PrecompilerOptions,
-        precompiled_ast::{
-            AstMetadata, RichAst, VariableShape,
-        },
-        scope_stack::PrecompilerScopeStack,
-    },
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     types::type_container::TypeContainer,
     values::core_values::r#type::Type,
@@ -54,6 +44,12 @@ use crate::{
         type_expression::TypeExpressionVisitor,
     },
 };
+use options::PrecompilerOptions;
+use precompiled_ast::AstMetadata;
+use precompiled_ast::RichAst;
+use precompiled_ast::VariableShape;
+use scope::NewScopeType;
+use scope_stack::PrecompilerScopeStack;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
@@ -76,16 +72,16 @@ pub fn precompile_ast_simple_error(
         ast_metadata,
         PrecompilerOptions {
             detailed_errors: false,
-        }
+        },
     )
-        .map_err(|e| {
-            match e {
+    .map_err(|e| {
+        match e {
             SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
                 error,
             ) => error,
             _ => unreachable!(), // because detailed_errors: false
         }
-        })
+    })
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
@@ -101,16 +97,16 @@ pub fn precompile_ast_detailed_errors(
         ast_metadata,
         PrecompilerOptions {
             detailed_errors: true,
-        }
+        },
     )
-        .map_err(|e| {
-            match e {
-                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
-                    error,
-                ) => error,
-                _ => unreachable!(), // because detailed_errors: true
-            }
-        })
+    .map_err(|e| {
+        match e {
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+                error,
+            ) => error,
+            _ => unreachable!(), // because detailed_errors: true
+        }
+    })
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
@@ -120,11 +116,7 @@ pub fn precompile_ast(
     ast_metadata: Rc<RefCell<AstMetadata>>,
     options: PrecompilerOptions,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
-    Precompiler::new(scope_stack, ast_metadata)
-        .precompile(
-            ast,
-            options
-        )
+    Precompiler::new(scope_stack, ast_metadata).precompile(ast, options)
 }
 
 impl<'a> Precompiler<'a> {
@@ -137,7 +129,7 @@ impl<'a> Precompiler<'a> {
             scope_stack,
             collected_errors: None,
             spans: vec![],
-            is_first_level_expression: true
+            is_first_level_expression: true,
         }
     }
 
@@ -478,18 +470,18 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedCompilerError> {
         let operator = &binary_operation.operator;
-        
+
         // handle special case: / operator
         if operator == &BinaryOperator::Arithmetic(ArithmeticOperator::Divide) {
             let left = &mut binary_operation.left;
             let right = &mut binary_operation.right;
 
-            let lit_left = if let DatexExpressionData::Identifier(name) = &left.data
-            {
-                name.clone()
-            } else {
-                return Ok(VisitAction::VisitChildren);
-            };
+            let lit_left =
+                if let DatexExpressionData::Identifier(name) = &left.data {
+                    name.clone()
+                } else {
+                    return Ok(VisitAction::VisitChildren);
+                };
             let lit_right =
                 if let DatexExpressionData::Identifier(name) = &right.data {
                     name.clone()
@@ -524,10 +516,9 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
             } else {
                 Ok(VisitAction::VisitChildren)
             }
-        }
-        else {
+        } else {
             Ok(VisitAction::VisitChildren)
-        }        
+        }
     }
 
     fn visit_variable_declaration(
@@ -536,9 +527,19 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedCompilerError> {
         // check if variable already declared in active scope
-        if let Some(existing_var_id) = self.scope_stack.get_active_scope().variable_ids_by_name.get(&variable_declaration.name) {
+        if let Some(existing_var_id) = self
+            .scope_stack
+            .get_active_scope()
+            .variable_ids_by_name
+            .get(&variable_declaration.name)
+        {
             variable_declaration.id = Some(*existing_var_id);
-            return Err(SpannedCompilerError::new_with_span(CompilerError::InvalidRedeclaration(variable_declaration.name.clone()), span.clone()));
+            return Err(SpannedCompilerError::new_with_span(
+                CompilerError::InvalidRedeclaration(
+                    variable_declaration.name.clone(),
+                ),
+                span.clone(),
+            ));
         }
         variable_declaration.id = Some(self.add_new_variable(
             variable_declaration.name.clone(),
@@ -614,12 +615,12 @@ mod tests {
     use crate::ast::error::src::SrcId;
     use crate::ast::parse;
     use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
-    use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
-    use crate::values::core_values::integer::Integer;
-    use std::assert_matches::assert_matches;
-    use std::io;
     use crate::ast::structs::expression::{CreateRef, Deref};
+    use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
     use crate::references::reference::ReferenceMutability;
+    use crate::stdlib::assert_matches::assert_matches;
+    use crate::stdlib::io;
+    use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
 
     fn precompile(
@@ -689,7 +690,7 @@ mod tests {
                 let cache = ariadne::sources(vec![(src_id, src)]);
                 e.clone().write(cache, io::stdout());
             });
-            panic!("Parsing errors found");
+            core::panic!("Parsing errors found");
         }
         res.unwrap().ast
     }
@@ -865,7 +866,7 @@ mod tests {
         {
             stmts
         } else {
-            panic!("Expected statements");
+            core::panic!("Expected statements");
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),
@@ -900,7 +901,7 @@ mod tests {
         {
             stmts
         } else {
-            panic!("Expected statements");
+            core::panic!("Expected statements");
         };
         assert_eq!(
             *statements.statements.get(2).unwrap(),
@@ -1152,35 +1153,44 @@ mod tests {
         assert_eq!(
             rich_ast.ast,
             Some(
-                DatexExpressionData::Statements(Statements::new_unterminated(vec![
-                    DatexExpressionData::VariableDeclaration(
-                        VariableDeclaration {
-                            id: Some(0),
-                            kind: VariableKind::Const,
-                            name: "x".to_string(),
-                            init_expression: Box::new(
-                                DatexExpressionData::CreateRef(CreateRef {
-                                    mutability: ReferenceMutability::Immutable,
-                                    expression: Box::new(
-                                        DatexExpressionData::Integer(
-                                            Integer::from(42)
-                                        )
+                DatexExpressionData::Statements(Statements::new_unterminated(
+                    vec![
+                        DatexExpressionData::VariableDeclaration(
+                            VariableDeclaration {
+                                id: Some(0),
+                                kind: VariableKind::Const,
+                                name: "x".to_string(),
+                                init_expression: Box::new(
+                                    DatexExpressionData::CreateRef(CreateRef {
+                                        mutability:
+                                            ReferenceMutability::Immutable,
+                                        expression: Box::new(
+                                            DatexExpressionData::Integer(
+                                                Integer::from(42)
+                                            )
                                             .with_default_span()
-                                    )
-                                }).with_default_span(),
-                            ),
-                            type_annotation: None,
-                        }
-                    )
-                    .with_default_span(),
-                    DatexExpressionData::Deref(Deref {expression: Box::new(
-                        DatexExpressionData::VariableAccess(VariableAccess {
-                            id: 0,
-                            name: "x".to_string()
-                        }).with_default_span()
-                    )})
-                    .with_default_span(),
-                ]))
+                                        )
+                                    })
+                                    .with_default_span(),
+                                ),
+                                type_annotation: None,
+                            }
+                        )
+                        .with_default_span(),
+                        DatexExpressionData::Deref(Deref {
+                            expression: Box::new(
+                                DatexExpressionData::VariableAccess(
+                                    VariableAccess {
+                                        id: 0,
+                                        name: "x".to_string()
+                                    }
+                                )
+                                .with_default_span()
+                            )
+                        })
+                        .with_default_span(),
+                    ]
+                ))
                 .with_default_span()
             )
         );

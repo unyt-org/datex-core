@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Ident, ImplItemFn, ItemImpl};
 pub fn com_interface_impl(input_impl: ItemImpl) -> TokenStream {
     let name = &input_impl.self_ty;
@@ -45,7 +45,7 @@ pub fn create_opener_impl(original_open: ImplItemFn) -> TokenStream {
         .to_string()
         .starts_with("pub")
     {
-        panic!("The function is public. Remove the public modifier",);
+        core::panic!("The function is public. Remove the public modifier",);
     }
 
     {

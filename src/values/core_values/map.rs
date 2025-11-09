@@ -1,17 +1,24 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::std_random::RandomState;
+use crate::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use core::fmt::{self, Display};
+use core::hash::{Hash, Hasher};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use indexmap::IndexMap;
-use std::collections::HashMap;
-use std::fmt::{self, Display};
-use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
     // most general case, allows all types of keys and values, and dynamic size
-    Dynamic(IndexMap<ValueContainer, ValueContainer>),
+    Dynamic(IndexMap<ValueContainer, ValueContainer, RandomState>),
     // for fixed-size maps with known keys and values on construction
     Fixed(Vec<(ValueContainer, ValueContainer)>),
     // for maps with string keys
@@ -28,10 +35,10 @@ impl Display for MapAccessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MapAccessError::KeyNotFound => {
-                write!(f, "Key not found in fixed map")
+                core::write!(f, "Key not found in fixed map")
             }
             MapAccessError::Immutable => {
-                write!(f, "Map is immutable")
+                core::write!(f, "Map is immutable")
             }
         }
     }
@@ -39,21 +46,23 @@ impl Display for MapAccessError {
 
 impl Default for Map {
     fn default() -> Self {
-        Map::Dynamic(IndexMap::new())
+        Map::Dynamic(IndexMap::default())
     }
 }
 
 impl Map {
-    pub fn new(entries: IndexMap<ValueContainer, ValueContainer>) -> Self {
+    pub fn new(
+        entries: IndexMap<ValueContainer, ValueContainer, RandomState>,
+    ) -> Self {
         Map::Dynamic(entries)
     }
 
     pub fn is_structural(&self) -> bool {
-        matches!(self, Map::Structural(_))
+        core::matches!(self, Map::Structural(_))
     }
 
     pub fn has_fixed_size(&self) -> bool {
-        matches!(self, Map::Fixed(_) | Map::Structural(_))
+        core::matches!(self, Map::Fixed(_) | Map::Structural(_))
     }
 
     pub fn size(&self) -> usize {
@@ -276,8 +285,8 @@ impl Display for MapKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             // TODO #331: escape string
-            MapKey::Text(string) => write!(f, "\"{}\"", string),
-            MapKey::Value(value) => write!(f, "{value}"),
+            MapKey::Text(string) => core::write!(f, "\"{}\"", string),
+            MapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -299,8 +308,8 @@ impl From<OwnedMapKey> for ValueContainer {
 impl Display for OwnedMapKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OwnedMapKey::Text(text) => write!(f, "{text}"),
-            OwnedMapKey::Value(value) => write!(f, "{value}"),
+            OwnedMapKey::Text(text) => core::write!(f, "{text}"),
+            OwnedMapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -360,8 +369,8 @@ impl<'a> Iterator for MapIterator<'a> {
 
 pub enum MapMutIterator<'a> {
     Dynamic(indexmap::map::IterMut<'a, ValueContainer, ValueContainer>),
-    Fixed(std::slice::IterMut<'a, (ValueContainer, ValueContainer)>),
-    Structural(std::slice::IterMut<'a, (String, ValueContainer)>),
+    Fixed(core::slice::IterMut<'a, (ValueContainer, ValueContainer)>),
+    Structural(core::slice::IterMut<'a, (String, ValueContainer)>),
 }
 
 impl<'a> Iterator for MapMutIterator<'a> {
@@ -481,14 +490,14 @@ impl CoreValueTrait for Map {}
 
 impl Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{")?;
+        core::write!(f, "{{")?;
         for (i, (key, value)) in self.into_iter().enumerate() {
             if i > 0 {
-                write!(f, ", ")?;
+                core::write!(f, ", ")?;
             }
-            write!(f, "{key}: {value}")?;
+            core::write!(f, "{key}: {value}")?;
         }
-        write!(f, "}}")
+        core::write!(f, "}}")
     }
 }
 
@@ -552,7 +561,7 @@ impl From<Vec<(String, ValueContainer)>> for Map {
         Map::new(
             vec.into_iter()
                 .map(|(k, v)| (k.into(), v))
-                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+                .collect::<IndexMap<ValueContainer, ValueContainer, RandomState>>(),
         )
     }
 }
@@ -571,17 +580,19 @@ where
     }
 }
 
-impl From<IndexMap<ValueContainer, ValueContainer>> for Map {
-    fn from(map: IndexMap<ValueContainer, ValueContainer>) -> Self {
+impl From<IndexMap<ValueContainer, ValueContainer, RandomState>> for Map {
+    fn from(
+        map: IndexMap<ValueContainer, ValueContainer, RandomState>,
+    ) -> Self {
         Map::new(map)
     }
 }
-impl From<IndexMap<String, ValueContainer>> for Map {
-    fn from(map: IndexMap<String, ValueContainer>) -> Self {
+impl From<IndexMap<String, ValueContainer, RandomState>> for Map {
+    fn from(map: IndexMap<String, ValueContainer, RandomState>) -> Self {
         Map::new(
             map.into_iter()
                 .map(|(k, v)| (k.into(), v))
-                .collect::<IndexMap<ValueContainer, ValueContainer>>(),
+                .collect::<IndexMap<ValueContainer, ValueContainer, RandomState>>(),
         )
     }
 }

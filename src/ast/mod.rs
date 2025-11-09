@@ -30,9 +30,10 @@ use crate::ast::structs::expression::{
 };
 use chumsky::extra::Err;
 use chumsky::prelude::*;
+use core::ops::Range;
+use core::result::Result;
 use lexer::Token;
 use logos::Logos;
-use std::ops::Range;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -323,13 +324,7 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration, VariantAccess,
-                },
-                operator::{
-                    ApplyOperation, ArithmeticUnaryOperator,
-                    AssignmentOperator, BinaryOperator, ComparisonOperator,
-                    LogicalUnaryOperator, UnaryOperator,
-                    binary::{ArithmeticOperator, BitwiseOperator},
+                    FunctionDeclaration, TypeDeclaration,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -337,7 +332,11 @@ mod tests {
                 },
             },
         },
-        libs::core::CoreLibPointerId,
+        global::operators::{
+            ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator,
+            ComparisonOperator, LogicalUnaryOperator, UnaryOperator,
+            binary::{ArithmeticOperator, BitwiseOperator},
+        },
         values::{
             core_values::{
                 decimal::Decimal,
@@ -350,13 +349,17 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::structs::expression::{CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation, VariableDeclaration, VariableKind};
-    use datex_core::ast::structs::expression::VariableAssignment;
-    use std::{
+    use crate::ast::structs::apply_operation::ApplyOperation;
+    use crate::ast::structs::expression::{
+        CreateRef, DatexExpressionData, Deref, List, Map, Slot, UnaryOperation,
+        VariableDeclaration, VariableKind,
+    };
+    use crate::references::reference::ReferenceMutability;
+    use crate::stdlib::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
-    use crate::references::reference::ReferenceMutability;
+    use datex_core::ast::structs::expression::VariableAssignment;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {
@@ -371,7 +374,7 @@ mod tests {
                     let cache = ariadne::sources(vec![(src_id, src)]);
                     e.clone().write(cache, io::stdout());
                 });
-                panic!("Parsing errors found");
+                core::panic!("Parsing errors found");
             }
             DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast,
         }
@@ -412,7 +415,7 @@ mod tests {
     fn parse_to_value_container(src: &str) -> ValueContainer {
         let expr = parse_unwrap_data(src);
         ValueContainer::try_from(&expr).unwrap_or_else(|_| {
-            panic!("Failed to convert expression to ValueContainer")
+            core::panic!("Failed to convert expression to ValueContainer")
         })
     }
 
@@ -521,7 +524,7 @@ mod tests {
                 }
             );
         } else {
-            panic!("Expected VariableDeclaration");
+            core::panic!("Expected VariableDeclaration");
         }
     }
 
@@ -3902,10 +3905,12 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Deref {expression: Box::new(
-                DatexExpressionData::Identifier("x".to_string())
-                    .with_default_span()
-            )})
+            DatexExpressionData::Deref(Deref {
+                expression: Box::new(
+                    DatexExpressionData::Identifier("x".to_string())
+                        .with_default_span()
+                )
+            })
         );
     }
 
@@ -3915,13 +3920,17 @@ mod tests {
         let expr = parse_unwrap_data(src);
         assert_eq!(
             expr,
-            DatexExpressionData::Deref(Deref {expression: Box::new(
-                DatexExpressionData::Deref(Deref {expression: Box::new(
-                    DatexExpressionData::Identifier("x".to_string())
-                        .with_default_span()
-                )})
-                .with_default_span()
-            )})
+            DatexExpressionData::Deref(Deref {
+                expression: Box::new(
+                    DatexExpressionData::Deref(Deref {
+                        expression: Box::new(
+                            DatexExpressionData::Identifier("x".to_string())
+                                .with_default_span()
+                        )
+                    })
+                    .with_default_span()
+                )
+            })
         );
     }
 
@@ -4031,7 +4040,7 @@ mod tests {
                                 DatexExpressionData::Integer(Integer::from(3))
                                     .with_default_span(),
                             ]))
-                                .with_default_span()
+                            .with_default_span()
                         )
                     })
                     .with_default_span()
@@ -4062,8 +4071,11 @@ mod tests {
                                     .with_default_span(),
                                 DatexExpressionData::Integer(Integer::from(3))
                                     .with_default_span(),
-                            ])).with_default_span()
-                        )}).with_default_span()
+                            ]))
+                            .with_default_span()
+                        )
+                    })
+                    .with_default_span()
                 ),
             })
         );
@@ -4159,7 +4171,7 @@ mod tests {
             assert_eq!(right.span.start, 2);
             assert_eq!(right.span.end, 3);
         } else {
-            panic!("Expected BinaryOperation");
+            core::panic!("Expected BinaryOperation");
         }
     }
 }

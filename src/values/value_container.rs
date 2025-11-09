@@ -1,20 +1,22 @@
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::type_container::TypeContainer;
-use std::cell::RefCell;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use super::value::Value;
-use crate::compiler::compile_value;
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
+use core::fmt::Display;
+use core::hash::{Hash, Hasher};
+use core::ops::FnOnce;
+use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
-use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::hash::Hash;
-use std::ops::{Add, Neg, Sub};
-use std::rc::Rc;
+use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -25,17 +27,17 @@ pub enum ValueError {
 }
 
 impl Display for ValueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ValueError::IsVoid => write!(f, "Value is void"),
+            ValueError::IsVoid => core::write!(f, "Value is void"),
             ValueError::InvalidOperation => {
-                write!(f, "Invalid operation on value")
+                core::write!(f, "Invalid operation on value")
             }
             ValueError::TypeConversionError => {
-                write!(f, "Type conversion error")
+                core::write!(f, "Type conversion error")
             }
             ValueError::IntegerOverflow => {
-                write!(f, "Integer overflow occurred")
+                core::write!(f, "Integer overflow occurred")
             }
         }
     }
@@ -45,18 +47,6 @@ impl Display for ValueError {
 pub enum ValueContainer {
     Value(Value),
     Reference(Reference),
-}
-
-impl Serialize for ValueContainer {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct(
-            "datex::value",
-            &compile_value(self).unwrap(),
-        )
-    }
 }
 
 impl<'a> Deserialize<'a> for ValueContainer {
@@ -73,7 +63,7 @@ impl<'a> Deserialize<'a> for ValueContainer {
 }
 
 impl Hash for ValueContainer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             ValueContainer::Value(value) => value.hash(state),
             ValueContainer::Reference(pointer) => pointer.hash(state),
@@ -149,12 +139,12 @@ impl Identity for ValueContainer {
 }
 
 impl Display for ValueContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ValueContainer::Value(value) => write!(f, "{value}"),
+            ValueContainer::Value(value) => core::write!(f, "{value}"),
             // TODO #118: only simple temporary way to distinguish between Value and Pointer
             ValueContainer::Reference(reference) => {
-                write!(f, "&({})", reference.collapse_to_value().borrow())
+                core::write!(f, "&({})", reference.collapse_to_value().borrow())
             }
         }
     }
@@ -231,7 +221,7 @@ impl ValueContainer {
     pub fn reference_unchecked(&self) -> &Reference {
         match self {
             ValueContainer::Reference(reference) => reference,
-            _ => panic!("Cannot convert ValueContainer to Reference"),
+            _ => core::panic!("Cannot convert ValueContainer to Reference"),
         }
     }
 
@@ -260,7 +250,9 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => todo!("#309 implement apply for Value"),
+            ValueContainer::Value(value) => {
+                core::todo!("#309 implement apply for Value")
+            }
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
@@ -271,7 +263,7 @@ impl Apply for ValueContainer {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => {
-                todo!("#310 implement apply_single for Value")
+                core::todo!("#310 implement apply_single for Value")
             }
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }

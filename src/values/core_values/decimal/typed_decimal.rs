@@ -1,20 +1,23 @@
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::format;
+use crate::stdlib::ops::{Add, AddAssign, Sub};
+use crate::stdlib::string::String;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::num::ParseFloatError;
+use core::ops::Neg;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
-use std::num::ParseFloatError;
-use std::ops::Neg;
-use std::{
-    fmt::Display,
-    ops::{Add, AddAssign, Sub},
-};
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
@@ -82,7 +85,7 @@ impl<'de> Deserialize<'de> for TypedDecimal {
 }
 
 impl Hash for TypedDecimal {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedDecimal::F32(value) => {
                 // hash -0.0 and 0.0 to the same value
@@ -344,12 +347,12 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => {
                 value.into_inner() as f64 >= i64::MIN as f64
                     && value.into_inner() as f64 <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f32::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::F64(value) => {
                 value.into_inner() >= i64::MIN as f64
                     && value.into_inner() <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f64::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => {
@@ -379,7 +382,7 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => value.into_inner().is_infinite(),
             TypedDecimal::F64(value) => value.into_inner().is_infinite(),
             TypedDecimal::Decimal(value) => {
-                matches!(value, Decimal::Infinity | Decimal::NegInfinity)
+                core::matches!(value, Decimal::Infinity | Decimal::NegInfinity)
             }
         }
     }
@@ -404,12 +407,12 @@ impl TypedDecimal {
 
     /// Returns true if the TypedDecimal is of variant F32.
     pub fn is_f32(&self) -> bool {
-        matches!(self, TypedDecimal::F32(_))
+        core::matches!(self, TypedDecimal::F32(_))
     }
 
     /// Returns true if the TypedDecimal is of variant F64.
     pub fn is_f64(&self) -> bool {
-        matches!(self, TypedDecimal::F64(_))
+        core::matches!(self, TypedDecimal::F64(_))
     }
 
     /// Returns true if the value is NaN (Not a Number).
@@ -417,7 +420,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
-            TypedDecimal::Decimal(value) => matches!(value, Decimal::NaN),
+            TypedDecimal::Decimal(value) => core::matches!(value, Decimal::NaN),
         }
     }
 
@@ -458,11 +461,15 @@ impl TypedDecimal {
 }
 
 impl Display for TypedDecimal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::F64(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::Decimal(value) => write!(f, "{value}"),
+            TypedDecimal::F32(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
+            TypedDecimal::F64(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
+            TypedDecimal::Decimal(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -564,7 +571,7 @@ impl From<f64> for TypedDecimal {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     use super::*;
     use crate::values::core_values::decimal::Decimal;

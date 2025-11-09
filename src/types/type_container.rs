@@ -1,14 +1,15 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::references::type_reference::TypeReference;
+use crate::stdlib::rc::Rc;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Display;
-use std::hash::Hash;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::prelude::rust_2024::*;
 
 // TODO #376: move match logic and other type stuff here
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,12 +19,12 @@ pub enum TypeContainer {
 }
 
 impl Display for TypeContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeContainer::Type(t) => write!(f, "{}", t),
+            TypeContainer::Type(t) => core::write!(f, "{}", t),
             TypeContainer::TypeReference(tr) => {
                 let tr = tr.borrow();
-                write!(f, "{}", tr)
+                core::write!(f, "{}", tr)
             }
         }
     }
@@ -74,7 +75,7 @@ impl TypeContainer {
 }
 
 impl Hash for TypeContainer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeContainer::Type(t) => t.hash(state),
             TypeContainer::TypeReference(tr) => {

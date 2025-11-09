@@ -3,9 +3,15 @@ use crate::references::type_reference::{
 };
 use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use crate::references::value_reference::ValueReference;
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
@@ -15,12 +21,14 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::hash::{Hash, Hasher};
+use core::ops::FnOnce;
+use core::option::Option;
+use core::unreachable;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::fmt::Display;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -40,28 +48,28 @@ impl From<MapAccessError> for AccessError {
 }
 
 impl Display for AccessError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AccessError::MapAccessError(err) => {
-                write!(f, "Map access error: {}", err)
+                core::write!(f, "Map access error: {}", err)
             }
             AccessError::ImmutableReference => {
-                write!(f, "Cannot modify an immutable reference")
+                core::write!(f, "Cannot modify an immutable reference")
             }
             AccessError::InvalidOperation(op) => {
-                write!(f, "Invalid operation: {}", op)
+                core::write!(f, "Invalid operation: {}", op)
             }
             AccessError::PropertyNotFound(prop) => {
-                write!(f, "Property not found: {}", prop)
+                core::write!(f, "Property not found: {}", prop)
             }
             AccessError::CanNotUseReferenceAsKey => {
-                write!(f, "Cannot use a reference as a property key")
+                core::write!(f, "Cannot use a reference as a property key")
             }
             AccessError::IndexOutOfBounds(index) => {
-                write!(f, "Index out of bounds: {}", index)
+                core::write!(f, "Index out of bounds: {}", index)
             }
             AccessError::InvalidPropertyKeyType(ty) => {
-                write!(f, "Invalid property key type: {}", ty)
+                core::write!(f, "Invalid property key type: {}", ty)
             }
         }
     }
@@ -75,12 +83,13 @@ pub enum TypeError {
     },
 }
 impl Display for TypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeError::TypeMismatch { expected, found } => write!(
+            TypeError::TypeMismatch { expected, found } => core::write!(
                 f,
                 "Type mismatch: expected {}, found {}",
-                expected, found
+                expected,
+                found
             ),
         }
     }
@@ -93,12 +102,14 @@ pub enum AssignmentError {
 }
 
 impl Display for AssignmentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AssignmentError::ImmutableReference => {
-                write!(f, "Cannot assign to an immutable reference")
+                core::write!(f, "Cannot assign to an immutable reference")
             }
-            AssignmentError::TypeError(e) => write!(f, "Type error: {}", e),
+            AssignmentError::TypeError(e) => {
+                core::write!(f, "Type error: {}", e)
+            }
         }
     }
 }
@@ -114,6 +125,8 @@ pub enum ReferenceMutability {
 
 pub mod mutability_as_int {
     use super::ReferenceMutability;
+    use crate::stdlib::format;
+    use core::prelude::rust_2024::*;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -151,6 +164,8 @@ pub mod mutability_as_int {
 }
 pub mod mutability_option_as_int {
     use super::ReferenceMutability;
+    use crate::stdlib::format;
+    use core::prelude::rust_2024::*;
     use serde::de::Error;
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -190,10 +205,10 @@ pub mod mutability_option_as_int {
 }
 
 impl Display for ReferenceMutability {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ReferenceMutability::Mutable => write!(f, "&mut"),
-            ReferenceMutability::Immutable => write!(f, "&"),
+            ReferenceMutability::Mutable => core::write!(f, "&mut"),
+            ReferenceMutability::Immutable => core::write!(f, "&"),
         }
     }
 }
@@ -205,15 +220,15 @@ pub enum Reference {
 }
 
 impl Display for Reference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Reference::ValueReference(vr) => {
                 let vr = vr.borrow();
-                write!(f, "{} {}", vr.mutability, vr.value_container)
+                core::write!(f, "{} {}", vr.mutability, vr.value_container)
             }
             Reference::TypeReference(tr) => {
                 let tr = tr.borrow();
-                write!(f, "{}", tr)
+                core::write!(f, "{}", tr)
             }
         }
     }
@@ -321,16 +336,16 @@ pub enum ReferenceCreationError {
 }
 
 impl Display for ReferenceCreationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ReferenceCreationError::InvalidType => {
-                write!(
+                core::write!(
                     f,
                     "Cannot create reference from value container: invalid type"
                 )
             }
             ReferenceCreationError::MutableTypeReference => {
-                write!(f, "Cannot create mutable reference for type")
+                core::write!(f, "Cannot create mutable reference for type")
             }
         }
     }
@@ -385,7 +400,7 @@ impl Reference {
     /// generally possible.
     pub fn supports_property_access(&self) -> bool {
         self.with_value(|value| {
-            matches!(
+            core::matches!(
                 value.inner,
                 CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
@@ -396,7 +411,7 @@ impl Reference {
     /// Checks if the reference has text property access.
     /// This is true for maps.
     pub fn supports_text_property_access(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::Map(_)))
+        self.with_value(|value| core::matches!(value.inner, CoreValue::Map(_)))
             .unwrap_or(false)
     }
 
@@ -404,7 +419,7 @@ impl Reference {
     /// This is true for maps, lists and text.
     pub fn supports_numeric_property_access(&self) -> bool {
         self.with_value(|value| {
-            matches!(
+            core::matches!(
                 value.inner,
                 CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
             )
@@ -414,7 +429,7 @@ impl Reference {
 
     /// Checks if the reference supports push operation
     pub fn supports_push(&self) -> bool {
-        self.with_value(|value| matches!(value.inner, CoreValue::List(_)))
+        self.with_value(|value| core::matches!(value.inner, CoreValue::List(_)))
             .unwrap_or(false)
     }
 }
@@ -433,7 +448,7 @@ impl Reference {
     /// Panics if the reference already has a pointer address.
     pub fn set_pointer_address(&self, pointer_address: PointerAddress) {
         if self.pointer_address().is_some() {
-            panic!(
+            core::panic!(
                 "Cannot set pointer address on reference that already has one"
             );
         }
@@ -666,7 +681,7 @@ impl Reference {
     pub fn allowed_type(&self) -> TypeContainer {
         match self {
             Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
-            Reference::TypeReference(_) => todo!("#293 type Type"),
+            Reference::TypeReference(_) => core::todo!("#293 type Type"),
         }
     }
 
@@ -679,7 +694,7 @@ impl Reference {
                 .borrow()
                 .actual_type()
                 .clone(),
-            Reference::TypeReference(tr) => todo!("#294 type Type"),
+            Reference::TypeReference(tr) => core::todo!("#294 type Type"),
         }
     }
 
@@ -821,7 +836,7 @@ impl Apply for Reference {
         &self,
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        todo!("#297 Undescribed by author.")
+        core::todo!("#297 Undescribed by author.")
     }
 
     fn apply_single(
@@ -830,7 +845,9 @@ impl Apply for Reference {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => todo!("#298 Undescribed by author."),
+            Reference::ValueReference(vr) => {
+                core::todo!("#298 Undescribed by author.")
+            }
         }
     }
 }
@@ -840,10 +857,10 @@ mod tests {
     use super::*;
     use crate::runtime::global_context::{GlobalContext, set_global_context};
     use crate::runtime::memory::Memory;
+    use crate::stdlib::assert_matches::assert_matches;
     use crate::traits::value_eq::ValueEq;
     use crate::{assert_identical, assert_structural_eq, assert_value_eq};
     use datex_core::values::core_values::map::Map;
-    use std::assert_matches::assert_matches;
 
     #[test]
     fn try_mut_from() {

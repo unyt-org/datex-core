@@ -1,11 +1,15 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::stdlib::ops::Index;
+use crate::stdlib::vec::Vec;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::{
     core_value::CoreValue,
     value_container::{ValueContainer, ValueError},
 };
-use std::{fmt, ops::Index};
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
-use crate::traits::structural_eq::StructuralEq;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
 impl List {
@@ -34,7 +38,7 @@ impl List {
     ) -> Option<ValueContainer> {
         // replace
         if (index as usize) < self.0.len() {
-            Some(std::mem::replace(&mut self.0[index as usize], value))
+            Some(core::mem::replace(&mut self.0[index as usize], value))
         }
         // push
         else if (index as usize) == self.0.len() {
@@ -67,11 +71,11 @@ impl List {
         &mut self.0
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, ValueContainer> {
+    pub fn iter(&self) -> core::slice::Iter<'_, ValueContainer> {
         self.0.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ValueContainer> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, ValueContainer> {
         self.0.iter_mut()
     }
 }
@@ -92,16 +96,16 @@ impl StructuralEq for List {
     }
 }
 
-impl fmt::Display for List {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[")?;
+impl Display for List {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
             if i > 0 {
-                write!(f, ", ")?;
+                core::write!(f, ", ")?;
             }
-            write!(f, "{value}")?;
+            core::write!(f, "{value}")?;
         }
-        write!(f, "]")
+        core::write!(f, "]")
     }
 }
 
@@ -133,7 +137,7 @@ impl Index<usize> for List {
 
 impl IntoIterator for List {
     type Item = ValueContainer;
-    type IntoIter = std::vec::IntoIter<ValueContainer>;
+    type IntoIter = crate::stdlib::vec::IntoIter<ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -142,7 +146,7 @@ impl IntoIterator for List {
 
 impl<'a> IntoIterator for &'a List {
     type Item = &'a ValueContainer;
-    type IntoIter = std::slice::Iter<'a, ValueContainer>;
+    type IntoIter = core::slice::Iter<'a, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

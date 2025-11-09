@@ -2,8 +2,8 @@ use crate::ast::error::pattern::Pattern;
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
+use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::ast::structs::expression::{ApplyChain, List, Map};
-use crate::ast::structs::operator::ApplyOperation;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 

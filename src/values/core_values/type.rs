@@ -1,7 +1,14 @@
+#[cfg(feature = "compiler")]
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
@@ -11,10 +18,12 @@ use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::text::Text;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Display;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::hash::{Hash, Hasher};
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -47,16 +56,16 @@ impl Type {
         reference_mutability: None,
     };
     pub fn is_structural(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Structural(_))
+        core::matches!(self.type_definition, TypeDefinition::Structural(_))
     }
     pub fn is_union(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Union(_))
+        core::matches!(self.type_definition, TypeDefinition::Union(_))
     }
     pub fn is_unit(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Unit)
+        core::matches!(self.type_definition, TypeDefinition::Unit)
     }
     pub fn is_reference(&self) -> bool {
-        matches!(self.type_definition, TypeDefinition::Reference(_))
+        core::matches!(self.type_definition, TypeDefinition::Reference(_))
     }
     pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {
@@ -165,13 +174,13 @@ impl Type {
                 value.get_core_lib_type_pointer_id(),
             ),
             TypeDefinition::Union(_) => {
-                todo!("#322 handle union base type"); // generic type base type / type
+                core::todo!("#322 handle union base type"); // generic type base type / type
             }
             TypeDefinition::Reference(reference) => {
-                todo!("#323 handle reference base type");
+                core::todo!("#323 handle reference base type");
                 // return reference.collapse_to_value().borrow()
             }
-            _ => panic!("Unhandled type definition for base type"),
+            _ => core::panic!("Unhandled type definition for base type"),
         })
     }
 
@@ -225,7 +234,7 @@ impl Type {
         false
     }
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        todo!("#326 implement type reference matching");
+        core::todo!("#326 implement type reference matching");
         // self.type_matches(&other.type_value)
     }
 
@@ -256,7 +265,7 @@ impl Type {
                 structural_type.value_matches(value)
             }
             TypeDefinition::Reference(reference) => {
-                todo!("#327 handle reference type matching");
+                core::todo!("#327 handle reference type matching");
                 //reference.value_matches(value)
             }
             TypeDefinition::Type(inner_type) => {
@@ -267,10 +276,10 @@ impl Type {
                 parameters,
                 return_type,
             } => {
-                todo!("#328 handle function type matching");
+                core::todo!("#328 handle function type matching");
             }
             TypeDefinition::Collection(collection_type) => {
-                todo!("#329 handle collection type matching");
+                core::todo!("#329 handle collection type matching");
             }
             TypeDefinition::Unit => false, // unit type does not match any value
             TypeDefinition::Never => false,
@@ -289,7 +298,7 @@ impl StructuralEq for Type {
 }
 
 impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mutability =
             self.reference_mutability
                 .as_ref()
@@ -301,7 +310,7 @@ impl Display for Type {
             .base_type
             .as_ref()
             .map_or("".to_string(), |b| format!(": {}", b.borrow()));
-        write!(f, "{}{}{}", mutability, self.type_definition, base)
+        core::write!(f, "{}{}{}", mutability, self.type_definition, base)
     }
 }
 
@@ -367,6 +376,7 @@ impl From<CoreValue> for Type {
     }
 }
 
+#[cfg(feature = "compiler")]
 impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     type Error = ();
 
@@ -393,6 +403,7 @@ impl TryFrom<&DatexExpressionData> for StructuralTypeDefinition {
     }
 }
 
+#[cfg(feature = "compiler")]
 impl TryFrom<&DatexExpressionData> for Type {
     type Error = ();
 
@@ -406,7 +417,6 @@ mod tests {
     use crate::values::{
         core_values::{
             integer::{Integer, typed_integer::TypedInteger},
-            list::List,
             text::Text,
             r#type::Type,
         },

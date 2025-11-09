@@ -2,9 +2,10 @@ use crate::dif::r#type::DIFTypeContainer;
 use crate::references::reference::mutability_as_int;
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::memory::Memory;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
 use datex_core::dif::value::DIFValueContainer;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFReference {
     pub value: DIFValueContainer,

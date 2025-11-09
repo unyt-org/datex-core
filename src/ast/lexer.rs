@@ -1,4 +1,4 @@
-use std::{
+use core::{
     fmt::{self, Display},
     ops::Range,
 };
@@ -10,7 +10,7 @@ pub type SourceId = usize;
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Loc {
     pub source: SourceId,
-    pub span: core::ops::Range<usize>,
+    pub span: Range<usize>,
 }
 use strum::IntoEnumIterator;
 
@@ -284,7 +284,7 @@ impl Token {
             Token::Matches => "matches",
             Token::If => "if",
             Token::Else => "else",
-            e => todo!("#367 Unhandled token in as_string: {:?}", e),
+            e => core::todo!("#367 Unhandled token in as_string: {:?}", e),
         };
 
         identifier_token.to_string()
@@ -303,9 +303,9 @@ pub struct TypedLiteral<T> {
 impl Display for TypedLiteral<IntegerTypeVariant> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(variant) = &self.variant {
-            write!(f, "{}{}", self.value, variant.as_ref())
+            core::write!(f, "{}{}", self.value, variant.as_ref())
         } else {
-            write!(f, "{}", self.value)
+            core::write!(f, "{}", self.value)
         }
     }
 }
@@ -334,7 +334,7 @@ fn parse_typed_literal<T: TypeSuffix>(
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
+        core::write!(f, "{self:?}")
     }
 }
 
@@ -369,7 +369,7 @@ mod tests {
             assert_eq!(literal.variant, Some(IntegerTypeVariant::U8));
             assert_eq!(format!("{}", literal), "42u8".to_string());
         } else {
-            panic!("Expected DecimalIntegerLiteral with variant U8");
+            core::panic!("Expected DecimalIntegerLiteral with variant U8");
         }
 
         let mut lexer = Token::lexer("42");
@@ -379,7 +379,7 @@ mod tests {
             assert_eq!(literal.variant, None);
             assert_eq!(format!("{}", literal), "42".to_string());
         } else {
-            panic!("Expected DecimalIntegerLiteral with no variant");
+            core::panic!("Expected DecimalIntegerLiteral with no variant");
         }
     }
 

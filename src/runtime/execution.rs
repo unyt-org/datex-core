@@ -1,28 +1,35 @@
 use super::stack::{Scope, ScopeStack};
 
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::assignment::AssignmentOperator;
 
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::binary::{
+use crate::core_compiler::value_compiler::compile_value_container;
+use crate::global::instruction_codes::InstructionCode;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::binary::{
     ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };
-use crate::ast::structs::operator::{
+use crate::global::operators::{
     ArithmeticUnaryOperator, BitwiseUnaryOperator, LogicalUnaryOperator,
     ReferenceUnaryOperator, UnaryOperator,
 };
-use crate::compiler::compile_value;
-use crate::compiler::error::CompilerError;
-use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::*;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
+use crate::references::reference::Reference;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
+use crate::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
@@ -40,15 +47,16 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::{ValueContainer, ValueError};
-use datex_core::decompiler::{DecompileOptions, decompile_value};
-use datex_core::references::reference::Reference;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
+use core::unreachable;
+use core::writeln;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -85,13 +93,16 @@ pub struct MemoryDump {
     pub slots: Vec<(u32, Option<ValueContainer>)>,
 }
 
+#[cfg(feature = "compiler")]
 impl Display for MemoryDump {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (address, value) in &self.slots {
             match value {
                 Some(vc) => {
-                    let decompiled =
-                        decompile_value(vc, DecompileOptions::colorized());
+                    let decompiled = crate::decompiler::decompile_value(
+                        vc,
+                        crate::decompiler::DecompileOptions::colorized(),
+                    );
                     writeln!(f, "#{address}: {decompiled}")?
                 }
                 None => writeln!(f, "#{address}: <uninitialized>")?,
@@ -328,7 +339,7 @@ pub async fn execute_dxb(
                         slot,
                     )?));
             }
-            _ => todo!("#99 Undescribed by author."),
+            _ => core::todo!("#99 Undescribed by author."),
         }
     }
 
@@ -411,19 +422,19 @@ pub enum InvalidProgramError {
 }
 
 impl Display for InvalidProgramError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidProgramError::InvalidScopeClose => {
-                write!(f, "Invalid scope close")
+                core::write!(f, "Invalid scope close")
             }
             InvalidProgramError::InvalidKeyValuePair => {
-                write!(f, "Invalid key-value pair")
+                core::write!(f, "Invalid key-value pair")
             }
             InvalidProgramError::UnterminatedSequence => {
-                write!(f, "Unterminated sequence")
+                core::write!(f, "Unterminated sequence")
             }
             InvalidProgramError::MissingRemoteExecutionReceiver => {
-                write!(f, "Missing remote execution receiver")
+                core::write!(f, "Missing remote execution receiver")
             }
         }
     }
@@ -441,7 +452,6 @@ pub enum ExecutionError {
     RequiresAsyncExecution,
     RequiresRuntime,
     ResponseError(ResponseError),
-    CompilerError(CompilerError),
     IllegalTypeError(IllegalTypeError),
     ReferenceNotFound,
     DerefOfNonReference,
@@ -485,12 +495,6 @@ impl From<ResponseError> for ExecutionError {
     }
 }
 
-impl From<CompilerError> for ExecutionError {
-    fn from(error: CompilerError) -> Self {
-        ExecutionError::CompilerError(error)
-    }
-}
-
 impl From<AssignmentError> for ExecutionError {
     fn from(error: AssignmentError) -> Self {
         ExecutionError::AssignmentError(error)
@@ -498,60 +502,61 @@ impl From<AssignmentError> for ExecutionError {
 }
 
 impl Display for ExecutionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ExecutionError::ReferenceFromValueContainerError(err) => {
-                write!(f, "Reference from value container error: {err}")
+                core::write!(f, "Reference from value container error: {err}")
             }
             ExecutionError::ReferenceNotFound => {
-                write!(f, "Reference not found")
-            }
-            ExecutionError::CompilerError(err) => {
-                write!(f, "Compiler error: {err}")
+                core::write!(f, "Reference not found")
             }
             ExecutionError::DXBParserError(err) => {
-                write!(f, "Parser error: {err}")
+                core::write!(f, "Parser error: {err}")
             }
-            ExecutionError::Unknown => write!(f, "Unknown execution error"),
-            ExecutionError::ValueError(err) => write!(f, "Value error: {err}"),
+            ExecutionError::Unknown => {
+                core::write!(f, "Unknown execution error")
+            }
+            ExecutionError::ValueError(err) => {
+                core::write!(f, "Value error: {err}")
+            }
             ExecutionError::InvalidProgram(err) => {
-                write!(f, "Invalid program error: {err}")
+                core::write!(f, "Invalid program error: {err}")
             }
             ExecutionError::NotImplemented(msg) => {
-                write!(f, "Not implemented: {msg}")
+                core::write!(f, "Not implemented: {msg}")
             }
             ExecutionError::SlotNotAllocated(address) => {
-                write!(
+                core::write!(
                     f,
                     "Tried to access unallocated slot at address {address}"
                 )
             }
             ExecutionError::SlotNotInitialized(address) => {
-                write!(
+                core::write!(
                     f,
                     "Tried to access uninitialized slot at address {address}"
                 )
             }
             ExecutionError::RequiresAsyncExecution => {
-                write!(f, "Program must be executed asynchronously")
+                core::write!(f, "Program must be executed asynchronously")
             }
             ExecutionError::RequiresRuntime => {
-                write!(f, "Execution requires a runtime to be set")
+                core::write!(f, "Execution requires a runtime to be set")
             }
             ExecutionError::ResponseError(err) => {
-                write!(f, "Response error: {err}")
+                core::write!(f, "Response error: {err}")
             }
             ExecutionError::IllegalTypeError(err) => {
-                write!(f, "Illegal type: {err}")
+                core::write!(f, "Illegal type: {err}")
             }
             ExecutionError::DerefOfNonReference => {
-                write!(f, "Tried to dereference a non-reference value")
+                core::write!(f, "Tried to dereference a non-reference value")
             }
             ExecutionError::AssignmentError(err) => {
-                write!(f, "Assignment error: {err}")
+                core::write!(f, "Assignment error: {err}")
             }
             ExecutionError::InvalidTypeCast => {
-                write!(f, "Invalid type cast")
+                core::write!(f, "Invalid type cast")
             }
         }
     }
@@ -847,9 +852,7 @@ fn get_result_value_from_instruction(
                             |_| ExecutionError::SlotNotAllocated(local_slot),
                         )
                     ) {
-                        buffer.extend_from_slice(&yield_unwrap!(
-                            compile_value(&vc)
-                        ));
+                        buffer.extend_from_slice(&compile_value_container(&vc));
                     } else {
                         return yield Err(ExecutionError::SlotNotInitialized(
                             local_slot,
@@ -1123,7 +1126,7 @@ fn iterate_type_instructions(
                         TypeContainer::Type(Type::structural(integer.0)),
                     )));
                 }
-                _ => todo!("#405 Undescribed by author."),
+                _ => core::todo!("#405 Undescribed by author."),
             }
         }
     }
@@ -1358,7 +1361,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
             ..
         }) => {
             // TODO #406: Implement map collector for optimized structural maps
-            panic!("append {:?}", value);
+            core::panic!("append {:?}", value);
         }
         _ => {
             unreachable!("Unsupported collector for collection scope");
@@ -1448,7 +1451,9 @@ fn handle_unary_operation(
         UnaryOperator::Arithmetic(arithmetic) => {
             handle_unary_arithmetic_operation(arithmetic, value_container)
         }
-        _ => todo!("#102 Unary instruction not implemented: {operator:?}"),
+        _ => {
+            core::todo!("#102 Unary instruction not implemented: {operator:?}")
+        }
     }
 }
 
@@ -1530,7 +1535,10 @@ fn handle_arithmetic_operation(
         //     Ok((active_value_container / &value_container)?)
         // }
         _ => {
-            todo!("#408 Implement arithmetic operation for {:?}", operator);
+            core::todo!(
+                "#408 Implement arithmetic operation for {:?}",
+                operator
+            );
         }
     }
 }
@@ -1542,7 +1550,7 @@ fn handle_bitwise_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("#409 Implement bitwise operation for {:?}", operator);
+        core::todo!("#409 Implement bitwise operation for {:?}", operator);
     }
 }
 
@@ -1553,7 +1561,7 @@ fn handle_logical_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     {
-        todo!("#410 Implement logical operation for {:?}", operator);
+        core::todo!("#410 Implement logical operation for {:?}", operator);
     }
 }
 
@@ -1583,8 +1591,8 @@ fn handle_binary_operation(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use std::vec;
+    use crate::stdlib::assert_matches::assert_matches;
+    use crate::stdlib::vec;
 
     use super::*;
     use crate::compiler::{CompileOptions, compile_script};
@@ -1605,7 +1613,7 @@ mod tests {
             ExecutionOptions { verbose: true },
         );
         execute_dxb_sync(context).unwrap_or_else(|err| {
-            panic!("Execution failed: {err}");
+            core::panic!("Execution failed: {err}");
         })
     }
 
@@ -1724,7 +1732,7 @@ mod tests {
             InstructionCode::SCOPE_END.into(),
             InstructionCode::SCOPE_END.into(),
         ]);
-        assert!(matches!(
+        assert!(core::matches!(
             result,
             Err(ExecutionError::InvalidProgram(
                 InvalidProgramError::InvalidScopeClose

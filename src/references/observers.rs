@@ -2,8 +2,13 @@ use crate::dif::update::DIFUpdate;
 use crate::references::{
     reference::Reference, value_reference::ValueReference,
 };
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::{cell::RefCell, rc::Rc};
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 #[derive(Debug)]
 pub enum ObserverError {
@@ -12,13 +17,13 @@ pub enum ObserverError {
 }
 
 impl Display for ObserverError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ObserverError::ObserverNotFound => {
-                write!(f, "Observer not found")
+                core::write!(f, "Observer not found")
             }
             ObserverError::ImmutableReference => {
-                write!(f, "Cannot observe an immutable reference")
+                core::write!(f, "Cannot observe an immutable reference")
             }
         }
     }
@@ -172,6 +177,9 @@ mod tests {
     use crate::dif::update::{DIFUpdate, DIFUpdateData};
     use crate::references::observers::{ObserveOptions, TransceiverId};
     use crate::runtime::memory::Memory;
+    use crate::stdlib::{
+        assert_matches::assert_matches, cell::RefCell, rc::Rc,
+    };
     use crate::values::core_values::map::Map;
     use crate::{
         dif::{
@@ -186,7 +194,6 @@ mod tests {
         values::value_container::ValueContainer,
     };
     use datex_core::references::observers::Observer;
-    use std::{assert_matches::assert_matches, cell::RefCell, rc::Rc};
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates

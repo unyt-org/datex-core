@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use crate::stdlib::pin::Pin;
 
 use futures::{Stream, channel};
 use futures_core::FusedStream;

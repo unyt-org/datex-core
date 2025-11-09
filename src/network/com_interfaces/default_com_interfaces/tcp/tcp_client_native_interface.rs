@@ -1,9 +1,12 @@
-use std::cell::RefCell;
-use std::future::Future;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use crate::std_sync::Mutex;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::sync::Arc;
+use core::cell::RefCell;
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{
@@ -24,8 +27,8 @@ use crate::{delegate_com_interface_info, set_opener};
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
+use tokio::net::tcp::OwnedWriteHalf;
 use url::Url;
 
 pub struct TCPClientNativeInterface {
@@ -69,7 +72,7 @@ impl TCPClientNativeInterface {
         );
         let receive_queue = socket.receive_queue.clone();
         self.get_sockets()
-            .lock()
+            .try_lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
 
@@ -81,16 +84,22 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                     Ok(n) => {
-                        let mut queue = receive_queue.lock().unwrap();
+                        let mut queue = receive_queue.try_lock().unwrap();
                         queue.extend(&buffer[..n]);
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

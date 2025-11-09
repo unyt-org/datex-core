@@ -1,9 +1,9 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
-
+use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::{
     ast::structs::expression::{DatexExpression, VariableKind},
     types::type_container::TypeContainer,
 };
+use core::fmt::Display;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
@@ -27,10 +27,10 @@ impl From<VariableKind> for VariableShape {
 }
 
 impl Display for VariableShape {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            VariableShape::Type => write!(f, "type"),
-            VariableShape::Value(kind) => write!(f, "{kind}"),
+            VariableShape::Type => core::write!(f, "type"),
+            VariableShape::Value(kind) => core::write!(f, "{kind}"),
         }
     }
 }

@@ -1,9 +1,7 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use crate::std_sync::Mutex;
+use crate::stdlib::{future::Future, pin::Pin, sync::Arc, time::Duration};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use super::serial_common::{SerialError, SerialInterfaceSetupData};
 use crate::network::com_interfaces::com_interface::{
@@ -103,7 +101,7 @@ impl SerialNativeInterface {
                         let port = port.clone();
                         move || {
                             let mut buffer = [0u8; Self::BUFFER_SIZE];
-                            match port.lock().unwrap().read(&mut buffer) {
+                            match port.try_lock().unwrap().read(&mut buffer) {
                                 Ok(n) if n > 0 => Some(buffer[..n].to_vec()),
                                 _ => None,
                             }
@@ -112,7 +110,7 @@ impl SerialNativeInterface {
                         match result {
                             Ok(Some(incoming)) => {
                                 let size = incoming.len();
-                                receive_queue.lock().unwrap().extend(incoming);
+                                receive_queue.try_lock().unwrap().extend(incoming);
                                 debug!(
                                     "Received data from serial port: {size}"
                                 );
@@ -126,7 +124,7 @@ impl SerialNativeInterface {
                 }
             }
             // FIXME #212 add reconnect logic (close gracefully and reopen)
-            state.lock().unwrap().set(ComInterfaceState::Destroyed);
+            state.try_lock().unwrap().set(ComInterfaceState::Destroyed);
             warn!("Serial socket closed");
         });
         Ok(())
@@ -170,7 +168,7 @@ impl ComInterface for SerialNativeInterface {
             // FIXME #213 improve the lifetime issue here to avoid cloning the block twice
             let block = block.to_vec();
             let result = spawn_blocking(move || {
-                let mut locked = port.lock().unwrap();
+                let mut locked = port.try_lock().unwrap();
                 locked.write_all(block.as_slice()).is_ok()
             })
             .await;

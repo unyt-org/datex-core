@@ -1,18 +1,16 @@
 use crate::{
-    ast::structs::{
-        expression::{
-            BinaryOperation, ComparisonOperation, DatexExpression,
-            DatexExpressionData, UnaryOperation,
-        },
-        operator::{
-            BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
-            UnaryOperator,
-            binary::{ArithmeticOperator, LogicalOperator},
-        },
+    ast::structs::expression::{
+        BinaryOperation, ComparisonOperation, DatexExpression,
+        DatexExpressionData, UnaryOperation,
     },
     fmt::{
         Assoc, Format, Formatter, Operation, ParentContext,
         options::BracketStyle,
+    },
+    global::operators::{
+        BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
+        UnaryOperator,
+        binary::{ArithmeticOperator, LogicalOperator},
     },
 };
 

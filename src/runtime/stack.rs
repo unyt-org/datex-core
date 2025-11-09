@@ -1,11 +1,16 @@
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::ComparisonOperator;
-use crate::ast::structs::operator::UnaryOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::ComparisonOperator;
+use crate::global::operators::UnaryOperator;
+use crate::global::operators::assignment::AssignmentOperator;
+use crate::references::reference::Reference;
 use crate::runtime::execution::InvalidProgramError;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
-use datex_core::references::reference::Reference;
-use std::fmt::Display;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::writeln;
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
@@ -70,12 +75,12 @@ impl Default for ScopeStack {
 }
 
 impl Display for ScopeStack {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "ScopeStack: [")?;
         for scope in self.stack.iter() {
             writeln!(f, "{scope:?}")?;
         }
-        write!(f, "]")
+        core::write!(f, "]")
     }
 }
 

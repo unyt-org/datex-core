@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use crate::stdlib::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 pub trait Stream<T> {
     fn push(&mut self, item: T);

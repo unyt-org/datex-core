@@ -1,5 +1,7 @@
-use std::{future::Future, pin::Pin, sync::Mutex, time::Duration};
-// FIXME #209 no-std
+use crate::std_sync::Mutex;
+use crate::stdlib::{future::Future, pin::Pin, time::Duration};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use crate::{
     delegate_com_interface_info,
@@ -17,17 +19,17 @@ use datex_macros::{com_interface, create_opener};
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
 };
-use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
 use tungstenite::Message;
 use url::Url;
 
 use super::websocket_common::{
-    parse_url, WebSocketClientInterfaceSetupData, WebSocketError,
+    WebSocketClientInterfaceSetupData, WebSocketError, parse_url,
 };
+use crate::task::spawn_with_panic_notify_default;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use crate::task::spawn_with_panic_notify;
 
 #[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
@@ -78,15 +80,15 @@ impl WebSocketClientNativeInterface {
         self.websocket_stream = Some(write);
         let receive_queue = socket.receive_queue.clone();
         self.get_sockets()
-            .lock()
+            .try_lock()
             .unwrap()
             .add_socket(Arc::new(Mutex::new(socket)));
         let state = self.get_info().state.clone();
-        spawn_with_panic_notify(async move {
+        spawn_with_panic_notify_default(async move {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {
-                        let mut queue = receive_queue.lock().unwrap();
+                        let mut queue = receive_queue.try_lock().unwrap();
                         queue.extend(data);
                     }
                     Ok(_) => {
@@ -94,7 +96,10 @@ impl WebSocketClientNativeInterface {
                     }
                     Err(e) => {
                         error!("WebSocket read error: {e}");
-                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
+                        state
+                            .try_lock()
+                            .unwrap()
+                            .set(ComInterfaceState::Destroyed);
                         break;
                     }
                 }

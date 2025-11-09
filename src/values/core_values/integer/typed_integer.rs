@@ -11,15 +11,20 @@ use crate::values::{
 };
 
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::traits::structural_eq::StructuralEq;
-use core::panic;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::{Deserialize, Serialize};
-use std::{
+use core::hash::Hash;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
+use core::{
     fmt::Display,
-    hash::Hash,
     ops::{Add, AddAssign, Neg, Sub},
 };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde::{Deserialize, Serialize};
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
@@ -130,7 +135,7 @@ impl<'de> Deserialize<'de> for TypedInteger {
 }
 
 impl Hash for TypedInteger {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedInteger::Big(v) => v.hash(state),
             TypedInteger::I8(v) => v.hash(state),
@@ -166,7 +171,7 @@ impl TypedInteger {
         radix: u32,
         variant: IntegerTypeVariant,
     ) -> Result<TypedInteger, NumberParseError> {
-        if matches!(variant, IntegerTypeVariant::Big) {
+        if core::matches!(variant, IntegerTypeVariant::Big) {
             return Ok(TypedInteger::Big(Integer::from_string_radix(
                 s, radix,
             )?));
@@ -206,16 +211,16 @@ impl TypedInteger {
             _ => unreachable!(""),
         }
         .map_err(|e| match e.kind() {
-            std::num::IntErrorKind::Zero
-            | std::num::IntErrorKind::Empty
-            | std::num::IntErrorKind::InvalidDigit => {
+            core::num::IntErrorKind::Zero
+            | core::num::IntErrorKind::Empty
+            | core::num::IntErrorKind::InvalidDigit => {
                 NumberParseError::InvalidFormat
             }
-            std::num::IntErrorKind::PosOverflow
-            | std::num::IntErrorKind::NegOverflow => {
+            core::num::IntErrorKind::PosOverflow
+            | core::num::IntErrorKind::NegOverflow => {
                 NumberParseError::OutOfRange
             }
-            _ => panic!("Unhandled integer parse error: {:?}", e.kind()),
+            _ => core::panic!("Unhandled integer parse error: {:?}", e.kind()),
         })
     }
 
@@ -362,7 +367,7 @@ impl TypedInteger {
         if let TypedInteger::Big(_) = self {
             return true;
         }
-        matches!(
+        core::matches!(
             self,
             TypedInteger::I8(_)
                 | TypedInteger::I16(_)
@@ -447,19 +452,19 @@ impl TypedInteger {
 }
 
 impl Display for TypedInteger {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            TypedInteger::I8(v) => write!(f, "{v}"),
-            TypedInteger::I16(v) => write!(f, "{v}"),
-            TypedInteger::I32(v) => write!(f, "{v}"),
-            TypedInteger::I64(v) => write!(f, "{v}"),
-            TypedInteger::I128(v) => write!(f, "{v}"),
-            TypedInteger::U8(v) => write!(f, "{v}"),
-            TypedInteger::U16(v) => write!(f, "{v}"),
-            TypedInteger::U32(v) => write!(f, "{v}"),
-            TypedInteger::U64(v) => write!(f, "{v}"),
-            TypedInteger::U128(v) => write!(f, "{v}"),
-            TypedInteger::Big(v) => write!(f, "{v}"),
+            TypedInteger::I8(v) => core::write!(f, "{v}"),
+            TypedInteger::I16(v) => core::write!(f, "{v}"),
+            TypedInteger::I32(v) => core::write!(f, "{v}"),
+            TypedInteger::I64(v) => core::write!(f, "{v}"),
+            TypedInteger::I128(v) => core::write!(f, "{v}"),
+            TypedInteger::U8(v) => core::write!(f, "{v}"),
+            TypedInteger::U16(v) => core::write!(f, "{v}"),
+            TypedInteger::U32(v) => core::write!(f, "{v}"),
+            TypedInteger::U64(v) => core::write!(f, "{v}"),
+            TypedInteger::U128(v) => core::write!(f, "{v}"),
+            TypedInteger::Big(v) => core::write!(f, "{v}"),
         }
     }
 }

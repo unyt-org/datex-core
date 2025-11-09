@@ -3,20 +3,25 @@ use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 use futures::channel::oneshot::Sender;
 use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use core::cmp::PartialEq;
+use crate::collections::{HashMap, HashSet};
+use core::fmt::{Debug, Display, Formatter};
+use crate::stdlib::sync::{Arc};
+use crate::std_sync::Mutex;
+use core::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-// FIXME #175 no-std
-
+use crate::stdlib::vec::Vec;
+use crate::stdlib::vec;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState
 };
@@ -33,6 +38,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
@@ -75,6 +81,8 @@ pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
 
+    pub async_context: AsyncContext,
+
     /// ComHub configuration options
     pub options: ComHubOptions,
 
@@ -115,7 +123,7 @@ pub struct ComHub {
 }
 
 impl Debug for ComHub {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ComHub")
             .field("endpoint", &self.endpoint)
             .field("options", &self.options)
@@ -135,24 +143,6 @@ struct EndpointIterateOptions<'a> {
     pub only_direct: bool,
     pub exact_instance: bool,
     pub exclude_sockets: &'a [ComInterfaceSocketUUID],
-}
-
-impl Default for ComHub {
-    fn default() -> Self {
-        ComHub {
-            endpoint: Endpoint::default(),
-            options: ComHubOptions::default(),
-            interface_factories: RefCell::new(HashMap::new()),
-            interfaces: RefCell::new(HashMap::new()),
-            endpoint_sockets: RefCell::new(HashMap::new()),
-            block_handler: BlockHandler::new(),
-            sockets: RefCell::new(HashMap::new()),
-            fallback_sockets: RefCell::new(Vec::new()),
-            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -193,11 +183,55 @@ pub enum SocketEndpointRegistrationError {
     SocketEndpointAlreadyRegistered,
 }
 
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn update_loop_task(self_rc: Rc<ComHub>) {
+    while *self_rc.update_loop_running.borrow() {
+        self_rc.update();
+        sleep(Duration::from_millis(1)).await;
+    }
+    if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
+        sender.send(()).expect("Failed to send stop signal");
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
+    let interface = interface_rc.clone();
+    let mut interface = interface.borrow_mut();
+
+    let config = interface.get_properties_mut();
+    config.close_timestamp = None;
+
+    let current_attempts = config.reconnect_attempts.unwrap_or(0);
+    config.reconnect_attempts = Some(current_attempts + 1);
+
+    let res = interface.handle_open().await;
+    if res {
+        interface.set_state(ComInterfaceState::Connected);
+        // config.reconnect_attempts = None;
+    } else {
+        interface.set_state(ComInterfaceState::NotConnected);
+    }
+}
+
 impl ComHub {
-    pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
+    pub fn new(
+        endpoint: impl Into<Endpoint>,
+        async_context: AsyncContext,
+    ) -> ComHub {
         ComHub {
             endpoint: endpoint.into(),
-            ..ComHub::default()
+            async_context,
+            options: ComHubOptions::default(),
+            interface_factories: RefCell::new(HashMap::new()),
+            interfaces: RefCell::new(HashMap::new()),
+            endpoint_sockets: RefCell::new(HashMap::new()),
+            block_handler: BlockHandler::new(),
+            sockets: RefCell::new(HashMap::new()),
+            fallback_sockets: RefCell::new(Vec::new()),
+            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
         }
     }
 
@@ -495,7 +529,7 @@ impl ComHub {
         block: &DXBBlock,
     ) {
         let socket = self.get_socket_by_uuid(&socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let distance = block.routing_header.distance;
         let sender = block.routing_header.sender.clone();
@@ -521,7 +555,7 @@ impl ComHub {
                 );
             }
             Err(error) => {
-                panic!("Failed to register socket endpoint {sender}: {error:?}");
+                core::panic!("Failed to register socket endpoint {sender}: {error:?}");
             },
             Ok(_) => { }
         }
@@ -616,7 +650,7 @@ impl ComHub {
                     );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .can_send()
                 {
@@ -706,9 +740,9 @@ impl ComHub {
             "{} registering endpoint {} for socket {}",
             self.endpoint,
             endpoint,
-            socket.lock().unwrap().uuid
+            socket.try_lock().unwrap().uuid
         );
-        let socket_ref = socket.lock().unwrap();
+        let socket_ref = socket.try_lock().unwrap();
 
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
@@ -828,10 +862,10 @@ impl ComHub {
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
     ) {
-        let socket_ref = socket.lock().unwrap();
+        let socket_ref = socket.try_lock().unwrap();
         let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.borrow().contains_key(&socket_ref.uuid) {
-            panic!("Socket {} already exists in ComHub", socket_ref.uuid);
+            core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
 
         // info!(
@@ -840,7 +874,7 @@ impl ComHub {
         // );
 
         if !socket_ref.can_send() && priority != InterfacePriority::None {
-            panic!(
+            core::panic!(
                 "Socket {} cannot be used for fallback routing, since it has no send capability",
                 socket_ref.uuid
             );
@@ -906,19 +940,18 @@ impl ComHub {
                 InterfaceDirection::InOut => 0,
                 InterfaceDirection::Out => 1,
                 InterfaceDirection::In => {
-                    panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
+                    core::panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
                 }
             };
-            (dir_rank, std::cmp::Reverse(*priority))
+            (dir_rank, core::cmp::Reverse(*priority))
         });
     }
 
     /// Removes a socket from the socket list
     fn delete_socket(&self, socket_uuid: &ComInterfaceSocketUUID) {
-        self.sockets
-            .borrow_mut()
-            .remove(socket_uuid)
-            .or_else(|| panic!("Socket {socket_uuid} not found in ComHub"));
+        self.sockets.borrow_mut().remove(socket_uuid).or_else(|| {
+            core::panic!("Socket {socket_uuid} not found in ComHub")
+        });
 
         // remove socket from endpoint socket list
         // remove endpoint key from endpoint_sockets if not sockets present
@@ -939,7 +972,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
         endpoint: Endpoint,
     ) {
-        assert!(
+        core::assert!(
             self.sockets.borrow().contains_key(socket_uuid),
             "Socket not found in ComHub"
         );
@@ -976,7 +1009,7 @@ impl ComHub {
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "debug")] {
                                 use crate::runtime::global_context::get_global_context;
-                                use std::cmp::Ordering;
+                                use core::cmp::Ordering;
                                 if get_global_context().debug_flags.enable_deterministic_behavior {
                                     Ordering::Equal
                                 }
@@ -1006,7 +1039,7 @@ impl ComHub {
             .get(socket_uuid)
             .map(|socket| socket.0.clone())
             .unwrap_or_else(|| {
-                panic!("Socket for uuid {socket_uuid} not found")
+                core::panic!("Socket for uuid {socket_uuid} not found")
             })
     }
 
@@ -1021,7 +1054,7 @@ impl ComHub {
             .borrow()
             .get(interface_uuid)
             .unwrap_or_else(|| {
-                panic!("Interface for uuid {interface_uuid} not found")
+                core::panic!("Interface for uuid {interface_uuid} not found")
             })
             .0
             .clone()
@@ -1035,7 +1068,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let socket = socket.lock().unwrap();
+        let socket = socket.try_lock().unwrap();
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
@@ -1047,7 +1080,7 @@ impl ComHub {
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
     ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
-        std::iter::from_coroutine(
+        core::iter::from_coroutine(
             #[coroutine]
             move || {
                 let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
@@ -1060,7 +1093,7 @@ impl ComHub {
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
                         let socket = self.get_socket_by_uuid(&socket_uuid);
-                        let socket = socket.lock().unwrap();
+                        let socket = socket.try_lock().unwrap();
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
                         if options.only_direct
@@ -1145,7 +1178,7 @@ impl ComHub {
 
             // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
-                todo!("#186 Undescribed by author.")
+                core::todo!("#186 Undescribed by author.")
             }
         }
     }
@@ -1186,7 +1219,7 @@ impl ComHub {
                     endpoint,
                     socket_uuid,
                     socket
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .direct_endpoint
                         .clone()
@@ -1257,17 +1290,10 @@ impl ComHub {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(async move {
-            while *self_rc.update_loop_running.borrow() {
-                self_rc.update();
-                sleep(Duration::from_millis(1)).await;
-            }
-            if let Some(sender) =
-                self_rc.update_loop_stop_sender.borrow_mut().take()
-            {
-                sender.send(()).expect("Failed to send stop signal");
-            }
-        });
+        spawn_with_panic_notify(
+            &self_rc.clone().async_context,
+            update_loop_task(self_rc),
+        );
     }
 
     /// Update all sockets and interfaces,
@@ -1610,7 +1636,7 @@ impl ComHub {
         }
 
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let is_broadcast = endpoints
             .iter()
@@ -1703,28 +1729,10 @@ impl ComHub {
                     if reconnect_now {
                         debug!("Reconnecting interface {uuid}");
                         interface.set_state(ComInterfaceState::Connecting);
-                        spawn_with_panic_notify(async move {
-                            let interface = interface_rc.clone();
-                            let mut interface = interface.borrow_mut();
-
-                            let config = interface.get_properties_mut();
-                            config.close_timestamp = None;
-
-                            let current_attempts =
-                                config.reconnect_attempts.unwrap_or(0);
-                            config.reconnect_attempts =
-                                Some(current_attempts + 1);
-
-                            let res = interface.handle_open().await;
-                            if res {
-                                interface
-                                    .set_state(ComInterfaceState::Connected);
-                                // config.reconnect_attempts = None;
-                            } else {
-                                interface
-                                    .set_state(ComInterfaceState::NotConnected);
-                            }
-                        });
+                        spawn_with_panic_notify(
+                            &self.async_context,
+                            reconnect_interface_task(interface_rc),
+                        );
                     } else {
                         debug!("Not reconnecting interface {uuid}");
                     }
@@ -1746,7 +1754,7 @@ impl ComHub {
 
         for (interface, priority) in self.interfaces.borrow().values() {
             let socket_updates = interface.clone().borrow().get_sockets();
-            let mut socket_updates = socket_updates.lock().unwrap();
+            let mut socket_updates = socket_updates.try_lock().unwrap();
 
             registered_sockets
                 .extend(socket_updates.socket_registrations.drain(..));
@@ -1778,7 +1786,7 @@ impl ComHub {
     fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             socket_ref.collect_incoming_data();
         }
     }
@@ -1789,7 +1797,7 @@ impl ComHub {
         let mut blocks = vec![];
         // iterate over all sockets
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             let uuid = socket_ref.uuid.clone();
             let block_queue = socket_ref.get_incoming_block_queue();
             blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));
@@ -1806,7 +1814,10 @@ impl ComHub {
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
         for (interface, _) in interfaces.values() {
-            com_interface::flush_outgoing_blocks(interface.clone());
+            com_interface::flush_outgoing_blocks(
+                interface.clone(),
+                &self.async_context,
+            );
         }
     }
 }
@@ -1905,10 +1916,10 @@ pub enum ResponseError {
 }
 
 impl Display for ResponseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
-                write!(
+                core::write!(
                     f,
                     "No response after timeout ({}s) for endpoint {}",
                     duration.as_secs(),
@@ -1916,10 +1927,10 @@ impl Display for ResponseError {
                 )
             }
             ResponseError::NotReachable(endpoint) => {
-                write!(f, "Endpoint {endpoint} is not reachable")
+                core::write!(f, "Endpoint {endpoint} is not reachable")
             }
             ResponseError::EarlyAbort(endpoint) => {
-                write!(f, "Early abort for endpoint {endpoint}")
+                core::write!(f, "Early abort for endpoint {endpoint}")
             }
         }
     }

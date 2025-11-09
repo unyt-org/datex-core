@@ -1,4 +1,4 @@
-#[cfg(feature = "native_crypto")]
+#[cfg(all(feature = "native_crypto", feature = "std"))]
 use crate::crypto::crypto_native::CryptoNative;
 use crate::global::dxb_block::{
     DXBBlock, IncomingEndpointContextSectionId, IncomingSection,
@@ -15,19 +15,29 @@ use crate::runtime::execution_context::{
 };
 use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::boxed::Box;
+use crate::collections::HashMap;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::sync::Arc;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::slice;
+use core::unreachable;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::pin::Pin;
-use std::sync::Arc;
 
 pub mod dif_interface;
 pub mod execution;
@@ -48,19 +58,39 @@ pub struct Runtime {
 }
 
 impl Debug for Runtime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Runtime")
             .field("version", &self.version)
             .finish()
     }
 }
 
-impl Default for Runtime {
+#[derive(Clone)]
+pub struct AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub spawner: embassy_executor::Spawner,
+}
+#[cfg(not(feature = "embassy_runtime"))]
+impl Default for AsyncContext {
     fn default() -> Self {
-        Runtime {
-            version: VERSION.to_string(),
-            internal: Rc::new(RuntimeInternal::default()),
-        }
+        Self::new()
+    }
+}
+
+impl AsyncContext {
+    #[cfg(feature = "embassy_runtime")]
+    pub fn new(spawner: embassy_executor::Spawner) -> Self {
+        Self { spawner }
+    }
+    #[cfg(not(feature = "embassy_runtime"))]
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Debug for AsyncContext {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "AsyncContext")
     }
 }
 
@@ -78,20 +108,7 @@ pub struct RuntimeInternal {
     /// active execution contexts, stored by context_id
     pub execution_contexts:
         RefCell<HashMap<IncomingEndpointContextSectionId, ExecutionContext>>,
-}
-
-impl Default for RuntimeInternal {
-    fn default() -> Self {
-        RuntimeInternal {
-            endpoint: Endpoint::default(),
-            config: RuntimeConfig::default(),
-            memory: RefCell::new(Memory::new(Endpoint::default())),
-            com_hub: ComHub::default(),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-            execution_contexts: RefCell::new(HashMap::new()),
-        }
-    }
+    pub async_context: AsyncContext,
 }
 
 macro_rules! get_execution_context {
@@ -113,6 +130,20 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
+    fn new(async_context: AsyncContext) -> Self {
+        RuntimeInternal {
+            endpoint: Endpoint::default(),
+            config: RuntimeConfig::default(),
+            memory: RefCell::new(Memory::new(Endpoint::default())),
+            com_hub: ComHub::new(Endpoint::default(), async_context.clone()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
+            execution_contexts: RefCell::new(HashMap::new()),
+            async_context,
+        }
+    }
+
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
@@ -132,6 +163,7 @@ impl RuntimeInternal {
         .map_err(ScriptExecutionError::from)
     }
 
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         self_rc: Rc<RuntimeInternal>,
         script: &str,
@@ -242,9 +274,8 @@ impl RuntimeInternal {
         let mut block =
             DXBBlock::new(routing_header, block_header, encrypted_header, dxb);
 
-        block.set_receivers(std::slice::from_ref(
-            &remote_execution_context.endpoint,
-        ));
+        block
+            .set_receivers(slice::from_ref(&remote_execution_context.endpoint));
 
         let response = self_rc
             .com_hub
@@ -318,7 +349,7 @@ impl RuntimeInternal {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
         // assert that the execution context is local
-        if !matches!(execution_context, ExecutionContext::Local(_)) {
+        if !core::matches!(execution_context, ExecutionContext::Local(_)) {
             unreachable!(
                 "Execution context must be local for executing a DXB block"
             );
@@ -338,14 +369,34 @@ impl RuntimeInternal {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RuntimeConfigInterface {
-    r#type: String,
-    config: ValueContainer,
+    #[serde(rename = "type")]
+    pub interface_type: String,
+    pub config: ValueContainer,
+}
+
+impl RuntimeConfigInterface {
+
+    pub fn new<T: Serialize>(interface_type: &str, config: T) -> Result<RuntimeConfigInterface, SerializationError> {
+       Ok(RuntimeConfigInterface {
+           interface_type: interface_type.to_string(),
+           config: to_value_container(&config)?
+       })
+    }
+
+    pub fn new_from_value_container(interface_type: &str, config: ValueContainer) -> RuntimeConfigInterface {
+        RuntimeConfigInterface {
+            interface_type: interface_type.to_string(),
+            config,
+        }
+    }
+
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct RuntimeConfig {
     pub endpoint: Option<Endpoint>,
     pub interfaces: Option<Vec<RuntimeConfigInterface>>,
+    pub env: Option<HashMap<String, String>>,
     /// if set to true, the runtime will log debug messages
     pub debug: Option<bool>,
 }
@@ -355,17 +406,18 @@ impl RuntimeConfig {
         RuntimeConfig {
             endpoint: Some(endpoint),
             interfaces: None,
+            env: None,
             debug: None,
         }
     }
 
     pub fn add_interface<T: Serialize>(
         &mut self,
-        r#type: String,
+        interface_type: String,
         config: T,
     ) -> Result<(), SerializationError> {
         let config = to_value_container(&config)?;
-        let interface = RuntimeConfigInterface { r#type, config };
+        let interface = RuntimeConfigInterface { interface_type, config };
         if let Some(interfaces) = &mut self.interfaces {
             interfaces.push(interface);
         } else {
@@ -379,9 +431,13 @@ impl RuntimeConfig {
 /// publicly exposed wrapper impl for the Runtime
 /// around RuntimeInternal
 impl Runtime {
-    pub fn new(config: RuntimeConfig) -> Runtime {
+    /// Creates a new runtime instance with the given configuration and async context.
+    /// Note: If the endpoint is not specified in the config, a random endpoint will be generated.
+    /// This required setting the global context before using `set_global_context`,
+    /// otherwise the runtime will panic here.
+    pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
-        let com_hub = ComHub::new(endpoint.clone());
+        let com_hub = ComHub::new(endpoint.clone(), async_context.clone());
         let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
@@ -390,14 +446,17 @@ impl Runtime {
                 memory,
                 config,
                 com_hub,
-                ..RuntimeInternal::default()
+                ..RuntimeInternal::new(async_context)
             }),
         }
     }
 
+    /// Initializes the runtime with the given configuration, global context, and async context.
+    /// This function also sets up logging and logs the initialization time.
     pub fn init(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
         set_global_context(global_context);
         if let Some(debug) = config.debug
@@ -411,7 +470,7 @@ impl Runtime {
             "Runtime initialized - Version {VERSION} Time: {}",
             Time::now()
         );
-        Self::new(config)
+        Self::new(config, async_context)
     }
 
     pub fn com_hub(&self) -> &ComHub {
@@ -429,13 +488,18 @@ impl Runtime {
         &self.internal.memory
     }
 
-    #[cfg(feature = "native_crypto")]
+    #[cfg(all(
+        feature = "native_crypto",
+        feature = "std",
+        not(feature = "embassy_runtime")
+    ))]
     pub fn init_native(config: RuntimeConfig) -> Runtime {
         use crate::utils::time_native::TimeNative;
 
         Self::init(
             config,
             GlobalContext::new(Arc::new(CryptoNative), Arc::new(TimeNative)),
+            AsyncContext::new(),
         )
     }
 
@@ -458,19 +522,19 @@ impl Runtime {
 
         // create interfaces
         if let Some(interfaces) = &self.internal.config.interfaces {
-            for RuntimeConfigInterface { r#type, config } in interfaces.iter() {
+            for RuntimeConfigInterface { interface_type, config } in interfaces.iter() {
                 if let Err(err) = self
                     .com_hub()
                     .create_interface(
-                        r#type,
+                        interface_type,
                         config.clone(),
                         InterfacePriority::default(),
                     )
                     .await
                 {
-                    error!("Failed to create interface {type}: {err:?}");
+                    error!("Failed to create interface {interface_type}: {err:?}");
                 } else {
-                    info!("Created interface: {type}");
+                    info!("Created interface: {interface_type}");
                 }
             }
         }
@@ -482,14 +546,19 @@ impl Runtime {
     pub async fn create(
         config: RuntimeConfig,
         global_context: GlobalContext,
+        async_context: AsyncContext,
     ) -> Runtime {
-        let runtime = Self::init(config, global_context);
+        let runtime = Self::init(config, global_context, async_context);
         runtime.start().await;
         runtime
     }
 
     // inits a native runtime and starts the update loop
-    #[cfg(feature = "native_crypto")]
+    #[cfg(all(
+        feature = "native_crypto",
+        feature = "std",
+        not(feature = "embassy_runtime")
+    ))]
     pub async fn create_native(config: RuntimeConfig) -> Runtime {
         let runtime = Self::init_native(config);
         runtime.start().await;
@@ -514,6 +583,7 @@ impl Runtime {
         // crate::network::com_interfaces::default_com_interfaces::webrtc::webrtc_native_interface::WebRTCNativeInterface::register_on_com_hub(self.com_hub());
     }
 
+    #[cfg(feature = "compiler")]
     pub async fn execute(
         &self,
         script: &str,
@@ -529,6 +599,7 @@ impl Runtime {
         .await
     }
 
+    #[cfg(feature = "compiler")]
     pub fn execute_sync(
         &self,
         script: &str,

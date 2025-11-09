@@ -1,9 +1,9 @@
-use log::error;
-
-use crate::stdlib::{collections::VecDeque, sync::Arc};
-use std::sync::Mutex; // FIXME #192 no-std
-
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
+use crate::std_sync::Mutex;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::{collections::VecDeque, sync::Arc};
+use core::prelude::rust_2024::*;
+use log::error;
 
 #[derive(Debug)]
 pub struct BlockCollector {
@@ -105,7 +105,7 @@ impl BlockCollector {
 
     pub fn update(&mut self) {
         let queue = self.receive_queue.clone();
-        let mut receive_queue = queue.lock().unwrap();
+        let mut receive_queue = queue.try_lock().unwrap();
         let len = receive_queue.len();
         if len == 0 {
             return;

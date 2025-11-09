@@ -1,3 +1,10 @@
+use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
+use crate::values::core_values::r#type::Type;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -6,9 +13,9 @@ use crate::{
         type_container::TypeContainer,
     },
 };
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use datex_core::references::type_reference::TypeReference;
-use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
-use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -21,7 +28,7 @@ pub enum TypeDefinition {
 
     // type A = B
     Reference(Rc<RefCell<TypeReference>>),
-    
+
     Type(Box<Type>),
 
     // A & B & C
@@ -45,7 +52,7 @@ pub enum TypeDefinition {
 }
 
 impl Hash for TypeDefinition {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeDefinition::Collection(value) => {
                 value.hash(state);
@@ -89,21 +96,21 @@ impl Hash for TypeDefinition {
 }
 
 impl Display for TypeDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeDefinition::Collection(value) => write!(f, "{}", value),
-            TypeDefinition::Structural(value) => write!(f, "{}", value),
+            TypeDefinition::Collection(value) => core::write!(f, "{}", value),
+            TypeDefinition::Structural(value) => core::write!(f, "{}", value),
             TypeDefinition::Reference(reference) => {
-                write!(f, "{}", reference.borrow())
+                core::write!(f, "{}", reference.borrow())
             }
-            TypeDefinition::Type(value) => write!(f, "{}", value),
-            TypeDefinition::Unit => write!(f, "()"),
-            TypeDefinition::Unknown => write!(f, "unknown"),
-            TypeDefinition::Never => write!(f, "never"),
+            TypeDefinition::Type(value) => core::write!(f, "{}", value),
+            TypeDefinition::Unit => core::write!(f, "()"),
+            TypeDefinition::Unknown => core::write!(f, "unknown"),
+            TypeDefinition::Never => core::write!(f, "never"),
 
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {
-                    matches!(
+                    core::matches!(
                         t.as_type().type_definition,
                         TypeDefinition::Structural(_)
                             | TypeDefinition::Reference(_)
@@ -112,15 +119,15 @@ impl Display for TypeDefinition {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
                 if is_level_zero {
-                    write!(f, "{}", types_str.join(" | "))
+                    core::write!(f, "{}", types_str.join(" | "))
                 } else {
-                    write!(f, "({})", types_str.join(" | "))
+                    core::write!(f, "({})", types_str.join(" | "))
                 }
             }
             TypeDefinition::Intersection(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "({})", types_str.join(" & "))
+                core::write!(f, "({})", types_str.join(" & "))
             }
             TypeDefinition::Function {
                 parameters,
@@ -130,7 +137,12 @@ impl Display for TypeDefinition {
                     .iter()
                     .map(|(name, ty)| format!("{}: {}", name, ty))
                     .collect();
-                write!(f, "({}) -> {}", params_str.join(", "), return_type)
+                core::write!(
+                    f,
+                    "({}) -> {}",
+                    params_str.join(", "),
+                    return_type
+                )
             }
         }
     }

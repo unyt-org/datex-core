@@ -1,9 +1,12 @@
-use crate::values::value_container::{ValueContainer, ValueError};
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, ops::Not};
-
 use super::super::core_value_trait::CoreValueTrait;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::traits::structural_eq::StructuralEq;
+use crate::values::value_container::{ValueContainer, ValueError};
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::{fmt::Display, ops::Not};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Boolean(pub bool);
@@ -32,8 +35,8 @@ impl Boolean {
 }
 
 impl Display for Boolean {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "{}", self.0)
     }
 }
 

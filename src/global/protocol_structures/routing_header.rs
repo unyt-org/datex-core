@@ -1,8 +1,9 @@
-use std::fmt::Display;
-
 use super::serializable::Serializable;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use modular_bitfield::prelude::*;
 
 // 2 bit
@@ -231,15 +232,21 @@ pub enum Receivers {
     EndpointsWithKeys(Vec<(Endpoint, Key512)>),
 }
 impl Display for Receivers {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            Receivers::None => write!(f, "No receivers"),
-            Receivers::PointerId(pid) => write!(f, "Pointer ID: {:?}", pid),
+            Receivers::None => core::write!(f, "No receivers"),
+            Receivers::PointerId(pid) => {
+                core::write!(f, "Pointer ID: {:?}", pid)
+            }
             Receivers::Endpoints(endpoints) => {
-                write!(f, "Endpoints: {:?}", endpoints)
+                core::write!(f, "Endpoints: {:?}", endpoints)
             }
             Receivers::EndpointsWithKeys(endpoints_with_keys) => {
-                write!(f, "Endpoints with keys: {:?}", endpoints_with_keys)
+                core::write!(
+                    f,
+                    "Endpoints with keys: {:?}",
+                    endpoints_with_keys
+                )
             }
         }
     }
@@ -374,7 +381,7 @@ impl RoutingHeader {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use super::*;
     #[test]

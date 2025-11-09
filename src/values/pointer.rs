@@ -1,5 +1,9 @@
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
@@ -58,9 +62,9 @@ impl PointerAddress {
 }
 
 impl Display for PointerAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "$")?;
-        write!(f, "{}", self.to_address_string())
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "$")?;
+        core::write!(f, "{}", self.to_address_string())
     }
 }
 impl Serialize for PointerAddress {

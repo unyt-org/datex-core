@@ -1,8 +1,11 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
     "jsr:@opentf/obj-diff@0.11": "0.11.0",
     "jsr:@opentf/std@0.12.0": "0.12.0",
+    "jsr:@std/fs@1": "1.0.19",
+    "jsr:@std/internal@^1.0.10": "1.0.12",
+    "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@unyt/speck@^0.0.10": "0.0.10",
     "npm:github-slugger@2": "2.0.0",
     "npm:tablemark@^4.1.0": "4.1.0"
@@ -17,9 +20,25 @@
     "@opentf/std@0.12.0": {
       "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
     },
+    "@std/fs@1.0.19": {
+      "integrity": "051968c2b1eae4d2ea9f79a08a3845740ef6af10356aff43d3e2ef11ed09fb06",
+      "dependencies": [
+        "jsr:@std/path"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@std/path@1.1.2": {
+      "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
     "@unyt/speck@0.0.10": {
       "integrity": "78e7f5459e864b582fe3b6d81905c266789bf3d36b7b003da320b54ee3215711",
       "dependencies": [
+        "jsr:@std/fs",
         "npm:github-slugger",
         "npm:tablemark"
       ]
@@ -88,11 +107,7 @@
     }
   },
   "remote": {
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "351c707f13745a267381593f88b0e0e04bd6fa363aca52523b57c810b38d4a29",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=": "8baecc217a44d57aa3cf5dbb1f9d5f473dabf5a033b30b5264c49a6d648814b7",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=1": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=2": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5"
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "ed27e7d8889cb2d542756b68c18fe2bdde7b2caa0f69a026659a998ac925c0a9"
   },
   "workspace": {
     "dependencies": [

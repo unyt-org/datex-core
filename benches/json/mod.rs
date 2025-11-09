@@ -1,9 +1,9 @@
 use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
     CompileOptions, StaticValueOrDXB, compile_script,
-    compile_script_or_return_static_value, compile_value,
-    extract_static_value_from_script,
+    compile_script_or_return_static_value, extract_static_value_from_script,
 };
+use datex_core::core_compiler::value_compiler::compile_value_container;
 use datex_core::decompiler::{DecompileOptions, decompile_body};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
@@ -95,7 +95,7 @@ pub fn json_to_runtime_value_datex_auto_static_detection<'a>(
     if let StaticValueOrDXB::StaticValue(value) = dxb {
         value.expect("Static Value should not be empty")
     } else {
-        panic!("Expected static value, but got DXB");
+        core::panic!("Expected static value, but got DXB");
     }
 }
 
@@ -147,13 +147,13 @@ pub fn runtime_value_to_json_baseline_json_syntax(value: &json_syntax::Value) {
 }
 
 pub fn runtime_value_to_json_datex(value: &ValueContainer) {
-    let dxb = compile_value(value).unwrap();
+    let dxb = compile_value_container(value);
     let string = decompile_body(&dxb, DecompileOptions::json()).unwrap();
     assert!(!string.is_empty(), "Expected DATEX string to be non-empty");
 }
 
 pub fn runtime_value_to_dxb(value: &ValueContainer) {
-    let dxb = compile_value(value).unwrap();
+    let dxb = compile_value_container(value);
     assert!(!dxb.is_empty(), "Expected DXB to be non-empty");
 }
 

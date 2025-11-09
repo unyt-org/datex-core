@@ -48,7 +48,7 @@ fn json_value_to_datex_value(json: &json_syntax::Value) -> Value {
             Value::from(vec)
         }
         json_syntax::Value::Object(obj) => {
-            let mut map = IndexMap::new();
+            let mut map = IndexMap::default();
             for entry in obj {
                 map.insert(
                     entry.key.to_string(),
@@ -108,7 +108,7 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     // try to parse JSON, if failed, panic
     let parsed_json = json_syntax::Value::parse_str(&decompiled);
     if parsed_json.is_err() {
-        panic!("Decompiled JSON is not valid: {decompiled}");
+        core::panic!("Decompiled JSON is not valid: {decompiled}");
     }
     decompiled
 }
@@ -131,7 +131,7 @@ fn compare_datex_result_with_expected(
 }
 
 fn iterate_test_cases<'a>() -> impl Iterator<Item = (PathBuf, PathBuf)> + 'a {
-    std::iter::from_coroutine(
+    core::iter::from_coroutine(
         #[coroutine]
         move || {
             // read test cases from directory ./test_cases/<filename>.json

@@ -6,7 +6,7 @@ pub fn from_core_value_derive_impl(input: DeriveInput) -> TokenStream {
     let enum_name = input.ident;
 
     let Data::Enum(data_enum) = input.data else {
-        panic!("#[derive(FromVariants)] can only be used on enums");
+        core::panic!("#[derive(FromVariants)] can only be used on enums");
     };
 
     let mut from_impls = vec![];

@@ -1,9 +1,10 @@
-use std::time::Duration;
-use std::{
+use crate::std_sync::Mutex;
+use crate::stdlib::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
-    sync::Mutex,
 };
-// FIXME #211 no-std
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{
@@ -138,12 +139,12 @@ impl WebSocketServerNativeInterface {
                                             let socket_shared = Arc::new(Mutex::new(socket));
                                             com_interface_sockets
                                                 .clone()
-                                                .lock()
+                                                .try_lock()
                                                 .unwrap()
                                                 .add_socket(socket_shared.clone());
 
                                             websocket_streams
-                                                .lock()
+                                                .try_lock()
                                                 .unwrap()
                                                 .insert(socket_uuid.clone(), write);
 
@@ -151,10 +152,10 @@ impl WebSocketServerNativeInterface {
                                                 match msg {
                                                     Ok(Message::Binary(bin)) => {
                                                         socket_shared
-                                                            .lock()
+                                                            .try_lock()
                                                             .unwrap()
                                                             .receive_queue
-                                                            .lock()
+                                                            .try_lock()
                                                             .unwrap()
                                                             .extend(bin);
                                                     }
@@ -170,11 +171,11 @@ impl WebSocketServerNativeInterface {
                                             // consider the connection closed, clean up
                                             let mut streams =
                                                 websocket_streams
-                                                    .lock()
+                                                    .try_lock()
                                                     .unwrap();
                                             streams.remove(&socket_uuid);
                                             com_interface_sockets
-                                                .lock()
+                                                .try_lock()
                                                 .unwrap()
                                                 .remove_socket(&socket_uuid);
                                             info!(
@@ -242,7 +243,7 @@ impl ComInterface for WebSocketServerNativeInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let tx = self.websocket_streams.clone();
         Box::pin(async move {
-            let tx = &mut tx.lock().unwrap();
+            let tx = &mut tx.try_lock().unwrap();
             let tx = tx.get_mut(&socket_uuid);
             if tx.is_none() {
                 error!("Client is not connected");
@@ -275,7 +276,7 @@ impl ComInterface for WebSocketServerNativeInterface {
             if let Some(handle) = self.handle.take() {
                 let _ = handle.await;
             }
-            websocket_streams.lock().unwrap().clear();
+            websocket_streams.try_lock().unwrap().clear();
             true
         })
     }

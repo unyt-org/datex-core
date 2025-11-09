@@ -2,22 +2,22 @@ use crate::ast::structs::expression::{
     BinaryOperation, DatexExpression, DatexExpressionData, TypeDeclaration,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
-use crate::ast::structs::operator::BinaryOperator;
-use crate::ast::structs::operator::assignment::AssignmentOperator;
-use crate::ast::structs::operator::binary::ArithmeticOperator;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::ErrorCollector;
+use crate::compiler::precompiler::precompiled_ast::AstMetadata;
+use crate::global::operators::BinaryOperator;
+use crate::global::operators::assignment::AssignmentOperator;
+use crate::global::operators::binary::ArithmeticOperator;
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
-use crate::precompiler::precompiled_ast::AstMetadata;
+use crate::stdlib::rc::Rc;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
-use std::cell::RefCell;
-use std::fmt::Display;
-use std::ops::Range;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Display;
+use core::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum TypeError {
@@ -31,23 +31,26 @@ pub enum TypeError {
 }
 
 impl Display for TypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeError::MismatchedOperands(op, lhs, rhs) => {
-                write!(
+                core::write!(
                     f,
                     "Cannot perform \"{}\" operation on {} and {}",
-                    op, lhs, rhs
+                    op,
+                    lhs,
+                    rhs
                 )
             }
             TypeError::AssignmentTypeMismatch {
                 annotated_type,
                 assigned_type,
             } => {
-                write!(
+                core::write!(
                     f,
                     "Cannot assign {} to {}",
-                    assigned_type, annotated_type
+                    assigned_type,
+                    annotated_type
                 )
             }
         }
@@ -277,7 +280,9 @@ pub fn infer_expression_type_inner(
             let reference = match &type_def {
                 TypeContainer::TypeReference(r) => r.clone(),
                 _ => {
-                    panic!("TypeDeclaration var_type should be a TypeReference")
+                    core::panic!(
+                        "TypeDeclaration var_type should be a TypeReference"
+                    )
                 }
             };
 
@@ -416,7 +421,10 @@ pub fn infer_expression_type_inner(
                     }
                     value_type
                 }
-                op => todo!("#448 handle other assignment operators: {:?}", op),
+                op => core::todo!(
+                    "#448 handle other assignment operators: {:?}",
+                    op
+                ),
             }
         }
         DatexExpressionData::Statements(statements) => {
@@ -438,8 +446,11 @@ pub fn infer_expression_type_inner(
             }
         }
         DatexExpressionData::CreateRef(create_ref) => {
-            let mut inner_type =
-                infer_expression_type_inner(&mut create_ref.expression, metadata, collected_errors)?;
+            let mut inner_type = infer_expression_type_inner(
+                &mut create_ref.expression,
+                metadata,
+                collected_errors,
+            )?;
             match &mut inner_type {
                 TypeContainer::Type(t) => TypeContainer::Type(Type {
                     type_definition: TypeDefinition::Type(Box::new(t.clone())),
@@ -543,13 +554,13 @@ fn resolve_type_expression_type(
                 .expect("Type variable type should have been inferred already")
         }
         TypeExpressionData::GetReference(pointer_address) => {
-            if matches!(pointer_address, PointerAddress::Internal(_)) {
+            if core::matches!(pointer_address, PointerAddress::Internal(_)) {
                 get_core_lib_type(
                     CoreLibPointerId::try_from(&pointer_address.to_owned())
                         .unwrap(),
                 )
             } else {
-                panic!("GetReference not supported yet")
+                core::panic!("GetReference not supported yet")
             }
         }
         TypeExpressionData::Union(members) => {
@@ -580,7 +591,7 @@ fn resolve_type_expression_type(
                 .collect::<Result<Vec<_>, SpannedTypeError>>()?;
             Type::intersection(member_types).as_type_container()
         }
-        _ => panic!(
+        _ => core::panic!(
             "Type inference not implemented for type expression: {:?}",
             ast
         ),
@@ -633,13 +644,13 @@ fn infer_binary_expression_type(
             }
         }
 
-        _ => todo!("#450 Undescribed by author."),
+        _ => core::todo!("#450 Undescribed by author."),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     use super::*;
     use crate::ast::parse;
@@ -650,12 +661,14 @@ mod tests {
     use crate::ast::structs::expression::{List, Map, VariableKind};
     use crate::compiler::error::{CompilerError, SpannedCompilerError};
 
+    use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
+    use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;
+    use crate::compiler::precompiler::{
+        Precompiler, precompile_ast_simple_error,
+    };
     use crate::libs::core::{
         CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
     };
-    use crate::precompiler::precompiled_ast::{AstMetadata, RichAst};
-    use crate::precompiler::scope_stack::PrecompilerScopeStack;
-    use crate::precompiler::{Precompiler, precompile_ast_simple_error};
     use crate::references::type_reference::{
         NominalTypeDeclaration, TypeReference,
     };
@@ -690,7 +703,7 @@ mod tests {
                 errors,
                 ..
             }) => {
-                panic!("Parsing failed: {:?}", errors)
+                core::panic!("Parsing failed: {:?}", errors)
             }
             DatexParseResult::Valid(valid_parse_result) => {
                 precompile_ast_simple_error(
@@ -792,12 +805,10 @@ mod tests {
         if let TypeContainer::TypeReference(var_type) = var_type {
             // TODO
             // assert_eq!(var_type.borrow().pointer_address, Some(CoreLibPointerId::Integer(None).into()));
-        }
-        else {
-            panic!("Not a TypeReference")
+        } else {
+            core::panic!("Not a TypeReference")
         }
     }
-    
 
     #[test]
     fn recursive_types() {
@@ -808,7 +819,7 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(core::matches!(var_type, TypeContainer::TypeReference(_)));
     }
 
     #[test]
@@ -822,7 +833,7 @@ mod tests {
         let metadata = parse_and_precompile_metadata(src);
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(core::matches!(var_type, TypeContainer::TypeReference(_)));
 
         // get next field, as wrapped in union
         let next = {
@@ -1222,7 +1233,7 @@ mod tests {
             r#type: None,
         })
         .with_default_span();
-        assert!(matches!(
+        assert!(core::matches!(
             infer_expression_type_simple_error(
                 &mut expr,
                 Rc::new(RefCell::new(AstMetadata::default()))

@@ -1,6 +1,11 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_macros::FromCoreValue;
 
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
@@ -19,8 +24,8 @@ use crate::values::core_values::map::Map;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Neg, Not, Sub};
+use core::fmt::{Display, Formatter};
+use core::ops::{Add, AddAssign, Neg, Not, Sub};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -229,7 +234,7 @@ impl CoreValue {
     /// Check if the CoreValue is a combined value type (List, Map)
     /// that contains inner ValueContainers.
     pub fn is_collection_value(&self) -> bool {
-        matches!(self, CoreValue::List(_) | CoreValue::Map(_))
+        core::matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
 
     /// Get the default type of the CoreValue as a TypeContainer.
@@ -484,7 +489,9 @@ impl Add for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("#317 TypedInteger + Integer not implemented yet");
+                    core::todo!(
+                        "#317 TypedInteger + Integer not implemented yet"
+                    );
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() + rhs.clone()))
                 }
                 CoreValue::Decimal(_) => {
@@ -608,7 +615,9 @@ impl Sub for CoreValue {
             // typed integer
             CoreValue::TypedInteger(lhs) => match &rhs {
                 CoreValue::Integer(rhs) => {
-                    todo!("#318 TypedInteger - Integer not implemented yet");
+                    core::todo!(
+                        "#318 TypedInteger - Integer not implemented yet"
+                    );
                     //Ok(CoreValue::TypedInteger(lhs.as_integer() - rhs.clone()))
                 }
                 //     Ok(CoreValue::TypedInteger(
@@ -693,7 +702,7 @@ impl AddAssign<CoreValue> for CoreValue {
         if let Ok(value) = res {
             *self = value;
         } else {
-            panic!("Failed to add value: {res:?}");
+            core::panic!("Failed to add value: {res:?}");
         }
     }
 }
@@ -730,19 +739,19 @@ impl Neg for CoreValue {
 }
 
 impl Display for CoreValue {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            CoreValue::Type(ty) => write!(f, "{ty}"),
-            CoreValue::Boolean(bool) => write!(f, "{bool}"),
-            CoreValue::TypedInteger(int) => write!(f, "{int}"),
-            CoreValue::TypedDecimal(decimal) => write!(f, "{decimal}"),
-            CoreValue::Text(text) => write!(f, "{text}"),
-            CoreValue::Null => write!(f, "null"),
-            CoreValue::Endpoint(endpoint) => write!(f, "{endpoint}"),
-            CoreValue::Map(map) => write!(f, "{map}"),
-            CoreValue::Integer(integer) => write!(f, "{integer}"),
-            CoreValue::Decimal(decimal) => write!(f, "{decimal}"),
-            CoreValue::List(list) => write!(f, "{list}"),
+            CoreValue::Type(ty) => core::write!(f, "{ty}"),
+            CoreValue::Boolean(bool) => core::write!(f, "{bool}"),
+            CoreValue::TypedInteger(int) => core::write!(f, "{int}"),
+            CoreValue::TypedDecimal(decimal) => core::write!(f, "{decimal}"),
+            CoreValue::Text(text) => core::write!(f, "{text}"),
+            CoreValue::Null => core::write!(f, "null"),
+            CoreValue::Endpoint(endpoint) => core::write!(f, "{endpoint}"),
+            CoreValue::Map(map) => core::write!(f, "{map}"),
+            CoreValue::Integer(integer) => core::write!(f, "{integer}"),
+            CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
+            CoreValue::List(list) => core::write!(f, "{list}"),
         }
     }
 }

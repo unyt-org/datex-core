@@ -1,5 +1,4 @@
-use crate::compile;
-use crate::decompiler::{DecompileOptions, decompile_body};
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -11,6 +10,12 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::utils::time::Time;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
@@ -19,13 +24,15 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use itertools::Itertools;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::time::Duration;
+use core::unreachable;
+use core::writeln;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use std::fmt::Display;
-use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -123,7 +130,7 @@ impl NetworkTraceResult {
 }
 
 impl Display for NetworkTraceResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         writeln!(
             f,
             "─────────────────────────────────────────────────────────"
@@ -157,7 +164,7 @@ impl Display for NetworkTraceResult {
                 hop_2.distance
             };
 
-            write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
+            core::write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
             writeln!(
                 f,
                 "{} ({}) ─{}▶ {} ({}) | distance from {}: {} | fork #{}",
@@ -386,7 +393,7 @@ impl ComHub {
         // create trace back block
         let trace_back_block = self.create_trace_block(
             hops,
-            std::slice::from_ref(&sender),
+            core::slice::from_ref(&sender),
             BlockType::TraceBack,
             block.block_header.context_id,
             None,
@@ -707,11 +714,11 @@ impl ComHub {
             hops_datex.push(ValueContainer::from(data_map));
         }
 
-        let (dxb, _) = compile!("?", hops_datex).unwrap();
-        info!(
-            "Trace data: {}",
-            decompile_body(&dxb, DecompileOptions::default()).unwrap()
-        );
+        let dxb = compile_value_container(&ValueContainer::from(hops_datex));
+        // info!(
+        //     "Trace data: {}",
+        //     decompile_body(&dxb, DecompileOptions::default()).unwrap()
+        // );
 
         block.body = dxb;
     }

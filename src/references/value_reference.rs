@@ -1,14 +1,15 @@
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
+use crate::stdlib::rc::Rc;
 use crate::traits::value_eq::ValueEq;
 use crate::types::type_container::TypeContainer;
 use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Debug;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
 
 pub struct ValueReference {
     /// the value that this reference points to
@@ -52,7 +53,7 @@ impl ValueReference {
 }
 
 impl Debug for ValueReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ReferenceData")
             .field("value_container", &self.value_container)
             .field("pointer", &self.pointer_address)
@@ -83,6 +84,6 @@ impl ValueReference {
     }
 
     pub fn is_mutable(&self) -> bool {
-        matches!(self.mutability, ReferenceMutability::Mutable)
+        core::matches!(self.mutability, ReferenceMutability::Mutable)
     }
 }

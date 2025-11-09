@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;

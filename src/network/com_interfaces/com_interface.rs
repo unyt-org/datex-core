@@ -4,37 +4,41 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::utils::{time::Time, uuid::UUID};
-use crate::serde::deserializer::from_value_container;
-use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::ComHub;
-use crate::{stdlib::fmt::Display, values::core_values::endpoint::Endpoint};
+use crate::runtime::AsyncContext;
+use crate::serde::deserializer::from_value_container;
+use crate::std_sync::Mutex;
+use crate::stdlib::{
+    any::Any,
+    cell::Cell,
+    collections::{VecDeque},
+    pin::Pin,
+};
+use crate::collections::HashMap;
+use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
+use crate::utils::{time::Time, uuid::UUID};
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::value_container::ValueContainer;
 use crate::{
     stdlib::{
         cell::RefCell,
         hash::{Hash, Hasher},
         rc::Rc,
+        string::String,
     },
     task::spawn_with_panic_notify,
 };
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::{debug, error, warn};
 use serde::Deserialize;
-use std::{
-    any::Any,
-    cell::Cell,
-    collections::{HashMap, VecDeque},
-    pin::Pin,
-};
-use std::{
-    future::Future,
-    sync::{Arc, Mutex},
-};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceUUID(pub UUID);
 impl Display for ComInterfaceUUID {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "ComInterface({})", self.0)
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "ComInterface({})", self.0)
     }
 }
 
@@ -67,7 +71,7 @@ impl ComInterfaceState {
         *self = new_state;
     }
     pub fn is_destroyed_or_not_connected(&self) -> bool {
-        matches!(
+        core::matches!(
             self,
             ComInterfaceState::Destroyed | ComInterfaceState::NotConnected
         )
@@ -86,7 +90,7 @@ pub struct ComInterfaceSockets {
 impl ComInterfaceSockets {
     pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
         {
-            let mut socket_mut = socket.lock().unwrap();
+            let mut socket_mut = socket.try_lock().unwrap();
             let uuid = socket_mut.uuid.clone();
             socket_mut.state = SocketState::Open;
             self.sockets.insert(uuid.clone(), socket.clone());
@@ -98,7 +102,7 @@ impl ComInterfaceSockets {
         self.sockets.remove(socket_uuid);
         self.deleted_sockets.push_back(socket_uuid.clone());
         if let Some(socket) = self.sockets.get(socket_uuid) {
-            socket.lock().unwrap().state = SocketState::Destroyed;
+            socket.try_lock().unwrap().state = SocketState::Destroyed;
         }
     }
     pub fn get_socket_by_uuid(
@@ -119,7 +123,7 @@ impl ComInterfaceSockets {
             return Err(ComInterfaceError::SocketNotFound);
         }
         {
-            let mut socket = socket.unwrap().lock().unwrap();
+            let mut socket = socket.unwrap().try_lock().unwrap();
             if socket.direct_endpoint.is_none() {
                 socket.direct_endpoint = Some(endpoint.clone());
             }
@@ -181,10 +185,10 @@ impl ComInterfaceInfo {
         &self.uuid
     }
     pub fn get_state(&self) -> ComInterfaceState {
-        *self.state.lock().unwrap()
+        *self.state.try_lock().unwrap()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
-        self.state.lock().unwrap().clone_from(&new_state);
+        self.state.try_lock().unwrap().clone_from(&new_state);
     }
 }
 
@@ -255,10 +259,10 @@ macro_rules! delegate_com_interface_info {
             self.info.com_interface_sockets().clone()
         }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+        fn as_any(&self) -> &dyn datex_core::stdlib::any::Any {
             self
         }
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        fn as_any_mut(&mut self) -> &mut dyn datex_core::stdlib::any::Any {
             self
         }
         fn get_properties(&mut self) -> &InterfaceProperties {
@@ -292,8 +296,8 @@ macro_rules! delegate_com_interface_info {
 /// support a factory method for creating instances of the interface.
 /// Example:
 /// ```
-/// # use std::cell::RefCell;
-/// # use std::rc::Rc;
+/// # use core::cell::RefCell;
+/// # use datex_core::stdlib::rc::Rc;
 /// # use datex_core::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError, ComInterfaceFactory};///
 /// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;///
 /// use serde::{Deserialize, Serialize};
@@ -338,7 +342,7 @@ where
             }
             Err(e) => {
                 error!("Failed to deserialize setup data: {e}");
-                panic!("Invalid setup data for com interface factory")
+                core::panic!("Invalid setup data for com interface factory")
             }
         }
     }
@@ -359,41 +363,54 @@ where
     fn get_default_properties() -> InterfaceProperties;
 }
 
-pub fn flush_outgoing_blocks(interface: Rc<RefCell<dyn ComInterface>>) {
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+pub async fn flush_outgoing_block_task(
+    interface: Rc<RefCell<dyn ComInterface>>,
+    socket_ref: Arc<Mutex<ComInterfaceSocket>>,
+    block: Vec<u8>,
+    uuid: ComInterfaceSocketUUID,
+) {
+    // FIXME #194 borrow_mut across await point!
+    let has_been_send = interface.borrow_mut().send_block(&block, uuid).await;
+    interface
+        .borrow()
+        .get_info()
+        .outgoing_blocks_count
+        .update(|x| x - 1);
+    if !has_been_send {
+        debug!("Failed to send block");
+        socket_ref.try_lock().unwrap().send_queue.push_back(block);
+        core::panic!("Failed to send block");
+    }
+}
+
+pub fn flush_outgoing_blocks(
+    interface: Rc<RefCell<dyn ComInterface>>,
+    async_context: &AsyncContext,
+) {
     fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
-        let mut socket_mut = socket_ref.lock().unwrap();
+        let mut socket_mut = socket_ref.try_lock().unwrap();
         let blocks: Vec<Vec<u8>> =
             socket_mut.send_queue.drain(..).collect::<Vec<_>>();
         blocks
     }
     let sockets = interface.borrow().get_sockets();
-    for socket_ref in sockets.lock().unwrap().sockets.values() {
+    for socket_ref in sockets.try_lock().unwrap().sockets.values() {
         let blocks = get_blocks(socket_ref);
         let interface = interface.clone();
         for block in blocks {
             let interface = interface.clone();
             let socket_ref = socket_ref.clone();
-            let uuid = socket_ref.lock().unwrap().uuid.clone();
+            let uuid = socket_ref.try_lock().unwrap().uuid.clone();
             interface
                 .borrow()
                 .get_info()
                 .outgoing_blocks_count
                 .update(|x| x + 1);
-            spawn_with_panic_notify(async move {
-                // FIXME #194 borrow_mut across await point!
-                let has_been_send =
-                    interface.borrow_mut().send_block(&block, uuid).await;
-                interface
-                    .borrow()
-                    .get_info()
-                    .outgoing_blocks_count
-                    .update(|x| x - 1);
-                if !has_been_send {
-                    debug!("Failed to send block");
-                    socket_ref.lock().unwrap().send_queue.push_back(block);
-                    panic!("Failed to send block");
-                }
-            });
+            spawn_with_panic_notify(
+                async_context,
+                flush_outgoing_block_task(interface, socket_ref, block, uuid),
+            );
         }
     }
 }
@@ -405,8 +422,8 @@ pub trait ComInterface: Any {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
-    fn as_any(&self) -> &dyn std::any::Any;
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+    fn as_any(&self) -> &dyn crate::stdlib::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn crate::stdlib::any::Any;
 
     fn init_properties(&self) -> InterfaceProperties;
     // TODO #195: no mut, wrap self.info in RefCell
@@ -427,7 +444,7 @@ pub trait ComInterface: Any {
     /// to be consumed by the ComHub
     fn destroy_sockets(&mut self) {
         let sockets = self.get_sockets();
-        let sockets = sockets.lock().unwrap();
+        let sockets = sockets.try_lock().unwrap();
         let uuids: Vec<ComInterfaceSocketUUID> =
             sockets.sockets.keys().cloned().collect();
         drop(sockets);
@@ -486,7 +503,7 @@ pub trait ComInterface: Any {
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         if self.get_state().is_destroyed() {
-            panic!(
+            core::panic!(
                 "Interface {} is already destroyed. Not destroying again.",
                 self.get_uuid()
             );
@@ -504,15 +521,17 @@ pub trait ComInterface: Any {
 
     // Add new socket to the interface (not registered yet)
     fn add_socket(&self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.add_socket(socket);
     }
 
     // Remove socket from the interface
     fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         let socket = sockets.get_socket_by_uuid(socket_uuid);
-        socket.unwrap().lock().unwrap().state = SocketState::Destroyed;
+        socket.unwrap().try_lock().unwrap().state = SocketState::Destroyed;
         sockets.remove_socket(socket_uuid);
     }
 
@@ -523,7 +542,8 @@ pub trait ComInterface: Any {
         endpoint: Endpoint,
         distance: u8,
     ) -> Result<(), ComInterfaceError> {
-        let mut sockets = self.get_info().com_interface_sockets.lock().unwrap();
+        let mut sockets =
+            self.get_info().com_interface_sockets.try_lock().unwrap();
         sockets.register_socket_endpoint(socket_uuid, endpoint, distance)
     }
 

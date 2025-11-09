@@ -1,18 +1,19 @@
-use std::fmt::Display;
-use std::io::{Cursor, Read};
-// FIXME #109 no-std
-
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
 use crate::global::protocol_structures::routing_header::Receivers;
+use crate::stdlib::vec::Vec;
+use crate::task::UnboundedReceiver;
 use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
+use binrw::io::{Cursor, Read};
 use binrw::{BinRead, BinWrite};
-use futures::channel::mpsc::UnboundedReceiver;
-use futures_util::StreamExt;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
 use log::error;
 use strum::Display;
 use thiserror::Error;
@@ -334,11 +335,11 @@ impl DXBBlock {
 }
 
 impl Display for DXBBlock {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let block_type = self.block_header.flags_and_timestamp.block_type();
         let sender = &self.routing_header.sender;
         let receivers = self.receivers();
-        write!(f, "[{block_type}] {sender} -> {receivers}")?;
+        core::write!(f, "[{block_type}] {sender} -> {receivers}")?;
 
         Ok(())
     }
@@ -346,7 +347,7 @@ impl Display for DXBBlock {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use crate::{
         global::{

@@ -1,19 +1,21 @@
-use crate::traits::structural_eq::StructuralEq;
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::Display,
-    ops::{Add, AddAssign},
-};
-
 use super::super::core_value_trait::CoreValueTrait;
+use crate::stdlib::ops::{Add, AddAssign};
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::traits::structural_eq::StructuralEq;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Text(pub String);
 
 impl Display for Text {
     // TODO #319: escape string content
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\"{}\"", self.0)
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "\"{}\"", self.0)
     }
 }
 
@@ -122,7 +124,7 @@ impl Text {
     }
     pub fn replace_range(
         &mut self,
-        range: std::ops::Range<usize>,
+        range: core::ops::Range<usize>,
         replace_with: &str,
     ) -> Result<(), String> {
         if range.start > range.end || range.end > self.0.len() {

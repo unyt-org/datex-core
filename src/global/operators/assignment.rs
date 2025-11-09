@@ -1,7 +1,6 @@
-use std::fmt::Display;
-
-use crate::ast::DatexParserTrait;
-use crate::global::instruction_codes::InstructionCode;
+use super::super::instruction_codes::InstructionCode;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {
@@ -16,8 +15,8 @@ pub enum AssignmentOperator {
     BitwiseOrAssign,  // |=
 }
 impl Display for AssignmentOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -47,7 +46,7 @@ impl From<&AssignmentOperator> for InstructionCode {
                 InstructionCode::MULTIPLY_ASSIGN
             }
             AssignmentOperator::DivideAssign => InstructionCode::DIVIDE_ASSIGN,
-            operator => todo!(
+            operator => core::todo!(
                 "Assignment operator {:?} not implemented for InstructionCode",
                 operator
             ),

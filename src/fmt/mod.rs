@@ -1,17 +1,17 @@
-use std::ops::Range;
+use core::ops::Range;
 
 use crate::{
     ast::structs::{
         expression::{DatexExpression, VariableAccess},
-        operator::{BinaryOperator, ComparisonOperator, UnaryOperator},
         r#type::{
             FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
         },
     },
+    compiler::precompiler::precompiled_ast::RichAst,
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
+    global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
     libs::core::CoreLibPointerId,
-    precompiler::precompiled_ast::RichAst,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
 mod bracketing;
@@ -171,8 +171,8 @@ impl<'a> Formatter<'a> {
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpressionData::FixedSizeList(list) => todo!(),
-            TypeExpressionData::SliceList(_) => todo!(),
+            TypeExpressionData::FixedSizeList(list) => core::todo!(),
+            TypeExpressionData::SliceList(_) => core::todo!(),
 
             // Intersection: `A & B & C`
             TypeExpressionData::Intersection(items) => {
@@ -185,7 +185,7 @@ impl<'a> Formatter<'a> {
             }
 
             TypeExpressionData::GenericAccess(access) => {
-                todo!()
+                core::todo!()
             }
 
             // Function type: `(x: Int, y: Text) -> Bool`

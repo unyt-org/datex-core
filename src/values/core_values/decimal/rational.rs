@@ -1,11 +1,15 @@
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use core::fmt::Display;
+use core::ops::{Add, Neg};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use num::BigRational;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
-use pad::PadStr;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::ops::{Add, Neg};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
@@ -73,7 +77,7 @@ impl Rational {
     }
     pub(crate) fn new(numerator: BigInt, denominator: BigInt) -> Self {
         if denominator.is_zero() {
-            panic!("Denominator cannot be zero");
+            core::panic!("Denominator cannot be zero");
         }
         let big_rational = BigRational::new(numerator, denominator);
         Rational { big_rational }
@@ -123,12 +127,8 @@ impl Rational {
             shift -= 1;
         }
 
-        let string = numerator.to_string().pad(
-            shift as usize,
-            '0',
-            pad::Alignment::Right,
-            false,
-        );
+        let string = format!("{:0>width$}", numerator, width = shift as usize);
+
         let comma_shift = string.len() - shift as usize;
         let p1 = &string[0..comma_shift];
         let p2 = &string[comma_shift..];
@@ -229,8 +229,8 @@ impl Add for Rational {
 }
 
 impl Display for Rational {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.rational_to_string())
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "{}", self.rational_to_string())
     }
 }
 

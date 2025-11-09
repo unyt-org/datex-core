@@ -1,7 +1,7 @@
-use crate::ast::DatexParserTrait;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use std::fmt::Display;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {
@@ -18,8 +18,8 @@ pub enum ComparisonOperator {
 }
 
 impl Display for ComparisonOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -51,7 +51,7 @@ impl From<&ComparisonOperator> for InstructionCode {
             ComparisonOperator::NotEqual => InstructionCode::NOT_EQUAL,
             ComparisonOperator::Is => InstructionCode::IS,
             ComparisonOperator::Matches => InstructionCode::MATCHES,
-            operator => todo!(
+            operator => core::todo!(
                 "Comparison operator {:?} not implemented for InstructionCode",
                 operator
             ),
@@ -76,7 +76,7 @@ impl From<&Instruction> for ComparisonOperator {
             Instruction::Is => ComparisonOperator::Is,
             Instruction::Matches => ComparisonOperator::Matches,
             _ => {
-                todo!(
+                core::todo!(
                     "Comparison operator for instruction {:?} not implemented",
                     instruction
                 );

@@ -1,10 +1,14 @@
-use datex_core::values::core_values::endpoint::Endpoint;
+use core::cell::RefCell;
+use core::time::Duration;
 use datex_core::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory,
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::task::spawn_with_panic_notify;
+use datex_core::task::{
+    spawn_with_panic_notify, spawn_with_panic_notify_default,
+};
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::{
     delegate_com_interface_info,
     global::{
@@ -23,15 +27,13 @@ use datex_core::{
 };
 use datex_macros::{com_interface, create_opener};
 use log::info;
-use std::cell::RefCell;
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use std::time::Duration;
 use std::{
     future::Future,
     pin::Pin,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
 };
-use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug)]
 pub struct MockupInterface {
@@ -85,17 +87,19 @@ impl SingleSocketProvider for MockupInterface {
 
 type OptSender = Option<mpsc::Sender<Vec<u8>>>;
 type OptReceiver = Option<mpsc::Receiver<Vec<u8>>>;
-thread_local! {
-    pub static CHANNELS: RefCell<Vec<(OptSender, OptReceiver)>> = const { RefCell::new(Vec::new()) };
-}
-pub fn store_sender_and_receiver(sender: OptSender, receiver: OptReceiver) -> usize {
-    CHANNELS.with(|channels| {
-        let mut channels = channels.borrow_mut();
-        channels.push((sender, receiver));
-        channels.len() - 1
-    })
-}
 
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+pub static mut CHANNELS: Vec<(OptSender, OptReceiver)> = Vec::new();
+
+pub fn store_sender_and_receiver(
+    sender: OptSender,
+    receiver: OptReceiver,
+) -> usize {
+    unsafe {
+        CHANNELS.push((sender, receiver));
+        CHANNELS.len() - 1
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MockupInterfaceSetupData {
@@ -143,30 +147,24 @@ impl MockupInterfaceSetupData {
         setup_data
     }
 
-    pub fn sender(
-        &self,
-    ) -> Option<mpsc::Sender<Vec<u8>>> {
-        CHANNELS.with(|channels| {
-            let mut channels = channels.borrow_mut();
+    pub fn sender(&self) -> Option<mpsc::Sender<Vec<u8>>> {
+        unsafe {
             if let Some(index) = self.channel_index {
-                channels.get_mut(index).unwrap().0.take()
+                CHANNELS.get_mut(index).unwrap().0.take()
             } else {
                 None
             }
-        })
+        }
     }
 
-    pub fn receiver(
-        &self,
-    ) -> Option<mpsc::Receiver<Vec<u8>>> {
-        CHANNELS.with(|channels| {
-            let mut channels = channels.borrow_mut();
+    pub fn receiver(&self) -> Option<mpsc::Receiver<Vec<u8>>> {
+        unsafe {
             if let Some(index) = self.channel_index {
-                channels.get_mut(index).unwrap().1.take()
+                CHANNELS.get_mut(index).unwrap().1.take()
             } else {
                 None
             }
-        })
+        }
     }
 }
 
@@ -253,11 +251,12 @@ impl MockupInterface {
         sockets: Arc<Mutex<ComInterfaceSockets>>,
     ) {
         if let Some(receiver) = &*receiver.borrow() {
-            let sockets = sockets.lock().unwrap();
+            let sockets = sockets.try_lock().unwrap();
             let socket = sockets.sockets.values().next();
             if let Some(socket) = socket {
-                let socket = socket.lock().unwrap();
-                let mut receive_queue = socket.receive_queue.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
+                let mut receive_queue =
+                    socket.receive_queue.try_lock().unwrap();
                 while let Ok(block) = receiver.try_recv() {
                     receive_queue.extend(block);
                 }
@@ -272,7 +271,7 @@ impl MockupInterface {
     pub fn start_update_loop(&mut self) {
         let receiver = self.receiver.clone();
         let sockets = self.info.com_interface_sockets();
-        spawn_with_panic_notify(async move {
+        spawn_with_panic_notify_default(async move {
             loop {
                 MockupInterface::_update(receiver.clone(), sockets.clone());
                 #[cfg(feature = "tokio_runtime")]
@@ -290,12 +289,13 @@ impl ComInterface for MockupInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME #219 this should be inside the async body, why is it not working?
         let is_hello = {
-            match DXBBlock::from_bytes(block) { Ok(block) => {
-                block.block_header.flags_and_timestamp.block_type()
-                    == BlockType::Hello
-            } _ => {
-                false
-            }}
+            match DXBBlock::from_bytes(block) {
+                Ok(block) => {
+                    block.block_header.flags_and_timestamp.block_type()
+                        == BlockType::Hello
+                }
+                _ => false,
+            }
         };
         if !is_hello {
             self.outgoing_queue.push((socket_uuid, block.to_vec()));

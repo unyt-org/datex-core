@@ -1,4 +1,4 @@
-use std::{str::FromStr, vec};
+use crate::stdlib::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::DatexExpressionData;
@@ -32,6 +32,7 @@ use chumsky::{
     prelude::{choice, just, recursive},
     select,
 };
+use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
@@ -528,8 +529,6 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
 
 #[cfg(test)]
 mod tests {
-    use indexmap::map::Slice;
-
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
 
     use super::*;
@@ -539,7 +538,7 @@ mod tests {
     use crate::ast::structs::expression::{
         DatexExpression, DatexExpressionData, Statements,
     };
-    use std::{io, str::FromStr};
+    use crate::stdlib::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
         let src_id = SrcId::test();
@@ -553,7 +552,7 @@ mod tests {
                     let cache = ariadne::sources(vec![(src_id, src)]);
                     e.clone().write(cache, io::stdout());
                 });
-                panic!("Parsing errors found");
+                core::panic!("Parsing errors found");
             }
             DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => {
                 ast.data
@@ -580,11 +579,14 @@ mod tests {
                     ..
                 }) => value.data.clone(),
                 _ => {
-                    panic!("Expected TypeDeclaration, got {:?}", statements[0])
+                    core::panic!(
+                        "Expected TypeDeclaration, got {:?}",
+                        statements[0]
+                    )
                 }
             }
         } else {
-            panic!("Expected TypeDeclaration, got {:?}", value);
+            core::panic!("Expected TypeDeclaration, got {:?}", value);
         }
     }
 

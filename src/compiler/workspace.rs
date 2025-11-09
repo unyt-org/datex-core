@@ -1,13 +1,13 @@
 use crate::compiler::error::DetailedCompilerErrors;
 use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::{
     CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
 };
-use crate::precompiler::precompiled_ast::RichAst;
 use crate::runtime::Runtime;
+use crate::collections::HashMap;
+use crate::stdlib::path::PathBuf;
 use crate::types::type_container::TypeContainer;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// Represents a file in the compiler workspace with its path, cached content and AST.
 pub struct WorkspaceFile {
@@ -19,7 +19,6 @@ pub struct WorkspaceFile {
 }
 
 /// Represents the compiler workspace containing multiple files.
-#[derive(Default)]
 pub struct CompilerWorkspace {
     files: HashMap<PathBuf, WorkspaceFile>,
     runtime: Runtime,
@@ -71,7 +70,10 @@ impl CompilerWorkspace {
         self.files.get(path)
     }
 
-    pub fn get_file_mut(&mut self, path: &PathBuf) -> Option<&mut WorkspaceFile> {
+    pub fn get_file_mut(
+        &mut self,
+        path: &PathBuf,
+    ) -> Option<&mut WorkspaceFile> {
         self.files.get_mut(path)
     }
 

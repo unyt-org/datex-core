@@ -1,15 +1,14 @@
-use datex_core::values::core_values::endpoint::Endpoint;
+use super::mockup_interface::MockupInterface;
+use core::str::FromStr;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::stdlib::cell::RefCell;
-use datex_core::stdlib::rc::Rc;
-use std::str::FromStr;
-use std::sync::{mpsc, Arc, Mutex};
-// FIXME #218 no-std
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
-use datex_core::runtime::{Runtime, RuntimeConfig};
-use super::mockup_interface::MockupInterface;
+use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
+use datex_core::stdlib::cell::RefCell;
+use datex_core::stdlib::rc::Rc;
+use datex_core::values::core_values::endpoint::Endpoint;
+use std::sync::{Arc, Mutex, mpsc};
 
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
@@ -43,7 +42,7 @@ pub async fn get_mock_setup_with_endpoint(
     priority: InterfacePriority,
 ) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let com_hub = ComHub::new(endpoint);
+    let com_hub = ComHub::new(endpoint, AsyncContext::new());
 
     // init mockup interface
     let mockup_interface_ref =
@@ -54,7 +53,7 @@ pub async fn get_mock_setup_with_endpoint(
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     (Rc::new(com_hub), mockup_interface_ref.clone())
@@ -65,7 +64,8 @@ pub async fn get_runtime_with_mock_interface(
     priority: InterfacePriority,
 ) -> (Runtime, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
+    let runtime =
+        Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
 
     // init mockup interface
     let mockup_interface_ref =
@@ -77,7 +77,7 @@ pub async fn get_runtime_with_mock_interface(
         .open_and_add_interface(mockup_interface_ref.clone(), priority)
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     (runtime, mockup_interface_ref.clone())
@@ -95,7 +95,7 @@ pub fn register_socket_endpoint(
     endpoint: Endpoint,
 ) {
     let mockup_interface = mockup_interface_ref.borrow_mut();
-    let uuid = socket.lock().unwrap().uuid.clone();
+    let uuid = socket.try_lock().unwrap().uuid.clone();
 
     mockup_interface
         .register_socket_endpoint(uuid, endpoint, 1)
@@ -202,14 +202,16 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     (com_hub.clone(), mockup_interface_ref, socket)
 }
 
-
 pub async fn get_mock_setup_runtime(
     local_endpoint: Endpoint,
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
 ) -> Runtime {
-    let (runtime, mockup_interface_ref) =
-        get_runtime_with_mock_interface(local_endpoint, InterfacePriority::default()).await;
+    let (runtime, mockup_interface_ref) = get_runtime_with_mock_interface(
+        local_endpoint,
+        InterfacePriority::default(),
+    )
+    .await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
     mockup_interface_ref.borrow_mut().receiver =
@@ -235,17 +237,18 @@ pub async fn get_mock_setup_with_two_runtimes(
         endpoint_a.clone(),
         Some(sender_a),
         Some(receiver_b),
-    ).await;
+    )
+    .await;
 
     let runtime_b = get_mock_setup_runtime(
         endpoint_b.clone(),
         Some(sender_b),
         Some(receiver_a),
-    ).await;
+    )
+    .await;
 
     (runtime_a, runtime_b)
 }
-
 
 pub async fn send_block_with_body(
     to: &[Endpoint],
@@ -289,7 +292,7 @@ pub fn get_last_received_single_block_from_com_hub(
     match &sections[0] {
         IncomingSection::SingleBlock((Some(block), ..)) => block.clone(),
         _ => {
-            panic!("Expected single block, but got block stream");
+            core::panic!("Expected single block, but got block stream");
         }
     }
 }
@@ -308,7 +311,7 @@ pub fn get_all_received_single_blocks_from_com_hub(
                 blocks.push(block.clone());
             }
             _ => {
-                panic!("Expected single block, but got block stream");
+                core::panic!("Expected single block, but got block stream");
             }
         }
     }

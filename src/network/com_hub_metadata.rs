@@ -1,14 +1,19 @@
+use core::prelude::rust_2024::*;
 use log::info;
 
-use crate::values::core_values::endpoint::Endpoint;
 use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use std::collections::HashMap;
-use std::fmt::Display;
+use crate::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use crate::values::core_values::endpoint::Endpoint;
+use core::fmt::Display;
 use itertools::Itertools;
 
 pub struct ComHubMetadataInterfaceSocket {
@@ -37,7 +42,7 @@ pub struct ComHubMetadata {
 }
 
 impl Display for ComHubMetadata {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         writeln!(f, "ComHub ({})", self.endpoint)?;
 
         // print interfaces
@@ -56,14 +61,13 @@ impl Display for ComHubMetadata {
             )?;
 
             // print sockets
-            let sorted_sockets = interface
-                .sockets
-                .iter()
-                .sorted_by_key(|s| match &s.properties {
+            let sorted_sockets = interface.sockets.iter().sorted_by_key(|s| {
+                match &s.properties {
                     Some(properties) => properties.distance,
                     None => i8::MAX,
-                });
-            
+                }
+            });
+
             for socket in sorted_sockets {
                 writeln!(
                     f,
@@ -113,7 +117,7 @@ impl ComHub {
         for (endpoint, sockets) in self.endpoint_sockets.borrow().iter() {
             for (socket_uuid, properties) in sockets {
                 let socket = self.get_socket_by_uuid(socket_uuid);
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -136,7 +140,7 @@ impl ComHub {
         for (socket_uuid, (socket, endpoints)) in self.sockets.borrow().iter() {
             // if no endpoints are registered, we consider it a socket without an endpoint
             if endpoints.is_empty() {
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -147,14 +151,12 @@ impl ComHub {
                 sockets_by_com_interface_uuid
                     .get_mut(&com_interface_uuid)
                     .unwrap()
-                    .push(
-                    ComHubMetadataInterfaceSocket {
+                    .push(ComHubMetadataInterfaceSocket {
                         uuid: socket_uuid.0.to_string(),
                         direction: socket.direction.clone(),
                         endpoint: None,
                         properties: None,
-                    },
-                );
+                    });
                 continue;
             }
         }

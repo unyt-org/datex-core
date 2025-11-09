@@ -1,8 +1,11 @@
-use crate::stdlib::time::Duration;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use crate::utils::time::Time;
+use core::prelude::rust_2024::*;
+use core::time::Duration;
 use serde::{Deserialize, Serialize};
+use serde_with::DurationMilliSeconds;
 use serde_with::serde_as;
-use serde_with::{DurationMilliSeconds, DurationSeconds};
 use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
@@ -38,7 +41,7 @@ pub struct InterfaceProperties {
 
     /// Estimated mean latency for this interface type in milliseconds (round trip time).
     /// Lower latency interfaces are preferred over higher latency channels
-    #[serde_as(as = "DurationMilliSeconds<f64>")]
+    #[serde_as(as = "DurationMilliSeconds")]
     #[cfg_attr(feature = "wasm_runtime", tsify(type = "number"))]
     pub round_trip_time: Duration,
 
@@ -82,11 +85,11 @@ pub enum ReconnectionConfig {
     NoReconnect,
     InstantReconnect,
     ReconnectWithTimeout {
-        #[serde_as(as = "DurationSeconds<f64>")]
+        #[serde_as(as = "DurationMilliSeconds")]
         timeout: Duration,
     },
     ReconnectWithTimeoutAndAttempts {
-        #[serde_as(as = "DurationSeconds<f64>")]
+        #[serde_as(as = "DurationMilliSeconds")]
         timeout: Duration,
         attempts: u8,
     },
@@ -146,7 +149,10 @@ impl InterfaceProperties {
     }
 
     pub fn shall_reconnect(&self) -> bool {
-        !matches!(self.reconnection_config, ReconnectionConfig::NoReconnect)
+        !core::matches!(
+            self.reconnection_config,
+            ReconnectionConfig::NoReconnect
+        )
     }
 
     pub fn can_receive(&self) -> bool {

@@ -1,6 +1,7 @@
-use std::fmt::Display;
-
+use crate::stdlib::boxed::Box;
 use crate::types::type_container::TypeContainer;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 // TODO #377: Rename to Generic type definition?
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -19,14 +20,14 @@ pub enum CollectionTypeDefinition {
 }
 
 impl Display for CollectionTypeDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            CollectionTypeDefinition::List(ty) => write!(f, "[{}]", ty),
+            CollectionTypeDefinition::List(ty) => core::write!(f, "[{}]", ty),
             CollectionTypeDefinition::ListSlice(ty, size) => {
-                write!(f, "[{}; {}]", ty, size)
+                core::write!(f, "[{}; {}]", ty, size)
             }
             CollectionTypeDefinition::Map { key, value } => {
-                write!(f, "Map<{}, {}>", key, value)
+                core::write!(f, "Map<{}, {}>", key, value)
             }
         }
     }

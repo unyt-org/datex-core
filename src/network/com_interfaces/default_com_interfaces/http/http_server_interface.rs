@@ -1,18 +1,19 @@
 use axum::extract::Request;
 use axum::routing::post;
 use bytes::Bytes;
-use std::cell::RefCell;
+use core::cell::RefCell;
 
+use crate::std_sync::Mutex;
+use crate::collections::HashMap;
+use crate::stdlib::net::SocketAddr;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::sync::Arc;
 use crate::task::spawn;
 use axum::response::Response;
+use core::future::Future;
+use core::time::Duration;
 use futures::StreamExt;
-use std::collections::HashMap;
-use std::future::Future;
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 
 use axum::{
@@ -167,7 +168,7 @@ impl HTTPServerNativeInterface {
                             data.to_vec(),
                             socket_uuid
                         );
-                        receive_queue.lock().unwrap().extend(data.to_vec());
+                        receive_queue.try_lock().unwrap().extend(data.to_vec());
                     }
                 }
             });

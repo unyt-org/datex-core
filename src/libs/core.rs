@@ -3,23 +3,40 @@ use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
 use crate::runtime::memory::Memory;
+use crate::collections::HashMap;
+use crate::stdlib::format;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
 use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
+use core::cell::RefCell;
+use core::iter::once;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use datex_core::values::core_values::map::Map;
 use datex_core::values::pointer::PointerAddress;
 use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::iter::once;
-use std::rc::Rc;
 use strum::IntoEnumIterator;
 
-thread_local! {
-    pub static CORE_LIB_TYPES: HashMap<CoreLibPointerId, TypeContainer> = create_core_lib();
+type CoreLibTypes = HashMap<CoreLibPointerId, TypeContainer>;
+
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
+
+fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes) -> R) -> R {
+    unsafe {
+        if CORE_LIB_TYPES.is_none() {
+            CORE_LIB_TYPES.replace(create_core_lib());
+        }
+        handler(CORE_LIB_TYPES.as_ref().unwrap_unchecked())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, LibTypeString)]
@@ -135,11 +152,9 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
 }
 
 pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
-    let id = id.into();
-    if !has_core_lib_type(id.clone()) {
-        panic!("Core lib type not found: {:?}", id);
-    }
-    CORE_LIB_TYPES.with(|core| core.get(&id).unwrap().clone())
+    with_core_lib(|core_lib_types| {
+        core_lib_types.get(&id.into()).unwrap().clone()
+    })
 }
 
 pub fn get_core_lib_type_reference(
@@ -148,7 +163,7 @@ pub fn get_core_lib_type_reference(
     let type_container = get_core_lib_type(id);
     match type_container {
         TypeContainer::TypeReference(tr) => tr,
-        _ => panic!("Core lib type is not a TypeReference"),
+        _ => core::panic!("Core lib type is not a TypeReference"),
     }
 }
 
@@ -156,13 +171,13 @@ fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
-    CORE_LIB_TYPES.with(|core| core.contains_key(&id.into()))
+    with_core_lib(|core_lib_types| core_lib_types.contains_key(&id.into()))
 }
 
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
-    CORE_LIB_TYPES.with(|core| {
-        let structure = core
+    with_core_lib(|core_lib_types| {
+        let structure = core_lib_types
             .values()
             .map(|def| match def {
                 TypeContainer::TypeReference(def) => {
@@ -176,7 +191,7 @@ pub fn load_core_lib(memory: &mut Memory) {
                     memory.register_reference(&reference);
                     (name, ValueContainer::Reference(reference))
                 }
-                _ => panic!("Core lib type is not a TypeReference"),
+                _ => core::panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
 
@@ -301,7 +316,7 @@ fn create_core_type(
     let base_type_ref = match base_type {
         Some(TypeContainer::TypeReference(reference)) => Some(reference),
         Some(TypeContainer::Type(_)) => {
-            panic!("Base type must be a TypeReference")
+            core::panic!("Base type must be a TypeReference")
         }
         None => None,
     };
@@ -327,8 +342,8 @@ mod tests {
     use crate::values::core_values::endpoint::Endpoint;
 
     use super::*;
+    use crate::stdlib::{assert_matches::assert_matches, str::FromStr};
     use itertools::Itertools;
-    use std::{assert_matches::assert_matches, str::FromStr};
 
     #[test]
     fn core_lib() {
@@ -483,14 +498,15 @@ mod tests {
     #[ignore]
     #[test]
     fn print_core_lib_addresses_as_hex() {
-        let sorted_entries = CORE_LIB_TYPES.with(|core| {
-            core.keys()
+        with_core_lib(|core_lib_types| {
+            let sorted_entries = core_lib_types
+                .keys()
                 .map(|k| (k.clone(), PointerAddress::from(k.clone())))
                 .sorted_by_key(|(_, address)| address.bytes().to_vec())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            for (core_lib_id, address) in sorted_entries {
+                println!("{:?}: {}", core_lib_id, address);
+            }
         });
-        for (core_lib_id, address) in sorted_entries {
-            println!("{:?}: {}", core_lib_id, address);
-        }
     }
 }

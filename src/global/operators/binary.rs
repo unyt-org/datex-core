@@ -1,7 +1,8 @@
-use crate::ast::DatexParserTrait;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::Instruction;
-use std::fmt::Display;
+use crate::stdlib::string::ToString;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOperator {
@@ -35,8 +36,8 @@ pub enum ArithmeticOperator {
     Power,    // ^
 }
 impl Display for ArithmeticOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -79,8 +80,8 @@ impl From<&LogicalOperator> for InstructionCode {
 }
 
 impl Display for LogicalOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -106,7 +107,7 @@ impl From<&BitwiseOperator> for InstructionCode {
             BitwiseOperator::Or => InstructionCode::OR,
             BitwiseOperator::Not => InstructionCode::NOT,
             _ => {
-                todo!(
+                core::todo!(
                     "Bitwise operator {:?} not implemented for InstructionCode",
                     op
                 )
@@ -116,8 +117,8 @@ impl From<&BitwiseOperator> for InstructionCode {
 }
 
 impl Display for BitwiseOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -131,8 +132,8 @@ impl Display for BitwiseOperator {
 }
 
 impl Display for BinaryOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(
             f,
             "{}",
             match self {
@@ -188,7 +189,10 @@ impl From<&InstructionCode> for BinaryOperator {
             InstructionCode::UNION => {
                 BinaryOperator::Bitwise(BitwiseOperator::And)
             }
-            _ => todo!("#154 Binary operator for {:?} not implemented", code),
+            _ => core::todo!(
+                "#154 Binary operator for {:?} not implemented",
+                code
+            ),
         }
     }
 }
@@ -215,7 +219,7 @@ impl From<&Instruction> for BinaryOperator {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
             }
             _ => {
-                todo!(
+                core::todo!(
                     "#155 Binary operator for instruction {:?} not implemented",
                     instruction
                 );

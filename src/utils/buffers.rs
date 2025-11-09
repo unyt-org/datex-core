@@ -1,5 +1,9 @@
-use byteorder::{LittleEndian, ReadBytesExt};
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
+use core::convert::TryInto;
 use core::fmt::Write;
+use core::iter::FromIterator;
 use itertools::Itertools;
 
 /*
@@ -13,48 +17,48 @@ pub fn read_u8(buffer: &[u8], index: &mut usize) -> u8 {
 }
 
 pub fn read_i8(buffer: &[u8], index: &mut usize) -> i8 {
-    let mut slice = &buffer[*index..*index + 1];
+    let slice = &buffer[*index..*index + 1];
     *index += 1;
-    slice.read_i8().unwrap()
+    i8::from_le_bytes(slice.try_into().unwrap())
 }
 
 pub fn read_u16(buffer: &[u8], index: &mut usize) -> u16 {
-    let mut slice = &buffer[*index..*index + 2];
+    let slice = &buffer[*index..*index + 2];
     *index += 2;
-    slice.read_u16::<LittleEndian>().unwrap()
+    u16::from_be_bytes(slice.try_into().unwrap())
 }
 pub fn read_i16(buffer: &[u8], index: &mut usize) -> i16 {
-    let mut slice = &buffer[*index..*index + 2];
+    let slice = &buffer[*index..*index + 2];
     *index += 2;
-    slice.read_i16::<LittleEndian>().unwrap()
+    i16::from_be_bytes(slice.try_into().unwrap())
 }
 
 pub fn read_i32(buffer: &[u8], index: &mut usize) -> i32 {
-    let mut slice = &buffer[*index..*index + 4];
+    let slice = &buffer[*index..*index + 4];
     *index += 4;
-    slice.read_i32::<LittleEndian>().unwrap()
+    i32::from_be_bytes(slice.try_into().unwrap())
 }
 pub fn read_u32(buffer: &[u8], index: &mut usize) -> u32 {
-    let mut slice = &buffer[*index..*index + 4];
+    let slice = &buffer[*index..*index + 4];
     *index += 4;
-    slice.read_u32::<LittleEndian>().unwrap()
+    u32::from_be_bytes(slice.try_into().unwrap())
 }
 
 pub fn read_u64(buffer: &[u8], index: &mut usize) -> u64 {
-    let mut slice = &buffer[*index..*index + 8];
+    let slice = &buffer[*index..*index + 8];
     *index += 8;
-    slice.read_u64::<LittleEndian>().unwrap()
+    u64::from_be_bytes(slice.try_into().unwrap())
 }
 pub fn read_i64(buffer: &[u8], index: &mut usize) -> i64 {
-    let mut slice = &buffer[*index..*index + 8];
+    let slice = &buffer[*index..*index + 8];
     *index += 8;
-    slice.read_i64::<LittleEndian>().unwrap()
+    i64::from_be_bytes(slice.try_into().unwrap())
 }
 
 pub fn read_f64(buffer: &[u8], index: &mut usize) -> f64 {
-    let mut slice = &buffer[*index..*index + 8];
+    let slice = &buffer[*index..*index + 8];
     *index += 8;
-    slice.read_f64::<LittleEndian>().unwrap()
+    f64::from_be_bytes(slice.try_into().unwrap())
 }
 
 pub fn read_string_utf8(
@@ -237,7 +241,7 @@ pub fn buffer_to_hex(buffer: Vec<u8>) -> String {
 
     let mut s = String::with_capacity(2 * n);
     for byte in buffer {
-        write!(s, "{byte:02X}").expect("could not parse buffer")
+        core::write!(s, "{byte:02X}").expect("could not parse buffer")
     }
     s
 }
@@ -282,15 +286,16 @@ pub fn buffer_to_hex_advanced(
             // 0 count, max 15
             if zero_count <= 0xf {
                 i += 1;
-                write!(s, "x{zero_count:01X}").expect("could not parse buffer");
+                core::write!(s, "x{zero_count:01X}")
+                    .expect("could not parse buffer");
             } else {
                 i = initial_i;
-                write!(s, "{byte:02X}").expect("could not parse buffer");
+                core::write!(s, "{byte:02X}").expect("could not parse buffer");
             }
         }
         // normal
         else {
-            write!(s, "{byte:02X}").expect("could not parse buffer");
+            core::write!(s, "{byte:02X}").expect("could not parse buffer");
         }
 
         // seperator?

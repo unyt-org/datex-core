@@ -1,20 +1,24 @@
-use crate::values::core_values::endpoint::Endpoint;
+use super::super::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::ComInterfaceInfo;
+use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::std_sync::Mutex;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::string::ToString;
+use crate::stdlib::sync::Arc;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_sync_opener};
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 use datex_macros::{com_interface, create_opener};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-use super::super::com_interface::ComInterface;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
@@ -42,7 +46,7 @@ impl LocalLoopbackInterface {
 
     #[create_opener]
     fn open(&mut self) -> Result<(), ()> {
-        let uuid = self.socket.lock().unwrap().uuid.clone();
+        let uuid = self.socket.try_lock().unwrap().uuid.clone();
         self.add_socket(self.socket.clone());
         self.register_socket_endpoint(uuid, Endpoint::LOCAL, 1)
             .unwrap();
@@ -57,9 +61,9 @@ impl ComInterface for LocalLoopbackInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         log::info!("LocalLoopbackInterface Sending block: {block:?}");
-        let socket = self.socket.lock().unwrap();
+        let socket = self.socket.try_lock().unwrap();
         log::info!("LocalLoopbackInterface sent block");
-        socket.get_receive_queue().lock().unwrap().extend(block);
+        socket.get_receive_queue().try_lock().unwrap().extend(block);
         Box::pin(async { true })
     }
 
