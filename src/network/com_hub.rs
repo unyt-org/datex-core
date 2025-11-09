@@ -7,7 +7,6 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use futures::channel::oneshot::Sender;
-use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use core::cmp::PartialEq;
@@ -77,6 +76,16 @@ type InterfaceMap = HashMap<
     (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
 >;
 
+pub type IncomingBlockInterceptor =
+    Arc<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + Send + Sync + 'static>;
+
+pub type OutgoingBlockInterceptor = Arc<
+    dyn Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint])
+        + Send
+        + Sync
+        + 'static,
+>;
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
@@ -120,6 +129,9 @@ pub struct ComHub {
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     pub block_handler: BlockHandler,
+
+    incoming_block_interceptors: RefCell<Vec<IncomingBlockInterceptor>>,
+    outgoing_block_interceptors: RefCell<Vec<OutgoingBlockInterceptor>>,
 }
 
 impl Debug for ComHub {
@@ -232,6 +244,8 @@ impl ComHub {
             endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
+            incoming_block_interceptors: RefCell::new(Vec::new()),
+            outgoing_block_interceptors: RefCell::new(Vec::new()),
         }
     }
 
@@ -294,6 +308,29 @@ impl ComHub {
         } else {
             None
         }
+    }
+
+    /// Register an incoming block interceptor
+    pub fn register_incoming_block_interceptor<F>(&self, interceptor: F)
+    where
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID) + Send + Sync + 'static,
+    {
+        self.incoming_block_interceptors
+            .borrow_mut()
+            .push(Arc::new(interceptor));
+    }
+
+    /// Register an outgoing block interceptor
+    pub fn register_outgoing_block_interceptor<F>(&self, interceptor: F)
+    where
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint])
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.outgoing_block_interceptors
+            .borrow_mut()
+            .push(Arc::new(interceptor));
     }
 
     pub fn get_interface_by_uuid<T: ComInterface>(
@@ -416,6 +453,10 @@ impl ComHub {
         if !self.validate_block(block) {
             warn!("Block validation failed. Dropping block...");
             return;
+        }
+
+        for interceptor in self.incoming_block_interceptors.borrow().iter() {
+            interceptor(block, &socket_uuid);
         }
 
         let block_type = block.block_header.flags_and_timestamp.block_type();
@@ -1649,7 +1690,9 @@ impl ComHub {
         {
             return;
         }
-
+        for interceptor in self.outgoing_block_interceptors.borrow().iter() {
+            interceptor(&block, socket_uuid, endpoints);
+        }
         match &block.to_bytes() {
             Ok(bytes) => {
                 info!(
