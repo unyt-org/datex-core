@@ -133,12 +133,12 @@ impl Reference {
                         )));
                     }
                 }
-                
+
                 Ok(DIFUpdateData::set(
                     DIFProperty::Index(index as i64),
                     DIFValueContainer::from_value_container(&val, memory),
                 ))
-            })            
+            })
         })
     }
 
