@@ -299,6 +299,14 @@ impl Display for TypeDeclarationKind {
         }
     }
 }
+impl TypeDeclarationKind {
+    pub fn is_nominal(&self) -> bool {
+        matches!(self, TypeDeclarationKind::Nominal)
+    }
+    pub fn is_structural(&self) -> bool {
+        matches!(self, TypeDeclarationKind::Structural)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeDeclaration {
