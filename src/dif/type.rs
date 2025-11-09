@@ -48,7 +48,7 @@ pub enum DIFTypeDefinition {
 pub struct DIFStructuralTypeDefinition {
     pub value: DIFTypeRepresentation,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<DIFTypeContainer>,
+    pub ty: Option<DIFTypeContainer>,
 }
 
 impl DIFStructuralTypeDefinition {
@@ -63,7 +63,7 @@ impl DIFStructuralTypeDefinition {
             PointerAddress::from(struct_def.get_core_lib_type_pointer_id());
         DIFStructuralTypeDefinition {
             value,
-            r#type: Some(DIFTypeContainer::Reference(type_def)),
+            ty: Some(DIFTypeContainer::Reference(type_def)),
         }
     }
 }
@@ -182,7 +182,7 @@ impl From<DIFTypeRepresentation> for DIFType {
             type_definition: DIFTypeDefinition::Structural(Box::new(
                 DIFStructuralTypeDefinition {
                     value,
-                    r#type: None,
+                    ty: None,
                 },
             )),
         }
@@ -250,7 +250,7 @@ mod tests {
                                 .as_container(),
                         ),
                     ]),
-                    r#type: None,
+                    ty: None,
                 },
             )),
         };
@@ -282,7 +282,7 @@ mod tests {
                                 .as_container(),
                         ),
                     ]),
-                    r#type: None,
+                    ty: None,
                 },
             )),
         };
@@ -306,7 +306,7 @@ mod tests {
                         DIFType::from(DIFTypeRepresentation::Number(3.0))
                             .as_container(),
                     ]),
-                    r#type: None,
+                    ty: None,
                 },
             )),
         };

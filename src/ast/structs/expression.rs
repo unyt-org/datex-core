@@ -29,7 +29,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-    pub r#type: Option<TypeContainer>,
+    pub ty: Option<TypeContainer>,
 }
 impl Default for DatexExpression {
     fn default() -> Self {
@@ -40,7 +40,7 @@ impl Default for DatexExpression {
             }),
             span: 0..0,
             wrapped: None,
-            r#type: None,
+            ty: None,
         }
     }
 }
@@ -50,7 +50,7 @@ impl DatexExpression {
             data,
             span,
             wrapped: None,
-            r#type: None,
+            ty: None,
         }
     }
 }
@@ -180,7 +180,7 @@ impl Spanned for DatexExpressionData {
             data: self,
             span: span.into(),
             wrapped: None,
-            r#type: None,
+            ty: None,
         }
     }
 
@@ -189,7 +189,7 @@ impl Spanned for DatexExpressionData {
             data: self,
             span: (0..0),
             wrapped: None,
-            r#type: None,
+            ty: None,
         }
     }
 }
@@ -261,7 +261,7 @@ pub struct BinaryOperation {
     pub operator: BinaryOperator,
     pub left: Box<DatexExpression>,
     pub right: Box<DatexExpression>,
-    pub r#type: Option<Type>,
+    pub ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

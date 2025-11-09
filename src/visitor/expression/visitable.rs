@@ -83,7 +83,7 @@ impl<E> VisitableExpression<E> for VariableDeclaration {
     ) -> Result<(), E> {
         //visitor.visit_identifier(&mut self.name, self.)?;
         visitor.visit_datex_expression(&mut self.init_expression)?;
-        if let Some(type_annotation) = &mut self.r#type_annotation {
+        if let Some(type_annotation) = &mut self.type_annotation {
             visitor.visit_type_expression(type_annotation)?;
         }
         Ok(())

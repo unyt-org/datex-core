@@ -210,7 +210,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
     let integer = integer();
     let decimal = decimal();
     vec![
-        r#type(),
+        ty(),
         text(),
         list(),
         boolean(),
@@ -236,7 +236,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
 }
 
 type CoreLibTypeDefinition = (CoreLibPointerId, TypeContainer);
-pub fn r#type() -> CoreLibTypeDefinition {
+pub fn ty() -> CoreLibTypeDefinition {
     create_core_type("type", None, None, CoreLibPointerId::Type)
 }
 pub fn null() -> CoreLibTypeDefinition {

@@ -206,7 +206,7 @@ impl TypeInference {
         expr: &mut DatexExpression,
     ) -> Result<TypeContainer, SpannedTypeError> {
         self.visit_datex_expression(expr)?;
-        Ok(expr.r#type.clone().unwrap_or(TypeContainer::never()))
+        Ok(expr.ty.clone().unwrap_or(TypeContainer::never()))
     }
 
     fn infer_type_expression(
@@ -214,7 +214,7 @@ impl TypeInference {
         type_expr: &mut TypeExpression,
     ) -> Result<TypeContainer, SpannedTypeError> {
         self.visit_type_expression(type_expr)?;
-        Ok(type_expr.r#type.clone().unwrap_or(TypeContainer::never()))
+        Ok(type_expr.ty.clone().unwrap_or(TypeContainer::never()))
     }
 
     fn variable_type(&self, id: usize) -> Option<TypeContainer> {
@@ -1802,7 +1802,7 @@ mod tests {
                 DatexExpressionData::Integer(Integer::from(2))
                     .with_default_span(),
             ),
-            r#type: None,
+            ty: None,
         })
         .with_default_span();
 
@@ -1819,7 +1819,7 @@ mod tests {
                 DatexExpressionData::Decimal(Decimal::from(2.0))
                     .with_default_span(),
             ),
-            r#type: None,
+            ty: None,
         })
         .with_default_span();
         assert_eq!(infer_from_expression(&mut expr), decimal);
@@ -1835,7 +1835,7 @@ mod tests {
                 DatexExpressionData::Decimal(Decimal::from(2.0))
                     .with_default_span(),
             ),
-            r#type: None,
+            ty: None,
         })
         .with_default_span();
 

@@ -30,7 +30,7 @@ impl<E> VisitableTypeExpression<E> for FixedSizeList {
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
-        visitor.visit_type_expression(&mut self.r#type)?;
+        visitor.visit_type_expression(&mut self.ty)?;
         Ok(())
     }
 }

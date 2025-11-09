@@ -28,7 +28,7 @@ pub struct DIFReferenceNotFoundError;
 pub struct DIFValue {
     pub value: DIFValueRepresentation,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<DIFTypeContainer>,
+    pub ty: Option<DIFTypeContainer>,
 }
 impl DIFConvertible for DIFValue {}
 
@@ -39,8 +39,8 @@ impl DIFValue {
         self,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(if let Some(r#type) = &self.r#type {
-            self.value.to_value_with_type(r#type, memory)?
+        Ok(if let Some(ty) = &self.ty {
+            self.value.to_value_with_type(ty, memory)?
         } else {
             self.value.to_default_value(memory)?
         })
@@ -50,11 +50,11 @@ impl DIFValue {
 impl DIFValue {
     pub fn new(
         value: DIFValueRepresentation,
-        r#type: Option<impl Into<DIFTypeContainer>>,
+        ty: Option<impl Into<DIFTypeContainer>>,
     ) -> Self {
         DIFValue {
             value,
-            r#type: r#type.map(Into::into),
+            ty: ty.map(Into::into),
         }
     }
     pub fn as_container(&self) -> DIFValueContainer {
@@ -66,7 +66,7 @@ impl From<DIFValueRepresentation> for DIFValue {
     fn from(value: DIFValueRepresentation) -> Self {
         DIFValue {
             value,
-            r#type: None,
+            ty: None,
         }
     }
 }
@@ -239,7 +239,7 @@ impl DIFValue {
 
         DIFValue {
             value: dif_core_value,
-            r#type: get_type_if_non_default(&value.actual_type, memory),
+            ty: get_type_if_non_default(&value.actual_type, memory),
         }
     }
 }
@@ -311,22 +311,22 @@ mod tests {
     fn default_type() {
         let memory = get_mock_memory();
         let dif = DIFValue::from_value(&Value::from(true), &memory);
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
 
         let dif = DIFValue::from_value(&Value::from("hello"), &memory);
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
 
         let dif = DIFValue::from_value(&Value::null(), &memory);
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
 
         let dif = DIFValue::from_value(&Value::from(3.5f64), &memory);
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
 
         let dif = DIFValue::from_value(
             &Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]),
             &memory,
         );
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
 
         let dif = DIFValue::from_value(
             &Value::from(Map::from(vec![
@@ -335,15 +335,15 @@ mod tests {
             ])),
             &memory,
         );
-        assert!(dif.r#type.is_none());
+        assert!(dif.ty.is_none());
     }
 
     #[test]
     fn non_default_type() {
         let memory = get_mock_memory();
         let dif = DIFValue::from_value(&Value::from(123u16), &memory);
-        assert!(dif.r#type.is_some());
-        if let DIFTypeContainer::Reference(reference) = dif.r#type.unwrap() {
+        assert!(dif.ty.is_some());
+        if let DIFTypeContainer::Reference(reference) = dif.ty.unwrap() {
             assert_eq!(
                 reference,
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U16)).into()
@@ -353,8 +353,8 @@ mod tests {
         }
 
         let dif = DIFValue::from_value(&Value::from(123i64), &memory);
-        assert!(dif.r#type.is_some());
-        if let DIFTypeContainer::Reference(reference) = dif.r#type.unwrap() {
+        assert!(dif.ty.is_some());
+        if let DIFTypeContainer::Reference(reference) = dif.ty.unwrap() {
             assert_eq!(
                 reference,
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::I64)).into()

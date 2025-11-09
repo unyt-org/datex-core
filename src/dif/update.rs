@@ -136,7 +136,7 @@ mod tests {
         let dif_update =
             DIFUpdateData::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
-                r#type: None,
+                ty: None,
             }));
         let serialized = dif_update.as_json();
         assert_eq!(
@@ -153,7 +153,7 @@ mod tests {
             "name",
             DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
-                r#type: None,
+                ty: None,
             }),
         );
         let serialized = dif_update.as_json();
@@ -191,7 +191,7 @@ mod tests {
         let dif_update =
             DIFUpdateData::push(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Boolean(true),
-                r#type: None,
+                ty: None,
             }));
         let serialized = dif_update.as_json();
         assert_eq!(serialized, r#"{"kind":"push","value":{"value":true}}"#);

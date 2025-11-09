@@ -1,4 +1,4 @@
-use crate::ast::grammar::r#type::r#type;
+use crate::ast::grammar::r#type::ty;
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
@@ -9,7 +9,7 @@ use chumsky::prelude::*;
 fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
-        .ignore_then(r#type().padded_by(whitespace()))
+        .ignore_then(ty().padded_by(whitespace()))
         .or_not()
 }
 
@@ -26,7 +26,7 @@ fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
         .then(
             just(Token::Colon)
                 .padded_by(whitespace())
-                .ignore_then(r#type().padded_by(whitespace())),
+                .ignore_then(ty().padded_by(whitespace())),
         )
         .map(|(name, ty)| (name, ty))
 }

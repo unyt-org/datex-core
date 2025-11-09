@@ -1,7 +1,7 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::grammar::assignment_operation::assignment_operation;
-use crate::ast::grammar::r#type::{r#type, type_declaration};
+use crate::ast::grammar::r#type::{ty, type_declaration};
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
@@ -91,7 +91,7 @@ pub fn variable_declaration<'a>(
 ) -> impl DatexParserTrait<'a> {
     let type_annotation = just(Token::Colon)
         .padded_by(whitespace())
-        .ignore_then(r#type())
+        .ignore_then(ty())
         .or_not();
 
     let assignment_op = assignment_operation();
