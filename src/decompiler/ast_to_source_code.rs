@@ -611,8 +611,8 @@ impl AstToSourceCodeFormatter {
                 ast_fmt!(
                     &self,
                     "{} {}%s=%s{}",
-                    name,
                     kind,
+                    name,
                     self.type_expression_to_source_code(value)
                 )
             }
