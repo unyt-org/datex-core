@@ -1370,31 +1370,9 @@ mod tests {
             None,
         );
         assert_eq!(var_a.var_type, Some(nominal_ref.as_type_container()));
-
-        // FIXME
-        // let inferred_type = infer_get_type("type X = integer/u8");
-        // assert_eq!(
-        //     inferred_type,
-        //     get_core_lib_type(CoreLibPointerId::Integer(Some(
-        //         IntegerTypeVariant::U8,
-        //     )))
-        // );
-
-        // let inferred_type = infer_get_type("type X = decimal");
-        // assert_eq!(
-        //     inferred_type,
-        //     get_core_lib_type(CoreLibPointerId::Decimal(None))
-        // );
-
-        // let inferred_type = infer_get_type("type X = boolean");
-        // assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
-
-        // let inferred_type = infer_get_type("type X = text");
-        // assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Text));
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn structural_type_declaration() {
         let src = r#"
         typealias A = integer;
@@ -1411,6 +1389,26 @@ mod tests {
         } else {
             panic!("Expected TypeReference");
         }
+
+        let inferred_type = infer_from_script("typealias X = integer/u8");
+        assert_eq!(
+            inferred_type,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8,
+            )))
+        );
+
+        let inferred_type = infer_from_script("typealias X = decimal");
+        assert_eq!(
+            inferred_type,
+            get_core_lib_type(CoreLibPointerId::Decimal(None))
+        );
+
+        let inferred_type = infer_from_script("typealias X = boolean");
+        assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Boolean));
+
+        let inferred_type = infer_from_script("typealias X = text");
+        assert_eq!(inferred_type, get_core_lib_type(CoreLibPointerId::Text));
     }
 
     #[test]
