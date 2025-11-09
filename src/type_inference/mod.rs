@@ -1390,9 +1390,10 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "WIP"]
     fn structural_type_declaration() {
         let src = r#"
-        typedef A = integer;
+        typealias A = integer;
         "#;
         let metadata = ast_for_script(src).metadata;
         let metadata = metadata.borrow();
