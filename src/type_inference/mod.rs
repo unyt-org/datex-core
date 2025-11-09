@@ -20,7 +20,7 @@ use crate::{
     types::definition::TypeDefinition,
 };
 
-use core::{cell::RefCell, f32::consts::E, ops::Range, panic};
+use core::{cell::RefCell, ops::Range, panic};
 
 use crate::{
     ast::structs::{
