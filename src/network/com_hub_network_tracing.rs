@@ -521,11 +521,12 @@ impl ComHub {
             &dxb,
             ExecutionOptions::default(),
         );
-        let hops_datex = execute_dxb_sync(exec_input).unwrap().unwrap();
-        if let ValueContainer::Value(Value {
+        let hops_datex =
+            execute_dxb_sync(exec_input).expect("Failed to execute DATEX");
+        if let Some(ValueContainer::Value(Value {
             inner: CoreValue::List(list),
             ..
-        }) = hops_datex
+        })) = hops_datex
         {
             let mut hops: Vec<NetworkTraceHop> = vec![];
             for value in list {
