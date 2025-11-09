@@ -20,7 +20,7 @@ use crate::{
     types::definition::TypeDefinition,
 };
 
-use core::{cell::RefCell, ops::Range, panic};
+use core::{cell::RefCell, f32::consts::E, ops::Range, panic};
 
 use crate::{
     ast::structs::{
@@ -421,14 +421,21 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_function_type(
         &mut self,
         function_type: &mut FunctionType,
-        span: &Range<usize>,
+        _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
-        Err(SpannedTypeError {
-            error: TypeError::Unimplemented(
-                "FunctionType type inference not implemented".into(),
-            ),
-            span: Some(span.clone()),
-        })
+        let assigned_type =
+            self.infer_type_expression(&mut function_type.return_type)?;
+        let parameter_types = function_type
+            .parameters
+            .iter_mut()
+            .map(|(key, param_type_expr)| {
+                let param_type = self.infer_type_expression(param_type_expr)?;
+                Ok((key.clone(), param_type))
+            })
+            .collect::<Result<Vec<_>, SpannedTypeError>>()?;
+        mark_type(
+            Type::function(parameter_types, assigned_type).as_type_container(),
+        )
     }
     fn visit_generic_access_type(
         &mut self,
@@ -514,6 +521,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             }),
         })
     }
+
     fn handle_expression_error(
         &mut self,
         error: SpannedTypeError,
@@ -859,13 +867,59 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         function_declaration: &mut FunctionDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        Err(SpannedTypeError {
-            error: TypeError::Unimplemented(
-                "FunctionDeclaration type inference not implemented".into(),
-            ),
-            span: Some(span.clone()),
-        })
+        let annotated_return_type =
+            if let Some(return_type) = &mut function_declaration.return_type {
+                Some(self.infer_type_expression(return_type)?)
+            } else {
+                None
+            };
+        println!(
+            "Inferring function return type for function {:?}...",
+            function_declaration.name
+        );
+        let inferred_return_type = self
+            .infer_expression(&mut function_declaration.body)
+            .unwrap_or(TypeContainer::never());
+
+        println!(
+            "Inferred return type: {:?}, annotated return type: {:?}",
+            inferred_return_type, annotated_return_type
+        );
+
+        let parameters = function_declaration
+            .parameters
+            .iter_mut()
+            .map(|(name, param_type_expr)| {
+                let param_type = self
+                    .infer_type_expression(param_type_expr)
+                    .unwrap_or(TypeContainer::never());
+                (name.clone(), param_type)
+            })
+            .collect();
+
+        // Check if annotated return type matches inferred return type
+        // if an annotated return type is provided
+        if let Some(annotated_type) = annotated_return_type
+            && !annotated_type.matches_type(&inferred_return_type)
+        {
+            self.record_error(SpannedTypeError {
+                error: TypeError::AssignmentTypeMismatch {
+                    annotated_type: annotated_type.clone(),
+                    assigned_type: inferred_return_type,
+                },
+                span: Some(span.clone()),
+            })?;
+            mark_type(
+                Type::function(parameters, annotated_type).as_type_container(),
+            )
+        } else {
+            mark_type(
+                Type::function(parameters, inferred_return_type)
+                    .as_type_container(),
+            )
+        }
     }
+
     fn visit_unary_operation(
         &mut self,
         unary_operation: &mut UnaryOperation,
@@ -1145,6 +1199,20 @@ mod tests {
         .expect("Precompilation failed");
         infer_expression_type_simple_error(&mut rich_ast)
             .expect("Type inference failed")
+    }
+
+    #[test]
+    #[ignore = "WIP"]
+    fn infer_function_types() {
+        let src = r#"
+        function add(a: integer, b: integer) -> integer (
+            42
+        )
+        "#;
+
+        let rich_ast = ast_for_script(src);
+        let metadata = rich_ast.metadata.borrow();
+        let var_add = metadata.variable_metadata(0).unwrap();
     }
 
     #[test]
