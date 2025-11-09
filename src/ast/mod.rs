@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn structural_type_declaration() {
-        let src = "typedef A = integer";
+        let src = "typealias A = integer";
         let result = parse_print_error(src);
         let expr = result.unwrap();
         assert_matches!(expr,

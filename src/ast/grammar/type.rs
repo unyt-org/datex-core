@@ -494,7 +494,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
 }
 
 pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
-    just(Token::Identifier("typedef".to_string()))
+    just(Token::Identifier("typealias".to_string()))
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
