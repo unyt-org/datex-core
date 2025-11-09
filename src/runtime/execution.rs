@@ -2,6 +2,7 @@ use super::stack::{Scope, ScopeStack};
 
 use crate::global::operators::assignment::AssignmentOperator;
 
+use crate::collections::HashMap;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::BinaryOperator;
@@ -23,7 +24,6 @@ use crate::references::reference::Reference;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
-use crate::collections::HashMap;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;

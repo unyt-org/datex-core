@@ -1,3 +1,4 @@
+use crate::collections::HashMap;
 use crate::global::dxb_block::{
     BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
     IncomingEndpointContextId, IncomingEndpointContextSectionId,
@@ -8,7 +9,6 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::std_random::RandomState;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::collections::{BTreeMap, VecDeque};
-use crate::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;

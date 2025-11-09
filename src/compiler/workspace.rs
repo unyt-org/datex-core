@@ -1,3 +1,4 @@
+use crate::collections::HashMap;
 use crate::compiler::error::DetailedCompilerErrors;
 use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
@@ -5,7 +6,6 @@ use crate::compiler::{
     CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
 };
 use crate::runtime::Runtime;
-use crate::collections::HashMap;
 use crate::stdlib::path::PathBuf;
 use crate::types::type_container::TypeContainer;
 

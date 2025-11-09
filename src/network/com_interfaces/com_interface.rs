@@ -4,17 +4,12 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
+use crate::collections::HashMap;
 use crate::network::com_hub::ComHub;
 use crate::runtime::AsyncContext;
 use crate::serde::deserializer::from_value_container;
 use crate::std_sync::Mutex;
-use crate::stdlib::{
-    any::Any,
-    cell::Cell,
-    collections::{VecDeque},
-    pin::Pin,
-};
-use crate::collections::HashMap;
+use crate::stdlib::{any::Any, cell::Cell, collections::VecDeque, pin::Pin};
 use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
 use crate::utils::{time::Time, uuid::UUID};
 use crate::values::core_values::endpoint::Endpoint;

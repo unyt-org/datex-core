@@ -180,10 +180,7 @@ impl From<DIFTypeRepresentation> for DIFType {
             name: None,
             mutability: None,
             type_definition: DIFTypeDefinition::Structural(Box::new(
-                DIFStructuralTypeDefinition {
-                    value,
-                    ty: None,
-                },
+                DIFStructuralTypeDefinition { value, ty: None },
             )),
         }
     }
