@@ -735,13 +735,12 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let type_id = type_declaration.id.expect(
             "TypeDeclaration should have an id assigned during precompilation",
         );
-        let type_def = self
-            .variable_type(type_id)
+        let var_type = self.variable_type(type_id);
+        let type_def = var_type
             .as_ref()
-            .expect("TypeDeclaration type should have been inferred already")
-            .clone();
+            .expect("TypeDeclaration type should have been inferred already");
         let reference = match &type_def {
-            TypeContainer::TypeReference(r) => r.clone(),
+            TypeContainer::TypeReference(r) => r,
             _ => {
                 panic!("TypeDeclaration var_type should be a TypeReference")
             }
@@ -750,15 +749,20 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let inferred_type_def =
             self.infer_type_expression(&mut type_declaration.value)?;
 
-        match inferred_type_def {
-            TypeContainer::Type(t) => {
-                reference.borrow_mut().type_value = t;
+        if type_declaration.kind.is_nominal() {
+            match inferred_type_def {
+                TypeContainer::Type(t) => {
+                    reference.borrow_mut().type_value = t;
+                }
+                TypeContainer::TypeReference(r) => {
+                    reference.borrow_mut().type_value =
+                        Type::reference(r, None);
+                }
             }
-            TypeContainer::TypeReference(r) => {
-                reference.borrow_mut().type_value = Type::reference(r, None);
-            }
+        } else {
+            self.update_variable_type(type_id, inferred_type_def);
         }
-        mark_type(type_def)
+        mark_type(type_def.clone())
     }
 
     fn visit_list(

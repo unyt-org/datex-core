@@ -304,7 +304,6 @@ impl<'a> Precompiler<'a> {
         };
 
         // register placeholder ref in metadata
-
         let type_def = TypeContainer::TypeReference(reference.clone());
         {
             self.ast_metadata
@@ -736,6 +735,48 @@ mod tests {
             Err(SpannedCompilerError{ error: CompilerError::UndeclaredVariable(var_name), span })
             if var_name == "x" && span == Some((0..1))
         );
+    }
+
+    #[test]
+    fn nominal_type_declaration() {
+        let result = parse_and_precompile("type User = {a: integer}; User");
+        assert!(result.is_ok());
+        let rich_ast = result.unwrap();
+        assert_eq!(
+            rich_ast.ast,
+            DatexExpressionData::Statements(Statements::new_unterminated(
+                vec![
+                    DatexExpressionData::TypeDeclaration(TypeDeclaration {
+                        id: Some(0),
+                        name: "User".to_string(),
+                        value: TypeExpressionData::StructuralMap(
+                            StructuralMap(vec![(
+                                TypeExpressionData::Text("a".to_string())
+                                    .with_default_span(),
+                                TypeExpressionData::GetReference(
+                                    CoreLibPointerId::Integer(None).into()
+                                )
+                                .with_default_span(),
+                            )])
+                        )
+                        .with_default_span(),
+                        hoisted: true,
+                        kind: TypeDeclarationKind::Nominal,
+                    })
+                    .with_default_span(),
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "User".to_string()
+                    })
+                    .with_default_span()
+                ]
+            ))
+            .with_default_span()
+        );
+        let metadata = rich_ast.metadata.borrow();
+        let var_meta = metadata.variable_metadata(0).unwrap();
+        assert_eq!(var_meta.shape, VariableShape::Type);
+        println!("{:#?}", var_meta);
     }
 
     #[test]
