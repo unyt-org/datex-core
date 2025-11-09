@@ -117,7 +117,7 @@ mod tests {
                 }),
                 span: span.clone(),
                 wrapped: None,
-                r#type: None,
+                ty: None,
             }))
         }
 
@@ -162,7 +162,7 @@ mod tests {
                                 ),
                                 span: 0..1,
                                 wrapped: None,
-                                r#type: None,
+                                ty: None,
                             }),
                             right: Box::new(DatexExpression {
                                 data: DatexExpressionData::Identifier(
@@ -170,20 +170,20 @@ mod tests {
                                 ),
                                 span: 2..3,
                                 wrapped: None,
-                                r#type: None,
+                                ty: None,
                             }),
-                            r#type: None,
+                            ty: None,
                         },
                     ),
                     wrapped: None,
                     span: 0..3,
-                    r#type: None,
+                    ty: None,
                 }],
                 is_terminated: true,
             }),
             span: 1..2,
             wrapped: None,
-            r#type: None,
+            ty: None,
         };
         let transformer = &mut MyAst;
         transformer.visit_datex_expression(&mut ast).unwrap();

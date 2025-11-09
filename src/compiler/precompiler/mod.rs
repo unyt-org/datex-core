@@ -940,7 +940,7 @@ mod tests {
                     })
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
             .with_default_span()
         );
@@ -975,7 +975,7 @@ mod tests {
                     })
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
             .with_default_span()
         );

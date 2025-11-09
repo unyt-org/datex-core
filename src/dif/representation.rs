@@ -145,7 +145,7 @@ impl DIFValueRepresentation {
         type_container: &DIFTypeContainer,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(match r#type_container {
+        Ok(match type_container {
             DIFTypeContainer::Reference(r) => {
                 if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
                     match core_lib_ptr_id {

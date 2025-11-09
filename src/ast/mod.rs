@@ -832,7 +832,7 @@ mod tests {
                                         )
                                         .with_default_span()
                                     ),
-                                    r#type: None
+                                    ty: None
                                 }
                             )
                             .with_default_span()
@@ -940,7 +940,7 @@ mod tests {
     //                 DatexExpressionData::Integer(Integer::from(6))
     //                     .with_default_span()
     //             ),
-    //             r#type: None
+    //             ty: None
     //         })
     //     );
 
@@ -969,7 +969,7 @@ mod tests {
     //                                     )
     //                                     .with_default_span()
     //                                 ),
-    //                                 r#type: None
+    //                                 ty: None
     //                             }
     //                         )
     //                         .with_default_span()
@@ -978,7 +978,7 @@ mod tests {
     //                         DatexExpressionData::Integer(Integer::from(6))
     //                             .with_default_span()
     //                     ),
-    //                     r#type: None
+    //                     ty: None
     //                 })
     //                 .with_default_span()
     //             ),
@@ -986,7 +986,7 @@ mod tests {
     //                 DatexExpressionData::Integer(Integer::from(2))
     //                     .with_default_span()
     //             ),
-    //             r#type: None
+    //             ty: None
     //         })
     //     );
     // }
@@ -1008,7 +1008,7 @@ mod tests {
     //                 DatexExpressionData::Integer(Integer::from(6))
     //                     .with_default_span()
     //             ),
-    //             r#type: None
+    //             ty: None
     //         })
     //     );
 
@@ -1037,7 +1037,7 @@ mod tests {
     //                                     )
     //                                     .with_default_span()
     //                                 ),
-    //                                 r#type: None
+    //                                 ty: None
     //                             }
     //                         )
     //                         .with_default_span()
@@ -1046,7 +1046,7 @@ mod tests {
     //                         DatexExpressionData::Integer(Integer::from(6))
     //                             .with_default_span()
     //                     ),
-    //                     r#type: None
+    //                     ty: None
     //                 })
     //                 .with_default_span()
     //             ),
@@ -1054,7 +1054,7 @@ mod tests {
     //                 DatexExpressionData::Integer(Integer::from(2))
     //                     .with_default_span()
     //             ),
-    //             r#type: None
+    //             ty: None
     //         })
     //     );
     // }
@@ -1084,11 +1084,11 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(3))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -1111,7 +1111,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
@@ -1119,7 +1119,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -1142,7 +1142,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
@@ -1150,7 +1150,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -1176,7 +1176,7 @@ mod tests {
                             DatexExpressionData::Identifier("u8".to_string())
                                 .with_default_span(),
                         ),
-                        r#type: None,
+                        ty: None,
                     })
                     .with_default_span(),
                 ),
@@ -1260,7 +1260,7 @@ mod tests {
                                                 )
                                                 .with_default_span()
                                             ),
-                                            r#type: None
+                                            ty: None
                                         }
                                     )
                                     .with_default_span()
@@ -1320,7 +1320,7 @@ mod tests {
                                                 )
                                                 .with_default_span()
                                             ),
-                                            r#type: None
+                                            ty: None
                                         }
                                     )
                                     .with_default_span()
@@ -1681,7 +1681,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -1711,7 +1711,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -1741,7 +1741,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -1770,7 +1770,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -1800,7 +1800,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -2279,7 +2279,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2306,7 +2306,7 @@ mod tests {
                             DatexExpressionData::Identifier("x".to_string())
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
@@ -2323,11 +2323,11 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2350,7 +2350,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -2370,7 +2370,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -2390,7 +2390,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -2410,7 +2410,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2433,7 +2433,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2456,7 +2456,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -2476,7 +2476,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -2496,7 +2496,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2536,12 +2536,12 @@ mod tests {
                                         )
                                         .with_default_span()
                                     ),
-                                    r#type: None
+                                    ty: None
                                 }
                             )
                             .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
@@ -2549,7 +2549,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(4))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2579,11 +2579,11 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(3))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2612,7 +2612,7 @@ mod tests {
                     )
                     .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2641,7 +2641,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2665,7 +2665,7 @@ mod tests {
                         DatexExpressionData::Integer(Integer::from(2))
                             .with_default_span()
                     ),
-                    r#type: None
+                    ty: None
                 })
                 .with_default_span()
             ]))
@@ -2798,7 +2798,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(1))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -2971,7 +2971,7 @@ mod tests {
                                 DatexExpressionData::Integer(Integer::from(2))
                                     .with_default_span()
                             ),
-                            r#type: None
+                            ty: None
                         })
                         .with_default_span()
                     ),
@@ -3202,7 +3202,7 @@ mod tests {
                             DatexExpressionData::Integer(Integer::from(2))
                                 .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -3336,7 +3336,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -3355,7 +3355,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -3374,7 +3374,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(3))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -3443,7 +3443,7 @@ mod tests {
                                 DatexExpressionData::Integer(Integer::from(10))
                                     .with_default_span()
                             ),
-                            r#type: None
+                            ty: None
                         })
                         .with_default_span()
                     ),
@@ -3640,7 +3640,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -3658,7 +3658,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -3679,7 +3679,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -3697,7 +3697,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
     }
@@ -3718,7 +3718,7 @@ mod tests {
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span()
                 ),
-                r#type: None
+                ty: None
             })
         );
 
@@ -3806,12 +3806,12 @@ mod tests {
                                         )
                                         .with_default_span()
                                     ),
-                                    r#type: None
+                                    ty: None
                                 }
                             )
                             .with_default_span()
                         ),
-                        r#type: None
+                        ty: None
                     })
                     .with_default_span()
                 )
@@ -3878,7 +3878,7 @@ mod tests {
                                         )
                                         .with_default_span()
                                     ),
-                                    r#type: None
+                                    ty: None
                                 }
                             )
                             .with_default_span(),

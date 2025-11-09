@@ -97,7 +97,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
 	})
 }
 
-pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
+pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
             just(Token::LeftParen).padded_by(whitespace()),
@@ -181,7 +181,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     && n > 0
                 {
                     Ok(TypeExpressionData::FixedSizeList(FixedSizeList {
-                        r#type: Box::new(t),
+                        ty: Box::new(t),
                         size: n,
                     })
                     .with_default_span())
@@ -395,7 +395,7 @@ pub fn r#type<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                             Some(size) if size > 0 => {
                                 TypeExpressionData::FixedSizeList(
                                     FixedSizeList {
-                                        r#type: Box::new(t),
+                                        ty: Box::new(t),
                                         size,
                                     },
                                 )
@@ -480,7 +480,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         .ignore_then(name)
         .then(generic)
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
-        .then(r#type())
+        .then(ty())
         .padded_by(whitespace())
         .map_with(|((name, generic), expr), e| {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
@@ -501,7 +501,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
         .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
         .then_ignore(just(Token::Assign).padded_by(whitespace()))
-        .then(r#type())
+        .then(ty())
         .map_with(|(name, expr), e| {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: None,
@@ -525,7 +525,7 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
     just(Token::Identifier("type".to_string()))
         .padded_by(whitespace())
         .then_ignore(just(Token::LeftParen).padded_by(whitespace()))
-        .ignore_then(r#type())
+        .ignore_then(ty())
         .padded_by(whitespace())
         .then_ignore(just(Token::RightParen).padded_by(whitespace()))
         .map_with(|expr, e| DatexExpressionData::Type(expr).with_span(e.span()))
@@ -910,7 +910,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
-                r#type: Box::new(
+                ty: Box::new(
                     TypeExpressionData::Literal("integer".to_owned())
                         .with_default_span()
                 ),
@@ -923,7 +923,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
-                r#type: Box::new(
+                ty: Box::new(
                     TypeExpressionData::Union(Union(vec![
                         TypeExpressionData::Literal("integer".to_owned())
                             .with_default_span(),
@@ -944,7 +944,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
-                r#type: Box::new(
+                ty: Box::new(
                     TypeExpressionData::Literal("text".to_owned())
                         .with_default_span()
                 ),
@@ -957,7 +957,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
-                r#type: Box::new(
+                ty: Box::new(
                     TypeExpressionData::Literal("text".to_owned())
                         .with_default_span()
                 ),
@@ -970,7 +970,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
-                r#type: Box::new(
+                ty: Box::new(
                     TypeExpressionData::Literal("text".to_owned())
                         .with_default_span()
                 ),

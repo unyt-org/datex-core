@@ -44,7 +44,7 @@ fn binary_op(
             operator: op,
             left: lhs,
             right: rhs,
-            r#type: None,
+            ty: None,
         })
         .with_span(SimpleSpan::from(combined_span))
     }

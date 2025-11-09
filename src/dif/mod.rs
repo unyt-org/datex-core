@@ -65,7 +65,7 @@ mod tests {
         let dif_update =
             DIFUpdateData::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
-                r#type: None,
+                ty: None,
             }));
         let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
@@ -77,7 +77,7 @@ mod tests {
             "name",
             DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
-                r#type: None,
+                ty: None,
             }),
         );
         let serialized = dif_update.as_json();
@@ -90,7 +90,7 @@ mod tests {
     fn dif_value_serialization() {
         let value = DIFValue {
             value: DIFValueRepresentation::Null,
-            r#type: Some(
+            ty: Some(
                 DIFType {
                     mutability: None,
                     name: None,
@@ -111,7 +111,7 @@ mod tests {
         if let DIFValueContainer::Value(dif_value) = &dif_value_container {
             assert_eq!(dif_value.value, DIFValueRepresentation::Number(42f64));
             assert_eq!(
-                dif_value.r#type,
+                dif_value.ty,
                 Some(DIFTypeContainer::Reference(
                     CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
                         .into()
@@ -131,7 +131,7 @@ mod tests {
                 dif_value.value,
                 DIFValueRepresentation::String("Hello, World!".to_string())
             );
-            assert_eq!(dif_value.r#type, None);
+            assert_eq!(dif_value.ty, None);
         } else {
             core::panic!("Expected DIFValueContainer::Value variant");
         }

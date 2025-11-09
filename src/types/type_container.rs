@@ -135,7 +135,7 @@ impl TypeContainer {
     pub fn endpoint() -> Self {
         get_core_lib_type(CoreLibPointerId::Endpoint)
     }
-    pub fn r#type() -> Self {
+    pub fn ty() -> Self {
         get_core_lib_type(CoreLibPointerId::Type)
     }
 }
