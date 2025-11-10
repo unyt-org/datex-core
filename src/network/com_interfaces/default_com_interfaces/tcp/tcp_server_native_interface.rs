@@ -30,6 +30,7 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::{delegate_com_interface_info, set_opener};
+use crate::runtime::global_context::{get_global_context, set_global_context};
 
 pub struct TCPServerNativeInterface {
     pub address: Url,
@@ -74,7 +75,10 @@ impl TCPServerNativeInterface {
         let interface_uuid = self.get_uuid().clone();
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
+        let global_context = get_global_context();
         spawn(async move {
+            set_global_context(global_context.clone());
+            let global_context = global_context.clone();
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
@@ -95,7 +99,9 @@ impl TCPServerNativeInterface {
                             .unwrap()
                             .add_socket(Arc::new(Mutex::new(socket)));
 
+                        let global_context = global_context.clone();
                         spawn(async move {
+                            set_global_context(global_context);
                             Self::handle_client(read_half, receive_queue).await
                         });
                     }
@@ -174,7 +180,10 @@ impl ComInterface for TCPServerNativeInterface {
         )
     }
     fn init_properties(&self) -> InterfaceProperties {
-        Self::get_default_properties()
+        InterfaceProperties {
+            name: Some(self.address.to_string()),
+            ..Self::get_default_properties()
+        }
     }
     fn handle_close<'a>(
         &'a mut self,
