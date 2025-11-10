@@ -8,7 +8,7 @@ use core::result::Result;
 use core::time::Duration;
 
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::task::spawn;
+use crate::task::{spawn, spawn_with_panic_notify_default};
 use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -76,9 +76,9 @@ impl TCPServerNativeInterface {
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
         let global_context = get_global_context();
-        spawn(async move {
+        // TODO: use normal spawn (thread)? currently leads to global context panic
+        spawn_with_panic_notify_default(async move {
             set_global_context(global_context.clone());
-            let global_context = global_context.clone();
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
@@ -100,7 +100,7 @@ impl TCPServerNativeInterface {
                             .add_socket(Arc::new(Mutex::new(socket)));
 
                         let global_context = global_context.clone();
-                        spawn(async move {
+                        spawn_with_panic_notify_default(async move {
                             set_global_context(global_context);
                             Self::handle_client(read_half, receive_queue).await
                         });
