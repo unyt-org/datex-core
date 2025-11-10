@@ -47,7 +47,7 @@ pub enum DIFTypeDefinition {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFStructuralTypeDefinition {
     pub value: DIFTypeRepresentation,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "type")]
     pub ty: Option<DIFTypeContainer>,
 }
 
