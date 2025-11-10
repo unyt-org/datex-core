@@ -47,7 +47,7 @@ impl MultipleSocketProvider for TCPServerNativeInterface {
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
-        let address: String = format!("ws://127.0.0.1:{port}");
+        let address: String = format!("tcp://0.0.0.0:{port}");
         let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
         let interface = TCPServerNativeInterface {
             address,
