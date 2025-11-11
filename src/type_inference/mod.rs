@@ -13,8 +13,7 @@ use crate::{
         },
     },
     global::operators::{
-        AssignmentOperator, BinaryOperator, LogicalUnaryOperator,
-        UnaryOperator, binary::ArithmeticOperator,
+        AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
     },
     libs::core::get_core_lib_type_reference,
     references::reference::ReferenceMutability,
