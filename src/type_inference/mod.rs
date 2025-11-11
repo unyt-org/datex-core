@@ -526,7 +526,7 @@ fn resolve_type_variant_access(
                 base_name, variant_name
             ))
             .ok()
-            .map(|id| PointerAddress::from(id))
+            .map(PointerAddress::from)
         }
         _ => None,
     }
