@@ -26,7 +26,7 @@ impl From<BitwiseOperator> for BinaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq, Hash)]
 pub enum ArithmeticOperator {
     Add,      // +
     Subtract, // -
