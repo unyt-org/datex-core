@@ -1,10 +1,11 @@
 use crate::{
     ast::structs::{
+        ResolvedVariable,
         expression::{
-            ApplyChain, ComparisonOperation, Conditional, CreateRef, Deref,
-            DerefAssignment, FunctionDeclaration, List, Map, RemoteExecution,
-            Slot, SlotAssignment, UnaryOperation, VariableAssignment,
-            VariantAccess,
+            ApplyChain, ComparisonOperation, Conditional, CreateRef,
+            DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
+            List, Map, RemoteExecution, Slot, SlotAssignment, UnaryOperation,
+            VariableAssignment, VariantAccess,
         },
         r#type::{
             FixedSizeList, FunctionType, GenericAccess, SliceList,
@@ -12,15 +13,17 @@ use crate::{
         },
     },
     global::operators::{
-        AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
+        AssignmentOperator, BinaryOperator, LogicalUnaryOperator,
+        UnaryOperator, binary::ArithmeticOperator,
     },
+    libs::core::get_core_lib_type_reference,
     references::reference::ReferenceMutability,
     stdlib::rc::Rc,
     type_inference::{error::TypeError, options::ErrorHandling},
     types::definition::TypeDefinition,
 };
 
-use core::{cell::RefCell, ops::Range, panic};
+use core::{cell::RefCell, ops::Range, panic, str::FromStr};
 
 use crate::{
     ast::structs::{
@@ -500,6 +503,36 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     }
 }
 
+// FIXME proper implementation of variant access resolution
+// currently only works for core lib types, and is hacky.
+// We need a good registration system for types and their variants.
+fn resolve_type_variant_access(
+    base: &PointerAddress,
+    variant_name: &str,
+) -> Option<PointerAddress> {
+    match base {
+        PointerAddress::Internal(_) => {
+            let base_ref = get_core_lib_type_reference(
+                CoreLibPointerId::try_from(base).unwrap(),
+            );
+            let base_name = base_ref
+                .borrow()
+                .nominal_type_declaration
+                .as_ref()
+                .unwrap()
+                .name
+                .clone();
+            CoreLibPointerId::from_str(&format!(
+                "{}/{}",
+                base_name, variant_name
+            ))
+            .ok()
+            .map(|id| PointerAddress::from(id))
+        }
+        _ => None,
+    }
+}
+
 impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     fn visit_create_ref(
         &mut self,
@@ -951,13 +984,53 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         variant_access: &mut VariantAccess,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        Err(SpannedTypeError {
-            error: TypeError::Unimplemented(
-                "VariantAccess type inference not implemented".into(),
+        let pointer_address = match variant_access.base {
+            // Handle variant access on a variable
+            ResolvedVariable::VariableId(id) => {
+                // we expect the variable to be of TypeReference type
+                let base_type =
+                    self.variable_type(id).ok_or(SpannedTypeError {
+                        error: TypeError::Unimplemented(
+                            "VariantAccess base variable type not found".into(),
+                        ),
+                        span: Some(span.clone()),
+                    })?;
+
+                // if it's a TypeReference and it has the pointer address set, we can
+                // remap the expression to a GetReference
+                if let TypeContainer::TypeReference(t) = &base_type
+                    && let Some(addr) = &t.borrow().pointer_address
+                {
+                    Ok(addr.clone())
+                } else {
+                    // otherwise, unimplemented
+                    Err(SpannedTypeError {
+                        error: TypeError::Unimplemented(
+                            "VariantAccess on Type not implemented".into(),
+                        ),
+                        span: Some(span.clone()),
+                    })
+                }
+            }
+            ResolvedVariable::PointerAddress(ref addr) => Ok(addr.clone()),
+        }?;
+        let variant_type = resolve_type_variant_access(
+            &pointer_address,
+            &variant_access.variant,
+        )
+        .ok_or(SpannedTypeError {
+            error: TypeError::SubvariantNotFound(
+                variant_access.name.clone(),
+                variant_access.variant.clone(),
             ),
             span: Some(span.clone()),
-        })
+        })?;
+        Ok(VisitAction::ReplaceRecurse(DatexExpression::new(
+            DatexExpressionData::GetReference(variant_type),
+            span.clone(),
+        )))
     }
+
     fn visit_slot(
         &mut self,
         slot: &Slot,
@@ -1000,12 +1073,18 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         pointer_address: &mut PointerAddress,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        Err(SpannedTypeError {
-            error: TypeError::Unimplemented(
-                "GetReference type inference not implemented".into(),
-            ),
-            span: Some(span.clone()),
-        })
+        match pointer_address {
+            PointerAddress::Internal(_) => mark_type(get_core_lib_type(
+                CoreLibPointerId::try_from(&pointer_address.to_owned())
+                    .unwrap(),
+            )),
+            _ => Err(SpannedTypeError {
+                error: TypeError::Unimplemented(
+                    "GetReference type inference not implemented".into(),
+                ),
+                span: Some(span.clone()),
+            }),
+        }
     }
     fn visit_slot_assignment(
         &mut self,
@@ -1202,6 +1281,38 @@ mod tests {
         .expect("Precompilation failed");
         infer_expression_type_simple_error(&mut rich_ast)
             .expect("Type inference failed")
+    }
+
+    #[test]
+    fn variant_access() {
+        let src = r#"
+        typealias x = integer;
+        x/u8
+        "#;
+        let res = infer_from_script(src);
+        assert_eq!(
+            res,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8
+            )))
+        );
+
+        let src = r#"
+        typealias x = integer;
+        x/whatever
+        "#;
+        let res = errors_for_script(src);
+        assert_eq!(
+            res.get(0).unwrap().error,
+            TypeError::SubvariantNotFound("x".into(), "whatever".into())
+        );
+
+        // let src = r#"
+        // type x = integer;
+        // x/u8
+        // "#;
+        // let res = errors_for_script(src);
+        // println!("Inferred type: {:?}", res);
     }
 
     #[test]
