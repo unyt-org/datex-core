@@ -6,8 +6,9 @@ use crate::{
     types::type_container::TypeContainer,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeError {
+    SubvariantNotFound(String, String),
     // only for debugging purposes
     InvalidDerefType(TypeContainer),
     Unimplemented(String),
@@ -23,6 +24,13 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeError::SubvariantNotFound(ty, variant) => {
+                write!(
+                    f,
+                    "Type {} does not have a subvariant named {}",
+                    ty, variant
+                )
+            }
             TypeError::InvalidDerefType(ty) => {
                 write!(f, "Cannot dereference value of type {}", ty)
             }
