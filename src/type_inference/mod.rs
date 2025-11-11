@@ -1285,6 +1285,44 @@ mod tests {
 
     #[test]
     fn variant_access() {
+        // variant access on type (inline)
+        let src = r#"
+        var x = integer/u8
+        "#;
+        let res = infer_from_script(src);
+        assert_eq!(
+            res,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8
+            )))
+        );
+
+        // variant access on type (separate)
+        let src = r#"
+        var x = integer;
+        x/u8
+        "#;
+        let res = infer_from_script(src);
+        assert_eq!(
+            res,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8
+            )))
+        );
+
+        // variant access on type alias (inline)
+        let src = r#"
+        typealias x = integer/u8
+        "#;
+        let res = infer_from_script(src);
+        assert_eq!(
+            res,
+            get_core_lib_type(CoreLibPointerId::Integer(Some(
+                IntegerTypeVariant::U8
+            )))
+        );
+
+        // variant access on type alias (separate)
         let src = r#"
         typealias x = integer;
         x/u8
@@ -1297,6 +1335,7 @@ mod tests {
             )))
         );
 
+        // invalid variant access on type alias
         let src = r#"
         typealias x = integer;
         x/whatever
