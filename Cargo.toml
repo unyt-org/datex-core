@@ -30,30 +30,39 @@ std_instead_of_alloc = "deny"
 # core dependencies
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }
 mopa = { version = "0.2.2", default-features = false }
-num = {version = "0.4.3", default-features = false}
-num-bigint = {version = "0.4", default-features = false}
-num-integer = {version = "0.1", default-features = false}
-num_enum = {version = "0.7.4", default-features = false}
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-binrw = {version =  "0.15.0", default-features = false }
+num = { version = "0.4.3", default-features = false }
+num-bigint = { version = "0.4", default-features = false }
+num-integer = { version = "0.1", default-features = false }
+num_enum = { version = "0.7.4", default-features = false }
+itertools = { version = "0.14.0", default-features = false, features = [
+    "use_alloc",
+] }
+binrw = { version = "0.15.0", default-features = false }
 modular-bitfield = "0.13.0"
-thiserror = {version = "2.0.11", default-features = false}
-url = {version = "2.5.4", default-features = false}
-num-traits = {version = "0.2.19", default-features = false}
-hex = {version = "0.4.3", default-features = false}
+thiserror = { version = "2.0.11", default-features = false }
+url = { version = "2.5.4", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
+hex = { version = "0.4.3", default-features = false }
 log = { version = "0.4", default-features = false, features = ["serde"] }
 bytes = { version = "1", default-features = false }
 futures-util = { version = "0.3", default-features = false }
 futures = { version = "0.3", default-features = false }
-indexmap = {version = "2.9.0", default-features = false}
-ordered-float = { version = "5.0.0", default-features = false}
-bigdecimal = {version = "0.4.8", default-features = false}
-ringmap = {version = "0.1.3", default-features = false}
-futures-core = {version = "0.3.31", default-features = false}
-serde = {version = "1.0.219", default-features = false, features = ["derive"]}
-serde_with = {version = "3.12.0", default-features = false, features = ["macros", "schemars_1", "chrono"]}
-serde_json = {version = "1.0.140", default-features = false}
-serde-big-array = {version = "0.5.1", optional = true}
+indexmap = { version = "2.9.0", default-features = false }
+ordered-float = { version = "5.0.0", default-features = false }
+bigdecimal = { version = "0.4.8", default-features = false }
+ringmap = { version = "0.1.3", default-features = false }
+futures-core = { version = "0.3.31", default-features = false }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde_with = { version = "3.12.0", default-features = false, features = [
+    "macros",
+    "schemars_1",
+    "chrono",
+] }
+serde_json = { version = "1.0.140", default-features = false }
+serde-big-array = { version = "0.5.1", optional = true }
+realhydroper-lsp = { version = "0.22.0", optional = true, features = [
+    "proposed",
+] }
 
 # macros
 strum_macros = { version = "0.27.1" }
@@ -76,22 +85,30 @@ flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 webrtc = { version = "0.13.0", optional = true }
-ariadne = { version = "0.5.1", optional = true}
+ariadne = { version = "0.5.1", optional = true }
 syntect = { version = "5.2.0", default-features = false, optional = true, features = [
     "default-fancy",
 ] }
-pretty = { version = "0.12.5", optional = true}
-chumsky = { version = "0.10.1", optional = true, features = ["std"], default-features = false }
-logos = {version = "0.15.0", optional = true}
+pretty = { version = "0.12.5", optional = true }
+chumsky = { version = "0.10.1", optional = true, features = [
+    "std",
+], default-features = false }
+logos = { version = "0.15.0", optional = true }
 internment = { version = "0.8.6", optional = true }
-foldhash = { version = "0.2.0", optional = true, default-features = false}
-spin = { version = "0.10.0", optional = true, default-features = false, features = ["spin_mutex", "mutex", "lock_api"]}
-embassy-time = { version = "0.5.0", optional = true}
-async-unsync = { version = "0.3.0", optional = true, default-features = false, features = ["alloc"] }
-embassy-executor = { version = "0.9.1", optional = true}
+foldhash = { version = "0.2.0", optional = true, default-features = false }
+spin = { version = "0.10.0", optional = true, default-features = false, features = [
+    "spin_mutex",
+    "mutex",
+    "lock_api",
+] }
+embassy-time = { version = "0.5.0", optional = true }
+async-unsync = { version = "0.3.0", optional = true, default-features = false, features = [
+    "alloc",
+] }
+embassy-executor = { version = "0.9.1", optional = true }
 embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 esp-println = { version = "0.16.1", optional = true }
-hashbrown = { version = "0.16.0", features = ["serde"], optional = true}
+hashbrown = { version = "0.16.0", features = ["serde"], optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
@@ -165,6 +182,7 @@ default = [
     "com_webrtc",
     "com_serial",
     "com_websocket",
+    "lsp",
 ]
 
 # embedded build with nostd
@@ -174,7 +192,7 @@ embedded = [
     "com_websocket",
     "com_serial",
     "com_tcp",
-    "com_http"
+    "com_http",
 ]
 
 # com interfaces base
@@ -186,21 +204,23 @@ com_websocket = []
 
 # native com intefaces
 native_http = ["com_http", "axum", "hyper", "tokio-stream"]
-native_websocket = ["com_websocket", "tokio-tungstenite", "tungstenite"] # use native websocket
-native_tcp = ["com_tcp"]                                         # use native tcp
-native_serial = ["com_serial", "serialport"]                          # use native serial
-native_webrtc = ["com_webrtc", "webrtc"]                              # use webrtc
+native_websocket = [
+    "com_websocket",
+    "tokio-tungstenite",
+    "tungstenite",
+] # use native websocket
+native_tcp = ["com_tcp"] # use native tcp
+native_serial = ["com_serial", "serialport"] # use native serial
+native_webrtc = ["com_webrtc", "webrtc"] # use webrtc
 
-native_time = []                                        # use native time
-native_rand = ["rand"]                                  # use native websocket
-native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["openssl"]                             # use native crypto
+native_time = []            # use native time
+native_rand = ["rand"]      # use native websocket
+native_uuid = ["uuid"]      # use native uuid
+native_crypto = ["openssl"] # use native crypto
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
-esp_logger = [
-    "dep:esp-println"
-]
+esp_logger = ["dep:esp-println"]
 env_logger = []
 
 # runtime
@@ -215,13 +235,11 @@ embassy_runtime = [
     "dep:embassy-executor",
     "dep:embassy-time",
     "dep:embassy-futures",
-    "dep:async-unsync"
+    "dep:async-unsync",
 ]
 
 # only required for legacy syntax highlighting in decompiler, will be removed in the future
-syntax_highlighting_legacy = [
-    "dep:syntect"
-]
+syntax_highlighting_legacy = ["dep:syntect"]
 
 
 std = [
@@ -247,7 +265,7 @@ std = [
     "hex/std",
     "bytes/std",
     "ringmap/std",
-]   # use std
+] # use std
 
 nostd = [
     "dep:nostd",
@@ -266,9 +284,7 @@ nostd = [
     "num/libm",
 ]
 
-debug = [
-    "dep:serde-big-array"
-]
+debug = ["dep:serde-big-array"]
 
 # note: compiler requires std
 compiler = [
@@ -277,5 +293,8 @@ compiler = [
     "dep:pretty",
     "dep:chumsky",
     "dep:logos",
-    "dep:internment"
+    "dep:internment",
 ]
+
+# lsp support
+lsp = ["dep:realhydroper-lsp", "tokio_runtime"]

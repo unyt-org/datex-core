@@ -38,6 +38,8 @@ pub mod generator;
 pub mod global;
 pub mod libs;
 pub mod logger;
+#[cfg(feature = "lsp")]
+pub mod lsp;
 pub mod network;
 pub mod parser;
 pub mod references;

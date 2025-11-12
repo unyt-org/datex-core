@@ -1,0 +1,40 @@
+use core::ops::Range;
+use datex_core::ast::structs::expression::{
+    DatexExpression, VariableDeclaration,
+};
+use datex_core::visitor::VisitAction;
+use datex_core::visitor::expression::ExpressionVisitor;
+use datex_core::visitor::type_expression::TypeExpressionVisitor;
+
+#[derive(Default)]
+pub struct VariableDeclarationFinder {
+    pub var_id: usize,
+    pub variable_declaration_position: Option<Range<usize>>,
+}
+
+impl VariableDeclarationFinder {
+    pub fn new(var_id: usize) -> Self {
+        VariableDeclarationFinder {
+            var_id,
+            variable_declaration_position: None,
+        }
+    }
+}
+
+impl TypeExpressionVisitor<()> for VariableDeclarationFinder {}
+
+impl ExpressionVisitor<()> for VariableDeclarationFinder {
+    fn visit_variable_declaration(
+        &mut self,
+        var_decl: &mut VariableDeclaration,
+        span: &Range<usize>,
+    ) -> Result<VisitAction<DatexExpression>, ()> {
+        if var_decl.id == Some(self.var_id) {
+            self.variable_declaration_position = Some(span.clone());
+            // early abort
+            Err(())
+        } else {
+            Ok(VisitAction::VisitChildren)
+        }
+    }
+}
