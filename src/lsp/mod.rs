@@ -8,7 +8,6 @@ use crate::runtime::Runtime;
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::collections::HashMap;
-use crate::stdlib::path::PathBuf;
 use datex_core::ast::structs::expression::{
     DatexExpressionData, VariableAccess, VariableAssignment,
     VariableDeclaration,
@@ -26,7 +25,7 @@ pub struct LanguageServerBackend {
     pub client: Client,
     pub compiler_workspace: RefCell<CompilerWorkspace>,
     pub spanned_compiler_errors:
-        RefCell<HashMap<PathBuf, Vec<SpannedLSPCompilerError>>>,
+        RefCell<HashMap<Url, Vec<SpannedLSPCompilerError>>>,
 }
 
 impl LanguageServerBackend {
@@ -93,7 +92,7 @@ impl LanguageServer for LanguageServerBackend {
             .await;
 
         self.update_file_contents(
-            params.text_document.uri.to_file_path().unwrap(),
+            params.text_document.uri,
             params.text_document.text,
         )
         .await;
@@ -112,11 +111,8 @@ impl LanguageServer for LanguageServerBackend {
             .next()
             .map(|change| change.text)
             .unwrap_or_default();
-        self.update_file_contents(
-            params.text_document.uri.to_file_path().unwrap(),
-            new_content,
-        )
-        .await;
+        self.update_file_contents(params.text_document.uri, new_content)
+            .await;
     }
 
     async fn completion(
@@ -245,7 +241,7 @@ impl LanguageServer for LanguageServerBackend {
     ) -> realhydroper_lsp::jsonrpc::Result<Option<Vec<InlayHint>>> {
         // show type hints for variables
         let type_hints = self
-            .get_type_hints(params.text_document.uri.to_file_path().unwrap())
+            .get_type_hints(params.text_document.uri)
             .unwrap()
             .into_iter()
             .map(|hint| InlayHint {
@@ -277,9 +273,8 @@ impl LanguageServer for LanguageServerBackend {
                 }) => {
                     let uri =
                         params.text_document_position_params.text_document.uri;
-                    let file_path = uri.to_file_path().unwrap();
                     let mut workspace = self.compiler_workspace.borrow_mut();
-                    let file = workspace.get_file_mut(&file_path).unwrap();
+                    let file = workspace.get_file_mut(&uri).unwrap();
                     if let Some(RichAst { ast, .. }) = &mut file.rich_ast {
                         let mut finder = VariableDeclarationFinder::new(id);
                         finder.visit_datex_expression(ast);
@@ -324,9 +319,7 @@ impl LanguageServer for LanguageServerBackend {
             .await;
 
         let uri = params.text_document.uri;
-        let file_path = uri.to_file_path().unwrap();
-
-        let diagnostics = self.get_diagnostics_for_file(&file_path);
+        let diagnostics = self.get_diagnostics_for_file(&uri);
         let report = FullDocumentDiagnosticReport {
             result_id: None,
             items: diagnostics,
@@ -357,13 +350,10 @@ impl LanguageServerBackend {
         }
     }
 
-    fn get_diagnostics_for_file(
-        &self,
-        file_path: &std::path::Path,
-    ) -> Vec<Diagnostic> {
+    fn get_diagnostics_for_file(&self, url: &Url) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
         let errors = self.spanned_compiler_errors.borrow();
-        if let Some(file_errors) = errors.get(file_path) {
+        if let Some(file_errors) = errors.get(url) {
             for spanned_error in file_errors {
                 let diagnostic = Diagnostic {
                     range: spanned_error.span,

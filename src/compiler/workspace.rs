@@ -1,3 +1,5 @@
+use url::Url;
+
 use crate::collections::HashMap;
 use crate::compiler::error::DetailedCompilerErrors;
 use crate::compiler::error::DetailedCompilerErrorsWithMaybeRichAst;
@@ -6,12 +8,11 @@ use crate::compiler::{
     CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
 };
 use crate::runtime::Runtime;
-use crate::stdlib::path::PathBuf;
 use crate::types::type_container::TypeContainer;
 
-/// Represents a file in the compiler workspace with its path, cached content and AST.
+/// Represents a file in the compiler workspace with its URL, cached content and AST.
 pub struct WorkspaceFile {
-    pub path: PathBuf,
+    pub url: Url,
     pub content: String,
     pub rich_ast: Option<RichAst>,
     pub return_type: Option<TypeContainer>,
@@ -20,7 +21,7 @@ pub struct WorkspaceFile {
 
 /// Represents the compiler workspace containing multiple files.
 pub struct CompilerWorkspace {
-    files: HashMap<PathBuf, WorkspaceFile>,
+    files: HashMap<Url, WorkspaceFile>,
     runtime: Runtime,
 }
 
@@ -33,55 +34,48 @@ impl CompilerWorkspace {
         }
     }
 
-    pub fn files(&self) -> &HashMap<PathBuf, WorkspaceFile> {
+    pub fn files(&self) -> &HashMap<Url, WorkspaceFile> {
         &self.files
     }
 
     /// Loads a file into the workspace, caching its content and AST.
     /// Returns a compiler error if parsing or precompilation fails.
-    pub fn load_file(
-        &mut self,
-        path: PathBuf,
-        content: String,
-    ) -> &WorkspaceFile {
-        let result = self.get_rich_ast_for_file(&path, content.clone());
+    pub fn load_file(&mut self, url: Url, content: String) -> &WorkspaceFile {
+        let result = self.get_rich_ast_for_file(&url, content.clone());
         let workspace_file = match result {
             Ok(rich_ast) => WorkspaceFile {
-                path: path.clone(),
+                url: url.clone(),
                 content,
                 rich_ast: Some(rich_ast),
                 return_type: None,
                 errors: None,
             },
             Err(error) => WorkspaceFile {
-                path: path.clone(),
+                url: url.clone(),
                 content,
                 rich_ast: error.ast,
                 return_type: None,
                 errors: Some(error.errors),
             },
         };
-        self.files.insert(path.clone(), workspace_file);
-        self.files.get(&path).unwrap()
+        self.files.insert(url.clone(), workspace_file);
+        self.files.get(&url).unwrap()
     }
 
-    /// Retrieves a reference to a workspace file by its path.
-    pub fn get_file(&self, path: &PathBuf) -> Option<&WorkspaceFile> {
-        self.files.get(path)
+    /// Retrieves a reference to a workspace file by its URL.
+    pub fn get_file(&self, url: &Url) -> Option<&WorkspaceFile> {
+        self.files.get(url)
     }
 
-    pub fn get_file_mut(
-        &mut self,
-        path: &PathBuf,
-    ) -> Option<&mut WorkspaceFile> {
-        self.files.get_mut(path)
+    pub fn get_file_mut(&mut self, url: &Url) -> Option<&mut WorkspaceFile> {
+        self.files.get_mut(url)
     }
 
     /// Retrieves the AST with metadata for a given file path and content after parsing and compilation.
     /// Returns a compiler error if parsing or compilation fails.
     fn get_rich_ast_for_file(
         &self,
-        path: &PathBuf,
+        url: &Url,
         content: String,
     ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
         let mut options = CompileOptions::default();
