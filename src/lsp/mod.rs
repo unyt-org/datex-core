@@ -19,6 +19,10 @@ use datex_core::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};
 use realhydroper_lsp::{Client, LanguageServer, Server};
 use realhydroper_lsp::{LspService, lsp_types::*};
+
+#[cfg(feature = "lsp_wasm")]
+use futures::io::{AsyncRead, AsyncWrite};
+#[cfg(not(feature = "lsp_wasm"))]
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct LanguageServerBackend {
