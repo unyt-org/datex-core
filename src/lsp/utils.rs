@@ -33,7 +33,7 @@ impl LanguageServerBackend {
                     MessageType::ERROR,
                     format!(
                         "Failed to compile file {}: {}",
-                        url.to_string(),
+                        url,
                         errors,
                     ),
                 )
