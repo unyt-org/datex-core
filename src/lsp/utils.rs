@@ -1,7 +1,6 @@
 use crate::lsp::LanguageServerBackend;
 use crate::lsp::errors::SpannedLSPCompilerError;
 use crate::lsp::type_hint_collector::TypeHintCollector;
-use crate::stdlib::path::PathBuf;
 use datex_core::ast::structs::expression::{
     DatexExpression, DatexExpressionData, List, Map, Statements,
     VariableAccess, VariableAssignment, VariableDeclaration,
@@ -20,25 +19,26 @@ use datex_core::visitor::type_expression::TypeExpressionVisitor;
 use realhydroper_lsp::lsp_types::{
     MessageType, Position, Range, TextDocumentPositionParams,
 };
+use url::Url;
 
 impl LanguageServerBackend {
-    pub async fn update_file_contents(&self, path: PathBuf, content: String) {
+    pub async fn update_file_contents(&self, url: Url, content: String) {
         let mut compiler_workspace = self.compiler_workspace.borrow_mut();
-        let file = compiler_workspace.load_file(path.clone(), content.clone());
+        let file = compiler_workspace.load_file(url.clone(), content.clone());
         // Clear previous errors for this file
-        self.clear_compiler_errors(&path);
+        self.clear_compiler_errors(&url);
         if let Some(errors) = &file.errors {
             self.client
                 .log_message(
                     MessageType::ERROR,
                     format!(
                         "Failed to compile file {}: {}",
-                        path.to_str().unwrap(),
+                        url.to_string(),
                         errors,
                     ),
                 )
                 .await;
-            self.collect_compiler_errors(errors, path, &content)
+            self.collect_compiler_errors(errors, url, &content)
         }
         if let Some(rich_ast) = &file.rich_ast {
             self.client
@@ -58,10 +58,10 @@ impl LanguageServerBackend {
 
     pub(crate) fn get_type_hints(
         &self,
-        file_path: PathBuf,
+        url: Url,
     ) -> Option<Vec<(Position, Option<TypeContainer>)>> {
         let mut workspace = self.compiler_workspace.borrow_mut();
-        let file = workspace.get_file_mut(&file_path).unwrap();
+        let file = workspace.get_file_mut(&url).unwrap();
         if let Some(rich_ast) = &mut file.rich_ast {
             let ast = &mut rich_ast.ast;
             let mut collector = TypeHintCollector::default();
@@ -91,24 +91,24 @@ impl LanguageServerBackend {
         }
     }
 
-    /// Clears all compiler errors associated with the given file path.
-    fn clear_compiler_errors(&self, path: &PathBuf) {
+    /// Clears all compiler errors associated with the given file URL.
+    fn clear_compiler_errors(&self, url: &Url) {
         let mut spanned_compiler_errors =
             self.spanned_compiler_errors.borrow_mut();
-        spanned_compiler_errors.remove(path);
+        spanned_compiler_errors.remove(url);
     }
 
     /// Recursively collects spanned compiler errors into the spanned_compiler_errors field.
     fn collect_compiler_errors(
         &self,
         errors: &DetailedCompilerErrors,
-        path: PathBuf,
+        url: Url,
         file_content: &String,
     ) {
         let mut spanned_compiler_errors =
             self.spanned_compiler_errors.borrow_mut();
         let file_errors =
-            spanned_compiler_errors.entry(path.clone()).or_default();
+            spanned_compiler_errors.entry(url.clone()).or_default();
 
         for error in &errors.errors {
             let span = error
@@ -175,8 +175,10 @@ impl LanguageServerBackend {
         let workspace = self.compiler_workspace.borrow();
         // first get file contents at position.text_document.uri
         // then calculate byte offset from position.position.line and position.position.character
-        let file_path = position.text_document.uri.to_file_path().unwrap();
-        let file_content = &workspace.get_file(&file_path).unwrap().content;
+        let file_content = &workspace
+            .get_file(&position.text_document.uri)
+            .unwrap()
+            .content;
 
         Self::line_char_to_byte_index(
             file_content,
@@ -242,8 +244,10 @@ impl LanguageServerBackend {
     ) -> String {
         let byte_offset = self.position_to_byte_offset(position);
         let workspace = self.compiler_workspace.borrow();
-        let file_path = position.text_document.uri.to_file_path().unwrap();
-        let file_content = &workspace.get_file(&file_path).unwrap().content;
+        let file_content = &workspace
+            .get_file(&position.text_document.uri)
+            .unwrap()
+            .content;
         // Get the text before the byte offset, only matching word characters
         let previous_text = &file_content[..byte_offset];
         let last_word = previous_text
@@ -260,9 +264,10 @@ impl LanguageServerBackend {
     ) -> Option<DatexExpression> {
         let byte_offset = self.position_to_byte_offset(position);
         let mut workspace = self.compiler_workspace.borrow_mut();
-        let file_path = position.text_document.uri.to_file_path().unwrap();
-        if let Some(rich_ast) =
-            &mut workspace.get_file_mut(&file_path).unwrap().rich_ast
+        if let Some(rich_ast) = &mut workspace
+            .get_file_mut(&position.text_document.uri)
+            .unwrap()
+            .rich_ast
         {
             let ast = &mut rich_ast.ast;
             let mut finder = ExpressionFinder::new(byte_offset);
