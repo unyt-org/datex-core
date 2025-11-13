@@ -551,6 +551,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 reference_mutability: Some(create_ref.mutability.clone()),
                 base_type: None,
             }),
+            TypeContainer::TypeAlias(_) => {
+                unimplemented!("CreateRef for TypeAlias is not implemented yet")
+            }
         })
     }
 
@@ -791,6 +794,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                     reference.borrow_mut().type_value =
                         Type::reference(r, None);
                 }
+                TypeContainer::TypeAlias(_) => {
+                    unimplemented!(
+                        "TypeDeclaration for TypeAlias is not implemented yet"
+                    )
+                }
             }
             mark_type(type_def.clone())
         } else {
@@ -873,6 +881,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 reference_mutability: Some(ReferenceMutability::Mutable),
                 base_type: None,
             }),
+            TypeContainer::TypeAlias(_) => {
+                unimplemented!("CreateMut for TypeAlias is not implemented yet")
+            }
         })
     }
     fn visit_deref(
@@ -896,6 +907,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             TypeContainer::TypeReference(r) => {
                 let bor = r.borrow();
                 mark_type(bor.type_value.clone().as_type_container())
+            }
+            TypeContainer::TypeAlias(_) => {
+                unimplemented!("Deref for TypeAlias is not implemented yet")
             }
         }
     }

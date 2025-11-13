@@ -287,6 +287,11 @@ impl From<TypeContainer> for ValueContainer {
                     type_reference,
                 ))
             }
+            TypeContainer::TypeAlias(type_alias) => {
+                unreachable!(
+                    "Cannot convert TypeAlias directly to ValueContainer"
+                )
+            }
         }
     }
 }

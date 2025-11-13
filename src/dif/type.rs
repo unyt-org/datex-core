@@ -208,6 +208,11 @@ impl DIFTypeContainer {
                 };
                 DIFTypeContainer::Reference(address.clone())
             }
+            TypeContainer::TypeAlias(type_alias) => {
+                core::todo!(
+                    "DIFTypeContainer::from_type_container for TypeAlias is not implemented yet"
+                )
+            }
         }
     }
 }
