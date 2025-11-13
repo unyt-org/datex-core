@@ -93,7 +93,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@opentf/obj-diff@0.11",
-      "jsr:@unyt/speck@^0.0.10"
+      "jsr:@unyt/speck@^0.0.11"
     ]
   }
 }
