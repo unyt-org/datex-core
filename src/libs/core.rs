@@ -315,7 +315,7 @@ fn create_core_type(
 ) -> CoreLibTypeDefinition {
     let base_type_ref = match base_type {
         Some(TypeContainer::TypeReference(reference)) => Some(reference),
-        Some(TypeContainer::Type(_)) => {
+        Some(TypeContainer::Type(_) | TypeContainer::TypeAlias(_)) => {
             core::panic!("Base type must be a TypeReference")
         }
         None => None,

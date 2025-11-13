@@ -2,6 +2,7 @@ use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
 use crate::references::type_reference::TypeReference;
 use crate::stdlib::rc::Rc;
 use crate::traits::structural_eq::StructuralEq;
+use crate::types::type_alias::TypeAlias;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
@@ -16,11 +17,19 @@ use core::prelude::rust_2024::*;
 pub enum TypeContainer {
     Type(Type),
     TypeReference(Rc<RefCell<TypeReference>>),
+    // FIXME either to this, or move the type alias as a TypeDefinition,
+    // which would allow for pointer id storage as well but would make
+    // the type matching more complex, then just storing the "transparency"
+    // in the most top-level type container
+    TypeAlias(Rc<RefCell<TypeAlias>>),
 }
 
 impl Display for TypeContainer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeContainer::TypeAlias(ta) => {
+                core::write!(f, "{}", ta.borrow())
+            }
             TypeContainer::Type(t) => core::write!(f, "{}", t),
             TypeContainer::TypeReference(tr) => {
                 let tr = tr.borrow();
@@ -51,6 +60,9 @@ impl TypeContainer {
         match self {
             TypeContainer::Type(t) => t.clone(),
             TypeContainer::TypeReference(tr) => tr.borrow().as_type().clone(),
+            TypeContainer::TypeAlias(ta) => {
+                ta.borrow().type_container.as_type()
+            }
         }
     }
 
@@ -70,6 +82,9 @@ impl TypeContainer {
                     TypeContainer::TypeReference(tr.clone())
                 }
             }
+            TypeContainer::TypeAlias(ta) => {
+                unimplemented!("Base type for TypeAlias is not implemented yet")
+            }
         }
     }
 }
@@ -78,6 +93,11 @@ impl Hash for TypeContainer {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypeContainer::Type(t) => t.hash(state),
+            TypeContainer::TypeAlias(ta) => {
+                // FIXME structural equality preservation? probably yes
+                let ptr = Rc::as_ptr(ta);
+                ptr.hash(state);
+            }
             TypeContainer::TypeReference(tr) => {
                 let ptr = Rc::as_ptr(tr);
                 ptr.hash(state); // hash the address
@@ -155,6 +175,10 @@ impl TypeContainer {
             TypeContainer::TypeReference(tr) => {
                 tr.borrow().as_type().value_matches(value)
             }
+            TypeContainer::TypeAlias(ta) => {
+                // Delegate to the underlying type container
+                ta.borrow().type_container.value_matches(value)
+            }
         }
     }
 
@@ -174,6 +198,9 @@ impl TypeContainer {
             (TypeContainer::Type(a), TypeContainer::TypeReference(b)) => {
                 a.matches_reference(b.clone())
             }
+            _ => unimplemented!(
+                "TypeContainer::matches_type for TypeAlias is not implemented yet"
+            ),
         }
     }
 }
