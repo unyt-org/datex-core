@@ -6,6 +6,7 @@ use crate::ast::spanned::Spanned;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use chumsky::prelude::*;
+
 pub fn integer<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {

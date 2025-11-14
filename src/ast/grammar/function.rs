@@ -6,14 +6,14 @@ use crate::ast::structs::expression::FunctionDeclaration;
 use crate::ast::structs::r#type::TypeExpression;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
-fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
+pub fn return_type<'a>() -> impl DatexParserTrait<'a, Option<TypeExpression>> {
     just(Token::Arrow)
         .padded_by(whitespace())
         .ignore_then(ty().padded_by(whitespace()))
         .or_not()
 }
 
-fn body<'a>(
+pub fn body<'a>(
     statements: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     statements
@@ -21,7 +21,7 @@ fn body<'a>(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
 }
 
-fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
+pub fn parameter<'a>() -> impl DatexParserTrait<'a, (String, TypeExpression)> {
     select! { Token::Identifier(name) => name }
         .then(
             just(Token::Colon)

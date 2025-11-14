@@ -62,6 +62,9 @@ pub enum TypeExpressionData {
     RefMut(Box<TypeExpression>),
 
     VariantAccess(TypeVariantAccess),
+
+    // The `self` type in methods
+    ReferenceSelf,
 }
 
 impl Spanned for TypeExpressionData {

@@ -292,7 +292,7 @@ pub struct Conditional {
 #[derive(Clone, Debug, PartialEq)]
 pub struct InterfaceDeclaration {
     pub name: String,
-    pub methods: Vec<FunctionDeclaration>,
+    pub methods: Vec<DatexExpression>, // should always be FunctionDeclaration
 }
 
 impl Display for InterfaceDeclaration {

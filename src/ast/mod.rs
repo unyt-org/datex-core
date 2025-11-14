@@ -9,6 +9,7 @@ use crate::ast::grammar::binding::*;
 use crate::ast::grammar::chain::*;
 use crate::ast::grammar::comparison_operation::*;
 use crate::ast::grammar::function::*;
+use crate::ast::grammar::interface::interface_declaration;
 use crate::ast::grammar::key::*;
 use crate::ast::grammar::list::*;
 use crate::ast::grammar::map::*;
@@ -158,6 +159,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let binary = binary_operation(chain);
 
     // FIXME #363 WIP
+    let interface_declaration = interface_declaration(statements.clone());
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
@@ -232,6 +234,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
             type_expression(),
             if_expression,
             declaration_or_assignment,
+            interface_declaration,
             function_declaration,
             comparison,
         ))
@@ -511,66 +514,102 @@ mod tests {
             DatexExpressionData::InterfaceDeclaration(InterfaceDeclaration {
                 name: "User".to_string(),
                 methods: vec![
-                    FunctionDeclaration {
-                        name: "can_vote".to_string(),
-                        parameters: vec![(
-                            "age".to_string(),
-                            TypeExpressionData::Literal("integer".to_string())
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
+                            name: "can_vote".to_string(),
+                            parameters: vec![(
+                                "age".to_string(),
+                                TypeExpressionData::Literal(
+                                    "integer".to_string()
+                                )
                                 .with_default_span()
-                        )],
-                        return_type: Some(
-                            TypeExpressionData::Literal("boolean".to_string())
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal(
+                                    "boolean".to_string()
+                                )
                                 .with_default_span()
-                        ),
-                        body: Box::new(
-                            DatexExpressionData::Noop.with_default_span()
-                        ),
-                    },
-                    FunctionDeclaration {
-                        name: "is_adult".to_string(),
-                        parameters: vec![(
-                            "self".to_string(),
-                            TypeExpressionData::Literal("User".to_string())
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::Noop.with_default_span()
+                            ),
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
+                            name: "is_adult".to_string(),
+                            parameters: vec![(
+                                "self".to_string(),
+                                TypeExpressionData::ReferenceSelf
+                                    .with_default_span()
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal(
+                                    "boolean".to_string()
+                                )
                                 .with_default_span()
-                        )],
-                        return_type: Some(
-                            TypeExpressionData::Literal("boolean".to_string())
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::Noop.with_default_span()
+                            ),
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
+                            name: "is_senior".to_string(),
+                            parameters: vec![(
+                                "self".to_string(),
+                                TypeExpressionData::ReferenceSelf
+                                    .with_default_span()
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal(
+                                    "boolean".to_string()
+                                )
                                 .with_default_span()
-                        ),
-                        body: Box::new(
-                            DatexExpressionData::Noop.with_default_span()
-                        ),
-                    },
-                    FunctionDeclaration {
-                        name: "is_senior".to_string(),
-                        parameters: vec![(
-                            "self".to_string(),
-                            TypeExpressionData::Literal("User".to_string())
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::Noop.with_default_span()
+                            ),
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
+                            name: "get_name".to_string(),
+                            parameters: vec![(
+                                "self".to_string(),
+                                TypeExpressionData::Literal("User".to_string())
+                                    .with_default_span()
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal("text".to_string())
+                                    .with_default_span()
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::ApplyChain(ApplyChain {
+                                    base: Box::new(
+                                        DatexExpressionData::Identifier(
+                                            "self".to_string()
+                                        )
+                                        .with_default_span()
+                                    ),
+                                    operations: vec![
+                                        ApplyOperation::PropertyAccess(
+                                            DatexExpressionData::Text(
+                                                "name".to_string()
+                                            )
+                                            .with_default_span()
+                                        )
+                                    ]
+                                })
                                 .with_default_span()
-                        )],
-                        return_type: Some(
-                            TypeExpressionData::Literal("boolean".to_string())
-                                .with_default_span()
-                        ),
-                        body: Box::new(
-                            DatexExpressionData::Noop.with_default_span()
-                        ),
-                    },
-                    FunctionDeclaration {
-                        name: "get_name".to_string(),
-                        parameters: vec![(
-                            "self".to_string(),
-                            TypeExpressionData::Literal("User".to_string())
-                                .with_default_span()
-                        )],
-                        return_type: Some(
-                            TypeExpressionData::Literal("boolean".to_string())
-                                .with_default_span()
-                        ),
-                        body: Box::new(
-                            DatexExpressionData::Noop.with_default_span()
-                        ),
-                    },
+                            ),
+                        }
+                    )
+                    .with_default_span(),
                 ],
             })
         );

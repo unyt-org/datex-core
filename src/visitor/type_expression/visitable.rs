@@ -146,6 +146,7 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
             | TypeExpressionData::Boolean(_)
             | TypeExpressionData::Text(_)
             | TypeExpressionData::VariantAccess(_)
+            | TypeExpressionData::ReferenceSelf
             | TypeExpressionData::Endpoint(_) => Ok(()),
         }
     }

@@ -8,6 +8,7 @@ pub mod decimal;
 pub mod endpoint;
 pub mod function;
 pub mod integer;
+pub mod interface;
 pub mod key;
 pub mod list;
 pub mod literal;

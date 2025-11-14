@@ -49,6 +49,9 @@ pub trait TypeExpressionVisitor<E>: Sized {
         self.before_visit_type_expression(expr);
 
         let visit_result = match &mut expr.data {
+            TypeExpressionData::ReferenceSelf => {
+                todo!("Visiting 'self' type expression is not yet implemented")
+            }
             TypeExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access_type(variant_access, &expr.span)
             }
