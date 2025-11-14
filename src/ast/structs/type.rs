@@ -65,6 +65,8 @@ pub enum TypeExpressionData {
 
     // The `self` type in methods
     ReferenceSelf,
+    ReferenceSelfMut,
+    SelfType,
 }
 
 impl Spanned for TypeExpressionData {

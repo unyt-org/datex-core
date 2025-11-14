@@ -120,7 +120,9 @@ impl<'a> Formatter<'a> {
         let a = &self.alloc;
         println!("formatting type expression: {:?}", type_expr);
         match &type_expr.data {
-            TypeExpressionData::ReferenceSelf => a.text("self"),
+            TypeExpressionData::ReferenceSelf => a.text("&self"),
+            TypeExpressionData::ReferenceSelfMut => a.text("&mut self"),
+            TypeExpressionData::SelfType => a.text("self"),
             TypeExpressionData::VariantAccess(TypeVariantAccess {
                 name,
                 variant,

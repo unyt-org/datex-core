@@ -500,8 +500,14 @@ mod tests {
         let src = r#"
         interface User {
             can_vote(age: integer) -> boolean;
+
             is_adult(&self) -> boolean;
+
             is_senior(&self) -> boolean;
+
+            hurt(&mut self) -> void;
+
+            kill(self) -> void;
 
             get_name(&self) -> text (
                 self.name
@@ -578,10 +584,46 @@ mod tests {
                     .with_default_span(),
                     DatexExpressionData::FunctionDeclaration(
                         FunctionDeclaration {
+                            name: "hurt".to_string(),
+                            parameters: vec![(
+                                "self".to_string(),
+                                TypeExpressionData::ReferenceSelfMut
+                                    .with_default_span()
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal("void".to_string())
+                                    .with_default_span()
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::Noop.with_default_span()
+                            ),
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
+                            name: "kill".to_string(),
+                            parameters: vec![(
+                                "self".to_string(),
+                                TypeExpressionData::SelfType
+                                    .with_default_span()
+                            )],
+                            return_type: Some(
+                                TypeExpressionData::Literal("void".to_string())
+                                    .with_default_span()
+                            ),
+                            body: Box::new(
+                                DatexExpressionData::Noop.with_default_span()
+                            ),
+                        }
+                    )
+                    .with_default_span(),
+                    DatexExpressionData::FunctionDeclaration(
+                        FunctionDeclaration {
                             name: "get_name".to_string(),
                             parameters: vec![(
                                 "self".to_string(),
-                                TypeExpressionData::Literal("User".to_string())
+                                TypeExpressionData::ReferenceSelf
                                     .with_default_span()
                             )],
                             return_type: Some(

@@ -218,7 +218,9 @@ impl AstToSourceCodeFormatter {
         type_expr: &TypeExpression,
     ) -> String {
         match &type_expr.data {
-            TypeExpressionData::ReferenceSelf => "self".to_string(),
+            TypeExpressionData::ReferenceSelf => "&self".to_string(),
+            TypeExpressionData::ReferenceSelfMut => "&mut self".to_string(),
+            TypeExpressionData::SelfType => "self".to_string(),
             TypeExpressionData::VariantAccess(TypeVariantAccess {
                 name,
                 variant,

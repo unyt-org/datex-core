@@ -18,24 +18,20 @@ use crate::ast::{
 
 pub fn self_parameter<'a>()
 -> impl DatexParserTrait<'a, (String, TypeExpression)> {
-    let amp = just(Token::Ampersand);
-    let mut_tok = just(Token::Mutable);
+    let amp = just(Token::Ampersand).or_not().padded_by(whitespace());
+    let mut_tok = just(Token::Mutable).or_not().padded_by(whitespace());
 
-    // &mut self | &self
-    let ref_forms = amp
-        .ignore_then(mut_tok.clone().or_not().padded_by(whitespace()))
-        .ignore_then(just(Token::Identifier("self".into())))
-        .to(("self".to_string(), TypeExpressionData::ReferenceSelf))
-        .map_with(|(name, data), e| (name, data.with_span(e.span())));
-
-    // self | mut self
-    let plain_forms = mut_tok
-        .or_not()
-        .ignore_then(just(Token::Identifier("self".into())))
-        .to(("self".to_string(), TypeExpressionData::ReferenceSelf))
-        .map_with(|(name, data), e| (name, data.with_span(e.span())));
-
-    ref_forms.or(plain_forms).padded_by(whitespace())
+    amp.then(mut_tok)
+        .then_ignore(just(Token::Identifier("self".to_string())))
+        .map_with(|(amp_opt, mut_opt), span| {
+            let ty = match (amp_opt, mut_opt) {
+                (None, _) => TypeExpressionData::SelfType, // self
+                (Some(_), None) => TypeExpressionData::ReferenceSelf, // &self
+                (Some(_), Some(_)) => TypeExpressionData::ReferenceSelfMut, // &mut self
+            };
+            ("self".to_string(), ty.with_span(span.span()))
+        })
+        .padded_by(whitespace())
 }
 
 pub fn parameters<'a>()
