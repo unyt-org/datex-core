@@ -4,9 +4,9 @@ use core::ops::Range;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
     DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, RemoteExecution, Slot, SlotAssignment,
-    Statements, TypeDeclaration, UnaryOperation, VariableAccess,
-    VariableAssignment, VariableDeclaration, VariantAccess,
+    FunctionDeclaration, InterfaceDeclaration, List, Map, RemoteExecution,
+    Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
+    VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -53,6 +53,10 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> Result<(), E> {
         self.before_visit_datex_expression(expr);
         let visit_result = match &mut expr.data {
+            DatexExpressionData::InterfaceDeclaration(
+                interface_declaration,
+            ) => self
+                .visit_interface_declaration(interface_declaration, &expr.span),
             DatexExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access(variant_access, &expr.span)
             }
@@ -235,6 +239,17 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> ExpressionVisitResult<E> {
         let _ = span;
         let _ = variant_access;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit interface declaration
+    fn visit_interface_declaration(
+        &mut self,
+        interface_declaration: &mut InterfaceDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = interface_declaration;
         Ok(VisitAction::VisitChildren)
     }
 

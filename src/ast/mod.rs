@@ -324,7 +324,8 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration, TypeDeclarationKind,
+                    FunctionDeclaration, InterfaceDeclaration, TypeDeclaration,
+                    TypeDeclarationKind,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -488,6 +489,90 @@ mod tests {
                     .with_default_span()
                 ),
             ]))
+        );
+    }
+
+    #[test]
+    fn interface() {
+        let src = r#"
+        interface User {
+            can_vote(age: integer) -> boolean;
+            is_adult(&self) -> boolean;
+            is_senior(&self) -> boolean;
+
+            get_name(&self) -> text (
+                self.name
+            )
+        }
+        "#;
+        let val = parse_unwrap_data(src);
+        assert_eq!(
+            val,
+            DatexExpressionData::InterfaceDeclaration(InterfaceDeclaration {
+                name: "User".to_string(),
+                methods: vec![
+                    FunctionDeclaration {
+                        name: "can_vote".to_string(),
+                        parameters: vec![(
+                            "age".to_string(),
+                            TypeExpressionData::Literal("integer".to_string())
+                                .with_default_span()
+                        )],
+                        return_type: Some(
+                            TypeExpressionData::Literal("boolean".to_string())
+                                .with_default_span()
+                        ),
+                        body: Box::new(
+                            DatexExpressionData::Noop.with_default_span()
+                        ),
+                    },
+                    FunctionDeclaration {
+                        name: "is_adult".to_string(),
+                        parameters: vec![(
+                            "self".to_string(),
+                            TypeExpressionData::Literal("User".to_string())
+                                .with_default_span()
+                        )],
+                        return_type: Some(
+                            TypeExpressionData::Literal("boolean".to_string())
+                                .with_default_span()
+                        ),
+                        body: Box::new(
+                            DatexExpressionData::Noop.with_default_span()
+                        ),
+                    },
+                    FunctionDeclaration {
+                        name: "is_senior".to_string(),
+                        parameters: vec![(
+                            "self".to_string(),
+                            TypeExpressionData::Literal("User".to_string())
+                                .with_default_span()
+                        )],
+                        return_type: Some(
+                            TypeExpressionData::Literal("boolean".to_string())
+                                .with_default_span()
+                        ),
+                        body: Box::new(
+                            DatexExpressionData::Noop.with_default_span()
+                        ),
+                    },
+                    FunctionDeclaration {
+                        name: "get_name".to_string(),
+                        parameters: vec![(
+                            "self".to_string(),
+                            TypeExpressionData::Literal("User".to_string())
+                                .with_default_span()
+                        )],
+                        return_type: Some(
+                            TypeExpressionData::Literal("boolean".to_string())
+                                .with_default_span()
+                        ),
+                        body: Box::new(
+                            DatexExpressionData::Noop.with_default_span()
+                        ),
+                    },
+                ],
+            })
         );
     }
 

@@ -170,6 +170,9 @@ pub enum DatexExpressionData {
 
     /// Variant access, e.g. integer/u8
     VariantAccess(VariantAccess),
+
+    /// Interface declaration, e.g. interface MyInterface { ... }
+    InterfaceDeclaration(InterfaceDeclaration),
 }
 
 impl Spanned for DatexExpressionData {
@@ -284,6 +287,18 @@ pub struct Conditional {
     pub condition: Box<DatexExpression>,
     pub then_branch: Box<DatexExpression>,
     pub else_branch: Option<Box<DatexExpression>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceDeclaration {
+    pub name: String,
+    pub methods: Vec<FunctionDeclaration>,
+}
+
+impl Display for InterfaceDeclaration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "interface {}", self.name)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

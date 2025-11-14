@@ -454,6 +454,9 @@ impl AstToSourceCodeFormatter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
+            DatexExpressionData::InterfaceDeclaration(_) => {
+                todo!("Not implemented: DatexExpressionData::Interface")
+            }
             DatexExpressionData::VariantAccess(VariantAccess {
                 name,
                 variant,
