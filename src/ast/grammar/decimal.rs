@@ -136,4 +136,44 @@ mod tests {
                 .with_default_span()
         );
     }
+
+    #[test]
+    fn exponent() {
+        // positive exponent
+        let src = "1.23e4";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("1.23e4").unwrap()
+            )
+            .with_default_span()
+        );
+
+        // negative exponent
+        let src = "5.67e-3";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("5.67e-3").unwrap()
+            )
+            .with_default_span()
+        );
+
+        // variant with exponent
+        let src = "9.81e2f32";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::TypedDecimal(
+                TypedDecimal::from_string_and_variant_in_range(
+                    "9.81e2",
+                    DecimalTypeVariant::F32,
+                )
+                .unwrap()
+            )
+            .with_default_span()
+        );
+    }
 }
