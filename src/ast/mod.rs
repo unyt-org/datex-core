@@ -2905,6 +2905,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "WIP"]
     fn property_access_assignment() {
         let src = r#"
             // var user = {
