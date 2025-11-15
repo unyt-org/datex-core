@@ -6,6 +6,19 @@ use crate::ast::spanned::Spanned;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use chumsky::prelude::*;
+
+fn decimal_with_dot_prefix<'a>() -> impl DatexParserTrait<'a> {
+    just(Token::Dot)
+        .ignore_then(select! {
+            Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => (value, variant),
+        })
+        .map(|(digits, variant)| {
+            // Construct the float literal 0.<digits>
+            let s = format!("0.{}", digits);
+            DatexExpressionData::Decimal(s)
+        })
+}
+
 pub fn integer<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {

@@ -156,6 +156,9 @@ pub enum DatexExpressionData {
     /// Deref assignment, e.g. *x = y, **x += y
     DerefAssignment(DerefAssignment),
 
+    /// Property assignment, e.g. obj.property = value
+    PropertyAssignment(PropertyAssignment),
+
     /// Unary operation, e.g. -x, !x
     UnaryOperation(UnaryOperation),
 
@@ -276,6 +279,13 @@ pub struct DerefAssignment {
     pub operator: AssignmentOperator,
     pub deref_count: usize,
     pub deref_expression: Box<DatexExpression>,
+    pub assigned_expression: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PropertyAssignment {
+    pub operator: AssignmentOperator,
+    pub access_expression: Box<DatexExpression>,
     pub assigned_expression: Box<DatexExpression>,
 }
 

@@ -219,6 +219,9 @@ impl<E> VisitableExpression<E> for DatexExpression {
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
         match &mut self.data {
+            DatexExpressionData::PropertyAssignment(_) => {
+                todo!("PropertyAssignment visitable not implemented yet")
+            }
             DatexExpressionData::BinaryOperation(op) => {
                 op.walk_children(visitor)
             }

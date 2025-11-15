@@ -324,7 +324,8 @@ mod tests {
             structs::{
                 expression::{
                     ApplyChain, BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, TypeDeclaration, TypeDeclarationKind,
+                    FunctionDeclaration, PropertyAssignment, TypeDeclaration,
+                    TypeDeclarationKind,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -2901,7 +2902,35 @@ mod tests {
     }
 
     #[test]
-    fn property_access() {
+    fn property_access_assignment() {
+        let src = r#"
+            var user = {
+                props: [1, 2, 3],
+            };
+            user.props.0.xx
+        "#;
+
+        let expr = parse_unwrap_data(src);
+        println!("{:#?}", expr);
+
+        // assert_eq!(
+        //     expr,
+        //     DatexExpressionData::PropertyAssignment(
+        //         PropertyAssignment {
+        //             operator: AssignmentOperator::Assign,
+        //             access_expression: Box::new(DatexExpressionData::VariableAccess(
+        //                 VariableAccess {
+        //                     name: "user".to_string(),
+        //                     kind: VariableAccessKind::Field("name".to_string()),
+        //                 }
+        //             )),
+        //         }
+        //     ).with_default_span()
+        // );
+    }
+
+    #[test]
+    fn property_access_getter() {
         let src = "myObj.myProp";
         let expr = parse_unwrap_data(src);
         assert_eq!(

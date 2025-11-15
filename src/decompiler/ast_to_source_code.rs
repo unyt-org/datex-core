@@ -454,6 +454,9 @@ impl AstToSourceCodeFormatter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
+            DatexExpressionData::PropertyAssignment(_) => todo!(
+                "Property assignment not yet implemented in AST to source code"
+            ),
             DatexExpressionData::VariantAccess(VariantAccess {
                 name,
                 variant,

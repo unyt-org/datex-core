@@ -53,6 +53,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> Result<(), E> {
         self.before_visit_datex_expression(expr);
         let visit_result = match &mut expr.data {
+            DatexExpressionData::PropertyAssignment(_) => {
+                todo!("PropertyAssignment visitor not implemented yet")
+            }
             DatexExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access(variant_access, &expr.span)
             }
