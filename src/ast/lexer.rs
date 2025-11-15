@@ -181,6 +181,8 @@ pub enum Token {
     #[token("if")] If,
     #[token("else")] Else,
 
+    #[token(".")]
+    Dot,
     // pointer address (e.g. $1234ab, exactly 3, 5 or 26 bytes)
     #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
 
@@ -188,19 +190,14 @@ pub enum Token {
     #[regex(r"[Ii]nfinity")] Infinity,
     #[regex(r"(?:nan|NaN)")] Nan,
 
-    #[regex(
-        r"\d+(?:_\d+)*(?:\.\d+(?:_\d+)*)?[eE][+-]?\d+(?:_\d+)*",
-        parse_typed_literal,
-        priority = 2
-    )]
+     #[regex(r"\d+(?:_\d+)*(?:\.\d+(?:_\d+)*)?[eE][+-]?\d+(?:_\d+)*", parse_typed_literal)]
+    #[regex(r"\.\d+(?:_\d+)*[eE][+-]?\d+(?:_\d+)*", parse_typed_literal)]
     DecimalLiteralWithExponent(DecimalLiteral),
 
-    // Integer literal: lower priority
-    #[regex(r"\d+(?:_\d+)*", |lex| lex.slice().to_string(), priority = 1)]
+    // 2) Plain integer literal (no exponent, no dot)
+    #[regex(r"\d+(?:_\d+)*", allocated_string)]
     DecimalIntegerLiteral(String),
 
-    #[token(".")]
-    Dot,
 
     #[regex(
         r"YYYYY(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)(?:[eE][+-]?\d(?:_?\d)*)?(?:f32|f64)",
