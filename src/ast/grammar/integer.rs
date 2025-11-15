@@ -12,6 +12,16 @@ use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use chumsky::prelude::*;
 
+/// An integer without a type variant (e.g., 32, 1000, 0, etc.)
+pub fn integer_base<'a>() -> impl DatexParserTrait<'a> {
+    select! {
+        Token::DecimalNumericLiteral(NumericLiteralParts { exponent_part: None, integer_part: value, variant_part: None }) =>
+            Integer::from_string(&value).map(DatexExpressionData::Integer),
+    }
+        .map_with(|data, e| data.map(|data| data.with_span(e.span())))
+        .recover_invalid()
+}
+
 pub fn integer<'a>() -> impl DatexParserTrait<'a> {
     select! {
         Token::DecimalNumericLiteral(NumericLiteralParts { integer_part, exponent_part: None, variant_part }) => {

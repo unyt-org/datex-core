@@ -5,15 +5,18 @@ use crate::ast::grammar::r#type::{ty, type_declaration};
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::VariableDeclaration;
 use crate::ast::structs::expression::{
     DerefAssignment, VariableAssignment, VariableKind,
+};
+use crate::ast::structs::expression::{
+    PropertyAssignment, VariableDeclaration,
 };
 use crate::ast::structs::r#type::TypeExpression;
 use crate::ast::{
     DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,
 };
 use crate::global::operators::assignment::AssignmentOperator;
+use crate::traits::apply;
 use chumsky::prelude::*;
 
 fn create_variable_declaration(
@@ -52,6 +55,28 @@ pub fn variable_assignment<'a>(
         .labelled(Pattern::Declaration)
         .as_context()
 }
+
+/// A variable assignment (e.g. `x.y.0 = 42` or `y.x += 1`)
+pub fn property_assignment<'a>(
+    apply_chain: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    let assignment_op = assignment_operation();
+    apply_chain
+        .then(assignment_op)
+        .then(expression)
+        .map_with(|((access_expression, operator), expr), e| {
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                operator,
+                access_expression: Box::new(access_expression),
+                assigned_expression: Box::new(expr),
+            })
+            .with_span(e.span())
+        })
+        .labelled(Pattern::Declaration)
+        .as_context()
+}
+
 pub fn deref_assignment<'a>(
     expression: impl DatexParserTrait<'a>,
     unary: impl DatexParserTrait<'a>,
@@ -129,12 +154,14 @@ pub fn variable_declaration<'a>(
 
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
+    apply_chain: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
     unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
         type_declaration(),
         variable_declaration(expression.clone()),
+        property_assignment(apply_chain, expression.clone()),
         deref_assignment(expression.clone(), unary),
         variable_assignment(expression),
     ))

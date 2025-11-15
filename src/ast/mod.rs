@@ -155,7 +155,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let chain =
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
-    let binary = binary_operation(chain);
+    let binary = binary_operation(chain.clone());
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -164,8 +164,11 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let comparison = comparison_operation(binary.clone());
 
     // declarations or assignments
-    let declaration_or_assignment =
-        declaration_or_assignment(expression.clone(), unary.clone());
+    let declaration_or_assignment = declaration_or_assignment(
+        chain.clone(),
+        expression.clone(),
+        unary.clone(),
+    );
 
     let condition_union = binary_operation(chain_without_whitespace_apply(
         unary.clone(),
@@ -2904,29 +2907,42 @@ mod tests {
     #[test]
     fn property_access_assignment() {
         let src = r#"
-            var user = {
-                props: [1, 2, 3],
-            };
-            user.props.0.xx
+            // var user = {
+            //     props: [1, 2, 3],
+            // };
+            user.props.0 = 42
         "#;
 
         let expr = parse_unwrap_data(src);
-        println!("{:#?}", expr);
-
-        // assert_eq!(
-        //     expr,
-        //     DatexExpressionData::PropertyAssignment(
-        //         PropertyAssignment {
-        //             operator: AssignmentOperator::Assign,
-        //             access_expression: Box::new(DatexExpressionData::VariableAccess(
-        //                 VariableAccess {
-        //                     name: "user".to_string(),
-        //                     kind: VariableAccessKind::Field("name".to_string()),
-        //                 }
-        //             )),
-        //         }
-        //     ).with_default_span()
-        // );
+        assert_eq!(
+            expr,
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                operator: AssignmentOperator::Assign,
+                assigned_expression: Box::new(
+                    DatexExpressionData::Integer(Integer::from(42))
+                        .with_default_span()
+                ),
+                access_expression: Box::new(
+                    DatexExpressionData::ApplyChain(ApplyChain {
+                        base: Box::new(
+                            DatexExpressionData::Identifier("user".to_string())
+                                .with_default_span()
+                        ),
+                        operations: vec![
+                            ApplyOperation::PropertyAccess(
+                                DatexExpressionData::Text("props".to_string())
+                                    .with_default_span()
+                            ),
+                            ApplyOperation::PropertyAccess(
+                                DatexExpressionData::Integer(Integer::from(0))
+                                    .with_default_span()
+                            ),
+                        ],
+                    })
+                    .with_default_span()
+                ),
+            })
+        );
     }
 
     #[test]
