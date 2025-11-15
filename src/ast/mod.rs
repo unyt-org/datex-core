@@ -31,9 +31,11 @@ use crate::ast::structs::expression::{
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use core::ops::Range;
+use core::panic;
 use core::result::Result;
 use lexer::Token;
 use logos::Logos;
+use std::io::Write;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -290,8 +292,18 @@ pub fn parse(mut src: &str) -> DatexParseResult {
     let tokens_spanned = tokens_spanned_result.unwrap();
 
     let (tokens, spans): (Vec<_>, Vec<_>) = tokens_spanned.into_iter().unzip();
+
+    // FIXME
+    // let file = std::fs::File::create("/tmp/datex_tokens.txt").unwrap();
+    // let mut writer = std::io::BufWriter::new(file);
+    // for token in &tokens {
+    //     writeln!(writer, "{:?}", token).unwrap();
+    // }
+    // writer.flush().unwrap();
+    // panic!("Wrote tokens to /tmp/datex_tokens.txt");
     let parser = create_parser();
     let result = parser.parse(&tokens);
+
     if !result.has_errors() {
         DatexParseResult::Valid(ValidDatexParseResult {
             ast: result.into_output().unwrap(),
