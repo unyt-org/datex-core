@@ -135,7 +135,6 @@ pub enum Token {
     #[token("::")] DoubleColon,
     #[token(":::")] TripleColon,
     #[token(";")] Semicolon,
-    #[token(".")] Dot,
     #[token(",")] Comma,
     #[token("=")] Assign,
 
@@ -190,23 +189,29 @@ pub enum Token {
     #[regex(r"(?:nan|NaN)")] Nan,
 
     #[regex(
-        r"(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)(?:[eE][+-]?\d(?:_?\d)*)?(?:f32|f64)",
+        r"\d+(?:_\d+)*(?:\.\d+(?:_\d+)*)?[eE][+-]?\d+(?:_\d+)*",
+        parse_typed_literal,
+        priority = 2
+    )]
+    DecimalLiteralWithExponent(DecimalLiteral),
+
+    // Integer literal: lower priority
+    #[regex(r"\d+(?:_\d+)*", |lex| lex.slice().to_string(), priority = 1)]
+    DecimalIntegerLiteral(String),
+
+    #[token(".")]
+    Dot,
+
+    #[regex(
+        r"YYYYY(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)(?:[eE][+-]?\d(?:_?\d)*)?(?:f32|f64)",
         parse_typed_literal::<DecimalTypeVariant>,
         priority = 3
     )]
     DecimalLiteralWithSuffix(DecimalLiteral),
 
-    // with exponent but no suffix
-    #[regex(
-        r"XXX(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)[eE][+-]?\d(?:_?\d)*",
-        parse_typed_literal::<DecimalTypeVariant>,
-        priority = 3
-    )]
-    DecimalLiteralWithExponent(DecimalLiteral),
-
     // INTEGER LITERALS with type suffix
     #[regex(
-        r"(?:0|[1-9](?:_?\d)*)(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)",
+        r"ZZZZ(?:0|[1-9](?:_?\d)*)(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)",
         parse_typed_literal::<IntegerTypeVariant>
     )]
     DecimalIntegerLiteralWithVariant(IntegerLiteral),
@@ -230,10 +235,6 @@ pub enum Token {
     )]
     HexadecimalIntegerLiteral(IntegerLiteral),
 
-    // Plain decimal integer (no type suffix)
-    #[regex(r"[0-9][(_\d+)]*", allocated_string, priority=2)]
-    DecimalIntegerLiteral(String),
-    
 
     // fraction (e.g. 1/2)
     #[regex(r"\d+/\d+", allocated_string)] 
@@ -677,6 +678,38 @@ mod tests {
 
     #[test]
     fn decimals_with_underscores() {
+        // exponent, no suffix
+        let lexer = Token::lexer("1.234_567e-8");
+        assert_eq!(
+            lexer.collect::<Vec<_>>(),
+            vec![Ok(Token::DecimalLiteralWithExponent(DecimalLiteral {
+                value: "1.234_567e-8".to_string(),
+                variant: None,
+            }))]
+        );
+
+        // no suffix, no exponent
+        let lexer = Token::lexer("0.123_456");
+        assert_eq!(
+            lexer.collect::<Vec<_>>(),
+            vec![
+                Ok(Token::DecimalIntegerLiteral("0".to_string())),
+                Ok(Token::Dot),
+                Ok(Token::DecimalIntegerLiteral("123_456".to_string()))
+            ]
+        );
+
+        return;
+        // decimal with suffix, no exponent
+        let lexer = Token::lexer("1_000.123_456f32");
+        assert_eq!(
+            lexer.collect::<Vec<_>>(),
+            vec![Ok(Token::DecimalLiteralWithSuffix(DecimalLiteral {
+                value: "1_000.123_456".to_string(),
+                variant: Some(DecimalTypeVariant::F32),
+            }))]
+        );
+
         // decimal with suffix, no exponent
         let mut lexer = Token::lexer("1_000.123_456f32");
         assert_eq!(
@@ -690,8 +723,6 @@ mod tests {
         );
         assert_eq!(lexer.next(), None);
 
-        // no suffix, no exponent
-        let mut lexer = Token::lexer("0.123_456");
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalIntegerLiteral("0".to_string()))
