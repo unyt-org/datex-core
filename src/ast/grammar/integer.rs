@@ -7,21 +7,21 @@ use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use chumsky::prelude::*;
 
-fn decimal_with_dot_prefix<'a>() -> impl DatexParserTrait<'a> {
-    just(Token::Dot)
-        .ignore_then(select! {
-            Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => (value, variant),
-        })
-        .map(|(digits, variant)| {
-            // Construct the float literal 0.<digits>
-            let s = format!("0.{}", digits);
-            DatexExpressionData::Decimal(s)
-        })
-}
+// fn decimal_with_dot_prefix<'a>() -> impl DatexParserTrait<'a> {
+//     just(Token::Dot)
+//         .ignore_then(select! {
+//             Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => (value, variant),
+//         })
+//         .map(|(digits, variant)| {
+//             // Construct the float literal 0.<digits>
+//             let s = format!("0.{}", digits);
+//             DatexExpressionData::Decimal(s)
+//         })
+// }
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a> {
     select! {
-        Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+        Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_with_variant(&value, var)
                     .map(DatexExpressionData::TypedInteger),
