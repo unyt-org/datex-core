@@ -21,14 +21,15 @@ use chumsky::prelude::*;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a> {
     select! {
-        Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_with_variant(&value, var)
-                    .map(DatexExpressionData::TypedInteger),
-                None => Integer::from_string(&value)
-                    .map(DatexExpressionData::Integer),
-            }
-        },
+        // FIXME
+        // Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
+        //     match variant {
+        //         Some(var) => TypedInteger::from_string_with_variant(&value, var)
+        //             .map(DatexExpressionData::TypedInteger),
+        //         None => Integer::from_string(&value)
+        //             .map(DatexExpressionData::Integer),
+        //     }
+        // },
         Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)

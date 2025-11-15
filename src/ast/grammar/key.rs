@@ -14,13 +14,15 @@ pub fn key<'a>(
         // any valid identifiers (equivalent to variable names), mapped to a text
         select! {
              Token::Identifier(s) => DatexExpressionData::Text(s),
-        }.map_with(|data, e| data.with_span(e.span())),
-        select! {
-            Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant: None }) =>
-                Integer::from_string(&value).map(DatexExpressionData::Integer),
         }
-        .map_with(|data, e| data.map(|data| data.with_span(e.span())))
-        .recover_invalid(),
+        .map_with(|data, e| data.with_span(e.span())),
+        // FIXME
+        // select! {
+        //     Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant: None }) =>
+        //         Integer::from_string(&value).map(DatexExpressionData::Integer),
+        // }
+        // .map_with(|data, e| data.map(|data| data.with_span(e.span())))
+        // .recover_invalid(),
         // dynamic key
         wrapped_expression.clone(),
     ))
