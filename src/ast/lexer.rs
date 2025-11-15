@@ -713,7 +713,6 @@ mod tests {
     }
 
     #[test]
-    // WIP
     fn decimals() {
         // exponent, variant
         let lexer = Token::lexer("10.234_567e-8f32");
