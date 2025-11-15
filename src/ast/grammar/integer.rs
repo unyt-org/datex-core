@@ -120,4 +120,10 @@ mod tests {
             .with_default_span()
         );
     }
+
+    #[test]
+    fn invalid_variant() {
+        let src = "123456789u31";
+        assert!(!parse(src).is_valid());
+    }
 }
