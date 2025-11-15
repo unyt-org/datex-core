@@ -73,12 +73,41 @@ fn default_decimal<'a>()
     // .recover_invalid()
 }
 
+fn shortcut_decimal<'a>()
+-> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
+    just(Token::Dot)
+        .then(select! {
+            Token::DecimalNumericLiteral(parts) => parts
+        })
+        .map(|(_, right)| {
+            let mut value = String::from("0.");
+            value.push_str(&right.integer_part);
+            if let Some(exp) = right.exponent_part {
+                value.push('e');
+                value.push_str(&exp);
+            }
+            match right.variant_part {
+                Some(var) => {
+                    let variant = DecimalTypeVariant::from_str(&var)
+                        .map_err(|_| NumberParseError::InvalidFormat)?;
+                    TypedDecimal::from_string_and_variant_in_range(
+                        &value, variant,
+                    )
+                    .map(DatexExpressionData::TypedDecimal)
+                }
+                None => Decimal::from_string(&value)
+                    .map(DatexExpressionData::Decimal),
+            }
+        })
+}
+
 pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     choice((
         select! {
             Token::Nan => Ok(DatexExpressionData::Decimal(Decimal::NaN)),
             Token::Infinity => Ok(DatexExpressionData::Decimal(Decimal::Infinity)),
         },
+        shortcut_decimal(),
         fraction(),
         default_decimal(),
     ))
@@ -118,6 +147,61 @@ mod tests {
             DatexExpressionData::TypedDecimal(
                 TypedDecimal::from_string_and_variant_in_range(
                     "2.71828",
+                    DecimalTypeVariant::F64,
+                )
+                .unwrap()
+            )
+            .with_default_span()
+        );
+    }
+
+    #[test]
+    fn shortcut() {
+        // no variant and no exponent
+        let src = ".57721";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("0.57721").unwrap()
+            )
+            .with_default_span()
+        );
+
+        // with variant
+        let src = ".314f32";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::TypedDecimal(
+                TypedDecimal::from_string_and_variant_in_range(
+                    "0.314",
+                    DecimalTypeVariant::F32,
+                )
+                .unwrap()
+            )
+            .with_default_span()
+        );
+
+        // with exponent
+        let src = ".159e2";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("0.159e2").unwrap()
+            )
+            .with_default_span()
+        );
+
+        // with variant and exponent
+        let src = ".265e-3f64";
+        let num = parse(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::TypedDecimal(
+                TypedDecimal::from_string_and_variant_in_range(
+                    "0.265e-3",
                     DecimalTypeVariant::F64,
                 )
                 .unwrap()
