@@ -38,7 +38,7 @@ use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
-        Token::DecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
+        Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_with_variant(&value, var)
                     .map(TypeExpressionData::TypedInteger),
@@ -85,7 +85,7 @@ pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
 
 pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
-        Token::DecimalLiteral(DecimalLiteral { value, variant }) => {
+        Token::DecimalLiteralWithSuffix(DecimalLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpressionData::TypedDecimal),
                 None => Decimal::from_string(&value).map(TypeExpressionData::Decimal)

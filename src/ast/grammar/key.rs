@@ -16,7 +16,7 @@ pub fn key<'a>(
              Token::Identifier(s) => DatexExpressionData::Text(s),
         }.map_with(|data, e| data.with_span(e.span())),
         select! {
-            Token::DecimalIntegerLiteral(IntegerLiteral { value, variant: None }) =>
+            Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant: None }) =>
                 Integer::from_string(&value).map(DatexExpressionData::Integer),
         }
         .map_with(|data, e| data.map(|data| data.with_span(e.span())))
