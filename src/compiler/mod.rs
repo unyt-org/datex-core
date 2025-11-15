@@ -320,6 +320,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     let valid_parse_result = parse(datex_script)
         .to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
+
     precompile_to_rich_ast(
         valid_parse_result,
         &mut options.compile_scope,
