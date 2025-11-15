@@ -38,14 +38,15 @@ use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
-        Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_with_variant(&value, var)
-                    .map(TypeExpressionData::TypedInteger),
-                None => Integer::from_string(&value)
-                    .map(TypeExpressionData::Integer),
-            }
-        },
+        // FIXME
+        // Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
+        //     match variant {
+        //         Some(var) => TypedInteger::from_string_with_variant(&value, var)
+        //             .map(TypeExpressionData::TypedInteger),
+        //         None => Integer::from_string(&value)
+        //             .map(TypeExpressionData::Integer),
+        //     }
+        // },
         Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
@@ -85,12 +86,13 @@ pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
 
 pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
-        Token::DecimalLiteralWithSuffix(DecimalLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpressionData::TypedDecimal),
-                None => Decimal::from_string(&value).map(TypeExpressionData::Decimal)
-            }
-        },
+        // FIXME
+        // Token::DecimalLiteralWithSuffix(DecimalLiteral { value, variant }) => {
+        //     match variant {
+        //         Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpressionData::TypedDecimal),
+        //         None => Decimal::from_string(&value).map(TypeExpressionData::Decimal)
+        //     }
+        // },
         Token::FractionLiteral(s) => Decimal::from_string(&s).map(TypeExpressionData::Decimal),
     }.try_map(|res, _| {
 		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
