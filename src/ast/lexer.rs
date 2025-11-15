@@ -27,6 +27,82 @@ impl Loc {
 fn extract_line_doc(lex: &mut Lexer<Token>) -> String {
     lex.slice()[3..].to_owned()
 }
+/*
+
+    // Value literals
+    // decimal
+    // ### Supported formats:
+    // - Standard decimals:
+    //   - `123.456`
+    //   - `0.001`
+    //   - `.789`
+    //   - `123.`
+    //   - `3.e10`
+    //   - `534.e-124`
+    // - Decimals with exponent:
+    //   - `1.23e10`
+    //   - `4.56E-3`
+    //   - `789e+2`
+    //   - `42e0`
+    // - Integer with exponent (no decimal point):
+    //   - `123e5`
+    //   - `42E-1`
+    // - Special values:
+    //   - `NaN`, `nan`
+    //   - `Infinity`, `infinity`
+    // - Optional leading sign is supported for all formats:
+    //   - `-123.45`, `+123.45`
+    //   - `-Infinity`, `+Infinity`
+    //   - `-3.e10`, `+3.e10`
+
+    // #[regex(r"(((0|[1-9])(\d|_)*)\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)", parse_typed_literal::<DecimalTypeVariant>)]
+    // DecimalLiteralWithSuffix(DecimalLiteral),
+
+    // #[regex(r"((\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", allocated_string, priority = 1)]
+    // DecimalSuffix(String),
+
+    // // integer
+    // // ### Supported formats:
+    // // - Hexadecimal integers:
+    // //     - `0x1A2B3C4D5E6F`
+    // //     - `0X1A2B3C4D5E6F`
+    // // - Octal integers:
+    // //     - `0o755`
+    // //     - `0O755`
+    // // - Binary integers:
+    // //     - `0b101010`
+    // //     - `0B101010`
+    // // - Decimal integers:
+    // //     - `123456789`
+    // //     - `-123456789`
+    // // - Integers with underscores:
+    // //     - `1_234_567`
+    // //     - `-1_234_567`
+    // // - Decimal integers with leading zeros:
+    // // - `0123`
+    // // - `-0123`
+    // #[regex(r"(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)", parse_typed_literal::<IntegerTypeVariant>)]
+    // DecimalIntegerLiteralWithVariant(IntegerLiteral),
+
+
+    // #[regex(r"((0|[1-9])(\d|_)*)", allocated_string)]
+    // DecimalIntegerLiteral(String),
+
+    // // binary integer
+    // #[regex(r"0[bB][01_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)]
+    // BinaryIntegerLiteral(IntegerLiteral),
+    // // octal integer
+    // #[regex(r"0[oO][0-7_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)]
+    // OctalIntegerLiteral(IntegerLiteral),
+    // // hexadecimal integer
+    // #[regex(r"0[xX][0-9a-fA-F_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)]
+    // HexadecimalIntegerLiteral(IntegerLiteral),
+
+    // floats with suffix
+    // matches 12.34f32, 12.f64, .34f32, 12f32, 44_22.05f32, 0.4f32
+
+*/
+
 #[derive(Logos, Debug, Clone, PartialEq, Eq)]
 #[logos(error = Range<usize>)]
 // single line comments
@@ -113,74 +189,51 @@ pub enum Token {
     #[regex(r"[Ii]nfinity")] Infinity,
     #[regex(r"(?:nan|NaN)")] Nan,
 
-    // Value literals
-    // decimal
-    // ### Supported formats:
-    // - Standard decimals:
-    //   - `123.456`
-    //   - `0.001`
-    //   - `.789`
-    //   - `123.`
-    //   - `3.e10`
-    //   - `534.e-124`
-    // - Decimals with exponent:
-    //   - `1.23e10`
-    //   - `4.56E-3`
-    //   - `789e+2`
-    //   - `42e0`
-    // - Integer with exponent (no decimal point):
-    //   - `123e5`
-    //   - `42E-1`
-    // - Special values:
-    //   - `NaN`, `nan`
-    //   - `Infinity`, `infinity`
-    // - Optional leading sign is supported for all formats:
-    //   - `-123.45`, `+123.45`
-    //   - `-Infinity`, `+Infinity`
-    //   - `-3.e10`, `+3.e10`
-
-    #[regex(r"(((0|[1-9])(\d|_)*)\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)", parse_typed_literal::<DecimalTypeVariant>)] 
+    #[regex(
+        r"(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)(?:[eE][+-]?\d(?:_?\d)*)?(?:f32|f64)",
+        parse_typed_literal::<DecimalTypeVariant>,
+        priority = 3
+    )]
     DecimalLiteralWithSuffix(DecimalLiteral),
 
-    #[regex(r"((\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", allocated_string, priority = 1)]
-    DecimalSuffix(String),
+    // with exponent but no suffix
+    #[regex(
+        r"XXX(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?|\.\d(?:_?\d)+)[eE][+-]?\d(?:_?\d)*",
+        parse_typed_literal::<DecimalTypeVariant>,
+        priority = 3
+    )]
+    DecimalLiteralWithExponent(DecimalLiteral),
 
-    // integer
-    // ### Supported formats:
-    // - Hexadecimal integers:
-    //     - `0x1A2B3C4D5E6F`
-    //     - `0X1A2B3C4D5E6F`
-    // - Octal integers:
-    //     - `0o755`
-    //     - `0O755`
-    // - Binary integers:
-    //     - `0b101010`
-    //     - `0B101010`
-    // - Decimal integers:
-    //     - `123456789`
-    //     - `-123456789`
-    // - Integers with underscores:
-    //     - `1_234_567`
-    //     - `-1_234_567`
-    // - Decimal integers with leading zeros:
-    // - `0123`
-    // - `-0123`
-    #[regex(r"(0|[1-9])(\d|_)*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)", parse_typed_literal::<IntegerTypeVariant>)] 
+    // INTEGER LITERALS with type suffix
+    #[regex(
+        r"(?:0|[1-9](?:_?\d)*)(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)",
+        parse_typed_literal::<IntegerTypeVariant>
+    )]
     DecimalIntegerLiteralWithVariant(IntegerLiteral),
 
-
-    #[regex(r"((0|[1-9])(\d|_)*)", allocated_string)]
-    DecimalIntegerLiteral(String),
-
-    // binary integer
-    #[regex(r"0[bB][01_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+    // Binary / Octal / Hex integers with optional suffix
+    #[regex(
+        r"0[bB][01](?:_?[01])*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        parse_typed_literal::<IntegerTypeVariant>
+    )]
     BinaryIntegerLiteral(IntegerLiteral),
-    // octal integer
-    #[regex(r"0[oO][0-7_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+
+    #[regex(
+        r"0[oO][0-7](?:_?[0-7])*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        parse_typed_literal::<IntegerTypeVariant>
+    )]
     OctalIntegerLiteral(IntegerLiteral),
-    // hexadecimal integer
-    #[regex(r"0[xX][0-9a-fA-F_]+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", parse_typed_literal::<IntegerTypeVariant>)] 
+
+    #[regex(
+        r"0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        parse_typed_literal::<IntegerTypeVariant>
+    )]
     HexadecimalIntegerLiteral(IntegerLiteral),
+
+    // Plain decimal integer (no type suffix)
+    #[regex(r"[0-9][(_\d+)]*", allocated_string, priority=2)]
+    DecimalIntegerLiteral(String),
+    
 
     // fraction (e.g. 1/2)
     #[regex(r"\d+/\d+", allocated_string)] 
@@ -192,7 +245,7 @@ pub enum Token {
     #[regex(r"@[+@]?[a-zA-Z0-9_-]+", allocated_string)] Endpoint(String),
 
     // identifiers
-    #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string)] Identifier(String),
+    #[regex(r"[_\p{L}][_\p{L}\p{N}]*", allocated_string, priority=1)] Identifier(String),
 
     // number slots (starting with #, followed by digits)
     #[regex(r"#\d+", allocated_string)] Slot(String),
@@ -352,6 +405,7 @@ impl fmt::Display for Token {
 
 #[inline(always)]
 fn allocated_string(lex: &mut Lexer<Token>) -> String {
+    println!("allocated_string: {}", lex.slice());
     lex.slice().to_owned()
 }
 
@@ -623,6 +677,7 @@ mod tests {
 
     #[test]
     fn decimals_with_underscores() {
+        // decimal with suffix, no exponent
         let mut lexer = Token::lexer("1_000.123_456f32");
         assert_eq!(
             lexer.next().unwrap(),
@@ -630,11 +685,13 @@ mod tests {
                 DecimalTypeVariant,
             > {
                 value: "1_000.123_456".to_string(),
-                variant: Some(DecimalTypeVariant::F32)
+                variant: Some(DecimalTypeVariant::F32),
             }))
         );
+        assert_eq!(lexer.next(), None);
 
-        let mut lexer = Token::lexer("0.123_456e2");
+        // no suffix, no exponent
+        let mut lexer = Token::lexer("0.123_456");
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalIntegerLiteral("0".to_string()))
@@ -642,19 +699,22 @@ mod tests {
         assert_eq!(lexer.next().unwrap(), Ok(Token::Dot));
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalSuffix("123_456e2".to_string()))
+            Ok(Token::DecimalIntegerLiteral("123_456".to_string()))
         );
+        assert_eq!(lexer.next(), None);
 
+        // exponent, with suffix
         let mut lexer = Token::lexer("1.234_567e-8");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalIntegerLiteral("1".to_string()))
+            Ok(Token::DecimalLiteralWithExponent(TypedLiteral::<
+                DecimalTypeVariant,
+            > {
+                value: "1.234_567e-8".to_string(),
+                variant: None,
+            }))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Dot));
-        assert_eq!(
-            lexer.next().unwrap(),
-            Ok(Token::DecimalSuffix("234_567e-8".to_string()))
-        );
+        assert_eq!(lexer.next(), None);
     }
 
     #[test]
