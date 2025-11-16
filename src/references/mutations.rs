@@ -122,6 +122,7 @@ impl Reference {
         value: T,
         memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
+        let v = vec![1];
         self.handle_update(source_id, move || {
             let value_container = value.into();
             self.with_value_unchecked(move |core_value| {
@@ -161,7 +162,7 @@ impl Reference {
                 match value.inner {
                     CoreValue::Map(ref mut map) => {
                         key.with_value_container(|key| {
-                            map.remove(key)
+                            map.delete(key)
                         })?;
                     }
                     CoreValue::List(ref mut list) => {
@@ -195,6 +196,9 @@ impl Reference {
                 match value.inner {
                     CoreValue::Map(ref mut map) => {
                         map.clear()?;
+                    }
+                    CoreValue::List(ref mut list) => {
+                        list.clear();
                     }
                     _ => {
                         return Err(AccessError::InvalidOperation(format!(

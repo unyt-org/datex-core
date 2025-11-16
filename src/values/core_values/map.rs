@@ -131,7 +131,7 @@ impl Map {
     }
 
     /// Removes a key from the map, returning the value if it existed.
-    pub fn remove<'a>(
+    pub fn delete<'a>(
         &mut self,
         key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, MapAccessError> {
