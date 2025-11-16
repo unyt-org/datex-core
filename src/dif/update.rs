@@ -70,13 +70,13 @@ pub enum DIFUpdateData {
     },
 
     /// Represents the removal of a specific property from a DIF value.
-    Remove { key: DIFProperty },
+    Delete { key: DIFProperty },
 
     /// Represents clearing all elements from a collection-type DIF value (like an array or map).
     Clear,
 
     /// Represents adding a new element to a collection-type DIF value (like an array or map).
-    Push { value: DIFValueContainer },
+    Append { value: DIFValueContainer },
 }
 
 impl DIFConvertible for DIFUpdateData {}
@@ -102,7 +102,7 @@ impl DIFUpdateData {
 
     /// Creates a new `DIFUpdateData::Remove` variant with the given key.
     pub fn remove(key: impl Into<DIFProperty>) -> Self {
-        DIFUpdateData::Remove { key: key.into() }
+        DIFUpdateData::Delete { key: key.into() }
     }
 
     /// Creates a new `DIFUpdateData::Clear` variant.
@@ -112,7 +112,7 @@ impl DIFUpdateData {
 
     /// Creates a new `DIFUpdateData::Push` variant with the given value.
     pub fn push(value: impl Into<DIFValueContainer>) -> Self {
-        DIFUpdateData::Push {
+        DIFUpdateData::Append {
             value: value.into(),
         }
     }

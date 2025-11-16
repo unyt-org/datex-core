@@ -90,7 +90,7 @@ impl DIFInterface for RuntimeInternal {
                 value.to_value_container(&self.memory)?,
                 &self.memory,
             )?,
-            DIFUpdateData::Push { value } => {
+            DIFUpdateData::Append { value } => {
                 if !reference.supports_push() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
@@ -116,7 +116,7 @@ impl DIFInterface for RuntimeInternal {
                 }
                 reference.try_clear(source_id)?
             }
-            DIFUpdateData::Remove { key } => {
+            DIFUpdateData::Delete { key } => {
                 if !reference.supports_property_access() {
                     return Err(DIFUpdateError::AccessError(
                         AccessError::InvalidOperation(
