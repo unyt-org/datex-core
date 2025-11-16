@@ -1,7 +1,7 @@
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
-use crate::dif::update::{DIFProperty, DIFUpdateData};
+use crate::dif::update::{DIFKey, DIFUpdateData};
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
 use crate::references::reference::{AccessError, ReferenceMutability};
 use crate::runtime::RuntimeInternal;
@@ -61,31 +61,31 @@ impl DIFInterface for RuntimeInternal {
                 }
                 let value_container = value.to_value_container(&self.memory)?;
                 match key {
-                    DIFProperty::Text(key) => reference.try_set_text_property(
+                    DIFKey::Text(key) => reference.try_set_property(
                         source_id,
                         &key,
                         value_container,
                         &self.memory,
                     )?,
-                    DIFProperty::Index(key) => reference
-                        .try_set_numeric_property(
+                    DIFKey::Index(key) => reference
+                        .try_set_property(
                             source_id,
-                            key as u32,
+                            key,
                             value_container,
                             &self.memory,
                         )?,
-                    DIFProperty::Value(key) => {
+                    DIFKey::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
                         reference.try_set_property(
                             source_id,
-                            key,
+                            &key,
                             value_container,
                             &self.memory,
                         )?
                     }
                 }
             }
-            DIFUpdateData::Replace { value } => reference.try_set_value(
+            DIFUpdateData::Replace { value } => reference.try_replace(
                 source_id,
                 value.to_value_container(&self.memory)?,
                 &self.memory,
@@ -99,7 +99,7 @@ impl DIFInterface for RuntimeInternal {
                         ),
                     ));
                 }
-                reference.try_push_value(
+                reference.try_append_value(
                     source_id,
                     value.to_value_container(&self.memory)?,
                     &self.memory,
@@ -127,21 +127,21 @@ impl DIFInterface for RuntimeInternal {
                 }
 
                 match key {
-                    DIFProperty::Text(key) => reference.try_delete_property(
+                    DIFKey::Text(key) => reference.try_delete_property(
                         source_id,
-                        ValueContainer::from(key),
+                        &key,
                         &self.memory,
                     )?,
-                    DIFProperty::Index(key) => reference.try_delete_property(
+                    DIFKey::Index(key) => reference.try_delete_property(
                         source_id,
-                        ValueContainer::from(key),
+                        key,
                         &self.memory,
                     )?,
-                    DIFProperty::Value(key) => {
+                    DIFKey::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
                         reference.try_delete_property(
                             source_id,
-                            key,
+                            &key,
                             &self.memory,
                         )?
                     }

@@ -349,7 +349,7 @@ impl SerializeMap for MapSerializer {
         let mut map = Map::default();
         for (key, value) in self.entries.into_iter() {
             if let Some(value) = value {
-                map.set(key, value);
+                map.set(&key, value);
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),
@@ -844,7 +844,7 @@ mod tests {
                 .borrow()
                 .cast_to_map()
                 .unwrap()
-                .get_text("usize")
+                .get("usize")
                 .unwrap(),
             ValueContainer::from(42)
         );

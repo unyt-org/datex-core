@@ -20,7 +20,7 @@ use crate::values::core_values::map::{Map, MapAccessError};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{ValueContainer, ValueKey};
 use core::cell::RefCell;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
@@ -29,21 +29,56 @@ use core::option::Option;
 use core::unreachable;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
+use core::write;
+
+#[derive(Debug)]
+pub struct IndexOutOfBoundsError {
+    pub index: u32,
+}
+
+impl Display for IndexOutOfBoundsError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Index out of bounds: {}", self.index)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeyNotFoundError {
+    pub key: ValueContainer,
+}
+
+impl Display for KeyNotFoundError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Property not found: {}", self.key)
+    }
+}
+
 
 #[derive(Debug)]
 pub enum AccessError {
     ImmutableReference,
     InvalidOperation(String),
-    PropertyNotFound(String),
-    CanNotUseReferenceAsKey,
-    IndexOutOfBounds(u32),
-    InvalidPropertyKeyType(String),
-    MapAccessError(Box<MapAccessError>),
+    KeyNotFound(KeyNotFoundError),
+    IndexOutOfBounds(IndexOutOfBoundsError),
+    MapAccessError(MapAccessError),
+    InvalidIndexKey,
+}
+
+impl From<IndexOutOfBoundsError> for AccessError {
+    fn from(err: IndexOutOfBoundsError) -> Self {
+        AccessError::IndexOutOfBounds(err)
+    }
 }
 
 impl From<MapAccessError> for AccessError {
     fn from(err: MapAccessError) -> Self {
-        AccessError::MapAccessError(Box::new(err))
+        AccessError::MapAccessError(err)
+    }
+}
+
+impl From<KeyNotFoundError> for AccessError {
+    fn from(err: KeyNotFoundError) -> Self {
+        AccessError::KeyNotFound(err)
     }
 }
 
@@ -51,25 +86,22 @@ impl Display for AccessError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AccessError::MapAccessError(err) => {
-                core::write!(f, "Map access error: {}", err)
+                write!(f, "Map access error: {}", err)
             }
             AccessError::ImmutableReference => {
-                core::write!(f, "Cannot modify an immutable reference")
+                write!(f, "Cannot modify an immutable reference")
             }
             AccessError::InvalidOperation(op) => {
-                core::write!(f, "Invalid operation: {}", op)
+                write!(f, "Invalid operation: {}", op)
             }
-            AccessError::PropertyNotFound(prop) => {
-                core::write!(f, "Property not found: {}", prop)
+            AccessError::KeyNotFound(key) => {
+                write!(f, "{}", key)
             }
-            AccessError::CanNotUseReferenceAsKey => {
-                core::write!(f, "Cannot use a reference as a property key")
+            AccessError::IndexOutOfBounds(error) => {
+                write!(f, "{}", error)
             }
-            AccessError::IndexOutOfBounds(index) => {
-                core::write!(f, "Index out of bounds: {}", index)
-            }
-            AccessError::InvalidPropertyKeyType(ty) => {
-                core::write!(f, "Invalid property key type: {}", ty)
+            AccessError::InvalidIndexKey => {
+                write!(f, "Invalid index key")
             }
         }
     }
@@ -85,7 +117,7 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypeError::TypeMismatch { expected, found } => core::write!(
+            TypeError::TypeMismatch { expected, found } => write!(
                 f,
                 "Type mismatch: expected {}, found {}",
                 expected,
@@ -105,10 +137,10 @@ impl Display for AssignmentError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AssignmentError::ImmutableReference => {
-                core::write!(f, "Cannot assign to an immutable reference")
+                write!(f, "Cannot assign to an immutable reference")
             }
             AssignmentError::TypeError(e) => {
-                core::write!(f, "Type error: {}", e)
+                write!(f, "Type error: {}", e)
             }
         }
     }
@@ -207,8 +239,8 @@ pub mod mutability_option_as_int {
 impl Display for ReferenceMutability {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ReferenceMutability::Mutable => core::write!(f, "&mut"),
-            ReferenceMutability::Immutable => core::write!(f, "&"),
+            ReferenceMutability::Mutable => write!(f, "&mut"),
+            ReferenceMutability::Immutable => write!(f, "&"),
         }
     }
 }
@@ -224,11 +256,11 @@ impl Display for Reference {
         match self {
             Reference::ValueReference(vr) => {
                 let vr = vr.borrow();
-                core::write!(f, "{} {}", vr.mutability, vr.value_container)
+                write!(f, "{} {}", vr.mutability, vr.value_container)
             }
             Reference::TypeReference(tr) => {
                 let tr = tr.borrow();
-                core::write!(f, "{}", tr)
+                write!(f, "{}", tr)
             }
         }
     }
@@ -339,13 +371,13 @@ impl Display for ReferenceCreationError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ReferenceCreationError::InvalidType => {
-                core::write!(
+                write!(
                     f,
                     "Cannot create reference from value container: invalid type"
                 )
             }
             ReferenceCreationError::MutableTypeReference => {
-                core::write!(f, "Cannot create mutable reference for type")
+                write!(f, "Cannot create mutable reference for type")
             }
         }
     }
@@ -652,32 +684,6 @@ impl Reference {
         }
     }
 
-    /// upgrades all inner combined values (e.g. map properties) to references
-    pub fn upgrade_inner_combined_values_to_references(&self) {
-        self.with_value(|value| {
-            match &mut value.inner {
-                CoreValue::Map(map) => {
-                    // Iterate over all properties and upgrade them to references
-                    for (_, prop) in map.into_iter() {
-                        // TODO #291: no clone here, implement some sort of map
-                        *prop = self.bind_child(prop.clone());
-                    }
-                }
-                // TODO #292: other combined value types should be added here
-                _ => {
-                    // If the value is not an map, we do not need to upgrade anything
-                }
-            }
-        });
-    }
-
-    /// Binds a child value to this reference, ensuring the child is a reference if it is a combined value
-    pub fn bind_child(&self, child: ValueContainer) -> ValueContainer {
-        // Ensure the child is a reference if it is a combined value
-
-        child.upgrade_combined_value_to_reference()
-    }
-
     pub fn allowed_type(&self) -> TypeContainer {
         match self {
             Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
@@ -752,19 +758,32 @@ impl Reference {
     // key_val = &key_ref.value()
     // &key_ref.set_value(key_val + 1)
     // -> we could avoid some clones if so (as get, addition, set would all be a clone)
-    pub fn try_get_property<T: Into<ValueContainer>>(
+    pub fn try_get_property<'a>(
         &self,
-        key: T,
+        key: impl Into<ValueKey<'a>>
     ) -> Result<ValueContainer, AccessError> {
-        let key = key.into();
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
-                    // If the value is an map, get the property
-                    Ok(map
-                        .get(&key)
-                        .ok_or(AccessError::PropertyNotFound(key.to_string()))?
-                        .clone())
+                    // If the value is a map, get the property
+                    Ok(map.get(key)?.clone())
+                },
+                CoreValue::List(ref mut list) => {
+                    if let Some(index) = key.into().try_as_index() {
+                        Ok(list.get(index)?.clone())
+                    }
+                    else {
+                        Err(AccessError::InvalidIndexKey)
+                    }
+                }
+                CoreValue::Text(ref text) => {
+                    if let Some(index) = key.into().try_as_index() {
+                        let char = text.char_at(index)?;
+                        Ok(ValueContainer::from(char.to_string()))
+                    }
+                    else {
+                        Err(AccessError::InvalidIndexKey)
+                    }
                 }
                 _ => {
                     // If the value is not an map, we cannot get a property
@@ -776,57 +795,6 @@ impl Reference {
         })
         .unwrap_or(Err(AccessError::InvalidOperation(
             "Cannot get property on invalid reference".to_string(),
-        )))
-    }
-
-    /// Gets a text property from the value if applicable (e.g. for structs)
-    pub fn try_get_text_property(
-        &self,
-        key: &str,
-    ) -> Result<ValueContainer, AccessError> {
-        self.with_value(|value| {
-            match value.inner {
-                CoreValue::Map(ref mut struct_val) => struct_val
-                    .get_text(key)
-                    .ok_or_else(|| {
-                        AccessError::PropertyNotFound(key.to_string())
-                    })
-                    .cloned(),
-                _ => {
-                    // If the value is not an map, we cannot get a property
-                    Err(AccessError::InvalidOperation(
-                        "Cannot get property".to_string(),
-                    ))
-                }
-            }
-        })
-        .unwrap_or(Err(AccessError::InvalidOperation(
-            "Cannot get property on invalid reference".to_string(),
-        )))
-    }
-
-    /// Gets a numeric property from the value if applicable (e.g. for lists and text)
-    pub fn get_numeric_property(
-        &self,
-        index: u32,
-    ) -> Result<ValueContainer, AccessError> {
-        self.with_value(|value| match value.inner {
-            CoreValue::List(ref mut list) => list
-                .get(index)
-                .cloned()
-                .ok_or(AccessError::IndexOutOfBounds(index)),
-            CoreValue::Text(ref text) => {
-                let char = text
-                    .char_at(index as usize)
-                    .ok_or(AccessError::IndexOutOfBounds(index))?;
-                Ok(ValueContainer::from(char.to_string()))
-            }
-            _ => Err(AccessError::InvalidOperation(
-                "Cannot get numeric property".to_string(),
-            )),
-        })
-        .unwrap_or(Err(AccessError::InvalidOperation(
-            "Cannot get numeric property on invalid reference".to_string(),
         )))
     }
 }
@@ -896,7 +864,7 @@ mod tests {
         assert!(reference.try_get_property("nonexistent").is_err());
         assert_matches!(
             reference.try_get_property("nonexistent"),
-            Err(AccessError::PropertyNotFound(_))
+            Err(AccessError::KeyNotFound(_))
         );
     }
 
@@ -908,17 +876,17 @@ mod tests {
         ]);
         let reference = Reference::from(ValueContainer::from(struct_val));
         assert_eq!(
-            reference.try_get_text_property("name").unwrap(),
+            reference.try_get_property("name").unwrap(),
             ValueContainer::from("Jonas")
         );
         assert_eq!(
-            reference.try_get_text_property("age").unwrap(),
+            reference.try_get_property("age").unwrap(),
             ValueContainer::from(30)
         );
-        assert!(reference.try_get_text_property("nonexistent").is_err());
+        assert!(reference.try_get_property("nonexistent").is_err());
         assert_matches!(
-            reference.try_get_text_property("nonexistent"),
-            Err(AccessError::PropertyNotFound(_))
+            reference.try_get_property("nonexistent"),
+            Err(AccessError::KeyNotFound(_))
         );
     }
 
@@ -932,33 +900,33 @@ mod tests {
         let reference = Reference::from(ValueContainer::from(list));
 
         assert_eq!(
-            reference.get_numeric_property(0).unwrap(),
+            reference.try_get_property(0).unwrap(),
             ValueContainer::from(1)
         );
         assert_eq!(
-            reference.get_numeric_property(1).unwrap(),
+            reference.try_get_property(1).unwrap(),
             ValueContainer::from(2)
         );
         assert_eq!(
-            reference.get_numeric_property(2).unwrap(),
+            reference.try_get_property(2).unwrap(),
             ValueContainer::from(3)
         );
-        assert!(reference.get_numeric_property(3).is_err());
+        assert!(reference.try_get_property(3).is_err());
 
         assert_matches!(
-            reference.get_numeric_property(100),
-            Err(AccessError::IndexOutOfBounds(100))
+            reference.try_get_property(100),
+            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 100 }))
         );
 
         let text_ref = Reference::from(ValueContainer::from("hello"));
         assert_eq!(
-            text_ref.get_numeric_property(1).unwrap(),
+            text_ref.try_get_property(1).unwrap(),
             ValueContainer::from("e".to_string())
         );
-        assert!(text_ref.get_numeric_property(5).is_err());
+        assert!(text_ref.try_get_property(5).is_err());
         assert_matches!(
-            text_ref.get_numeric_property(100),
-            Err(AccessError::IndexOutOfBounds(100))
+            text_ref.try_get_property(100),
+            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 100 }))
         );
     }
 
@@ -1014,7 +982,7 @@ mod tests {
         map_a.set("obj", ValueContainer::new_reference(Map::default()));
 
         // construct map_a as a value first
-        let map_a_val = ValueContainer::new_value(map_a);
+        let map_a_original_ref = ValueContainer::new_reference(map_a);
 
         // create map_b as a reference
         let map_b_ref = Reference::try_new_from_value_container(
@@ -1028,12 +996,14 @@ mod tests {
         // set map_a as property of b. This should create a reference to a clone of map_a that
         // is upgraded to a reference
         map_b_ref
-            .try_set_property(0, "a".into(), map_a_val.clone(), memory)
+            .try_set_property(0, "a", map_a_original_ref.clone(), memory)
             .unwrap();
 
         // assert that the reference to map_a is set correctly
         let map_a_ref = map_b_ref.try_get_property("a").unwrap();
-        assert_structural_eq!(map_a_ref, map_a_val);
+        assert_structural_eq!(map_a_ref, map_a_original_ref);
+        assert_eq!(map_a_ref, map_a_original_ref);
+        assert_identical!(map_a_ref, map_a_original_ref);
         // map_a_ref should be a reference
         assert_matches!(map_a_ref, ValueContainer::Reference(_));
         map_a_ref.with_maybe_reference(|a_ref| {

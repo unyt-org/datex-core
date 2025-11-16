@@ -17,6 +17,7 @@ use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
 use serde::Deserialize;
+use crate::values::core_value::CoreValue;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -39,6 +40,99 @@ impl Display for ValueError {
             ValueError::IntegerOverflow => {
                 core::write!(f, "Integer overflow occurred")
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ValueKey<'a> {
+    Text(&'a str),
+    Index(i64),
+    Value(&'a ValueContainer),
+}
+
+impl<'a> ValueKey<'a> {
+    pub fn with_value_container<R>(&self, callback: impl FnOnce(&ValueContainer)->R) -> R {
+        match self {
+            ValueKey::Value(value_container) => callback(value_container),
+            ValueKey::Text(text) => {
+                let value_container = ValueContainer::new_value(*text);
+                callback(&value_container)
+            }
+            ValueKey::Index(index) => {
+                let value_container = ValueContainer::new_value(*index);
+                callback(&value_container)
+            }
+        }
+    }
+}
+
+impl<'a> Display for ValueKey<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ValueKey::Text(text) => core::write!(f, "{}", text),
+            ValueKey::Index(index) => core::write!(f, "{}", index),
+            ValueKey::Value(value_container) => {
+                core::write!(f, "{}", value_container)
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a String> for ValueKey<'a> {
+    fn from(text: &'a String) -> Self {
+        ValueKey::Text(text)
+    }
+}
+
+impl<'a> From<&'a str> for ValueKey<'a> {
+    fn from(text: &'a str) -> Self {
+        ValueKey::Text(text)
+    }
+}
+
+impl<'a> From<i64> for ValueKey<'a> {
+    fn from(index: i64) -> Self {
+        ValueKey::Index(index)
+    }
+}
+
+impl<'a> From<&'a ValueContainer> for ValueKey<'a> {
+    fn from(value_container: &'a ValueContainer) -> Self {
+        ValueKey::Value(value_container)
+    }
+}
+
+impl<'a> ValueKey<'a> {
+    pub fn try_as_text(&self) -> Option<&str> {
+        if let ValueKey::Text(text) = self {
+            Some(text)
+        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::Text(text), ..})) = self {
+            Some(&text.0)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_as_index(&self) -> Option<i64> {
+        if let ValueKey::Index(index) = self {
+            Some(*index)
+        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::Integer(index), ..})) = self {
+            index.as_i64()
+        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::TypedInteger(index), ..})) = self {
+            index.as_i64()
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> From<ValueKey<'a>> for ValueContainer {
+    fn from(value_key: ValueKey) -> Self {
+        match value_key {
+            ValueKey::Text(text) => ValueContainer::new_value(text),
+            ValueKey::Index(index) => ValueContainer::new_value(index),
+            ValueKey::Value(value_container) => value_container.clone(),
         }
     }
 }
@@ -222,24 +316,6 @@ impl ValueContainer {
         match self {
             ValueContainer::Reference(reference) => reference,
             _ => core::panic!("Cannot convert ValueContainer to Reference"),
-        }
-    }
-
-    /// Upgrades the ValueContainer to a ValueContainer::Reference if it is a ValueContainer::Value
-    /// and if the contained value is a combined value, not a primitive value like integer, text, etc.
-    pub fn upgrade_combined_value_to_reference(self) -> ValueContainer {
-        match &self {
-            // already a reference, no need to upgrade
-            ValueContainer::Reference(_) => self,
-            ValueContainer::Value(value) => {
-                if value.is_collection_value() {
-                    ValueContainer::new_reference(self)
-                }
-                // if the value is not a combined value, keep it as a ValueContainer::Value
-                else {
-                    self
-                }
-            }
         }
     }
 }
