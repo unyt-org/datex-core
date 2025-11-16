@@ -159,10 +159,10 @@ pub fn declaration_or_assignment<'a>(
     unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
+        property_assignment(apply_chain, expression.clone()),
         type_declaration(),
         variable_declaration(expression.clone()),
-        property_assignment(apply_chain, expression.clone()),
         deref_assignment(expression.clone(), unary),
-        variable_assignment(expression),
+        variable_assignment(expression.clone()),
     ))
 }

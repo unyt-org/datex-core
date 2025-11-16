@@ -1,3 +1,4 @@
+use crate::ast::lexer::NumericLiteralParts;
 use crate::stdlib::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
@@ -9,6 +10,8 @@ use crate::ast::structs::r#type::{
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
     TypeVariantAccess, Union,
 };
+use crate::values::core_values::error::NumberParseError;
+use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::{
     ast::{
         DatexParserTrait,
@@ -38,15 +41,22 @@ use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
     select! {
-        // FIXME
-        // Token::DecimalIntegerLiteralWithVariant(IntegerLiteral { value, variant }) => {
-        //     match variant {
-        //         Some(var) => TypedInteger::from_string_with_variant(&value, var)
-        //             .map(TypeExpressionData::TypedInteger),
-        //         None => Integer::from_string(&value)
-        //             .map(TypeExpressionData::Integer),
-        //     }
-        // },
+        Token::DecimalNumericLiteral(NumericLiteralParts { integer_part, exponent_part: None, variant_part }) => {
+            match variant_part {
+                Some(var) => {
+                    let variant = IntegerTypeVariant::from_str(&var);
+                    if variant.is_err() {
+                        // FIXME why tf some
+                        return Some(Err(NumberParseError::InvalidFormat));
+                    }
+                    let variant = variant.unwrap();
+                    TypedInteger::from_string_with_variant(&integer_part, variant)
+                    .map(TypeExpressionData::TypedInteger)
+                },
+                None => Integer::from_string(&integer_part)
+                    .map(TypeExpressionData::Integer),
+            }
+        },
         Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
             match variant {
                 Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
@@ -85,18 +95,16 @@ pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
 }
 
 pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
-    select! {
-        // FIXME
-        // Token::DecimalLiteralWithSuffix(DecimalLiteral { value, variant }) => {
-        //     match variant {
-        //         Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var).map(TypeExpressionData::TypedDecimal),
-        //         None => Decimal::from_string(&value).map(TypeExpressionData::Decimal)
-        //     }
-        // },
-        Token::FractionLiteral(s) => Decimal::from_string(&s).map(TypeExpressionData::Decimal),
-    }.try_map(|res, _| {
-		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
-	})
+    crate::ast::grammar::decimal::decimal().try_map(|res, _| {
+        res.map(|e| {
+            if let DatexExpressionData::Decimal(dec) = e {
+                TypeExpressionData::Decimal(dec)
+            } else {
+                panic!("xx");
+            }
+        })
+        .map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
+    })
 }
 
 pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {

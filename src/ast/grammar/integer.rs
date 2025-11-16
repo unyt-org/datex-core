@@ -29,6 +29,7 @@ pub fn integer<'a>() -> impl DatexParserTrait<'a> {
                 Some(var) => {
                     let variant = IntegerTypeVariant::from_str(&var);
                     if variant.is_err() {
+                        // FIXME why tf some
                         return Some(Err(NumberParseError::InvalidFormat));
                     }
                     let variant = variant.unwrap();
