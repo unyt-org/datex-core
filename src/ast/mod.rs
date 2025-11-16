@@ -157,7 +157,9 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let chain =
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
-    let binary = binary_operation(chain.clone());
+    let chain_or_unary = chain.or(unary.clone());
+
+    let binary = binary_operation(chain_or_unary);
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -165,18 +167,20 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     // comparison (==, !=, is, …)
     let comparison = comparison_operation(binary.clone());
 
+    let chain_without_whitespace_apply = chain_without_whitespace_apply(
+        unary.clone(),
+        key.clone(),
+        expression.clone(),
+    );
+
     // declarations or assignments
     let declaration_or_assignment = declaration_or_assignment(
-        chain.clone(),
+        chain_without_whitespace_apply.clone(),
         expression.clone(),
         unary.clone(),
     );
 
-    let condition_union = binary_operation(chain_without_whitespace_apply(
-        unary.clone(),
-        key.clone(),
-        expression.clone(),
-    ));
+    let condition_union = binary_operation(chain_without_whitespace_apply);
     let condition = comparison_operation(condition_union);
 
     let if_expression = recursive(|if_rec| {
@@ -293,14 +297,6 @@ pub fn parse(mut src: &str) -> DatexParseResult {
 
     let (tokens, spans): (Vec<_>, Vec<_>) = tokens_spanned.into_iter().unzip();
 
-    // FIXME
-    // let file = std::fs::File::create("/tmp/datex_tokens.txt").unwrap();
-    // let mut writer = std::io::BufWriter::new(file);
-    // for token in &tokens {
-    //     writeln!(writer, "{:?}", token).unwrap();
-    // }
-    // writer.flush().unwrap();
-    // panic!("Wrote tokens to /tmp/datex_tokens.txt");
     let parser = create_parser();
     let result = parser.parse(&tokens);
 

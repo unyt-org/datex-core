@@ -28,19 +28,16 @@ pub fn chain_without_whitespace_apply<'a>(
                     .map(ApplyOperation::PropertyAccess),
             ))
             .repeated()
+            .at_least(1)
             .collect::<Vec<_>>(),
         )
         .labelled(Pattern::Custom("chain_no_whitespace_atom"))
         .map_with(|(val, args), e| {
-            if args.is_empty() {
-                val
-            } else {
-                DatexExpressionData::ApplyChain(ApplyChain {
-                    base: Box::new(val),
-                    operations: args,
-                })
-                .with_span(e.span())
-            }
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base: Box::new(val),
+                operations: args,
+            })
+            .with_span(e.span())
         })
 }
 
@@ -124,19 +121,15 @@ pub fn chain<'a>(
                     .map(ApplyOperation::PropertyAccess),
             ))
             .repeated()
+            .at_least(1)
             .collect::<Vec<_>>(),
         )
         .labelled(Pattern::Custom("chain"))
         .map_with(|(val, args), e| {
-            // if only single value, return it directly
-            if args.is_empty() {
-                val
-            } else {
-                DatexExpressionData::ApplyChain(ApplyChain {
-                    base: Box::new(val),
-                    operations: args,
-                })
-                .with_span(e.span())
-            }
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base: Box::new(val),
+                operations: args,
+            })
+            .with_span(e.span())
         })
 }
