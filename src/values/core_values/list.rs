@@ -9,6 +9,7 @@ use crate::values::{
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use crate::references::reference::IndexOutOfBoundsError;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
@@ -22,33 +23,23 @@ impl List {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn get(&self, index: u32) -> Option<&ValueContainer> {
-        self.0.get(index as usize)
+    pub fn get(&self, index: i64) -> Result<&ValueContainer, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        self.0.get(index as usize).ok_or(IndexOutOfBoundsError { index })
     }
 
     /// Sets the value at the specified index.
     /// If the index is equal to the current length of the list, the value is pushed to the end.
     /// If the index is greater than the current length, None is returned.
     /// Returns the previous value at the index if it was replaced.
-    // FIXME #321: Add set error when out of bounds, deprecate push case here?
     pub fn set(
         &mut self,
-        index: u32,
+        index: i64,
         value: ValueContainer,
-    ) -> Option<ValueContainer> {
+    ) -> Result<ValueContainer, IndexOutOfBoundsError> {
+        let index = self.get_valid_index(index)?;
         // replace
-        if (index as usize) < self.0.len() {
-            Some(core::mem::replace(&mut self.0[index as usize], value))
-        }
-        // push
-        else if (index as usize) == self.0.len() {
-            self.0.push(value);
-            None
-        }
-        // out of bounds
-        else {
-            None
-        }
+        Ok(core::mem::replace(&mut self.0[index], value))
     }
 
     pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {
@@ -77,6 +68,39 @@ impl List {
 
     pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, ValueContainer> {
         self.0.iter_mut()
+    }
+
+    pub fn splice(
+        &mut self,
+        range: core::ops::Range<usize>,
+        replace_with: impl IntoIterator<Item = ValueContainer>,
+    ) {
+        let _: Vec<_> = self.0.splice(range, replace_with).collect();
+    }
+
+    /// if index is negative, count from the end
+    #[inline]
+    fn wrap_index(&self, index: i64) -> u32 {
+        if index < 0 {
+            (index + self.0.len() as i64) as u32
+        } else {
+            index as u32
+        }
+    }
+
+    #[inline]
+    fn get_valid_index(&self, index: i64) -> Result<usize, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        if (index as usize) < self.0.len() {
+            Ok(index as usize)
+        } else {
+            Err(IndexOutOfBoundsError { index })
+        }
+    }
+
+    pub fn delete(&mut self, index: i64) -> Result<ValueContainer, IndexOutOfBoundsError> {
+        let index = self.get_valid_index(index)?;
+        Ok(self.0.remove(index))
     }
 }
 

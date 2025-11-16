@@ -1154,7 +1154,7 @@ fn handle_value(
                             // handle active value collector
                             handle_key_value_pair(
                                 collector,
-                                key,
+                                &key,
                                 value_container,
                             )?;
                         }
@@ -1371,7 +1371,7 @@ fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
 
 fn handle_key_value_pair(
     active_container: &mut ValueContainer,
-    key: ValueContainer,
+    key: &ValueContainer,
     value: ValueContainer,
 ) -> Result<(), ExecutionError> {
     // insert key value pair into active map
@@ -1883,9 +1883,9 @@ mod tests {
         info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(map.get(&"x".into()), Some(&Integer::from(1i8).into()));
-        assert_eq!(map.get(&"y".into()), Some(&Integer::from(2i8).into()));
-        assert_eq!(map.get(&"z".into()), Some(&Integer::from(42i8).into()));
+        assert_eq!(map.get("x"), Ok(&Integer::from(1i8).into()));
+        assert_eq!(map.get("y"), Ok(&Integer::from(2i8).into()));
+        assert_eq!(map.get("z"), Ok(&Integer::from(42i8).into()));
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![

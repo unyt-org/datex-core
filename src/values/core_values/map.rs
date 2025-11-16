@@ -8,12 +8,13 @@ use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{ValueContainer, ValueKey};
 use core::fmt::{self, Display};
 use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use indexmap::IndexMap;
+use crate::references::reference::KeyNotFoundError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
@@ -27,15 +28,15 @@ pub enum Map {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MapAccessError {
-    KeyNotFound,
+    KeyNotFound(KeyNotFoundError),
     Immutable,
 }
 
 impl Display for MapAccessError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MapAccessError::KeyNotFound => {
-                core::write!(f, "Key not found in fixed map")
+            MapAccessError::KeyNotFound(err) => {
+                core::write!(f, "{}", err)
             }
             MapAccessError::Immutable => {
                 core::write!(f, "Map is immutable")
@@ -79,67 +80,49 @@ impl Map {
 
     /// Gets a value in the map by reference.
     /// Returns None if the key is not found.
-    pub fn get(&self, key: &ValueContainer) -> Option<&ValueContainer> {
-        match self {
-            Map::Dynamic(map) => map.get(key),
+    pub fn get<'a>(&self, key: impl Into<ValueKey<'a>>) -> Result<&ValueContainer, KeyNotFoundError> {
+        let key = key.into();
+        Ok(match self {
+            Map::Dynamic(map) => {
+                key.with_value_container(|key| {
+                    map.get(key)
+                })
+            }
             Map::Fixed(vec) => {
-                vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+                key.with_value_container(|key| {
+                    vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+                })
             }
             Map::Structural(vec) => {
                 // only works if key is a string
-                if let ValueContainer::Value(Value {
-                    inner: CoreValue::Text(text),
-                    ..
-                }) = key
+                if let Some(string) = key.try_as_text()
                 {
-                    vec.iter().find(|(k, _)| k == &text.0).map(|(_, v)| v)
+                    vec.iter().find(|(k, _)| k == string).map(|(_, v)| v)
                 } else {
                     None
                 }
             }
-        }
-    }
-
-    /// Gets a value in the map, where the key is a string.
-    /// Returns None if the key is not found
-    pub fn get_text(&self, key: &str) -> Option<&ValueContainer> {
-        match self {
-            Map::Dynamic(map) => {
-                map.get(&ValueContainer::from(key.to_string()))
-            }
-            Map::Fixed(vec) => vec
-                .iter()
-                .find(|(k, _)| {
-                    if let ValueContainer::Value(Value {
-                        inner: CoreValue::Text(text),
-                        ..
-                    }) = k
-                    {
-                        text.0 == key
-                    } else {
-                        false
-                    }
-                })
-                .map(|(_, v)| v),
-            Map::Structural(vec) => {
-                vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
-            }
-        }
+        }.ok_or_else(|| KeyNotFoundError {key: key.into()})?)
     }
 
     /// Checks if the map contains the given key.
-    pub fn has(&self, key: &ValueContainer) -> bool {
+    pub fn has<'a>(&self, key: impl Into<ValueKey<'a>>) -> bool {
         match self {
-            Map::Dynamic(map) => map.contains_key(key),
-            Map::Fixed(vec) => vec.iter().any(|(k, _)| k == key),
+            Map::Dynamic(map) => {
+                key.into().with_value_container(|key| {
+                    map.contains_key(key)
+                })
+            }
+            Map::Fixed(vec) => {
+                key.into().with_value_container(|key| {
+                    vec.iter().any(|(k, _)| k == key)
+                })
+            },
             Map::Structural(vec) => {
                 // only works if key is a string
-                if let ValueContainer::Value(Value {
-                    inner: CoreValue::Text(text),
-                    ..
-                }) = key
+                if let Some(string) = key.into().try_as_text()
                 {
-                    vec.iter().any(|(k, _)| k == &text.0)
+                    vec.iter().any(|(k, _)| k == string)
                 } else {
                     false
                 }
@@ -148,13 +131,16 @@ impl Map {
     }
 
     /// Removes a key from the map, returning the value if it existed.
-    pub fn remove(
+    pub fn remove<'a>(
         &mut self,
-        key: &ValueContainer,
+        key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, MapAccessError> {
+        let key = key.into();
         match self {
             Map::Dynamic(map) => {
-                map.shift_remove(key).ok_or(MapAccessError::KeyNotFound)
+                key.with_value_container(|key| {
+                    map.shift_remove(key).ok_or_else(|| MapAccessError::KeyNotFound(KeyNotFoundError { key: key.clone() }))
+                })
             }
             Map::Fixed(_) | Map::Structural(_) => {
                 Err(MapAccessError::Immutable)
@@ -175,19 +161,11 @@ impl Map {
         }
     }
 
-    /// Gets a value in the map, taking ownership of the key.
-    pub fn get_owned<T: Into<ValueContainer>>(
-        &self,
-        key: T,
-    ) -> Option<&ValueContainer> {
-        self.get(&key.into())
-    }
-
     /// Sets a value in the map, panicking if it fails.
-    pub(crate) fn set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
+    pub(crate) fn set<'a>(
         &mut self,
-        key: K,
-        value: V,
+        key: impl Into<ValueKey<'a>>,
+        value: impl Into<ValueContainer>,
     ) {
         self.try_set(key, value)
             .expect("Setting value in map failed");
@@ -195,42 +173,40 @@ impl Map {
 
     /// Sets a value in the map, returning an error if it fails.
     /// This is the preferred way to set values in the map.
-    pub(crate) fn try_set<K: Into<ValueContainer>, V: Into<ValueContainer>>(
+    pub(crate) fn try_set<'a>(
         &mut self,
-        key: K,
-        value: V,
-    ) -> Result<(), MapAccessError> {
+        key: impl Into<ValueKey<'a>>,
+        value: impl Into<ValueContainer>,
+    ) -> Result<(), KeyNotFoundError> {
+        let key = key.into();
         match self {
             Map::Dynamic(map) => {
-                map.insert(key.into(), value.into());
+                key.with_value_container(|key| {
+                    map.insert(key.clone(), value.into());
+                });
                 Ok(())
             }
             Map::Fixed(vec) => {
-                let key = key.into();
-                if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == &key) {
-                    *v = value.into();
-                    Ok(())
-                } else {
-                    Err(MapAccessError::KeyNotFound)
-                }
-            }
-            Map::Structural(vec) => {
-                let key = key.into();
-                if let ValueContainer::Value(Value {
-                    inner: CoreValue::Text(text),
-                    ..
-                }) = key
-                {
-                    if let Some((_, v)) =
-                        vec.iter_mut().find(|(k, _)| k == &text.0)
-                    {
+                key.with_value_container(|key| {
+                    if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == key) {
                         *v = value.into();
                         Ok(())
                     } else {
-                        Err(MapAccessError::KeyNotFound)
+                        Err(KeyNotFoundError { key: key.clone() } )
+                    }
+                })
+            }
+            Map::Structural(vec) => {
+                if let Some(string) = key.try_as_text() {
+                    if let Some((_, v)) =
+                        vec.iter_mut().find(|(k, _)| k == string) {
+                        *v = value.into();
+                        Ok(())
+                    } else {
+                        Err(KeyNotFoundError { key: key.into() } )
                     }
                 } else {
-                    Err(MapAccessError::KeyNotFound)
+                    Err(KeyNotFoundError { key: key.into() } )
                 }
             }
         }
@@ -622,8 +598,8 @@ mod tests {
         map.set("key1", 42);
         map.set("key2", "value2");
         assert_eq!(map.size(), 2);
-        assert_eq!(map.get_owned("key1").unwrap().to_string(), "42");
-        assert_eq!(map.get_owned("key2").unwrap().to_string(), "\"value2\"");
+        assert_eq!(map.get("key1").unwrap().to_string(), "42");
+        assert_eq!(map.get("key2").unwrap().to_string(), "\"value2\"");
         assert_eq!(map.to_string(), r#"{"key1": 42, "key2": "value2"}"#);
     }
 
@@ -633,14 +609,14 @@ mod tests {
         map.set("key1", 42);
         map.set("key1", "new_value");
         assert_eq!(map.size(), 1);
-        assert_eq!(map.get_owned("key1").unwrap().to_string(), "\"new_value\"");
+        assert_eq!(map.get("key1").unwrap().to_string(), "\"new_value\"");
     }
 
     #[test]
     fn test_ref_keys() {
         let mut map = Map::default();
         let key = ValueContainer::new_reference(ValueContainer::from(42));
-        map.set(key.clone(), "value");
+        map.set(&key, "value");
         // same reference should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&key));
@@ -649,14 +625,14 @@ mod tests {
         // new reference with same value should not be found
         let new_key = ValueContainer::new_reference(ValueContainer::from(42));
         assert!(!map.has(&new_key));
-        assert!(map.get(&new_key).is_none());
+        assert!(map.get(&new_key).is_err());
     }
 
     #[test]
     fn test_decimal_nan_value_key() {
         let mut map = Map::default();
         let nan_value = ValueContainer::from(Decimal::NaN);
-        map.set(nan_value.clone(), "value");
+        map.set(&nan_value, "value");
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
@@ -666,7 +642,7 @@ mod tests {
         assert!(map.has(&new_nan_value));
 
         // adding new_nan_value should not increase size
-        map.set(new_nan_value.clone(), "new_value");
+        map.set(&new_nan_value, "new_value");
         assert_eq!(map.size(), 1);
     }
 
@@ -674,7 +650,7 @@ mod tests {
     fn test_float_nan_value_key() {
         let mut map = Map::default();
         let nan_value = ValueContainer::from(f64::NAN);
-        map.set(nan_value.clone(), "value");
+        map.set(&nan_value, "value");
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
@@ -688,7 +664,7 @@ mod tests {
         assert!(!map.has(&float32_nan_value));
 
         // adding new_nan_value should not increase size
-        map.set(new_nan_value.clone(), "new_value");
+        map.set(&new_nan_value, "new_value");
         assert_eq!(map.size(), 1);
     }
 
@@ -696,7 +672,7 @@ mod tests {
     fn test_decimal_zero_value_key() {
         let mut map = Map::default();
         let zero_value = ValueContainer::from(Decimal::Zero);
-        map.set(zero_value.clone(), "value");
+        map.set(&zero_value, "value");
         // same Zero value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_value));
@@ -711,7 +687,7 @@ mod tests {
         assert!(map.has(&neg_zero_value));
 
         // adding neg_zero_value should not increase size
-        map.set(neg_zero_value.clone(), "new_value");
+        map.set(&neg_zero_value, "new_value");
         assert_eq!(map.size(), 1);
     }
 
@@ -719,7 +695,7 @@ mod tests {
     fn test_float_zero_value_key() {
         let mut map = Map::default();
         let zero_value = ValueContainer::from(0.0f64);
-        map.set(zero_value.clone(), "value");
+        map.set(&zero_value, "value");
         // same 0.0 value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_value));
@@ -731,7 +707,7 @@ mod tests {
         assert!(map.has(&neg_zero_value));
 
         // adding neg_zero_value should not increase size
-        map.set(neg_zero_value.clone(), "new_value");
+        map.set(&neg_zero_value, "new_value");
         assert_eq!(map.size(), 1);
 
         // new 0.0f32 value should not be found
@@ -744,7 +720,7 @@ mod tests {
         let mut map = Map::default();
         let zero_big_decimal =
             ValueContainer::from(TypedDecimal::Decimal(Decimal::Zero));
-        map.set(zero_big_decimal.clone(), "value");
+        map.set(&zero_big_decimal, "value");
         // same Zero value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_big_decimal));
@@ -758,7 +734,7 @@ mod tests {
         assert!(map.has(&neg_zero_big_decimal));
 
         // adding neg_zero_big_decimal should not increase size
-        map.set(neg_zero_big_decimal.clone(), "new_value");
+        map.set(&neg_zero_big_decimal, "new_value");
         assert_eq!(map.size(), 1);
     }
 }

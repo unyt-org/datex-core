@@ -281,7 +281,7 @@ mod tests {
 
         // Update the value of the reference
         int_ref
-            .try_set_value(1, 43, memory)
+            .try_replace(1, 43, memory)
             .expect("Failed to set value");
 
         // Verify the observed update matches the expected change
@@ -308,7 +308,7 @@ mod tests {
 
         // Update the value of the reference
         int_ref
-            .try_set_value(0, 43, memory)
+            .try_replace(0, 43, memory)
             .expect("Failed to set value");
 
         // No update triggered, same transceiver id
@@ -330,7 +330,7 @@ mod tests {
 
         // Update the value of the reference
         int_ref
-            .try_set_value(0, 43, memory)
+            .try_replace(0, 43, memory)
             .expect("Failed to set value");
 
         // update triggered, same transceiver id but relay_own_updates enabled
@@ -363,7 +363,7 @@ mod tests {
             record_dif_updates(&reference, 0, ObserveOptions::default());
         // Update a property
         reference
-            .try_set_text_property(1, "a", "val".into(), memory)
+            .try_set_property(1, "a", "val".into(), memory)
             .expect("Failed to set property");
         // Verify the observed update matches the expected change
         let expected_update = DIFUpdate {

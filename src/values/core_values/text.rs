@@ -8,6 +8,7 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use serde::{Deserialize, Serialize};
+use crate::references::reference::IndexOutOfBoundsError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Text(pub String);
@@ -35,9 +36,31 @@ impl Text {
     pub fn as_string(&self) -> String {
         self.0.clone()
     }
-    pub fn char_at(&self, index: usize) -> Option<char> {
-        self.0.chars().nth(index)
+    pub fn char_at(&self, index: i64) -> Result<char, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        self.0.chars().nth(index).ok_or(IndexOutOfBoundsError { index: index as u32 })
     }
+    
+    #[inline]
+    fn wrap_index(&self, index: i64) -> usize {
+        if index < 0 {
+            let len = self.0.chars().count() as i64;
+            (len + index) as usize
+        } else {
+            index as usize
+        }
+    }
+    #[inline]
+    fn get_valid_index(&self, index: i64) -> Result<usize, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        if (index) < self.0.len() {
+            Ok(index)
+        } else {
+            Err(IndexOutOfBoundsError { index: index as u32 })
+        }
+    }
+
+
     pub fn substring(&self, start: usize, end: usize) -> Option<Text> {
         if start > end || end > self.0.len() {
             return None;
@@ -133,11 +156,9 @@ impl Text {
         self.0.replace_range(range, replace_with);
         Ok(())
     }
-    pub fn set_char_at(&mut self, index: usize, c: char) -> Result<(), String> {
+    pub fn set_char_at(&mut self, index: i64, c: char) -> Result<(), IndexOutOfBoundsError> {
+        let index = self.get_valid_index(index)?;
         let mut chars: Vec<char> = self.0.chars().collect();
-        if index >= chars.len() {
-            return Err("Index out of bounds".to_string());
-        }
         chars[index] = c;
         self.0 = chars.iter().collect();
         Ok(())
