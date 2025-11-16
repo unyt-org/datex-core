@@ -95,18 +95,17 @@ pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
 }
 
 pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
-    crate::ast::grammar::decimal::decimal().try_map(|res, _| {
-        res.map(|e| {
-            if let DatexExpressionData::Decimal(dec) = e {
-                TypeExpressionData::Decimal(dec)
-            } else {
-                panic!("xx");
+    crate::ast::grammar::decimal::decimal().try_map(|expr, _span| {
+        match expr.data {
+            DatexExpressionData::Decimal(dec) => {
+                Ok(TypeExpressionData::Decimal(dec))
             }
-        })
-        .map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
+            other => {
+                panic!("Expected Decimal, got {:?} in decimal parser", other)
+            }
+        }
     })
 }
-
 pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
