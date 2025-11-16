@@ -414,12 +414,14 @@ impl Reference {
     }
 
     /// Checks if the reference supports clear operation
+    /// TODO: move to Value/ValueContainer
     pub fn supports_clear(&self) -> bool {
         self.with_value(|value| match value.inner {
             CoreValue::Map(ref mut map) => match map {
                 Map::Dynamic(_) => true,
                 Map::Fixed(_) | Map::Structural(_) => false,
             },
+            CoreValue::List(_) => true,
             _ => false,
         })
         .unwrap_or(false)
