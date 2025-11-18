@@ -153,17 +153,7 @@ impl Decimal {
         }
     }
 
-    /// Creates a Decimal from a fraction represented by numerator and denominator strings.
-    pub fn from_fraction(numerator: &str, denominator: &str) -> Self {
-        let rational = BigRational::new(
-            BigInt::from_str(numerator).unwrap(),
-            BigInt::from_str(denominator).unwrap(),
-        );
-        Decimal::from(Rational::from_big_rational(rational))
-    }
-
     /// Creates a Decimal from a string representation.
-    /// TODO #333: Add error handling
     pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
@@ -176,7 +166,15 @@ impl Decimal {
                     // If the string contains a fraction, parse it as a fraction
                     let parts: Vec<&str> = s.split('/').collect();
                     if parts.len() == 2 {
-                        Ok(Decimal::from_fraction(parts[0], parts[1]))
+                        let numer = BigInt::from_str(parts[0])
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        let denom = BigInt::from_str(parts[1])
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        if denom.is_zero() {
+                            return Err(NumberParseError::InvalidFormat);
+                        }
+                        let rational = BigRational::new(numer, denom);
+                        Ok(Decimal::from(Rational::from_big_rational(rational)))
                     } else {
                         Err(NumberParseError::InvalidFormat)
                     }
