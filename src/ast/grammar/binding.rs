@@ -154,12 +154,12 @@ pub fn variable_declaration<'a>(
 
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
-    apply_chain: impl DatexParserTrait<'a>,
+    // apply_chain: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
     unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
-        property_assignment(apply_chain, expression.clone()),
+        // property_assignment(apply_chain, expression.clone()),
         type_declaration(),
         variable_declaration(expression.clone()),
         deref_assignment(expression.clone(), unary),
