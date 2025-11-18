@@ -12,158 +12,146 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::error::NumberParseError;
 use chumsky::prelude::*;
 
-/// Parses the base part of a decimal number (the part before the dot).
-fn decimal_base<'a>() -> impl DatexParserTrait<'a, String> {
-    select! {
-        Token::DecimalNumericLiteral(NumericLiteralParts {exponent_part: None, integer_part, variant_part: None}) => {
-           integer_part
-        },
-    }
-}
-
-/// Parses a fractional decimal number (e.g., "3/4") into a `Decimal`.
-fn fraction<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    select! {
-        Token::DecimalNumericLiteral(NumericLiteralParts { exponent_part: None, integer_part: left, variant_part: None }) => left
-    }
-    .then_ignore(select! { Token::Slash => () })
-    .then(
-        select! {
-            Token::DecimalNumericLiteral(NumericLiteralParts { exponent_part: None, integer_part: right, variant_part: None }) => right
-        }
-    )
-    .map(|(num, denom)| {
-        let s = format!("{}/{}", num, denom);
-        Decimal::from_string(&s).map(DatexExpressionData::Decimal)
-    })
-}
-
-/// Parses a decimal number in e-notation (e.g., "10e2")
-fn e_notation_no_dot<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    select! {
-        Token::DecimalNumericLiteral(NumericLiteralParts { exponent_part, integer_part: left, variant_part: None }) => {
-            match exponent_part {
-                Some(exp) => {
-                    let mut s = left;
-                    s.push('e');
-                    s.push_str(&exp);
-                    Decimal::from_string(&s).map(DatexExpressionData::Decimal)
-                },
-                None => {
-                    Decimal::from_string(&left).map(DatexExpressionData::Decimal)
-                }
-            }
-        }
-    }
-}
-
-/// Parses a decimal number in e-notation (e.g., "10.e2")
-fn e_notation_with_dot<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    decimal_base()
-        .then_ignore(just(Token::Dot))
-        .then(select! {
-            Token::Identifier(id) => id
-        })
-        .map(|(left, exponent_part)| {
-            // parse of starts with e or E and followed by a number
-            if exponent_part.starts_with('e') || exponent_part.starts_with('E')
-            {
-                let mut value = left;
-                value.push('.');
-                value.push_str(&exponent_part);
-                Decimal::from_string(&value).map(DatexExpressionData::Decimal)
-            } else {
-                Err(NumberParseError::InvalidFormat)
-            }
-        })
-}
-
-/// Parses a default decimal number (with a dot) into a `Decimal` or `TypedDecimal`.
-/// For example: "3.14", "2.71828f64"
-fn default_decimal<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    decimal_base()
-        .then_ignore(just(Token::Dot))
-        .then(select! {
-            Token::DecimalNumericLiteral(parts) => parts
-        })
-        .map(|(left, right)| {
-            let mut value = left;
-            value.push('.');
-            value.push_str(&right.integer_part);
-            if let Some(exp) = right.exponent_part {
-                value.push('e');
-                value.push_str(&exp);
-            }
-            match right.variant_part {
-                Some(var) => {
-                    let variant = DecimalTypeVariant::from_str(&var)
-                        .map_err(|_| NumberParseError::InvalidFormat)?;
-                    TypedDecimal::from_string_and_variant_in_range(
-                        &value, variant,
-                    )
-                    .map(DatexExpressionData::TypedDecimal)
-                }
-                None => Decimal::from_string(&value)
-                    .map(DatexExpressionData::Decimal),
-            }
-        })
-    // .map_with(|data, e| data.map(|data| data.with_span(e.span())))
-    // .recover_invalid()
-}
-
-fn prefix_shortcut_decimal<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    just(Token::Dot)
-        .then(select! {
-            Token::DecimalNumericLiteral(parts) => parts
-        })
-        .map(|(_, right)| {
-            let mut value = String::from("0.");
-            value.push_str(&right.integer_part);
-            if let Some(exp) = right.exponent_part {
-                value.push('e');
-                value.push_str(&exp);
-            }
-            match right.variant_part {
-                Some(var) => {
-                    let variant = DecimalTypeVariant::from_str(&var)
-                        .map_err(|_| NumberParseError::InvalidFormat)?;
-                    TypedDecimal::from_string_and_variant_in_range(
-                        &value, variant,
-                    )
-                    .map(DatexExpressionData::TypedDecimal)
-                }
-                None => Decimal::from_string(&value)
-                    .map(DatexExpressionData::Decimal),
-            }
-        })
-}
-
-fn suffix_shortcut_decimal<'a>()
--> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
-    decimal_base().then_ignore(just(Token::Dot)).map(|left| {
-        let mut value = left;
-        value.push_str(".0");
-        Decimal::from_string(&value).map(DatexExpressionData::Decimal)
-    })
-}
-
 pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
+    let numeric_token = select! {
+        Token::DecimalNumericLiteral(parts) => parts
+    };
+    let build_from_parts = move |left: NumericLiteralParts,
+                                 opt_right: Option<NumericLiteralParts>,
+                                 dot_present: bool|
+          -> Result<
+        DatexExpressionData,
+        NumberParseError,
+    > {
+        // helper to handle typed variant if present
+        let make_typed_or_plain =
+            |value: String,
+             variant_opt: Option<String>|
+             -> Result<DatexExpressionData, NumberParseError> {
+                match variant_opt {
+                    Some(var) => {
+                        let variant = DecimalTypeVariant::from_str(&var)
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        TypedDecimal::from_string_and_variant_in_range(
+                            &value, variant,
+                        )
+                        .map(DatexExpressionData::TypedDecimal)
+                    }
+                    None => Decimal::from_string(&value)
+                        .map(DatexExpressionData::Decimal),
+                }
+            };
+
+        if dot_present {
+            match opt_right {
+                Some(right) => {
+                    let mut s = left.integer_part;
+                    s.push('.');
+                    s.push_str(&right.integer_part);
+                    if let Some(exp) = right.exponent_part {
+                        s.push('e');
+                        s.push_str(&exp);
+                    }
+                    // prefer variant present on the fractional side
+                    make_typed_or_plain(s, right.variant_part)
+                }
+                None => {
+                    // `42.`is mapped to `42.0`
+                    let mut s = left.integer_part;
+                    s.push_str(".0");
+                    make_typed_or_plain(s, left.variant_part)
+                }
+            }
+        } else {
+            // no dot present, maybe exponent inside left, maybe variant
+            let mut s = left.integer_part;
+            if let Some(exp) = left.exponent_part {
+                s.push('e');
+                s.push_str(&exp);
+            }
+            make_typed_or_plain(s, left.variant_part)
+        }
+    };
+
     choice((
+        // special tokens
         select! {
             Token::Nan => Ok(DatexExpressionData::Decimal(Decimal::NaN)),
             Token::Infinity => Ok(DatexExpressionData::Decimal(Decimal::Infinity)),
         },
-        default_decimal(),
-        prefix_shortcut_decimal(),
-        fraction(),
-        e_notation_with_dot(),
-        e_notation_no_dot(),
-        suffix_shortcut_decimal(),
+
+        // fraction: <num> '/' <denom>
+        numeric_token
+            .then_ignore(just(Token::Slash))
+            .then(numeric_token)
+            .map(|(num, denom)| {
+                let s = format!("{}/{}", num, denom);
+                Decimal::from_string(&s).map(DatexExpressionData::Decimal)
+            }),
+
+        // prefix shortcut: '.' <digits> 
+        // mappes to: 0.<digits>
+        just(Token::Dot)
+            .then(numeric_token)
+            .map(|(_, right)| {
+                let mut value = String::from("0.");
+                value.push_str(&right.integer_part);
+                if let Some(exp) = right.exponent_part {
+                    value.push('e');
+                    value.push_str(&exp);
+                }
+                match right.variant_part {
+                    Some(var) => {
+                        let variant = DecimalTypeVariant::from_str(&var)
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        TypedDecimal::from_string_and_variant_in_range(
+                            &value, variant,
+                        ).map(DatexExpressionData::TypedDecimal)
+                    }
+                    None => Decimal::from_string(&value).map(DatexExpressionData::Decimal),
+                }
+            }),
+
+        // e-notation on base with dot: <digits> '.' 'e' <exponent>
+        // e.g., 1.e2, 42.e-3
+        numeric_token
+            .then_ignore(just(Token::Dot))
+            .then(select! {
+                Token::Identifier(id) => id
+            })
+            .map(|(left, exponent_part)| {
+                // identifier must start with 'e' or 'E' (otherwise it's not e-notation)
+                if exponent_part.starts_with('e') || exponent_part.starts_with('E') {
+                    let mut value = left.integer_part;
+                    value.push('.');
+                    value.push_str(&exponent_part);
+                    Decimal::from_string(&value).map(DatexExpressionData::Decimal)
+                } else {
+                    Err(NumberParseError::InvalidFormat)
+                }
+            }),
+        // ordinary decimal number parsing with dot:
+        // - `42e2` -> exponent inside token
+        // - `42.`  -> dot present, no fractional token -> suffix shortcut -> 42.0
+        // - `42.5` -> dot + fractional token
+        numeric_token
+            .then(
+               choice((
+                    // dot + fractional token
+                    just(Token::Dot)
+                        .ignore_then(numeric_token)
+                        .map(Some),
+                    // dot suffix, no fractional token
+                    just(Token::Dot).map(|_| None),
+                ))
+            )
+            .map(move |(left, opt_dot_fraction)| {
+                match opt_dot_fraction {
+                    None => build_from_parts(left, None, false),
+                    Some(maybe_right) => build_from_parts(left, Some(maybe_right), true),
+                }
+            }),
+
     ))
     .map_with(|data, e| data.map(|data| data.with_span(e.span())))
     .recover_invalid()
@@ -184,6 +172,22 @@ mod tests {
 
     fn parse_decimal(src: &str) -> crate::ast::DatexParseResult {
         parse_with_parser(src, decimal())
+    }
+
+    fn ensure_invalid(src: &str) {
+        let res = parse_decimal(src);
+        assert!(!res.is_valid(), "Expected error for input: {}", src);
+    }
+
+    #[test]
+    fn simple() {
+        let src = "3.41";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("3.41").unwrap())
+                .with_default_span()
+        );
     }
 
     #[test]
@@ -208,17 +212,6 @@ mod tests {
     }
 
     #[test]
-    fn simple() {
-        let src = "3.41";
-        let num = parse_decimal(src).unwrap().ast;
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(Decimal::from_string("3.41").unwrap())
-                .with_default_span()
-        );
-    }
-
-    #[test]
     fn typed() {
         let src = "2.71828f64";
         let num = parse_decimal(src).unwrap().ast;
@@ -228,6 +221,20 @@ mod tests {
                 TypedDecimal::from_string_and_variant_in_range(
                     "2.71828",
                     DecimalTypeVariant::F64,
+                )
+                .unwrap()
+            )
+            .with_default_span()
+        );
+
+        let src = "1.618033f32";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::TypedDecimal(
+                TypedDecimal::from_string_and_variant_in_range(
+                    "1.618033",
+                    DecimalTypeVariant::F32,
                 )
                 .unwrap()
             )
@@ -361,5 +368,25 @@ mod tests {
             )
             .with_default_span()
         );
+    }
+
+    #[test]
+    fn invalid_cases() {
+        let cases = vec![
+            "42", // no dot
+            // "42e1.",   // dot after exponent FIXME: Shall we disallow this?
+            "3.14.15", // multiple dots
+            "2..718",  // multiple dots
+            "1.0f128", // invalid variant
+            "4.2e2.5", // invalid exponent format
+            "5.67e",   // missing exponent value
+            ".e3",     // missing base digits
+            "3/0",     // denom zero
+            "abc",     // not a number
+        ];
+
+        for src in cases {
+            ensure_invalid(src);
+        }
     }
 }
