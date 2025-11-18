@@ -40,58 +40,16 @@ use chumsky::{
 use core::unreachable;
 
 pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
-    select! {
-        Token::DecimalNumericLiteral(NumericLiteralParts { integer_part, exponent_part: None, variant_part }) => {
-            match variant_part {
-                Some(var) => {
-                    let variant = IntegerTypeVariant::from_str(&var);
-                    if variant.is_err() {
-                        // FIXME why tf some
-                        return Some(Err(NumberParseError::InvalidFormat));
-                    }
-                    let variant = variant.unwrap();
-                    TypedInteger::from_string_with_variant(&integer_part, variant)
-                    .map(TypeExpressionData::TypedInteger)
-                },
-                None => Integer::from_string(&integer_part)
-                    .map(TypeExpressionData::Integer),
+    crate::ast::grammar::integer::integer().try_map(|expr, _span| {
+        match expr.data {
+            DatexExpressionData::Integer(dec) => {
+                Ok(TypeExpressionData::Integer(dec))
             }
-        },
-        Token::BinaryIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 2, var)
-                    .map(TypeExpressionData::TypedInteger),
-                None => Integer::from_string_radix(&value[2..], 2)
-                    .map(TypeExpressionData::Integer),
+            _ => {
+                unreachable!()
             }
-        },
-        Token::HexadecimalIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 16, var)
-                    .map(TypeExpressionData::TypedInteger),
-                None => Integer::from_string_radix(&value[2..], 16)
-                    .map(TypeExpressionData::Integer),
-            }
-        },
-        Token::OctalIntegerLiteral(IntegerLiteral { value, variant }) => {
-            match variant {
-                Some(var) => TypedInteger::from_string_radix_with_variant(&value[2..], 8, var)
-                    .map(TypeExpressionData::TypedInteger),
-                None => Integer::from_string_radix(&value[2..], 8)
-                    .map(TypeExpressionData::Integer),
-            }
-        },
-    }.try_map(|res, _| {
-		res.map_err(|e| ParseError::new(ErrorKind::NumberParseError(e)))
-	})
-}
-
-pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
-    match i {
-        TypeExpressionData::Integer(v) => v.as_usize(),
-        TypeExpressionData::TypedInteger(v) => v.as_usize(),
-        _ => None,
-    }
+        }
+    })
 }
 
 pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
@@ -100,12 +58,20 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
             DatexExpressionData::Decimal(dec) => {
                 Ok(TypeExpressionData::Decimal(dec))
             }
-            other => {
-                panic!("Expected Decimal, got {:?} in decimal parser", other)
+            _ => {
+                unreachable!()
             }
         }
     })
 }
+pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
+    match i {
+        TypeExpressionData::Integer(v) => v.as_usize(),
+        TypeExpressionData::TypedInteger(v) => v.as_usize(),
+        _ => None,
+    }
+}
+
 pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
