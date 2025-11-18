@@ -39,6 +39,48 @@ fn fraction<'a>()
     })
 }
 
+/// Parses a decimal number in e-notation (e.g., "10e2")
+fn e_notation_no_dot<'a>()
+-> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
+    select! {
+        Token::DecimalNumericLiteral(NumericLiteralParts { exponent_part, integer_part: left, variant_part: None }) => {
+            match exponent_part {
+                Some(exp) => {
+                    let mut s = left;
+                    s.push('e');
+                    s.push_str(&exp);
+                    Decimal::from_string(&s).map(DatexExpressionData::Decimal)
+                },
+                None => {
+                    Decimal::from_string(&left).map(DatexExpressionData::Decimal)
+                }
+            }
+        }
+    }
+}
+
+/// Parses a decimal number in e-notation (e.g., "10.e2")
+fn e_notation_with_dot<'a>()
+-> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
+    decimal_base()
+        .then_ignore(just(Token::Dot))
+        .then(select! {
+            Token::Identifier(id) => id
+        })
+        .map(|(left, exponent_part)| {
+            // parse of starts with e or E and followed by a number
+            if exponent_part.starts_with('e') || exponent_part.starts_with('E')
+            {
+                let mut value = left;
+                value.push('.');
+                value.push_str(&exponent_part);
+                Decimal::from_string(&value).map(DatexExpressionData::Decimal)
+            } else {
+                Err(NumberParseError::InvalidFormat)
+            }
+        })
+}
+
 /// Parses a default decimal number (with a dot) into a `Decimal` or `TypedDecimal`.
 /// For example: "3.14", "2.71828f64"
 fn default_decimal<'a>()
@@ -73,7 +115,7 @@ fn default_decimal<'a>()
     // .recover_invalid()
 }
 
-fn shortcut_decimal<'a>()
+fn prefix_shortcut_decimal<'a>()
 -> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
     just(Token::Dot)
         .then(select! {
@@ -101,25 +143,38 @@ fn shortcut_decimal<'a>()
         })
 }
 
+fn suffix_shortcut_decimal<'a>()
+-> impl DatexParserTrait<'a, Result<DatexExpressionData, NumberParseError>> {
+    decimal_base().then_ignore(just(Token::Dot)).map(|left| {
+        let mut value = left;
+        value.push_str(".0");
+        Decimal::from_string(&value).map(DatexExpressionData::Decimal)
+    })
+}
+
 pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     choice((
         select! {
             Token::Nan => Ok(DatexExpressionData::Decimal(Decimal::NaN)),
             Token::Infinity => Ok(DatexExpressionData::Decimal(Decimal::Infinity)),
         },
-        shortcut_decimal(),
-        fraction(),
         default_decimal(),
+        prefix_shortcut_decimal(),
+        fraction(),
+        e_notation_with_dot(),
+        e_notation_no_dot(),
+        suffix_shortcut_decimal(),
     ))
-        .map_with(|data, e| data.map(|data| data.with_span(e.span())))
-        .recover_invalid()
+    .map_with(|data, e| data.map(|data| data.with_span(e.span())))
+    .recover_invalid()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         ast::{
-            parse, spanned::Spanned, structs::expression::DatexExpressionData,
+            grammar::decimal::decimal, parse_with_parser, spanned::Spanned,
+            structs::expression::DatexExpressionData,
         },
         values::core_values::decimal::{
             Decimal,
@@ -127,10 +182,35 @@ mod tests {
         },
     };
 
+    fn parse_decimal(src: &str) -> crate::ast::DatexParseResult {
+        parse_with_parser(src, decimal())
+    }
+
+    #[test]
+    fn special() {
+        let src = "nan";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("nan").unwrap())
+                .with_default_span()
+        );
+
+        let src = "infinity";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("infinity").unwrap()
+            )
+            .with_default_span()
+        );
+    }
+
     #[test]
     fn simple() {
         let src = "3.41";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(Decimal::from_string("3.41").unwrap())
@@ -141,7 +221,7 @@ mod tests {
     #[test]
     fn typed() {
         let src = "2.71828f64";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::TypedDecimal(
@@ -156,10 +236,10 @@ mod tests {
     }
 
     #[test]
-    fn shortcut() {
+    fn shortcut_prefix() {
         // no variant and no exponent
         let src = ".57721";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -170,7 +250,7 @@ mod tests {
 
         // with variant
         let src = ".314f32";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::TypedDecimal(
@@ -185,7 +265,7 @@ mod tests {
 
         // with exponent
         let src = ".159e2";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -196,7 +276,7 @@ mod tests {
 
         // with variant and exponent
         let src = ".265e-3f64";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::TypedDecimal(
@@ -211,9 +291,20 @@ mod tests {
     }
 
     #[test]
+    fn shortcut_suffix() {
+        let src = "42.";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("42.0").unwrap())
+                .with_default_span()
+        );
+    }
+
+    #[test]
     fn fraction() {
         let src = "3/4";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(Decimal::from_string("0.75").unwrap())
@@ -225,7 +316,7 @@ mod tests {
     fn exponent() {
         // positive exponent
         let src = "1.23e4";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -236,7 +327,7 @@ mod tests {
 
         // negative exponent
         let src = "5.67e-3";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
@@ -247,7 +338,7 @@ mod tests {
 
         // variant with exponent
         let src = "9.81e2f32";
-        let num = parse(src).unwrap().ast;
+        let num = parse_decimal(src).unwrap().ast;
         assert_eq!(
             num,
             DatexExpressionData::TypedDecimal(
@@ -256,6 +347,17 @@ mod tests {
                     DecimalTypeVariant::F32,
                 )
                 .unwrap()
+            )
+            .with_default_span()
+        );
+
+        // with exponent
+        let src = "7.e3";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("7000.0").unwrap()
             )
             .with_default_span()
         );

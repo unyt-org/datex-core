@@ -14,8 +14,8 @@ pub fn atom<'a>(
     choice((
         list,
         map,
-        literal(),
         decimal(),
+        literal(),
         integer(),
         text(),
         endpoint(),

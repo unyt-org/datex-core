@@ -157,9 +157,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let chain =
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
-    let chain_or_unary = chain.or(unary.clone());
-
-    let binary = binary_operation(chain_or_unary);
+    let binary = binary_operation(chain);
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -175,7 +173,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     // declarations or assignments
     let declaration_or_assignment = declaration_or_assignment(
-        chain_without_whitespace_apply.clone(),
+        // chain_without_whitespace_apply.clone(),
         expression.clone(),
         unary.clone(),
     );
@@ -266,7 +264,14 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
 /// Parse the given source code into a DatexExpression AST.
 /// Returns either the AST and the spans of each token, or a list of parse errors if parsing failed.
-pub fn parse(mut src: &str) -> DatexParseResult {
+
+pub fn parse(src: &str) -> DatexParseResult {
+    parse_with_parser(src, create_parser())
+}
+pub fn parse_with_parser<'a>(
+    mut src: &'a str,
+    parser: impl DatexParserTrait<'a, DatexExpression>,
+) -> DatexParseResult {
     // strip shebang at beginning of the source code
     if src.starts_with("#!") {
         if let Some(pos) = src.find('\n') {
@@ -295,10 +300,12 @@ pub fn parse(mut src: &str) -> DatexParseResult {
     }
     let tokens_spanned = tokens_spanned_result.unwrap();
 
-    let (tokens, spans): (Vec<_>, Vec<_>) = tokens_spanned.into_iter().unzip();
+    let (tokens_vec, spans): (Vec<_>, Vec<_>) =
+        tokens_spanned.into_iter().unzip();
 
-    let parser = create_parser();
-    let result = parser.parse(&tokens);
+    let tokens_boxed = tokens_vec.into_boxed_slice();
+    let tokens_slice: &'a [Token] = Box::leak(tokens_boxed);
+    let result = parser.parse(tokens_slice);
 
     if !result.has_errors() {
         DatexParseResult::Valid(ValidDatexParseResult {
@@ -1919,13 +1926,55 @@ mod tests {
     }
 
     #[test]
-    fn integer_with_exponent() {
+    fn decimal_with_exponent() {
         let src = "2e10";
         let num = parse_unwrap_data(src);
         assert_eq!(
             num,
             DatexExpressionData::Decimal(
                 Decimal::from_string("20000000000").unwrap()
+            )
+        );
+
+        let src = "0.2e2";
+        let num = parse_unwrap_data(src);
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("20.0").unwrap())
+        );
+
+        let src = "1.23456789123456e2";
+        let num = parse_unwrap_data(src);
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("123.456789123456").unwrap()
+            )
+        );
+
+        let src = ".2e2";
+        let num = parse_unwrap_data(src);
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("20.0").unwrap())
+        );
+    }
+
+    #[test]
+    fn decimal_with_negative_exponent() {
+        let src = "2e-2";
+        let num = parse_unwrap_data(src);
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("0.02").unwrap())
+        );
+
+        let src = "1.23456789123456e-2";
+        let num = parse_unwrap_data(src);
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("0.0123456789123456").unwrap()
             )
         );
     }
@@ -1982,30 +2031,6 @@ mod tests {
                     .with_default_span()
                 )
             })
-        );
-    }
-
-    #[test]
-    fn decimal_with_exponent() {
-        let src = "1.23456789123456e2";
-        let num = parse_unwrap_data(src);
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(
-                Decimal::from_string("123.456789123456").unwrap()
-            )
-        );
-    }
-
-    #[test]
-    fn decimal_with_negative_exponent() {
-        let src = "1.23456789123456e-2";
-        let num = parse_unwrap_data(src);
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(
-                Decimal::from_string("0.0123456789123456").unwrap()
-            )
         );
     }
 
