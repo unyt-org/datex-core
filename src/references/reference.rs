@@ -406,65 +406,12 @@ impl Reference {
     }
 
     // TODO #282: Mark as unsafe function
+    /// Note: borrows the contained value. While in callback, no other borrows to the value are allowed.
     pub(crate) fn with_value_unchecked<R, F: FnOnce(&mut Value) -> R>(
         &self,
         f: F,
     ) -> R {
         unsafe { self.with_value(f).unwrap_unchecked() }
-    }
-
-    /// Checks if the reference supports clear operation
-    /// TODO: move to Value/ValueContainer
-    pub fn supports_clear(&self) -> bool {
-        self.with_value(|value| match value.inner {
-            CoreValue::Map(ref mut map) => match map {
-                Map::Dynamic(_) => true,
-                Map::Fixed(_) | Map::Structural(_) => false,
-            },
-            CoreValue::List(_) => true,
-            _ => false,
-        })
-        .unwrap_or(false)
-    }
-
-    /// Checks if the reference has property access.
-    /// This is true for maps, lists and text.
-    /// For other types, this returns false.
-    /// Note that this does not check if a specific property exists, only if property access is
-    /// generally possible.
-    pub fn supports_property_access(&self) -> bool {
-        self.with_value(|value| {
-            core::matches!(
-                value.inner,
-                CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
-            )
-        })
-        .unwrap_or(false)
-    }
-
-    /// Checks if the reference has text property access.
-    /// This is true for maps.
-    pub fn supports_text_property_access(&self) -> bool {
-        self.with_value(|value| core::matches!(value.inner, CoreValue::Map(_)))
-            .unwrap_or(false)
-    }
-
-    /// Checks if the reference has numeric property access.
-    /// This is true for maps, lists and text.
-    pub fn supports_numeric_property_access(&self) -> bool {
-        self.with_value(|value| {
-            core::matches!(
-                value.inner,
-                CoreValue::Map(_) | CoreValue::List(_) | CoreValue::Text(_)
-            )
-        })
-        .unwrap_or(false)
-    }
-
-    /// Checks if the reference supports push operation
-    pub fn supports_push(&self) -> bool {
-        self.with_value(|value| core::matches!(value.inner, CoreValue::List(_)))
-            .unwrap_or(false)
     }
 }
 
@@ -998,7 +945,7 @@ mod tests {
         // set map_a as property of b. This should create a reference to a clone of map_a that
         // is upgraded to a reference
         map_b_ref
-            .try_set_property(0, "a", map_a_original_ref.clone(), memory)
+            .try_set_property(0, memory, "a", map_a_original_ref.clone())
             .unwrap();
 
         // assert that the reference to map_a is set correctly

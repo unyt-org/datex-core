@@ -63,7 +63,7 @@ impl DIFValueRepresentation {
     /// Converts a DIFRepresentationValue into a default Value, without considering additional type information.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_default_value(
-        self,
+        &self,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
         Ok(match self {
@@ -72,20 +72,20 @@ impl DIFValueRepresentation {
                 actual_type: Box::new(get_core_lib_type(
                     CoreLibPointerId::Text,
                 )),
-                inner: CoreValue::Text(str.into()),
+                inner: CoreValue::Text(str.clone().into()),
             },
             DIFValueRepresentation::Boolean(b) => Value {
                 actual_type: Box::new(get_core_lib_type(
                     CoreLibPointerId::Boolean,
                 )),
-                inner: CoreValue::Boolean(b.into()),
+                inner: CoreValue::Boolean((*b).into()),
             },
             DIFValueRepresentation::Number(n) => Value {
                 actual_type: Box::new(get_core_lib_type(
                     CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64)),
                 )),
                 inner: CoreValue::TypedDecimal(TypedDecimal::F64(
-                    OrderedFloat::from(n),
+                    OrderedFloat::from(*n),
                 )),
             },
             DIFValueRepresentation::Array(array) => Value {
@@ -104,7 +104,7 @@ impl DIFValueRepresentation {
                 let mut map = IndexMap::default();
                 for (k, v) in object {
                     map.insert(
-                        ValueContainer::Value(Value::from(k)),
+                        ValueContainer::Value(Value::from(k.clone())),
                         v.to_value_container(memory)?,
                     );
                 }
@@ -141,7 +141,7 @@ impl DIFValueRepresentation {
     /// Converts a DIFRepresentationValue into a Value, using the provided type information to guide the conversion.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value_with_type(
-        self,
+        &self,
         type_container: &DIFTypeContainer,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
@@ -160,7 +160,7 @@ impl DIFValueRepresentation {
                                 ValueContainer,
                                 RandomState,
                             > = IndexMap::default();
-                            for (k, v) in object {
+                            for (k, v) in object.clone().into_iter() {
                                 core_map.insert(
                                     Value::from(k).into(),
                                     v.to_value_container(memory)?,

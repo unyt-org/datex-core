@@ -36,7 +36,7 @@ impl DIFValue {
     /// Converts the DIFValue into a Value, resolving references using the provided memory.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value(
-        self,
+        &self,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
         Ok(if let Some(ty) = &self.ty {
@@ -81,7 +81,7 @@ impl DIFValueContainer {
     /// Converts the DIFValueContainer into a ValueContainer, resolving references using the provided memory.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value_container(
-        self,
+        &self,
         memory: &RefCell<Memory>,
     ) -> Result<ValueContainer, DIFReferenceNotFoundError> {
         Ok(match self {
