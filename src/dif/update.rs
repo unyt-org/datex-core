@@ -4,6 +4,7 @@ use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use core::prelude::rust_2024::*;
 use core::cell::RefCell;
+use crate::stdlib::borrow::Cow;
 use serde::{Deserialize, Serialize};
 use crate::runtime::memory::Memory;
 use crate::values::value_container::ValueKey;
@@ -55,14 +56,14 @@ impl From<DIFValueContainer> for DIFKey {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DIFUpdate {
+pub struct DIFUpdate<'a> {
     pub source_id: TransceiverId,
-    pub data: DIFUpdateData,
+    pub data: Cow<'a, DIFUpdateData>,
 }
 
-impl DIFUpdate {
+impl<'a> DIFUpdate<'a> {
     /// Creates a new `DIFUpdate` with the given source ID and update data.
-    pub fn new(source_id: TransceiverId, data: DIFUpdateData) -> Self {
+    pub fn new(source_id: TransceiverId, data: Cow<'a, DIFUpdateData>) -> Self {
         DIFUpdate { source_id, data }
     }
 }
@@ -92,6 +93,13 @@ pub enum DIFUpdateData {
 
     /// Represents adding a new element to a collection-type DIF value (like an array or map).
     Append { value: DIFValueContainer },
+
+    /// Special update operation for list values that allows splicing
+    ListSplice {
+        start: u32,
+        delete_count: u32,
+        items: Vec<DIFValueContainer>,
+    },
 }
 
 impl DIFConvertible for DIFUpdateData {}
@@ -115,7 +123,7 @@ impl DIFUpdateData {
         }
     }
 
-    /// Creates a new `DIFUpdateData::Remove` variant with the given key.
+    /// Creates a new `DIFUpdateData::Delete` variant with the given key.
     pub fn delete(key: impl Into<DIFKey>) -> Self {
         DIFUpdateData::Delete { key: key.into() }
     }
@@ -125,17 +133,29 @@ impl DIFUpdateData {
         DIFUpdateData::Clear
     }
 
-    /// Creates a new `DIFUpdateData::Push` variant with the given value.
+    /// Creates a new `DIFUpdateData::Append` variant with the given value.
     pub fn append(value: impl Into<DIFValueContainer>) -> Self {
         DIFUpdateData::Append {
             value: value.into(),
         }
     }
 
-    pub fn with_source(self, source_id: TransceiverId) -> DIFUpdate {
+    /// Creates a new `DIFUpdateData::ListSplice` variant with the given parameters.
+    pub fn list_splice(
+        range: core::ops::Range<u32>,
+        items: Vec<DIFValueContainer>,
+    ) -> Self {
+        DIFUpdateData::ListSplice {
+            start: range.start,
+            delete_count: range.end - range.start,
+            items,
+        }
+    }
+
+    pub fn with_source(&self, source_id: TransceiverId) -> DIFUpdate {
         DIFUpdate {
             source_id,
-            data: self,
+            data: Cow::Borrowed(self),
         }
     }
 }

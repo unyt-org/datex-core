@@ -9,6 +9,7 @@ use crate::values::{
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use core::ops::Range;
 use crate::references::reference::IndexOutOfBoundsError;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
@@ -72,9 +73,13 @@ impl List {
 
     pub fn splice(
         &mut self,
-        range: core::ops::Range<usize>,
+        range: Range<u32>,
         replace_with: impl IntoIterator<Item = ValueContainer>,
     ) {
+        let range = Range {
+            start: range.start as usize,
+            end: range.end as usize,
+        };
         let _: Vec<_> = self.0.splice(range, replace_with).collect();
     }
 

@@ -162,7 +162,7 @@ pub trait DIFInterface {
         &self,
         source_id: TransceiverId,
         address: PointerAddress,
-        update: DIFUpdateData,
+        update: &DIFUpdateData,
     ) -> Result<(), DIFUpdateError>;
 
     /// Executes an apply operation, applying the `value` to the `callee`.
@@ -197,12 +197,12 @@ pub trait DIFInterface {
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.
-    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
+    fn observe_pointer(
         &self,
         transceiver_id: TransceiverId,
         address: PointerAddress,
         options: ObserveOptions,
-        observer: F,
+        observer: impl Fn(&DIFUpdateData, TransceiverId) + 'static,
     ) -> Result<u32, DIFObserveError>;
 
     /// Updates the options for an existing observer on the pointer at the given address.

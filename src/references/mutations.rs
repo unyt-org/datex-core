@@ -13,22 +13,48 @@ use core::ops::FnOnce;
 use core::prelude::rust_2024::*;
 use crate::values::value_container::ValueKey;
 
+
+pub enum DIFUpdateDataOrMemory<'a> {
+    Update(&'a DIFUpdateData),
+    Memory(&'a RefCell<Memory>),
+}
+
+
+impl<'a> From<&'a DIFUpdateData> for DIFUpdateDataOrMemory<'a> {
+    fn from(update: &'a DIFUpdateData) -> Self {
+        DIFUpdateDataOrMemory::Update(update)
+    }
+}
+
+impl<'a> From<&'a RefCell<Memory>> for DIFUpdateDataOrMemory<'a> {
+    fn from(memory: &'a RefCell<Memory>) -> Self {
+        DIFUpdateDataOrMemory::Memory(memory)
+    }
+}
+
 impl Reference {
     /// Internal function that handles updates
     /// - Checks if the reference is mutable
     /// - Calls the provided handler to perform the update and get the DIFUpdateData
     /// - Notifies observers with the update data
     /// - Returns any AccessError encountered
-    fn handle_update(
+    fn handle_update<'a>(
         &self,
         source_id: TransceiverId,
-        handler: impl FnOnce() -> Result<DIFUpdateData, AccessError>,
+        handler: impl FnOnce() -> Result<&'a DIFUpdateData, AccessError>,
     ) -> Result<(), AccessError> {
         if !self.is_mutable() {
             return Err(AccessError::ImmutableReference);
         }
         let update_data = handler()?;
-        self.notify_observers(&update_data.with_source(source_id));
+        // self.notify_observers(update_data.with_source(source_id));
+        Ok(())
+    }
+
+    fn assert_mutable(&self) -> Result<(), AccessError> {
+        if !self.is_mutable() {
+            return Err(AccessError::ImmutableReference);
+        }
         Ok(())
     }
 
@@ -36,116 +62,149 @@ impl Reference {
     pub fn try_set_property<'a>(
         &self,
         source_id: TransceiverId,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
         key: impl Into<ValueKey<'a>>,
         val: ValueContainer,
-        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
+        self.assert_mutable()?;
+
         let key = key.into();
-        self.handle_update(source_id, move || {
-            self.with_value_unchecked(|value| {
-                match value.inner {
-                    CoreValue::Map(ref mut map) => {
-                        // If the value is an map, set the property
-                        map.try_set(key.clone(), val.clone())?;
-                    }
-                    CoreValue::List(ref mut list) => {
-                        if let Some(index) = key.try_as_index() {
-                            list.set(index, val.clone()).map_err(|err| {
-                                AccessError::IndexOutOfBounds(err)
-                            })?;
-                        }
-                        else {
-                            return Err(AccessError::InvalidIndexKey);
-                        }
-                    }
-                    CoreValue::Text(ref mut text) => {
-                        if let Some(index) = key.try_as_index() {
-                            if let ValueContainer::Value(v) = &val &&
-                                let CoreValue::Text(new_char) = &v.inner && new_char.0.len() == 1 {
-                                let char = new_char.0.chars().next().unwrap_or('\0');
-                                text.set_char_at(index, char).map_err(|err| AccessError::IndexOutOfBounds(err))?;
-                            } else {
-                                return Err(AccessError::InvalidOperation(
-                                    "Can only set char character in text".to_string(),
-                                ));
-                            }
-                        }
-                        else {
-                            return Err(AccessError::InvalidIndexKey);
-                        }
-                    }
-                    _ => {
-                        // If the value is not an map, we cannot set a property
-                        return Err(AccessError::InvalidOperation(format!(
-                            "Cannot set property '{}' on non-map value: {:?}",
-                            key, value
-                        )));
-                    }
-                }
-                Ok(DIFUpdateData::set(
+        let dif_update_data_or_memory = dif_update_data_or_memory.into();
+
+        let dif_update = match dif_update_data_or_memory {
+            DIFUpdateDataOrMemory::Update(update) => update,
+            DIFUpdateDataOrMemory::Memory(memory) => {
+                &DIFUpdateData::set(
                     DIFKey::from_value_key(&key, memory),
                     DIFValueContainer::from_value_container(&val, memory),
-                ))
-            })
-        })
+                )
+            }
+        };
+
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    // If the value is an map, set the property
+                    map.try_set(key, val)?;
+                }
+                CoreValue::List(ref mut list) => {
+                    if let Some(index) = key.try_as_index() {
+                        list.set(index, val).map_err(|err| {
+                            AccessError::IndexOutOfBounds(err)
+                        })?;
+                    }
+                    else {
+                        return Err(AccessError::InvalidIndexKey);
+                    }
+                }
+                CoreValue::Text(ref mut text) => {
+                    if let Some(index) = key.try_as_index() {
+                        if let ValueContainer::Value(v) = &val &&
+                            let CoreValue::Text(new_char) = &v.inner && new_char.0.len() == 1 {
+                            let char = new_char.0.chars().next().unwrap_or('\0');
+                            text.set_char_at(index, char).map_err(|err| AccessError::IndexOutOfBounds(err))?;
+                        } else {
+                            return Err(AccessError::InvalidOperation(
+                                "Can only set char character in text".to_string(),
+                            ));
+                        }
+                    }
+                    else {
+                        return Err(AccessError::InvalidIndexKey);
+                    }
+                }
+                _ => {
+                    // If the value is not an map, we cannot set a property
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot set property '{}' on non-map value: {:?}",
+                        key, value
+                    )));
+                }
+            }
+
+            Ok(())
+        })?;
+
+        self.notify_observers(&dif_update.with_source(source_id));
+        Ok(())
     }
 
     /// Sets a value on the reference if it is mutable and the type is compatible.
-    pub fn try_replace<T: Into<ValueContainer>>(
+    pub fn try_replace<'a>(
         &self,
         source_id: TransceiverId,
-        value: T,
-        memory: &RefCell<Memory>,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
+        value: impl Into<ValueContainer>,
     ) -> Result<(), AccessError> {
-        self.handle_update(source_id, move || {
-            // TODO #306: ensure type compatibility with allowed_type
-            let value_container = &value.into();
-            self.with_value_unchecked(|core_value| {
-                // Set the value directly, ensuring it is a ValueContainer
-                core_value.inner =
-                    value_container.to_value().borrow().inner.clone();
-                Ok(DIFUpdateData::replace(
+        self.assert_mutable()?;
+        let dif_update_data_or_memory = dif_update_data_or_memory.into();
+
+        // TODO #306: ensure type compatibility with allowed_type
+        let value_container = &value.into();
+
+        let dif_update = match dif_update_data_or_memory {
+            DIFUpdateDataOrMemory::Update(update) => update,
+            DIFUpdateDataOrMemory::Memory(memory) => {
+                &DIFUpdateData::replace(
                     DIFValueContainer::from_value_container(
                         value_container,
                         memory,
                     ),
-                ))
-            })
-        })
+                )
+            }
+        };
+
+        self.with_value_unchecked(|core_value| {
+            // Set the value directly, ensuring it is a ValueContainer
+            core_value.inner =
+                value_container.to_value().borrow().inner.clone();
+        });
+
+        self.notify_observers(&dif_update.with_source(source_id));
+        Ok(())
     }
 
     /// Pushes a value to the reference if it is a list.
-    pub fn try_append_value<T: Into<ValueContainer>>(
+    pub fn try_append_value<'a>(
         &self,
-        // TODO #307 move to end
         source_id: TransceiverId,
-        value: T,
-        memory: &RefCell<Memory>,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
+        value: impl Into<ValueContainer>,
     ) -> Result<(), AccessError> {
-        let v = vec![1];
-        self.handle_update(source_id, move || {
-            let value_container = value.into();
-            self.with_value_unchecked(move |core_value| {
-                match &mut core_value.inner {
-                    CoreValue::List(list) => {
-                        // TODO #308: Can we avoid the clone?
-                        list.push(value_container.clone());
-                    }
-                    _ => {
-                        return Err(AccessError::InvalidOperation(format!(
-                            "Cannot push value to non-list value: {:?}",
-                            core_value
-                        )));
-                    }
-                }
-                Ok(DIFUpdateData::append(
+        self.assert_mutable()?;
+        let dif_update_data_or_memory = dif_update_data_or_memory.into();
+        let value_container = value.into();
+
+        let dif_update = match dif_update_data_or_memory {
+            DIFUpdateDataOrMemory::Update(update) => update,
+            DIFUpdateDataOrMemory::Memory(memory) => {
+                &DIFUpdateData::append(
                     DIFValueContainer::from_value_container(
                         &value_container,
                         memory,
                     ),
-                ))
-            })
-        })
+                )
+            }
+        };
+
+        self.with_value_unchecked(move |core_value| {
+            match &mut core_value.inner {
+                CoreValue::List(list) => {
+                    list.push(value_container);
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot push value to non-list value: {:?}",
+                        core_value
+                    )));
+                }
+            }
+
+            Ok(())
+        })?;
+
+        self.notify_observers(&dif_update.with_source(source_id));
+        Ok(())
     }
 
     /// Tries to delete a property from the reference if it is a map.
@@ -153,63 +212,124 @@ impl Reference {
     pub fn try_delete_property<'a>(
         &self,
         source_id: TransceiverId,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
         key: impl Into<ValueKey<'a>>,
-        memory: &RefCell<Memory>,
     ) -> Result<(), AccessError> {
+        self.assert_mutable()?;
         let key = key.into();
-        self.handle_update(source_id, move || {
-            self.with_value_unchecked(|value| {
-                match value.inner {
-                    CoreValue::Map(ref mut map) => {
-                        key.with_value_container(|key| {
-                            map.delete(key)
+        let dif_update_data_or_memory = dif_update_data_or_memory.into();
+
+        let dif_update = match dif_update_data_or_memory {
+            DIFUpdateDataOrMemory::Update(update) => update,
+            DIFUpdateDataOrMemory::Memory(memory) => {
+                &DIFUpdateData::delete(DIFKey::from_value_key(&key, memory))
+            }
+        };
+
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    key.with_value_container(|key| {
+                        map.delete(key)
+                    })?;
+                }
+                CoreValue::List(ref mut list) => {
+                    if let Some(index) = key.try_as_index() {
+                        list.delete(index).map_err(|err| {
+                            AccessError::IndexOutOfBounds(err)
                         })?;
                     }
-                    CoreValue::List(ref mut list) => {
-                        if let Some(index) = key.try_as_index() {
-                            list.delete(index).map_err(|err| {
-                                AccessError::IndexOutOfBounds(err)
-                            })?;
-                        }
-                        else {
-                            return Err(AccessError::InvalidIndexKey);
-                        }
-                    }
-                    _ => {
-                        return Err(AccessError::InvalidOperation(format!(
-                            "Cannot delete property '{:?}' on non-map value: {:?}",
-                            key, value
-                        )));
+                    else {
+                        return Err(AccessError::InvalidIndexKey);
                     }
                 }
-                Ok(DIFUpdateData::delete(DIFKey::from_value_key(&key, memory)))
-            })
-        })
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot delete property '{:?}' on non-map value: {:?}",
+                        key, value
+                    )));
+                }
+            }
+
+            Ok(())
+        })?;
+
+        self.notify_observers(&dif_update.with_source(source_id));
+        Ok(())
     }
 
     pub fn try_clear(
         &self,
         source_id: TransceiverId,
     ) -> Result<(), AccessError> {
-        self.handle_update(source_id, move || {
-            self.with_value_unchecked(|value| {
-                match value.inner {
-                    CoreValue::Map(ref mut map) => {
-                        map.clear()?;
-                    }
-                    CoreValue::List(ref mut list) => {
-                        list.clear();
-                    }
-                    _ => {
-                        return Err(AccessError::InvalidOperation(format!(
-                            "Cannot clear non-list/map value: {:?}",
-                            value
-                        )));
-                    }
+        self.assert_mutable()?;
+
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::Map(ref mut map) => {
+                    map.clear()?;
                 }
-                Ok(DIFUpdateData::clear())
-            })
-        })
+                CoreValue::List(ref mut list) => {
+                    list.clear();
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot clear non-list/map value: {:?}",
+                        value
+                    )));
+                }
+            }
+            
+            Ok(())
+        })?;
+
+        self.notify_observers(&DIFUpdateData::clear().with_source(source_id));
+        Ok(())
+    }
+
+    pub fn try_list_splice<'a>(
+        &self,
+        source_id: TransceiverId,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
+        range: core::ops::Range<u32>,
+        items: Vec<ValueContainer>,
+    ) -> Result<(), AccessError> {
+        self.assert_mutable()?;
+        let dif_update_data_or_memory = dif_update_data_or_memory.into();
+
+        let dif_update = match dif_update_data_or_memory {
+            DIFUpdateDataOrMemory::Update(update) => update,
+            DIFUpdateDataOrMemory::Memory(memory) => {
+                &DIFUpdateData::list_splice(
+                    range.clone(),
+                    items
+                        .iter()
+                        .map(|item| {
+                            DIFValueContainer::from_value_container(item, memory)
+                        })
+                        .collect(),
+                )
+            }
+        };
+
+        self.with_value_unchecked(|value| {
+            match value.inner {
+                CoreValue::List(ref mut list) => {
+                    list.splice(range, items);
+                }
+                _ => {
+                    return Err(AccessError::InvalidOperation(format!(
+                        "Cannot apply splice operation on non-list value: {:?}",
+                        value
+                    )));
+                }
+            }
+
+            Ok(())
+        })?;
+
+        self.notify_observers(&dif_update.with_source(source_id));
+        Ok(())
     }
 }
 
@@ -237,7 +357,7 @@ mod tests {
         let list_ref =
             Reference::try_mut_from(List::from(list).into()).unwrap();
         list_ref
-            .try_append_value(0, ValueContainer::from(4), memory)
+            .try_append_value(0, memory, ValueContainer::from(4))
             .expect("Failed to push value to list");
         let updated_value = list_ref.try_get_property(3).unwrap();
         assert_eq!(updated_value, ValueContainer::from(4));
@@ -246,13 +366,13 @@ mod tests {
         let int_ref =
             Reference::from(List::from(vec![ValueContainer::from(42)]));
         let result =
-            int_ref.try_append_value(0, ValueContainer::from(99), memory);
+            int_ref.try_append_value(0, memory, ValueContainer::from(99));
         assert_matches!(result, Err(AccessError::ImmutableReference));
 
         // Try to push to non-list value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result =
-            int_ref.try_append_value(0, ValueContainer::from(99), memory);
+            int_ref.try_append_value(0, memory, ValueContainer::from(99));
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
@@ -270,9 +390,9 @@ mod tests {
         map_ref
             .try_set_property(
                 0,
+                memory,
                 "key1",
                 ValueContainer::from(42),
-                memory,
             )
             .expect("Failed to set existing property");
         let updated_value = map_ref
@@ -283,9 +403,9 @@ mod tests {
         // Set new property
         let result = map_ref.try_set_property(
             0,
+            memory,
             "new",
             ValueContainer::from(99),
-            memory,
         );
         assert!(result.is_ok());
         let new_value = map_ref
@@ -308,7 +428,7 @@ mod tests {
 
         // Set existing index
         list_ref
-            .try_set_property(0, 1, ValueContainer::from(42), memory)
+            .try_set_property(0, memory, 1, ValueContainer::from(42))
             .expect("Failed to set existing index");
         let updated_value = list_ref.try_get_property(1).unwrap();
         assert_eq!(updated_value, ValueContainer::from(42));
@@ -316,9 +436,9 @@ mod tests {
         // Try to set out-of-bounds index
         let result = list_ref.try_set_property(
             0,
+            memory,
             5,
             ValueContainer::from(99),
-            memory,
         );
         assert_matches!(result, Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 5 })));
 
@@ -326,9 +446,9 @@ mod tests {
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result = int_ref.try_set_property(
             0,
+            memory,
             0,
             ValueContainer::from(99),
-            memory,
         );
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
@@ -348,9 +468,9 @@ mod tests {
         struct_ref
             .try_set_property(
                 0,
+                memory,
                 "name",
                 ValueContainer::from("Bob"),
-                memory,
             )
             .expect("Failed to set existing property");
         let name = struct_ref.try_get_property("name").unwrap();
@@ -359,9 +479,9 @@ mod tests {
         // Try to set non-existing property
         let result = struct_ref.try_set_property(
             0,
+            memory,
             "nonexistent",
             ValueContainer::from("Value"),
-            memory,
         );
         assert_matches!(result, Ok(()));
 
@@ -369,9 +489,9 @@ mod tests {
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
         let result = int_ref.try_set_property(
             0,
+            memory,
             "name",
             ValueContainer::from("Bob"),
-            memory,
         );
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
@@ -382,7 +502,7 @@ mod tests {
 
         let r = Reference::from(42);
         assert_matches!(
-            r.try_replace(0, 43, memory),
+            r.try_replace(0, memory, 43),
             Err(AccessError::ImmutableReference)
         );
 
@@ -394,7 +514,7 @@ mod tests {
         )
         .unwrap();
         assert_matches!(
-            r.try_replace(0, 43, memory),
+            r.try_replace(0, memory, 43),
             Err(AccessError::ImmutableReference)
         );
     }
