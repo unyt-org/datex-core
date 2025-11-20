@@ -137,6 +137,8 @@ impl DIFValue {
     fn from_value(value: &Value, memory: &RefCell<Memory>) -> Self {
         let core_value = &value.inner;
 
+        let mut is_empty_map = false;
+
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => {
                 core::todo!("#382 Type value not supported in DIF")
@@ -209,34 +211,39 @@ impl DIFValue {
                     .map(|v| DIFValueContainer::from_value_container(v, memory))
                     .collect(),
             ),
-            CoreValue::Map(map) => DIFValueRepresentation::Map(
-                map.into_iter()
-                    .map(|(k, v)| {
-                        (
-                            match k {
-                                MapKey::Text(text_key) => {
-                                    DIFValueContainer::Value(
-                                        DIFValueRepresentation::String(
-                                            text_key.to_string(),
+            CoreValue::Map(map) => {
+                if map.is_empty() {
+                    is_empty_map = true;
+                };
+                DIFValueRepresentation::Map(
+                    map.into_iter()
+                        .map(|(k, v)| {
+                            (
+                                match k {
+                                    MapKey::Text(text_key) => {
+                                        DIFValueContainer::Value(
+                                            DIFValueRepresentation::String(
+                                                text_key.to_string(),
+                                            )
+                                                .into(),
                                         )
-                                        .into(),
-                                    )
-                                }
-                                _ => DIFValueContainer::from_value_container(
-                                    &ValueContainer::from(k),
-                                    memory,
-                                ),
-                            },
-                            DIFValueContainer::from_value_container(v, memory),
-                        )
-                    })
-                    .collect(),
-            ),
+                                    }
+                                    _ => DIFValueContainer::from_value_container(
+                                        &ValueContainer::from(k),
+                                        memory,
+                                    ),
+                                },
+                                DIFValueContainer::from_value_container(v, memory),
+                            )
+                        })
+                        .collect(),
+                )
+            },
         };
 
         DIFValue {
             value: dif_core_value,
-            ty: get_type_if_non_default(&value.actual_type, memory),
+            ty: get_type_if_non_default(&value.actual_type, memory, is_empty_map),
         }
     }
 }
@@ -248,10 +255,11 @@ impl DIFValue {
 /// - null
 /// - decimal (f64)
 /// - List
-/// - Map
+/// - Map (if not empty, otherwise we cannot distinguish between empty map and empty list since both are represented as [] in DIF)
 fn get_type_if_non_default(
     type_container: &TypeContainer,
     memory: &RefCell<Memory>,
+    is_empty_map: bool,
 ) -> Option<DIFTypeContainer> {
     match type_container {
         TypeContainer::TypeReference(inner) => {
@@ -260,14 +268,17 @@ fn get_type_if_non_default(
                 .pointer_address
                 .as_ref()
                 .map(CoreLibPointerId::try_from)
-                && core::matches!(
-                    address,
-                    CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64))
-                        | CoreLibPointerId::Boolean
-                        | CoreLibPointerId::Text
-                        | CoreLibPointerId::List
-                        | CoreLibPointerId::Map
-                        | CoreLibPointerId::Null
+                && (
+                    core::matches!(
+                        address,
+                        CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64))
+                            | CoreLibPointerId::Boolean
+                            | CoreLibPointerId::Text
+                            | CoreLibPointerId::List
+                            | CoreLibPointerId::Null
+                    ) ||
+                    // map is default only if not empty
+                    (core::matches!(address, CoreLibPointerId::Map) && !is_empty_map)
                 )
             {
                 None
