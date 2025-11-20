@@ -287,6 +287,7 @@ impl Type {
             TypeDefinition::Unit => false, // unit type does not match any value
             TypeDefinition::Never => false,
             TypeDefinition::Unknown => false,
+            TypeDefinition::Marker(_) => true, // markers are ignored in matching
         }
     }
 }
