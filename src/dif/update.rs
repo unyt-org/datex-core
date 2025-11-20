@@ -73,7 +73,7 @@ impl<'a> DIFUpdate<'a> {
 
 /// Represents an update operation for a DIF value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum DIFUpdateData {
     /// Represents a replacement operation for a DIF value.
     Replace { value: DIFValueContainer },
