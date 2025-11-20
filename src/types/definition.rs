@@ -16,6 +16,7 @@ use crate::{
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::references::type_reference::TypeReference;
+use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -36,6 +37,9 @@ pub enum TypeDefinition {
 
     // A | B | C
     Union(Vec<TypeContainer>),
+    
+    // Marker<$PointerAddress>
+    Marker(PointerAddress),
 
     // ()
     Unit,
@@ -91,6 +95,9 @@ impl Hash for TypeDefinition {
                 }
                 return_type.hash(state);
             }
+            TypeDefinition::Marker(address) => {
+                address.hash(state);
+            }
         }
     }
 }
@@ -107,6 +114,9 @@ impl Display for TypeDefinition {
             TypeDefinition::Unit => core::write!(f, "()"),
             TypeDefinition::Unknown => core::write!(f, "unknown"),
             TypeDefinition::Never => core::write!(f, "never"),
+            TypeDefinition::Marker(address) => {
+                core::write!(f, "Marker<{}>", address)
+            }
 
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {

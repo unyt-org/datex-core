@@ -31,6 +31,8 @@ pub enum DIFTypeDefinition {
     // e.g. A | B | C
     Union(Vec<DIFTypeContainer>),
 
+    Marker(PointerAddress),
+
     // ()
     Unit,
 
@@ -108,6 +110,9 @@ impl DIFTypeDefinition {
                     .map(|t| DIFTypeContainer::from_type_container(t, memory))
                     .collect(),
             ),
+            TypeDefinition::Marker(ptr_address) => {
+                DIFTypeDefinition::Marker(ptr_address.clone())
+            }
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
             TypeDefinition::Never => DIFTypeDefinition::Never,
             TypeDefinition::Unknown => DIFTypeDefinition::Unknown,
