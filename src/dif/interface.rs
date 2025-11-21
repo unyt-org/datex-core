@@ -15,7 +15,6 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use datex_core::dif::reference::DIFReference;
-use datex_core::dif::update::DIFUpdate;
 use datex_core::dif::value::DIFReferenceNotFoundError;
 
 #[derive(Debug)]

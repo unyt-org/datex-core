@@ -16,7 +16,7 @@ use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::values::core_values::map::{Map, MapAccessError};
+use crate::values::core_values::map::MapAccessError;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;

@@ -1,9 +1,8 @@
 use crate::ast::grammar::integer::integer_base;
 use crate::ast::grammar::text::text;
-use crate::ast::lexer::{IntegerLiteral, NumericLiteralParts, Token};
+use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
-use crate::ast::{DatexExpressionData, DatexParserTrait, ParserRecoverExt};
-use crate::values::core_values::integer::Integer;
+use crate::ast::{DatexExpressionData, DatexParserTrait};
 use chumsky::prelude::*;
 /// A valid map key
 /// abc, a, "1", "test", (1 + 2), 5, ...

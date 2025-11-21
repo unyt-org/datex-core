@@ -88,7 +88,7 @@ impl DIFValueContainer {
             DIFValueContainer::Reference(address) => ValueContainer::Reference(
                 memory
                     .borrow()
-                    .get_reference(&address)
+                    .get_reference(address)
                     .ok_or(DIFReferenceNotFoundError)?
                     .clone(),
             ),

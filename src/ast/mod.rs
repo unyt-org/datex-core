@@ -31,11 +31,9 @@ use crate::ast::structs::expression::{
 use chumsky::extra::Err;
 use chumsky::prelude::*;
 use core::ops::Range;
-use core::panic;
 use core::result::Result;
 use lexer::Token;
 use logos::Logos;
-use std::io::Write;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
