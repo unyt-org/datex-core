@@ -2,7 +2,7 @@ use crate::{
     ast::structs::{
         ResolvedVariable,
         expression::{
-            ApplyChain, ComparisonOperation, Conditional, CreateRef,
+            self, ApplyChain, ComparisonOperation, Conditional, CreateRef,
             DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
             List, Map, PropertyAssignment, RemoteExecution, Slot,
             SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
@@ -637,6 +637,13 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 "VariableAssignment should have an id assigned during precompilation"
             );
         };
+
+        let var = self.variable_type(id).expect("Variable must be present");
+        println!(
+            "Inferring type for Variable Assignment of variable {:?} with annotated type {:?}",
+            variable_assignment.name, var
+        );
+
         let assigned_type =
             self.infer_expression(&mut variable_assignment.expression)?;
         let annotated_type =
@@ -1107,12 +1114,55 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         deref_assignment: &mut DerefAssignment,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        Err(SpannedTypeError {
-            error: TypeError::Unimplemented(
-                "DerefAssignment type inference not implemented".into(),
-            ),
-            span: Some(span.clone()),
-        })
+        // FIXME: handle type checking and if deref assignment is valid
+        let mut expression_type =
+            self.infer_expression(&mut deref_assignment.deref_expression)?;
+        for _ in 0..deref_assignment.deref_count - 1 {
+            expression_type = match &expression_type {
+                TypeContainer::Type(t) => {
+                    if let TypeDefinition::Reference(r) = &t.type_definition {
+                        let bor = r.borrow();
+                        bor.type_value.clone().as_type_container()
+                    } else {
+                        return Err(SpannedTypeError {
+                            error: TypeError::InvalidDerefType(expression_type),
+                            span: Some(span.clone()),
+                        });
+                    }
+                }
+                TypeContainer::TypeReference(r) => {
+                    let bor = r.borrow();
+                    bor.type_value.clone().as_type_container()
+                }
+                TypeContainer::TypeAlias(_) => {
+                    unimplemented!(
+                        "DerefAssignment for TypeAlias is not implemented yet"
+                    )
+                }
+            };
+        }
+        let assigned_type =
+            self.infer_expression(&mut deref_assignment.assigned_expression)?;
+
+        // FIXME implement proper type matching
+        // if !assigned_type.matches_type(&expression_type) {
+        //     return Err(SpannedTypeError {
+        //         error: TypeError::AssignmentTypeMismatch {
+        //             annotated_type: expression_type,
+        //             assigned_type: assigned_type.clone(),
+        //         },
+        //         span: Some(span.clone()),
+        //     });
+        // }
+        if expression_type.mutability() != Some(ReferenceMutability::Mutable) {
+            return Err(SpannedTypeError {
+                error: TypeError::AssignmentToImmutableReference(
+                    "".to_string(),
+                ),
+                span: Some(span.clone()),
+            });
+        }
+        mark_type(assigned_type)
     }
     fn visit_get_reference(
         &mut self,
@@ -1187,10 +1237,13 @@ mod tests {
                 Map, VariableDeclaration, VariableKind,
             },
         },
-        compiler::precompiler::{
-            precompile_ast_simple_error,
-            precompiled_ast::{AstMetadata, RichAst},
-            scope_stack::PrecompilerScopeStack,
+        compiler::{
+            error::CompilerError,
+            precompiler::{
+                precompile_ast_simple_error,
+                precompiled_ast::{AstMetadata, RichAst},
+                scope_stack::PrecompilerScopeStack,
+            },
         },
         global::operators::{BinaryOperator, binary::ArithmeticOperator},
         libs::core::{
@@ -1764,7 +1817,6 @@ mod tests {
     }
 
     #[test]
-    // WIP
     fn property_assignment() {
         let src = r#"
         var a = { b: 42 };
@@ -2056,5 +2108,15 @@ mod tests {
             errors_for_expression(&mut expr).first().unwrap().error,
             TypeError::MismatchedOperands(_, _, _)
         ));
+    }
+
+    #[test]
+    fn addition_to_immutable_ref() {
+        let script = "const a = &42; *a += 1;";
+        let result = errors_for_script(script);
+        assert_matches!(
+            result.first().unwrap().error,
+            TypeError::AssignmentToImmutableReference { .. }
+        );
     }
 }
