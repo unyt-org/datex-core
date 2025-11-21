@@ -16,6 +16,9 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     let numeric_token = select! {
         Token::DecimalNumericLiteral(parts) => parts
     };
+    let integer_token = select! {
+        Token::DecimalNumericLiteral(NumericLiteralParts { integer_part, exponent_part: None, variant_part: None  }) => integer_part
+    };
     let build_from_parts = move |left: NumericLiteralParts,
                                  opt_right: Option<NumericLiteralParts>,
                                  dot_present: bool|
@@ -80,10 +83,33 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
             Token::Infinity => Ok(DatexExpressionData::Decimal(Decimal::Infinity)),
         },
 
+        // exponent only, no dot: <num> 'e' <exponent>
+        select! {
+            Token::DecimalNumericLiteral(NumericLiteralParts { integer_part, exponent_part: Some(exp), variant_part  }) => (
+                integer_part,
+                exp,
+                variant_part
+            )
+        }.map(|(integer_part, exponent_part, variant_part)| {
+            let mut value = integer_part;
+            value.push('e');
+            value.push_str(&exponent_part);
+            match variant_part {
+                Some(var) => {
+                    let variant = DecimalTypeVariant::from_str(&var)
+                        .map_err(|_| NumberParseError::InvalidFormat)?;
+                    TypedDecimal::from_string_and_variant_in_range(
+                        &value, variant,
+                    ).map(DatexExpressionData::TypedDecimal)
+                }
+                None => Decimal::from_string(&value).map(DatexExpressionData::Decimal),
+            }
+        }),
+
         // fraction: <num> '/' <denom>
-        numeric_token
+        integer_token
             .then_ignore(just(Token::Slash))
-            .then(numeric_token)
+            .then(integer_token)
             .map(|(num, denom)| {
                 let s = format!("{}/{}", num, denom);
                 Decimal::from_string(&s).map(DatexExpressionData::Decimal)
@@ -321,6 +347,25 @@ mod tests {
 
     #[test]
     fn exponent() {
+        // only exponent, no dot
+        let src = "2e10";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(
+                Decimal::from_string("20000000000.0").unwrap()
+            )
+            .with_default_span()
+        );
+
+        let src = "2e-2";
+        let num = parse_decimal(src).unwrap().ast;
+        assert_eq!(
+            num,
+            DatexExpressionData::Decimal(Decimal::from_string("0.02").unwrap())
+                .with_default_span()
+        );
+
         // positive exponent
         let src = "1.23e4";
         let num = parse_decimal(src).unwrap().ast;

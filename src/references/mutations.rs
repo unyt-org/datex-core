@@ -4,6 +4,7 @@ use crate::references::observers::TransceiverId;
 use crate::runtime::memory::Memory;
 use crate::stdlib::format;
 use crate::stdlib::string::ToString;
+use crate::values::value_container::ValueKey;
 use crate::{
     references::reference::{AccessError, Reference},
     values::{core_value::CoreValue, value_container::ValueContainer},
@@ -11,14 +12,11 @@ use crate::{
 use core::cell::RefCell;
 use core::ops::FnOnce;
 use core::prelude::rust_2024::*;
-use crate::values::value_container::ValueKey;
-
 
 pub enum DIFUpdateDataOrMemory<'a> {
     Update(&'a DIFUpdateData),
     Memory(&'a RefCell<Memory>),
 }
-
 
 impl<'a> From<&'a DIFUpdateData> for DIFUpdateDataOrMemory<'a> {
     fn from(update: &'a DIFUpdateData) -> Self {
@@ -73,12 +71,10 @@ impl Reference {
 
         let dif_update = match dif_update_data_or_memory {
             DIFUpdateDataOrMemory::Update(update) => update,
-            DIFUpdateDataOrMemory::Memory(memory) => {
-                &DIFUpdateData::set(
-                    DIFKey::from_value_key(&key, memory),
-                    DIFValueContainer::from_value_container(&val, memory),
-                )
-            }
+            DIFUpdateDataOrMemory::Memory(memory) => &DIFUpdateData::set(
+                DIFKey::from_value_key(&key, memory),
+                DIFValueContainer::from_value_container(&val, memory),
+            ),
         };
 
         self.with_value_unchecked(|value| {
@@ -92,24 +88,28 @@ impl Reference {
                         list.set(index, val).map_err(|err| {
                             AccessError::IndexOutOfBounds(err)
                         })?;
-                    }
-                    else {
+                    } else {
                         return Err(AccessError::InvalidIndexKey);
                     }
                 }
                 CoreValue::Text(ref mut text) => {
                     if let Some(index) = key.try_as_index() {
-                        if let ValueContainer::Value(v) = &val &&
-                            let CoreValue::Text(new_char) = &v.inner && new_char.0.len() == 1 {
-                            let char = new_char.0.chars().next().unwrap_or('\0');
-                            text.set_char_at(index, char).map_err(|err| AccessError::IndexOutOfBounds(err))?;
+                        if let ValueContainer::Value(v) = &val
+                            && let CoreValue::Text(new_char) = &v.inner
+                            && new_char.0.len() == 1
+                        {
+                            let char =
+                                new_char.0.chars().next().unwrap_or('\0');
+                            text.set_char_at(index, char).map_err(|err| {
+                                AccessError::IndexOutOfBounds(err)
+                            })?;
                         } else {
                             return Err(AccessError::InvalidOperation(
-                                "Can only set char character in text".to_string(),
+                                "Can only set char character in text"
+                                    .to_string(),
                             ));
                         }
-                    }
-                    else {
+                    } else {
                         return Err(AccessError::InvalidIndexKey);
                     }
                 }
@@ -144,14 +144,12 @@ impl Reference {
 
         let dif_update = match dif_update_data_or_memory {
             DIFUpdateDataOrMemory::Update(update) => update,
-            DIFUpdateDataOrMemory::Memory(memory) => {
-                &DIFUpdateData::replace(
-                    DIFValueContainer::from_value_container(
-                        value_container,
-                        memory,
-                    ),
-                )
-            }
+            DIFUpdateDataOrMemory::Memory(memory) => &DIFUpdateData::replace(
+                DIFValueContainer::from_value_container(
+                    value_container,
+                    memory,
+                ),
+            ),
         };
 
         self.with_value_unchecked(|core_value| {
@@ -178,12 +176,10 @@ impl Reference {
         let dif_update = match dif_update_data_or_memory {
             DIFUpdateDataOrMemory::Update(update) => update,
             DIFUpdateDataOrMemory::Memory(memory) => {
-                &DIFUpdateData::append(
-                    DIFValueContainer::from_value_container(
-                        &value_container,
-                        memory,
-                    ),
-                )
+                &DIFUpdateData::append(DIFValueContainer::from_value_container(
+                    &value_container,
+                    memory,
+                ))
             }
         };
 
@@ -229,17 +225,14 @@ impl Reference {
         self.with_value_unchecked(|value| {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
-                    key.with_value_container(|key| {
-                        map.delete(key)
-                    })?;
+                    key.with_value_container(|key| map.delete(key))?;
                 }
                 CoreValue::List(ref mut list) => {
                     if let Some(index) = key.try_as_index() {
                         list.delete(index).map_err(|err| {
                             AccessError::IndexOutOfBounds(err)
                         })?;
-                    }
-                    else {
+                    } else {
                         return Err(AccessError::InvalidIndexKey);
                     }
                 }
@@ -279,7 +272,7 @@ impl Reference {
                     )));
                 }
             }
-            
+
             Ok(())
         })?;
 
@@ -305,7 +298,9 @@ impl Reference {
                     items
                         .iter()
                         .map(|item| {
-                            DIFValueContainer::from_value_container(item, memory)
+                            DIFValueContainer::from_value_container(
+                                item, memory,
+                            )
                         })
                         .collect(),
                 )
@@ -335,7 +330,10 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
-    use crate::references::reference::{AccessError, AssignmentError, IndexOutOfBoundsError, ReferenceMutability};
+    use crate::references::reference::{
+        AccessError, AssignmentError, IndexOutOfBoundsError,
+        ReferenceMutability,
+    };
     use crate::runtime::memory::Memory;
     use crate::stdlib::assert_matches::assert_matches;
     use crate::values::core_values::list::List;
@@ -388,16 +386,9 @@ mod tests {
             Reference::try_mut_from(ValueContainer::from(map)).unwrap();
         // Set existing property
         map_ref
-            .try_set_property(
-                0,
-                memory,
-                "key1",
-                ValueContainer::from(42),
-            )
+            .try_set_property(0, memory, "key1", ValueContainer::from(42))
             .expect("Failed to set existing property");
-        let updated_value = map_ref
-            .try_get_property("key1")
-            .unwrap();
+        let updated_value = map_ref.try_get_property("key1").unwrap();
         assert_eq!(updated_value, 42.into());
 
         // Set new property
@@ -408,9 +399,7 @@ mod tests {
             ValueContainer::from(99),
         );
         assert!(result.is_ok());
-        let new_value = map_ref
-            .try_get_property("new")
-            .unwrap();
+        let new_value = map_ref.try_get_property("new").unwrap();
         assert_eq!(new_value, 99.into());
     }
 
@@ -434,22 +423,19 @@ mod tests {
         assert_eq!(updated_value, ValueContainer::from(42));
 
         // Try to set out-of-bounds index
-        let result = list_ref.try_set_property(
-            0,
-            memory,
-            5,
-            ValueContainer::from(99),
+        let result =
+            list_ref.try_set_property(0, memory, 5, ValueContainer::from(99));
+        assert_matches!(
+            result,
+            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError {
+                index: 5
+            }))
         );
-        assert_matches!(result, Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 5 })));
 
         // Try to set index on non-map value
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let result = int_ref.try_set_property(
-            0,
-            memory,
-            0,
-            ValueContainer::from(99),
-        );
+        let result =
+            int_ref.try_set_property(0, memory, 0, ValueContainer::from(99));
         assert_matches!(result, Err(AccessError::InvalidOperation(_)));
     }
 
@@ -466,12 +452,7 @@ mod tests {
 
         // Set existing property
         struct_ref
-            .try_set_property(
-                0,
-                memory,
-                "name",
-                ValueContainer::from("Bob"),
-            )
+            .try_set_property(0, memory, "name", ValueContainer::from("Bob"))
             .expect("Failed to set existing property");
         let name = struct_ref.try_get_property("name").unwrap();
         assert_eq!(name, "Bob".into());
