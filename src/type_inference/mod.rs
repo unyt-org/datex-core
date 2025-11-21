@@ -4,8 +4,8 @@ use crate::{
         expression::{
             ApplyChain, ComparisonOperation, Conditional, CreateRef,
             DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
-            List, Map, RemoteExecution, Slot, SlotAssignment, UnaryOperation,
-            VariableAssignment, VariantAccess,
+            List, Map, PropertyAssignment, RemoteExecution, Slot,
+            SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
         },
         r#type::{
             FixedSizeList, FunctionType, GenericAccess, SliceList,
@@ -597,6 +597,36 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         )
     }
 
+    fn visit_property_assignment(
+        &mut self,
+        property_assignment: &mut PropertyAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
+        println!(
+            "Inferring type for Property Assignment {:?}",
+            property_assignment.access_expression
+        );
+
+        if let DatexExpressionData::ApplyChain(apply_chain) =
+            &mut property_assignment.access_expression.data
+        {
+            let lhs = self
+                .infer_expression(&mut property_assignment.access_expression)?;
+            let rhs = self.infer_expression(
+                &mut property_assignment.assigned_expression,
+            )?;
+
+            // TODO access apply chain and check if type matches assigned expression
+            // also make sure that the rhs is casted into the correct type if needed
+            // (e.g. assigning an integer to a typed integer field)
+            mark_type(rhs)
+        } else {
+            panic!(
+                "Expected ApplyChain in PropertyAssignment access_expression"
+            );
+        }
+    }
+
     fn visit_variable_assignment(
         &mut self,
         variable_assignment: &mut VariableAssignment,
@@ -833,6 +863,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         }
         mark_structural_type(StructuralTypeDefinition::Map(fields))
     }
+
+    // FIXME for property access we need to implement
+    // apply chain access on type container level for structural types
     fn visit_apply_chain(
         &mut self,
         apply_chain: &mut ApplyChain,
@@ -1728,6 +1761,22 @@ mod tests {
 
         let inferred = infer_from_script("var x: text = 'hello'");
         assert_eq!(inferred, TypeContainer::text());
+    }
+
+    #[test]
+    // WIP
+    fn property_assignment() {
+        let src = r#"
+        var a = { b: 42 };
+        a.b = 100
+        "#;
+        let inferred_type = infer_from_script(src).as_type(); // should be 100 of b property type
+        assert_eq!(
+            inferred_type,
+            Type::structural(StructuralTypeDefinition::Integer(Integer::from(
+                100
+            )))
+        );
     }
 
     #[test]
