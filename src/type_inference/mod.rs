@@ -2110,6 +2110,18 @@ mod tests {
         ));
     }
 
+    /**
+     * var a = 10;
+     * a = 40;
+     * a += 10; // a = a + 10;
+     * var a = &mut 42;;
+     * a = &mut 43; // valid, new ref pointer
+     * *a = 2; // internal deref assignment
+     * *a += 1; // internal deref assignment with addition
+     * a += 1; a = a + 1; // invalid
+     * var obj = &mut {key: 42};
+     * obj.key = 43; // valid, internal deref assignment
+     */
     #[test]
     fn addition_to_immutable_ref() {
         let script = "const a = &42; *a += 1;";
@@ -2117,6 +2129,28 @@ mod tests {
         assert_matches!(
             result.first().unwrap().error,
             TypeError::AssignmentToImmutableReference { .. }
+        );
+    }
+
+    #[test]
+    #[ignore = "Implement property access type inference first"]
+    fn mutation_of_immutable_value() {
+        let script = "const a = {x: 10}; a.x = 20;";
+        let result = errors_for_script(script);
+        assert_matches!(
+            result.first().unwrap().error,
+            TypeError::AssignmentToImmutableValue { .. }
+        );
+    }
+
+    #[test]
+    #[ignore = "Implement property access type inference first"]
+    fn mutation_of_mutable_value() {
+        let script = "const a = mut {x: 10}; a.x = 20;";
+        let result = errors_for_script(script);
+        assert_matches!(
+            result.first().unwrap().error,
+            TypeError::AssignmentToImmutableValue { .. }
         );
     }
 }

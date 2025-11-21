@@ -2639,57 +2639,6 @@ pub mod tests {
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
-    #[ignore = "implement type inference (precompiler)"]
-    #[test]
-    fn mutation_of_immutable_value() {
-        init_logger_debug();
-        let script = "const a = {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableValue { .. })
-        );
-    }
-
-    #[ignore = "implement type inference (precompiler)"]
-    #[test]
-    fn mutation_of_mutable_value() {
-        init_logger_debug();
-        let script = "const a = mut {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableValue { .. })
-        );
-    }
-
-    /**
-     * var a = 10;
-     * a = 40;
-     * a += 10; // a = a + 10;
-     * var a = &mut 42;;
-     * a = &mut 43; // valid, new ref pointer
-     * *a = 2; // internal deref assignment
-     * *a += 1; // internal deref assignment with addition
-     * a += 1; a = a + 1; // invalid
-     * var obj = &mut {key: 42};
-     * obj.key = 43; // valid, internal deref assignment
-     */
-    #[ignore = "implement type inference (precompiler)"]
-    #[test]
-    fn addition_to_immutable_ref() {
-        init_logger_debug();
-        let script = "const a = &42; *a += 1;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableReference { .. })
-        );
-    }
-
     #[test]
     fn slot_endpoint() {
         let script = "#endpoint";

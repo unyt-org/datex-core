@@ -14,6 +14,8 @@ pub enum TypeError {
     Unimplemented(String),
     MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
     AssignmentToImmutableReference(String),
+    AssignmentToImmutableValue(String),
+    AssignmentToConstant(String),
 
     // can not assign value to variable of different type
     AssignmentTypeMismatch {
@@ -25,6 +27,12 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeError::AssignmentToImmutableValue(var_name) => {
+                write!(f, "Cannot assign to immutable variable '{}'", var_name)
+            }
+            TypeError::AssignmentToConstant(var_name) => {
+                write!(f, "Cannot assign to constant variable '{}'", var_name)
+            }
             TypeError::AssignmentToImmutableReference(var_name) => {
                 write!(
                     f,
