@@ -94,7 +94,7 @@ impl DIFValueRepresentation {
                 )),
                 inner: CoreValue::List(
                     array
-                        .into_iter()
+                        .iter()
                         .map(|v| v.to_value_container(memory))
                         .collect::<Result<Vec<ValueContainer>, _>>()?
                         .into(),

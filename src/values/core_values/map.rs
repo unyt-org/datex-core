@@ -3,7 +3,6 @@ use crate::collections::HashMap;
 use crate::std_random::RandomState;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_value::CoreValue;
@@ -82,7 +81,7 @@ impl Map {
     /// Returns None if the key is not found.
     pub fn get<'a>(&self, key: impl Into<ValueKey<'a>>) -> Result<&ValueContainer, KeyNotFoundError> {
         let key = key.into();
-        Ok(match self {
+        match self {
             Map::Dynamic(map) => {
                 key.with_value_container(|key| {
                     map.get(key)
@@ -102,7 +101,7 @@ impl Map {
                     None
                 }
             }
-        }.ok_or_else(|| KeyNotFoundError {key: key.into()})?)
+        }.ok_or_else(|| KeyNotFoundError {key: key.into()})
     }
 
     /// Checks if the map contains the given key.

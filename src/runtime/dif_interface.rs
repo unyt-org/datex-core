@@ -3,10 +3,9 @@ use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::{DIFKey, DIFUpdateData};
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
-use crate::references::reference::{AccessError, ReferenceMutability};
+use crate::references::reference::ReferenceMutability;
 use crate::runtime::RuntimeInternal;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::string::ToString;
 use crate::values::value_container::ValueContainer;
 use crate::{
     dif::{
@@ -21,7 +20,6 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::dif::update::DIFUpdate;
 use crate::dif::value::DIFReferenceNotFoundError;
 
 impl RuntimeInternal {
@@ -120,7 +118,7 @@ impl DIFInterface for RuntimeInternal {
                     source_id,
                     update,
                     *start..(start + delete_count),
-                    items.into_iter()
+                    items.iter()
                         .map(|item| item.to_value_container(&self.memory))
                         .collect::<Result<Vec<ValueContainer>, DIFReferenceNotFoundError>>()?,
                 )?

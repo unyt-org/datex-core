@@ -17,7 +17,6 @@ use crate::ast::{
     DatexExpression, DatexExpressionData, DatexParserTrait, ParserRecoverExt,
 };
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::traits::apply;
 use chumsky::prelude::*;
 
 fn create_variable_declaration(

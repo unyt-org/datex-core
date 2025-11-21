@@ -28,7 +28,7 @@ impl DIFKey {
             ValueKey::Text(s) => DIFKey::Text(s.to_string()),
             ValueKey::Index(i) => DIFKey::Index(*i),
             ValueKey::Value(v) => {
-                DIFKey::Value(DIFValueContainer::from_value_container(&v, memory))
+                DIFKey::Value(DIFValueContainer::from_value_container(v, memory))
             }
         }
     }
@@ -152,7 +152,7 @@ impl DIFUpdateData {
         }
     }
 
-    pub fn with_source(&self, source_id: TransceiverId) -> DIFUpdate {
+    pub fn with_source(&self, source_id: TransceiverId) -> DIFUpdate<'_> {
         DIFUpdate {
             source_id,
             data: Cow::Borrowed(self),

@@ -1,4 +1,3 @@
-use crate::ast::lexer::NumericLiteralParts;
 use crate::stdlib::{str::FromStr, vec};
 
 use crate::ast::spanned::Spanned;
@@ -20,15 +19,11 @@ use crate::{
         grammar::literal::literal,
         grammar::text::unescape_text,
         grammar::utils::whitespace,
-        lexer::{IntegerLiteral, Token},
+        lexer::Token,
         structs::expression::TypeDeclaration,
     },
     references::reference::ReferenceMutability,
-    values::core_values::{
-        decimal::{Decimal, typed_decimal::TypedDecimal},
-        endpoint::Endpoint,
-        integer::{Integer, typed_integer::TypedInteger},
-    },
+    values::core_values::endpoint::Endpoint,
 };
 use chumsky::{
     IterParser, Parser,
