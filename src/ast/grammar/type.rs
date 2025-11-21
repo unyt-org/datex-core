@@ -26,7 +26,7 @@ use crate::{
     values::core_values::endpoint::Endpoint,
 };
 use chumsky::{
-    IterParser, Parser,
+    IterParser,
     prelude::{choice, just, recursive},
     select,
 };
@@ -508,6 +508,8 @@ pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
 #[cfg(test)]
 mod tests {
     use crate::ast::{DatexParseResult, error::src::SrcId, parse};
+    use crate::values::core_values::decimal::Decimal;
+    use crate::values::core_values::integer::Integer;
 
     use super::*;
     use crate::ast::parse_result::{
