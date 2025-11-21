@@ -1,6 +1,7 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::grammar::assignment_operation::assignment_operation;
+use crate::ast::grammar::chain::property_access;
 use crate::ast::grammar::r#type::{ty, type_declaration};
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
@@ -58,11 +59,11 @@ pub fn variable_assignment<'a>(
 
 /// A variable assignment (e.g. `x.y.0 = 42` or `y.x += 1`)
 pub fn property_assignment<'a>(
-    apply_chain: impl DatexParserTrait<'a>,
+    property_access: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let assignment_op = assignment_operation();
-    apply_chain
+    property_access
         .then(assignment_op)
         .then(expression)
         .map_with(|((access_expression, operator), expr), e| {
@@ -154,12 +155,15 @@ pub fn variable_declaration<'a>(
 
 /// A declaration or assignment, e.g. `var x = 42;`, `const x = 69`, `x = 43;`, or `type x = 42`
 pub fn declaration_or_assignment<'a>(
-    // apply_chain: impl DatexParserTrait<'a>,
+    key: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
     unary: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
-        // property_assignment(apply_chain, expression.clone()),
+        property_assignment(
+            property_access(unary.clone(), key, expression.clone()),
+            expression.clone(),
+        ),
         type_declaration(),
         variable_declaration(expression.clone()),
         deref_assignment(expression.clone(), unary),

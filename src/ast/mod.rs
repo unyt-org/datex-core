@@ -173,6 +173,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     // declarations or assignments
     let declaration_or_assignment = declaration_or_assignment(
+        key.clone(),
         // chain_without_whitespace_apply.clone(),
         expression.clone(),
         unary.clone(),
@@ -2938,7 +2939,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "WIP"]
     fn property_access_assignment() {
         let src = r#"
             // var user = {

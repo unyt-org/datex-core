@@ -79,6 +79,55 @@ pub fn indexed_parameters<'a>(
         })
 }
 
+/// A property access chain, e.g. `a.b[c].d[e,f].5.g`
+pub fn property_access<'a>(
+    unary: impl DatexParserTrait<'a>,
+    key: impl DatexParserTrait<'a>,
+    expression: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    let dot_key = just(Token::Dot)
+        .ignore_then(key.clone())
+        .map(ApplyOperation::PropertyAccess);
+    let index = indexed_parameters(expression.clone())
+        .map(ApplyOperation::PropertyAccess);
+
+    // .key [expr]*
+    let dot_access = dot_key
+        .clone()
+        .then(index.clone().repeated().collect::<Vec<_>>())
+        .map(|(first, rest)| {
+            let mut ops = Vec::with_capacity(1 + rest.len());
+            ops.push(first);
+            ops.extend(rest);
+            ops
+        });
+
+    // [expr]+ index many1
+    let index_access = index
+        .clone()
+        .then(index.clone().repeated().collect::<Vec<_>>())
+        .map(|(first, rest)| {
+            let mut ops = Vec::with_capacity(1 + rest.len());
+            ops.push(first);
+            ops.extend(rest);
+            ops
+        });
+
+    let segment = choice((dot_access, index_access));
+
+    unary
+        .clone()
+        .then(segment.repeated().at_least(1).collect::<Vec<_>>())
+        .map_with(|(base, segs), e| {
+            let operations = segs.into_iter().flatten().collect::<Vec<_>>();
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base: Box::new(base),
+                operations,
+            })
+            .with_span(e.span())
+        })
+}
+
 pub fn chain<'a>(
     unary: impl DatexParserTrait<'a>,
     key: impl DatexParserTrait<'a>,
