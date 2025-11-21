@@ -43,6 +43,9 @@ pub fn integer<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
             DatexExpressionData::Integer(dec) => {
                 Ok(TypeExpressionData::Integer(dec))
             }
+            DatexExpressionData::TypedInteger(int) => {
+                Ok(TypeExpressionData::TypedInteger(int))
+            }
             _ => {
                 unreachable!()
             }
@@ -55,6 +58,9 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a, TypeExpressionData> {
         match expr.data {
             DatexExpressionData::Decimal(dec) => {
                 Ok(TypeExpressionData::Decimal(dec))
+            }
+            DatexExpressionData::TypedDecimal(dec) => {
+                Ok(TypeExpressionData::TypedDecimal(dec))
             }
             _ => {
                 unreachable!()
@@ -120,8 +126,8 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 					res.map(TypeExpressionData::Endpoint)
 						.map_err(|e| ParseError::new(ErrorKind::InvalidEndpoint(e)))
 				}),
-				integer(),
-				decimal()
+				decimal(),
+                integer(),
 			))
 			.padded_by(whitespace())
             .map_with(|data, e| data.with_span(e.span()));
