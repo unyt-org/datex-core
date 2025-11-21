@@ -658,6 +658,20 @@ mod tests {
     }
 
     #[test]
+    fn property_access() {
+        let options = PrecompilerOptions::default();
+        let ast = parse("var x = {a: 1}; x.a").unwrap();
+        precompile(ast, options).expect("Should precompile without errors");
+    }
+
+    #[test]
+    fn property_access_assignment() {
+        let options = PrecompilerOptions::default();
+        let ast = parse("var x = {a: 1}; x.a = 2;").unwrap();
+        precompile(ast, options).expect("Should precompile without errors");
+    }
+
+    #[test]
     fn undeclared_variable_error() {
         let options = PrecompilerOptions {
             detailed_errors: true,

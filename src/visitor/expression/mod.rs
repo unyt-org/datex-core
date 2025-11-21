@@ -4,9 +4,9 @@ use core::ops::Range;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
     DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, RemoteExecution, Slot, SlotAssignment,
-    Statements, TypeDeclaration, UnaryOperation, VariableAccess,
-    VariableAssignment, VariableDeclaration, VariantAccess,
+    FunctionDeclaration, List, Map, PropertyAssignment, RemoteExecution, Slot,
+    SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
+    VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -53,8 +53,8 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> Result<(), E> {
         self.before_visit_datex_expression(expr);
         let visit_result = match &mut expr.data {
-            DatexExpressionData::PropertyAssignment(_) => {
-                todo!("PropertyAssignment visitor not implemented yet")
+            DatexExpressionData::PropertyAssignment(property_assignment) => {
+                self.visit_property_assignment(property_assignment, &expr.span)
             }
             DatexExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access(variant_access, &expr.span)
@@ -238,6 +238,17 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> ExpressionVisitResult<E> {
         let _ = span;
         let _ = variant_access;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit property assignment
+    fn visit_property_assignment(
+        &mut self,
+        property_assignment: &mut PropertyAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_assignment;
         Ok(VisitAction::VisitChildren)
     }
 
