@@ -2937,6 +2937,52 @@ mod tests {
     }
 
     #[test]
+    fn property_access() {
+        let src = "myObj.myProp.0.(42 + 2).test";
+        let expr = parse_unwrap_data(src);
+        assert_eq!(
+            expr,
+            DatexExpressionData::ApplyChain(ApplyChain {
+                base: Box::new(
+                    DatexExpressionData::Identifier("myObj".to_string())
+                        .with_default_span()
+                ),
+                operations: vec![
+                    ApplyOperation::PropertyAccess(
+                        DatexExpressionData::Text("myProp".to_string())
+                            .with_default_span()
+                    ),
+                    ApplyOperation::PropertyAccess(
+                        DatexExpressionData::Integer(Integer::from(0))
+                            .with_default_span()
+                    ),
+                    ApplyOperation::PropertyAccess(
+                        DatexExpressionData::BinaryOperation(BinaryOperation {
+                            operator: BinaryOperator::Arithmetic(
+                                ArithmeticOperator::Add
+                            ),
+                            left: Box::new(
+                                DatexExpressionData::Integer(Integer::from(42))
+                                    .with_default_span()
+                            ),
+                            right: Box::new(
+                                DatexExpressionData::Integer(Integer::from(2))
+                                    .with_default_span()
+                            ),
+                            ty: None
+                        })
+                        .with_default_span()
+                    ),
+                    ApplyOperation::PropertyAccess(
+                        DatexExpressionData::Text("test".to_string())
+                            .with_default_span()
+                    ),
+                ],
+            })
+        );
+    }
+
+    #[test]
     fn property_access_assignment() {
         let src = r#"
             // var user = {
