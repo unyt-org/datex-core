@@ -1,4 +1,5 @@
 use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
 use crate::stdlib::rc::Rc;
 use crate::traits::structural_eq::StructuralEq;
@@ -163,6 +164,16 @@ impl TypeContainer {
 impl TypeContainer {
     pub fn value_matches(&self, value: &ValueContainer) -> bool {
         Self::value_matches_type(value, self)
+    }
+
+    pub fn mutability(&self) -> Option<ReferenceMutability> {
+        match self {
+            TypeContainer::Type(t) => t.mutability(),
+            TypeContainer::TypeReference(tr) => tr.borrow().mutability(),
+            TypeContainer::TypeAlias(ta) => {
+                ta.borrow().type_container.mutability()
+            }
+        }
     }
 
     /// Matches a value against a type
