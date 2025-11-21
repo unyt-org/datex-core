@@ -13,6 +13,7 @@ pub enum TypeError {
     InvalidDerefType(TypeContainer),
     Unimplemented(String),
     MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
+    AssignmentToImmutableReference(String),
 
     // can not assign value to variable of different type
     AssignmentTypeMismatch {
@@ -24,6 +25,13 @@ pub enum TypeError {
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeError::AssignmentToImmutableReference(var_name) => {
+                write!(
+                    f,
+                    "Cannot assign to immutable reference variable '{}'",
+                    var_name
+                )
+            }
             TypeError::SubvariantNotFound(ty, variant) => {
                 write!(
                     f,
