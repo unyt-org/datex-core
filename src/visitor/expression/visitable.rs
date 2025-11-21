@@ -2,9 +2,9 @@ use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
     DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, RemoteExecution, SlotAssignment,
-    Statements, TypeDeclaration, UnaryOperation, VariableAssignment,
-    VariableDeclaration,
+    FunctionDeclaration, List, Map, PropertyAssignment, RemoteExecution,
+    SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
+    VariableAssignment, VariableDeclaration,
 };
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
@@ -141,7 +141,7 @@ impl<E> VisitableExpression<E> for ApplyChain {
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
-        visitor.visit_datex_expression(&mut self.base);
+        visitor.visit_datex_expression(&mut self.base)?;
         for operation in &mut self.operations {
             match operation {
                 ApplyOperation::FunctionCall(arg) => {
@@ -213,14 +213,25 @@ impl<E> VisitableExpression<E> for CreateRef {
     }
 }
 
+impl<E> VisitableExpression<E> for PropertyAssignment {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
+        visitor.visit_datex_expression(&mut self.access_expression)?;
+        visitor.visit_datex_expression(&mut self.assigned_expression)?;
+        Ok(())
+    }
+}
+
 impl<E> VisitableExpression<E> for DatexExpression {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
         match &mut self.data {
-            DatexExpressionData::PropertyAssignment(_) => {
-                todo!("PropertyAssignment visitable not implemented yet")
+            DatexExpressionData::PropertyAssignment(property_assignment) => {
+                property_assignment.walk_children(visitor)
             }
             DatexExpressionData::BinaryOperation(op) => {
                 op.walk_children(visitor)
