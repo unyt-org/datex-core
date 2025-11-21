@@ -10,8 +10,6 @@ use crate::ast::structs::r#type::{
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
     TypeVariantAccess, Union,
 };
-use crate::values::core_values::error::NumberParseError;
-use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::{
     ast::{
         DatexParserTrait,
@@ -22,7 +20,7 @@ use crate::{
         grammar::literal::literal,
         grammar::text::unescape_text,
         grammar::utils::whitespace,
-        lexer::{DecimalLiteral, IntegerLiteral, Token},
+        lexer::{IntegerLiteral, Token},
         structs::expression::TypeDeclaration,
     },
     references::reference::ReferenceMutability,
@@ -514,9 +512,7 @@ mod tests {
     use crate::ast::parse_result::{
         InvalidDatexParseResult, ValidDatexParseResult,
     };
-    use crate::ast::structs::expression::{
-        DatexExpression, DatexExpressionData, Statements,
-    };
+    use crate::ast::structs::expression::{DatexExpressionData, Statements};
     use crate::stdlib::{io, str::FromStr};
 
     fn parse_unwrap(src: &str) -> DatexExpressionData {
