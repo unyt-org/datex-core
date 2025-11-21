@@ -74,6 +74,9 @@ impl Type {
             None
         }
     }
+    pub fn mutability(&self) -> Option<ReferenceMutability> {
+        self.reference_mutability.clone()
+    }
 }
 
 impl Type {

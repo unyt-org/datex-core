@@ -3,6 +3,7 @@ use core::result::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::libs::core::CoreLibPointerId;
+use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::ExecutionError;
 use crate::stdlib::string::ToString;
 use crate::stdlib::{
@@ -106,6 +107,9 @@ impl TypeReference {
                 self.clone()
             }
         }
+    }
+    pub fn mutability(&self) -> Option<ReferenceMutability> {
+        self.type_value.mutability()
     }
 }
 
