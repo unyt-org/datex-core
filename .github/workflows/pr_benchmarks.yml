@@ -1,6 +1,12 @@
 on:
     pull_request:
         types: [opened, reopened, edited, synchronize]
+    workflow_dispatch:
+        inputs:
+            reason:
+                description: 'Reason for running benchmarks'
+                required: false
+                default: 'Manual trigger'
 
 jobs:
     benchmark_pr_branch:
@@ -8,7 +14,12 @@ jobs:
             group: ${{ github.workflow }}-${{ github.ref }}
             cancel-in-progress: true
         name: Continuous Benchmarking PRs
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        # Skip for feature branches, only run for release branches or manual triggers
+        if: >
+            (github.event_name == 'workflow_dispatch') || 
+            (github.event_name == 'pull_request' && 
+             github.event.pull_request.head.repo.full_name == github.repository &&
+             !startsWith(github.head_ref, 'feature/'))
         permissions:
             pull-requests: write
         runs-on: ubuntu-latest
