@@ -24,6 +24,7 @@ use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use datex_core::types::type_container::TypeContainer;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {
@@ -176,21 +177,11 @@ impl DIFValueRepresentation {
                 }
             }
             DIFTypeContainer::Type(dif_type) => {
-                match &dif_type.type_definition {
-                    DIFTypeDefinition::Structural(s) => {
-                        core::todo!(
-                            "#390 Structural type conversion not supported yet"
-                        )
-                    }
-                    DIFTypeDefinition::Unit => Value {
-                        actual_type: Box::new(get_core_lib_type(
-                            CoreLibPointerId::Null,
-                        )),
-                        inner: CoreValue::Null,
-                    },
-                    _ => core::todo!(
-                        "#391 Other type definitions not supported yet"
-                    ),
+                let val = self.to_default_value(memory)?;
+                let ty = dif_type.to_type(memory);
+                Value {
+                    actual_type: Box::new(TypeContainer::Type(ty)),
+                    ..val
                 }
             }
         })
