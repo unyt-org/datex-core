@@ -1,5 +1,5 @@
 use crate::dif::DIFConvertible;
-use crate::dif::representation::{DIFTypeRepresentation, DIFValueRepresentation};
+use crate::dif::representation::{DIFTypeRepresentation};
 use crate::references::reference::Reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
@@ -14,13 +14,7 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
-use std::hash::RandomState;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
-use crate::values::core_value::CoreValue;
-use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def", rename_all = "lowercase")]
