@@ -1,5 +1,5 @@
 use crate::dif::DIFConvertible;
-use crate::dif::representation::DIFTypeRepresentation;
+use crate::dif::representation::{DIFTypeRepresentation, DIFValueRepresentation};
 use crate::references::reference::Reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
@@ -14,7 +14,13 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
+use std::hash::RandomState;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+use crate::values::core_value::CoreValue;
+use crate::values::value::Value;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "def", rename_all = "lowercase")]
@@ -136,6 +142,52 @@ impl DIFTypeDefinition {
             },
         }
     }
+
+    fn to_type_definition(
+        &self,
+        memory: &RefCell<Memory>,
+    ) -> TypeDefinition {
+        match self {
+            DIFTypeDefinition::Intersection(types) => {
+                TypeDefinition::Intersection(
+                    types
+                        .iter()
+                        .map(|t| {
+                            t.to_type_container(memory)
+                        })
+                        .collect(),
+                )
+            }
+            DIFTypeDefinition::Union(types) => TypeDefinition::Union(
+                types
+                    .iter()
+                    .map(|t| t.to_type_container(memory))
+                    .collect(),
+            ),
+            DIFTypeDefinition::Reference(type_ref_addr) => {
+                let type_ref = memory
+                    .borrow_mut()
+                    .get_type_reference(type_ref_addr)
+                    .expect("Reference not found in memory")
+                    .clone();
+                TypeDefinition::Reference(type_ref)
+            }
+            DIFTypeDefinition::Type(dif_type) => {
+                TypeDefinition::Type(Box::new(dif_type.to_type(memory)))
+            },
+            DIFTypeDefinition::Marker(ptr_address) => {
+                TypeDefinition::Marker(ptr_address.clone())
+            }
+            DIFTypeDefinition::Unit => TypeDefinition::Unit,
+            DIFTypeDefinition::Never => TypeDefinition::Never,
+            DIFTypeDefinition::Unknown => TypeDefinition::Unknown,
+            _ => {
+                core::todo!(
+                    "DIFTypeDefinition::to_type_definition for this variant is not implemented yet"
+                )
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -177,6 +229,18 @@ impl DIFType {
             ),
         }
     }
+
+    pub(crate) fn to_type(&self, memory: &RefCell<Memory>) -> Type {
+        Type {
+            reference_mutability: self.mutability.clone(),
+            type_definition: DIFTypeDefinition::to_type_definition(
+                &self.type_definition,
+                memory,
+            ),
+            base_type: None,
+        }
+    }
+
 }
 
 impl From<DIFTypeRepresentation> for DIFType {
@@ -216,6 +280,26 @@ impl DIFTypeContainer {
             TypeContainer::TypeAlias(type_alias) => {
                 core::todo!(
                     "DIFTypeContainer::from_type_container for TypeAlias is not implemented yet"
+                )
+            }
+        }
+    }
+
+    pub fn to_type_container(
+        &self,
+        memory: &RefCell<Memory>,
+    ) -> TypeContainer {
+        match self {
+            DIFTypeContainer::Type(dif_type) => {
+                TypeContainer::Type(dif_type.to_type(memory))
+            }
+            DIFTypeContainer::Reference(addr) => {
+                TypeContainer::TypeReference(
+                    memory
+                        .borrow_mut()
+                        .get_type_reference(addr)
+                        .expect("Reference not found in memory")
+                        .clone()
                 )
             }
         }
