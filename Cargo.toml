@@ -123,14 +123,16 @@ openssl = { version = "0.10.73", optional = true }
 
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
 gloo-timers = { optional = true, version = "0.3.0", features = ["futures"] }
-tsify = { optional = true, version = "0.5.5" }
-wasm-bindgen = { optional = true, version = "=0.2.102" }
+tsify = { optional = true, version = "0.5.6", features = ["js"] }
+# wasm-bindgen is required for tsify
+wasm-bindgen = { optional = true, version = "=0.2.105" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# TODO: required for rust-analyzer to resolve dependencies
 wasm-bindgen-futures = { version = "0.4.29" }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
-tsify = "0.5.5"
-wasm-bindgen = "=0.2.102"
+tsify = "0.5.6"
+wasm-bindgen = "=0.2.105"
 
 [profile.release]
 opt-level = "z"
@@ -229,7 +231,7 @@ wasm_runtime = [
     "dep:wasm-bindgen-futures",
     "dep:gloo-timers",
     "dep:tsify",
-    "dep:wasm-bindgen",
+#    "dep:wasm-bindgen",
 ]
 embassy_runtime = [
     "dep:embassy-executor",
