@@ -14,7 +14,6 @@ use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use url::Url;
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
 use crate::network::com_interfaces::com_interface::{

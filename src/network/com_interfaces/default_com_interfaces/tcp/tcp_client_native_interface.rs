@@ -7,7 +7,7 @@ use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-
+use core::str::FromStr;
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
@@ -29,10 +29,10 @@ use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedWriteHalf;
-use url::Url;
+use crate::stdlib::net::SocketAddr;
 
 pub struct TCPClientNativeInterface {
-    pub address: Url,
+    pub address: SocketAddr,
     tx: Option<Rc<RefCell<OwnedWriteHalf>>>,
     info: ComInterfaceInfo,
 }
@@ -46,7 +46,7 @@ impl SingleSocketProvider for TCPClientNativeInterface {
 impl TCPClientNativeInterface {
     pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
         let interface = TCPClientNativeInterface {
-            address: Url::parse(address).map_err(|_| TCPError::InvalidURL)?,
+            address: SocketAddr::from_str(address).map_err(|_| TCPError::InvalidAddress)?,
             info: ComInterfaceInfo::new(),
             tx: None,
         };
@@ -55,10 +55,7 @@ impl TCPClientNativeInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), TCPError> {
-        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
-        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{host}:{port}");
-        let stream = TcpStream::connect(address)
+        let stream = TcpStream::connect(self.address)
             .await
             .map_err(|_| TCPError::ConnectionError)?;
 
