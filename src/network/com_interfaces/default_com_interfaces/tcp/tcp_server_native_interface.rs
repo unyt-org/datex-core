@@ -1,14 +1,14 @@
+use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::std_sync::Mutex;
 use crate::stdlib::collections::{HashMap, VecDeque};
+use crate::stdlib::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;
+use crate::task::{spawn, spawn_with_panic_notify_default};
 use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-use crate::stdlib::net::{SocketAddr, Ipv4Addr, SocketAddrV4};
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::task::{spawn, spawn_with_panic_notify_default};
 use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -28,9 +28,8 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::{delegate_com_interface_info, set_opener};
 use crate::runtime::global_context::{get_global_context, set_global_context};
-
+use crate::{delegate_com_interface_info, set_opener};
 
 pub struct TCPServerNativeInterface {
     pub address: SocketAddr,
@@ -48,7 +47,8 @@ impl MultipleSocketProvider for TCPServerNativeInterface {
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
-        let address = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0,0,0,0), port));
+        let address =
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
         let interface = TCPServerNativeInterface {
             address,
             info,

@@ -31,11 +31,7 @@ impl LanguageServerBackend {
             self.client
                 .log_message(
                     MessageType::ERROR,
-                    format!(
-                        "Failed to compile file {}: {}",
-                        url,
-                        errors,
-                    ),
+                    format!("Failed to compile file {}: {}", url, errors,),
                 )
                 .await;
             self.collect_compiler_errors(errors, url, &content)

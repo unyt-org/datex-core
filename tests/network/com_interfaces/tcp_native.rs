@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use crate::context::init_global_context;
 use datex_core::network::com_interfaces::{
     com_interface::ComInterface,
     default_com_interfaces::tcp::{
@@ -9,16 +10,14 @@ use datex_core::network::com_interfaces::{
     },
     socket_provider::{MultipleSocketProvider, SingleSocketProvider},
 };
-use futures::future::join_all;
 use datex_core::run_async;
-use crate::context::init_global_context;
+use futures::future::join_all;
 
 #[tokio::test]
 pub async fn test_client_no_connection() {
     init_global_context();
 
-    let mut client =
-        TCPClientNativeInterface::new("0.0.0.0:8080").unwrap();
+    let mut client = TCPClientNativeInterface::new("0.0.0.0:8080").unwrap();
     assert!(client.get_state().is_not_connected());
     let res = client.open().await;
     assert!(res.is_err());
