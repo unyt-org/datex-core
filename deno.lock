@@ -3,9 +3,6 @@
   "specifiers": {
     "jsr:@opentf/obj-diff@0.11": "0.11.0",
     "jsr:@opentf/std@0.12.0": "0.12.0",
-    "jsr:@std/fs@1": "1.0.19",
-    "jsr:@std/internal@^1.0.10": "1.0.12",
-    "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@unyt/speck@^0.0.10": "0.0.10",
     "npm:github-slugger@2": "2.0.0",
     "npm:tablemark@^4.1.0": "4.1.0"
@@ -20,25 +17,9 @@
     "@opentf/std@0.12.0": {
       "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
     },
-    "@std/fs@1.0.19": {
-      "integrity": "051968c2b1eae4d2ea9f79a08a3845740ef6af10356aff43d3e2ef11ed09fb06",
-      "dependencies": [
-        "jsr:@std/path"
-      ]
-    },
-    "@std/internal@1.0.12": {
-      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
-    },
-    "@std/path@1.1.2": {
-      "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038",
-      "dependencies": [
-        "jsr:@std/internal"
-      ]
-    },
     "@unyt/speck@0.0.10": {
       "integrity": "78e7f5459e864b582fe3b6d81905c266789bf3d36b7b003da320b54ee3215711",
       "dependencies": [
-        "jsr:@std/fs",
         "npm:github-slugger",
         "npm:tablemark"
       ]
@@ -54,8 +35,8 @@
     "change-case@5.4.4": {
       "integrity": "sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w=="
     },
-    "emoji-regex@10.5.0": {
-      "integrity": "sha512-lb49vf1Xzfx080OKA0o6l8DQQpV+6Vg95zyCJX9VB/BqKYlhG7N4wgROUUHRA+ZPUefLnteQOad7z1kT2bV7bg=="
+    "emoji-regex@10.6.0": {
+      "integrity": "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="
     },
     "get-east-asian-width@1.4.0": {
       "integrity": "sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q=="
@@ -94,8 +75,8 @@
         "wrap-ansi"
       ]
     },
-    "wordwrapjs@5.1.0": {
-      "integrity": "sha512-JNjcULU2e4KJwUNv6CHgI46UvDGitb6dGryHajXTDiLgg1/RiGoPSDw4kZfYnwGtEXf2ZMeIewDQgFGzkCB2Sg=="
+    "wordwrapjs@5.1.1": {
+      "integrity": "sha512-0yweIbkINJodk27gX9LBGMzyQdBDan3s/dEAiwBOj+Mf0PPyWL6/rikalkv8EeD0E8jm4o5RXEOrFTP3NXbhJg=="
     },
     "wrap-ansi@9.0.2": {
       "integrity": "sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==",
@@ -107,7 +88,7 @@
     }
   },
   "remote": {
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "ed27e7d8889cb2d542756b68c18fe2bdde7b2caa0f69a026659a998ac925c0a9"
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "eebb55680a419f1055e5250e08dd3cc669a6f9b5721d99d083166be080931c62"
   },
   "workspace": {
     "dependencies": [

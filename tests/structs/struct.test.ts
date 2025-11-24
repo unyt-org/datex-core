@@ -1,5 +1,5 @@
 // deno-lint-ignore no-import-prefix
-import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token" with {
+import dxb from "example-dxb" with {
     type: "json",
 };
 
