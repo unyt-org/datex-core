@@ -6,7 +6,7 @@ use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-
+use crate::stdlib::net::{SocketAddr, Ipv4Addr, SocketAddrV4};
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::task::{spawn, spawn_with_panic_notify_default};
 use datex_macros::{com_interface, create_opener};
@@ -32,8 +32,9 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::{delegate_com_interface_info, set_opener};
 use crate::runtime::global_context::{get_global_context, set_global_context};
 
+
 pub struct TCPServerNativeInterface {
-    pub address: Url,
+    pub address: SocketAddr,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
     info: ComInterfaceInfo,
 }
@@ -48,8 +49,7 @@ impl MultipleSocketProvider for TCPServerNativeInterface {
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
-        let address: String = format!("tcp://0.0.0.0:{port}");
-        let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
+        let address = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0,0,0,0), port));
         let interface = TCPServerNativeInterface {
             address,
             info,
@@ -63,11 +63,7 @@ impl TCPServerNativeInterface {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
 
-        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
-        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{host}:{port}");
-
-        let listener = TcpListener::bind(address.clone())
+        let listener = TcpListener::bind(self.address)
             .await
             .map_err(|e| TCPError::Other(format!("{e:?}")))?;
         info!("Server listening on {address}");
@@ -75,10 +71,8 @@ impl TCPServerNativeInterface {
         let interface_uuid = self.get_uuid().clone();
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
-        let global_context = get_global_context();
         // TODO: use normal spawn (thread)? currently leads to global context panic
         spawn_with_panic_notify_default(async move {
-            set_global_context(global_context.clone());
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
@@ -99,9 +93,7 @@ impl TCPServerNativeInterface {
                             .unwrap()
                             .add_socket(Arc::new(Mutex::new(socket)));
 
-                        let global_context = global_context.clone();
                         spawn_with_panic_notify_default(async move {
-                            set_global_context(global_context);
                             Self::handle_client(read_half, receive_queue).await
                         });
                     }
