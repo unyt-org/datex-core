@@ -4,7 +4,7 @@ use crate::stdlib::collections::{HashMap, VecDeque};
 use crate::stdlib::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;
-use crate::task::{spawn, spawn_with_panic_notify_default};
+use crate::task::spawn_with_panic_notify_default;
 use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
@@ -28,7 +28,6 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::runtime::global_context::{get_global_context, set_global_context};
 use crate::{delegate_com_interface_info, set_opener};
 
 pub struct TCPServerNativeInterface {
@@ -59,7 +58,7 @@ impl TCPServerNativeInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), TCPError> {
-        let address = self.address.clone();
+        let address = self.address;
         info!("Spinning up server at {address}");
 
         let listener = TcpListener::bind(self.address)
