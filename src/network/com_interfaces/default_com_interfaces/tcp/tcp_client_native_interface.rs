@@ -1,13 +1,3 @@
-use crate::std_sync::Mutex;
-use crate::stdlib::pin::Pin;
-use crate::stdlib::rc::Rc;
-use crate::stdlib::sync::Arc;
-use core::cell::RefCell;
-use core::future::Future;
-use core::prelude::rust_2024::*;
-use core::result::Result;
-use core::time::Duration;
-use core::str::FromStr;
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
@@ -22,14 +12,24 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
+use crate::std_sync::Mutex;
+use crate::stdlib::net::SocketAddr;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
+use crate::stdlib::sync::Arc;
 use crate::task::spawn;
 use crate::{delegate_com_interface_info, set_opener};
+use core::cell::RefCell;
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::str::FromStr;
+use core::time::Duration;
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedWriteHalf;
-use crate::stdlib::net::SocketAddr;
 
 pub struct TCPClientNativeInterface {
     pub address: SocketAddr,
@@ -46,7 +46,8 @@ impl SingleSocketProvider for TCPClientNativeInterface {
 impl TCPClientNativeInterface {
     pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
         let interface = TCPClientNativeInterface {
-            address: SocketAddr::from_str(address).map_err(|_| TCPError::InvalidAddress)?,
+            address: SocketAddr::from_str(address)
+                .map_err(|_| TCPError::InvalidAddress)?,
             info: ComInterfaceInfo::new(),
             tx: None,
         };
