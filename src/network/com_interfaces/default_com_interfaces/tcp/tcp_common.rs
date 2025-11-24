@@ -19,7 +19,7 @@ pub struct TCPServerInterfaceSetupData {
 #[derive(Debug, Display, Error, Clone, PartialEq)]
 pub enum TCPError {
     Other(String),
-    InvalidURL,
+    InvalidAddress,
     ConnectionError,
     SendError,
     ReceiveError,
