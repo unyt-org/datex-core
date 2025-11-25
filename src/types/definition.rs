@@ -38,8 +38,8 @@ pub enum TypeDefinition {
     // A | B | C
     Union(Vec<TypeContainer>),
     
-    // Marker<$PointerAddress>
-    Marker(PointerAddress),
+    // xy + Marker1 + Marker2
+    MarkedType(Box<TypeContainer>, Vec<PointerAddress>),
 
     // ()
     Unit,
@@ -95,8 +95,11 @@ impl Hash for TypeDefinition {
                 }
                 return_type.hash(state);
             }
-            TypeDefinition::Marker(address) => {
-                address.hash(state);
+            TypeDefinition::MarkedType(ty, markers) => {
+                ty.hash(state);
+                for marker in markers {
+                    marker.hash(state);
+                }
             }
         }
     }
@@ -110,12 +113,16 @@ impl Display for TypeDefinition {
             TypeDefinition::Reference(reference) => {
                 core::write!(f, "{}", reference.borrow())
             }
-            TypeDefinition::Type(value) => core::write!(f, "{}", value),
+            TypeDefinition::Type(ty) => core::write!(f, "{}", ty),
             TypeDefinition::Unit => core::write!(f, "()"),
             TypeDefinition::Unknown => core::write!(f, "unknown"),
             TypeDefinition::Never => core::write!(f, "never"),
-            TypeDefinition::Marker(address) => {
-                core::write!(f, "Marker<{}>", address)
+            TypeDefinition::MarkedType(ty, markers) => {
+                core::write!(f, "{}", ty)?;
+                for marker in markers {
+                    core::write!(f, " + {}", marker)?;
+                }
+                Ok(())
             }
 
             TypeDefinition::Union(types) => {

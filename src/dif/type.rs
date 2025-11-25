@@ -17,7 +17,7 @@ use core::prelude::rust_2024::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "def", rename_all = "lowercase")]
+#[serde(tag = "kind", content = "def", rename_all = "kebab-case")]
 pub enum DIFTypeDefinition {
     // {x: integer, y: text}
     Structural(Box<DIFStructuralTypeDefinition>),
@@ -31,7 +31,7 @@ pub enum DIFTypeDefinition {
     // e.g. A | B | C
     Union(Vec<DIFTypeContainer>),
 
-    Marker(PointerAddress),
+    MarkedType(Box<DIFTypeContainer>, Vec<PointerAddress>),
 
     // ()
     Unit,
@@ -110,8 +110,11 @@ impl DIFTypeDefinition {
                     .map(|t| DIFTypeContainer::from_type_container(t, memory))
                     .collect(),
             ),
-            TypeDefinition::Marker(ptr_address) => {
-                DIFTypeDefinition::Marker(ptr_address.clone())
+            TypeDefinition::MarkedType(ty, markers) => {
+                DIFTypeDefinition::MarkedType(
+                    Box::new(DIFTypeContainer::from_type_container(ty, memory)),
+                    markers.clone(),
+                )
             }
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
             TypeDefinition::Never => DIFTypeDefinition::Never,
@@ -169,8 +172,11 @@ impl DIFTypeDefinition {
             DIFTypeDefinition::Type(dif_type) => {
                 TypeDefinition::Type(Box::new(dif_type.to_type(memory)))
             },
-            DIFTypeDefinition::Marker(ptr_address) => {
-                TypeDefinition::Marker(ptr_address.clone())
+            DIFTypeDefinition::MarkedType(ty, markers) => {
+                TypeDefinition::MarkedType(
+                    Box::new(ty.to_type_container(memory)),
+                    markers.clone(),
+                )
             }
             DIFTypeDefinition::Unit => TypeDefinition::Unit,
             DIFTypeDefinition::Never => TypeDefinition::Never,

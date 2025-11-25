@@ -306,6 +306,7 @@ pub enum TypeInstruction {
     LiteralInteger(IntegerData),
     ListStart,
     ScopeEnd,
+    // TODO: add more type instructions
 }
 
 impl Display for TypeInstruction {

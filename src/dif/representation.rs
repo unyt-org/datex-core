@@ -20,11 +20,13 @@ use core::fmt;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use indexmap::IndexMap;
+use log::info;
 use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use datex_core::types::type_container::TypeContainer;
+use crate::values::core_values::map::Map;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {
@@ -169,6 +171,17 @@ impl DIFValueRepresentation {
                             }
                             Value::from(CoreValue::Map(core_map.into()))
                         }
+                        // type map and represented as object -> convert to map
+                        CoreLibPointerId::Map
+                        if let DIFValueRepresentation::Array(array) =
+                            self =>
+                            {
+                                // assert that array is empty, otherwise this is not a valid DIF representation
+                                if !array.is_empty() {
+                                    unreachable!("Invalid DIF value, non-empty array with map type")
+                                }
+                                Value::from(CoreValue::Map(Map::Fixed(vec![])))
+                            }
                         // otherwise, use default mapping
                         _ => self.to_default_value(memory)?,
                     }
