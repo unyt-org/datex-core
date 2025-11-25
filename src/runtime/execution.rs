@@ -1139,7 +1139,13 @@ fn handle_value(
 ) -> Result<(), ExecutionError> {
     let scope_container = context.scope_stack.get_current_scope_mut();
 
+    // cast to active type
+    if let Some(active_value) = &scope_container.active_value {
+        info!("casting, {:#?} to {:#?}", value_container, active_value);
+    }
+
     let result_value = match &mut scope_container.scope {
+        
         Scope::KeyValuePair => {
             let key = &scope_container.active_value;
             match key {
