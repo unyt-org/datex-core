@@ -10,6 +10,8 @@ use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
 use core::prelude::rust_2024::*;
+use crate::types::definition::TypeDefinition;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
 
 pub struct ValueReference {
     /// the value that this reference points to
@@ -17,7 +19,7 @@ pub struct ValueReference {
     /// pointer id, can be initialized as None for local pointers
     pub pointer_address: Option<PointerAddress>,
     /// custom type for the pointer that the Datex value is allowed to reference
-    pub allowed_type: TypeContainer,
+    pub allowed_type: TypeDefinition,
     /// list of observer callbacks
     pub observers: FreeHashMap<u32, Observer>,
     pub mutability: ReferenceMutability,
@@ -28,7 +30,7 @@ impl Default for ValueReference {
         ValueReference {
             value_container: ValueContainer::Value(Value::null()),
             pointer_address: None,
-            allowed_type: TypeContainer::null(),
+            allowed_type: TypeDefinition::Unknown,
             observers: FreeHashMap::new(),
             mutability: ReferenceMutability::Immutable,
         }
@@ -39,7 +41,7 @@ impl ValueReference {
     pub fn new(
         value_container: ValueContainer,
         pointer_address: Option<PointerAddress>,
-        allowed_type: TypeContainer,
+        allowed_type: TypeDefinition,
         mutability: ReferenceMutability,
     ) -> Self {
         ValueReference {

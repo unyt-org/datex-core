@@ -3,12 +3,12 @@ use core::ops::Range;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::expression::VariableAccess;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,7 +92,7 @@ pub struct TypeExpression {
     pub data: TypeExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-    pub ty: Option<TypeContainer>,
+    pub ty: Option<Type>,
 }
 impl TypeExpression {
     pub fn new(data: TypeExpressionData, span: Range<usize>) -> Self {

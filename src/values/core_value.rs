@@ -2,7 +2,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference};
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
@@ -26,6 +26,9 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
+use std::cell::RefCell;
+use std::rc::Rc;
+use datex_core::types::definition::TypeDefinition;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -241,8 +244,8 @@ impl CoreValue {
     /// This method uses the CoreLibPointerId to retrieve the corresponding
     /// type reference from the core library.
     /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
-    pub fn default_type(&self) -> TypeContainer {
-        get_core_lib_type(CoreLibPointerId::from(self))
+    pub fn default_type_definition(&self) -> TypeDefinition {
+        TypeDefinition::Reference(get_core_lib_type_reference(CoreLibPointerId::from(self)))
     }
 
     // TODO #313: allow cast of any CoreValue to Type, as structural type can always be constructed?
@@ -771,8 +774,8 @@ mod tests {
     fn type_construct() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
-        assert_eq!(a.default_type().to_string(), "integer/i32");
-        assert_eq!(a.default_type().base_type().to_string(), "integer");
+        assert_eq!(a.default_type_definition().to_string(), "integer/i32");
+        assert_eq!(a.default_type_definition().base_type().to_string(), "integer");
     }
 
     #[test]

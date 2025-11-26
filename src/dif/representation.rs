@@ -1,6 +1,6 @@
-use crate::dif::r#type::{DIFTypeContainer, DIFTypeDefinition};
+use crate::dif::r#type::{DIFType, DIFTypeContainer, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type, get_core_lib_type_definition};
 use crate::runtime::memory::Memory;
 use crate::std_random::RandomState;
 use crate::stdlib::boxed::Box;
@@ -25,7 +25,6 @@ use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-use datex_core::types::type_container::TypeContainer;
 use crate::values::core_values::map::Map;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -55,11 +54,11 @@ pub enum DIFTypeRepresentation {
     /// Represents a number in DIF.
     Number(f64),
     /// Represents a array of DIF values.
-    Array(Vec<DIFTypeContainer>),
+    Array(Vec<DIFType>),
     /// Represents a map of DIF values.
-    Map(Vec<(DIFTypeContainer, DIFTypeContainer)>),
+    Map(Vec<(DIFType, DIFType)>),
     /// Represents a struct value in DIF.
-    Object(Vec<(String, DIFTypeContainer)>),
+    Object(Vec<(String, DIFType)>),
 }
 
 impl DIFValueRepresentation {
@@ -72,19 +71,19 @@ impl DIFValueRepresentation {
         Ok(match self {
             DIFValueRepresentation::Null => Value::null(),
             DIFValueRepresentation::String(str) => Value {
-                actual_type: Box::new(get_core_lib_type(
+                actual_type: Box::new(get_core_lib_type_definition(
                     CoreLibPointerId::Text,
                 )),
                 inner: CoreValue::Text(str.clone().into()),
             },
             DIFValueRepresentation::Boolean(b) => Value {
-                actual_type: Box::new(get_core_lib_type(
+                actual_type: Box::new(get_core_lib_type_definition(
                     CoreLibPointerId::Boolean,
                 )),
                 inner: CoreValue::Boolean((*b).into()),
             },
             DIFValueRepresentation::Number(n) => Value {
-                actual_type: Box::new(get_core_lib_type(
+                actual_type: Box::new(get_core_lib_type_definition(
                     CoreLibPointerId::Decimal(Some(DecimalTypeVariant::F64)),
                 )),
                 inner: CoreValue::TypedDecimal(TypedDecimal::F64(
@@ -92,7 +91,7 @@ impl DIFValueRepresentation {
                 )),
             },
             DIFValueRepresentation::Array(array) => Value {
-                actual_type: Box::new(get_core_lib_type(
+                actual_type: Box::new(get_core_lib_type_definition(
                     CoreLibPointerId::List,
                 )),
                 inner: CoreValue::List(
@@ -112,7 +111,7 @@ impl DIFValueRepresentation {
                     );
                 }
                 Value {
-                    actual_type: Box::new(get_core_lib_type(
+                    actual_type: Box::new(get_core_lib_type_definition(
                         CoreLibPointerId::Map,
                     )),
                     inner: CoreValue::Map(map.into()),
@@ -127,7 +126,7 @@ impl DIFValueRepresentation {
                     );
                 }
                 Value {
-                    actual_type: Box::new(get_core_lib_type(
+                    actual_type: Box::new(get_core_lib_type_definition(
                         CoreLibPointerId::Map,
                     )),
                     inner: CoreValue::Map(core_map.into()),
@@ -145,10 +144,10 @@ impl DIFValueRepresentation {
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value_with_type(
         &self,
-        type_container: &DIFTypeContainer,
+        type_definition: &DIFTypeDefinition,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(match type_container {
+        Ok(match type_definition {
             DIFTypeContainer::Reference(r) => {
                 if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
                     match core_lib_ptr_id {
@@ -193,7 +192,7 @@ impl DIFValueRepresentation {
                 let val = self.to_default_value(memory)?;
                 let ty = dif_type.to_type(memory);
                 Value {
-                    actual_type: Box::new(TypeContainer::Type(ty)),
+                    actual_type: Box::new(ty),
                     ..val
                 }
             }
@@ -241,7 +240,7 @@ impl DIFTypeRepresentation {
                 DIFTypeRepresentation::Array(
                     arr.iter()
                         .map(|v| {
-                            DIFTypeContainer::from_type_container(v, memory)
+                            DIFType::from_type(v, memory)
                         })
                         .collect(),
                 )
@@ -252,10 +251,10 @@ impl DIFTypeRepresentation {
                         .iter()
                         .map(|(k, v)| {
                             (
-                                DIFTypeContainer::from_type_container(
+                                DIFType::from_type(
                                     k, memory,
                                 ),
-                                DIFTypeContainer::from_type_container(
+                                DIFType::from_type(
                                     v, memory,
                                 ),
                             )
@@ -481,13 +480,13 @@ impl<'de> Deserialize<'de> for DIFTypeRepresentation {
                 A: SeqAccess<'de>,
             {
                 let first_entry = seq
-                    .next_element::<DeserializeMapOrArray<DIFTypeContainer>>(
+                    .next_element::<DeserializeMapOrArray<DIFType>>(
                     )?;
                 match first_entry {
                     Some(DeserializeMapOrArray::ArrayEntry(first)) => {
                         let mut elements = vec![first];
                         while let Some(elem) =
-                            seq.next_element::<DIFTypeContainer>()?
+                            seq.next_element::<DIFType>()?
                         {
                             elements.push(elem);
                         }
@@ -496,8 +495,8 @@ impl<'de> Deserialize<'de> for DIFTypeRepresentation {
                     Some(DeserializeMapOrArray::MapEntry(k, v)) => {
                         let mut elements = vec![(k, v)];
                         while let Some((k, v)) = seq.next_element::<(
-                            DIFTypeContainer,
-                            DIFTypeContainer,
+                            DIFType,
+                            DIFType,
                         )>(
                         )? {
                             elements.push((k, v));

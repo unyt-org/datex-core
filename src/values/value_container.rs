@@ -1,6 +1,5 @@
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
-use crate::types::type_container::TypeContainer;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
@@ -17,7 +16,9 @@ use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
 use serde::Deserialize;
+use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -261,23 +262,36 @@ impl ValueContainer {
         }
     }
 
-    /// Returns the allowed type of the value container
-    pub fn allowed_type(&self) -> TypeContainer {
-        match self {
-            // If it's a Value, return its actual type
-            ValueContainer::Value(value) => value.actual_type().clone(),
-            ValueContainer::Reference(reference) => {
-                reference.allowed_type().clone()
-            }
-        }
-    }
-
     /// Returns the actual type of the contained value, resolving references if necessary.
-    pub fn actual_type(&self) -> TypeContainer {
+    pub fn actual_value_type(&self) -> TypeDefinition {
         match self {
             ValueContainer::Value(value) => value.actual_type().clone(),
             ValueContainer::Reference(reference) => {
                 reference.actual_type().clone()
+            }
+        }
+    }
+
+    /// Returns the actual type that describes the value container (e.g. integer or &&mut integer).
+    pub fn actual_container_type(&self) -> Type {
+        match self {
+            ValueContainer::Value(value) => Type::new(
+                *value.actual_type.clone(),
+                None,
+            ),
+            ValueContainer::Reference(reference) => {
+                let inner_type = reference.value_container().actual_container_type();
+                Type::new(
+                    // when nesting references, we need to keep the reference information
+                    if inner_type.is_reference_type() {
+                        TypeDefinition::Type(Box::new(inner_type))
+                    }
+                    // for simple non-ref type, we can collapse the definition
+                    else {
+                        inner_type.type_definition
+                    },
+                    Some(reference.mutability()),
+                )
             }
         }
     }
@@ -349,26 +363,6 @@ impl Apply for ValueContainer {
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {
         ValueContainer::Value(value.into())
-    }
-}
-
-impl From<TypeContainer> for ValueContainer {
-    fn from(type_container: TypeContainer) -> Self {
-        match type_container {
-            TypeContainer::Type(type_value) => {
-                ValueContainer::Value(Value::from(type_value))
-            }
-            TypeContainer::TypeReference(type_reference) => {
-                ValueContainer::Reference(Reference::TypeReference(
-                    type_reference,
-                ))
-            }
-            TypeContainer::TypeAlias(type_alias) => {
-                unreachable!(
-                    "Cannot convert TypeAlias directly to ValueContainer"
-                )
-            }
-        }
     }
 }
 

@@ -22,8 +22,7 @@ use core::prelude::rust_2024::*;
 use datex_core::utils::buffers::{
     append_i32, append_i64, append_i128, append_u16, append_u64,
 };
-use datex_core::values::core_values::r#type::Type;
-use crate::types::type_container::TypeContainer;
+use crate::types::definition::TypeDefinition;
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {
@@ -105,7 +104,7 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
     }
 }
 
-pub fn append_type_cast(buffer: &mut Vec<u8>, ty: &TypeContainer) {
+pub fn append_type_cast(buffer: &mut Vec<u8>, ty: &TypeDefinition) {
     append_instruction_code(buffer, InstructionCode::TYPED_VALUE);
     // TODO
 }

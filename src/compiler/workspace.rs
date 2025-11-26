@@ -8,14 +8,14 @@ use crate::compiler::{
     CompileOptions, parse_datex_script_to_rich_ast_detailed_errors,
 };
 use crate::runtime::Runtime;
-use crate::types::type_container::TypeContainer;
+use crate::values::core_values::r#type::Type;
 
 /// Represents a file in the compiler workspace with its URL, cached content and AST.
 pub struct WorkspaceFile {
     pub url: Url,
     pub content: String,
     pub rich_ast: Option<RichAst>,
-    pub return_type: Option<TypeContainer>,
+    pub return_type: Option<Type>,
     pub errors: Option<DetailedCompilerErrors>,
 }
 

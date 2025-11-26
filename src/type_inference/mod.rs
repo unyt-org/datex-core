@@ -207,9 +207,9 @@ impl TypeInference {
     fn infer_expression(
         &mut self,
         expr: &mut DatexExpression,
-    ) -> Result<TypeContainer, SpannedTypeError> {
+    ) -> Result<Type, SpannedTypeError> {
         self.visit_datex_expression(expr)?;
-        Ok(expr.ty.clone().unwrap_or(TypeContainer::never()))
+        Ok(expr.ty.clone().unwrap_or(Type::never()))
     }
 
     fn infer_type_expression(
@@ -540,11 +540,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let inner_type = self.infer_expression(&mut create_ref.expression)?;
         mark_type(match &inner_type {
-            TypeContainer::Type(t) => TypeContainer::Type(Type {
+            TypeContainer::Type(t) => Type {
                 type_definition: TypeDefinition::Type(Box::new(t.clone())),
                 reference_mutability: Some(create_ref.mutability.clone()),
                 base_type: None,
-            }),
+            },
             // TODO #490: check if defined mutability of type reference matches
             TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
                 type_definition: TypeDefinition::Reference(r.clone()),
@@ -1154,7 +1154,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         //         span: Some(span.clone()),
         //     });
         // }
-        if expression_type.mutability() != Some(ReferenceMutability::Mutable) {
+        if expression_type.reference_mutability() != Some(ReferenceMutability::Mutable) {
             return Err(SpannedTypeError {
                 error: TypeError::AssignmentToImmutableReference(
                     "".to_string(),

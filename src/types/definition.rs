@@ -10,13 +10,14 @@ use crate::{
     types::{
         collection_type_definition::CollectionTypeDefinition,
         structural_type_definition::StructuralTypeDefinition,
-        type_container::TypeContainer,
     },
 };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::references::type_reference::TypeReference;
+use crate::references::reference::ReferenceMutability;
 use crate::values::pointer::PointerAddress;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -28,16 +29,16 @@ pub enum TypeDefinition {
     Collection(CollectionTypeDefinition),
 
     /// type A = B
-    Reference(Rc<RefCell<TypeReference>>),
+    Reference(Rc<RefCell<TypeReference>>), // integer
 
-    /// type
+    /// type, used for nested types with references (e.g. &mut & x)
     Type(Box<Type>),
 
     /// a function type definition (function signature)
     Function {
         // FIXME #372: Include error type definition
-        parameters: Vec<(String, TypeContainer)>,
-        return_type: Box<TypeContainer>,
+        parameters: Vec<(String, Type)>,
+        return_type: Box<Type>,
     },
 
     /// innerType + Marker1 + Marker2
@@ -46,16 +47,16 @@ pub enum TypeDefinition {
     /// The type is treated as equivalent to `innerType` for most operations,
     /// but the markers can be used to enforce additional constraints during
     /// type checking or runtime behavior.
-    MarkedType(Box<TypeContainer>, Vec<PointerAddress>),
+    MarkedType(Box<Type>, Vec<PointerAddress>),
 
     /// NOTE: all the types below can never exist as actual types of a runtime value - they are only
     /// relevant for type space definitions and type checking.
-    
+
     /// A & B & C
-    Intersection(Vec<TypeContainer>),
+    Intersection(Vec<Type>),
 
     /// A | B | C
-    Union(Vec<TypeContainer>),
+    Union(Vec<Type>),
 
     /// () - e.g. if a function has no return type
     Unit,
@@ -141,7 +142,7 @@ impl Display for TypeDefinition {
             TypeDefinition::Union(types) => {
                 let is_level_zero = types.iter().all(|t| {
                     core::matches!(
-                        t.as_type().type_definition,
+                        t.type_definition,
                         TypeDefinition::Structural(_)
                             | TypeDefinition::Reference(_)
                     )
@@ -196,6 +197,89 @@ impl StructuralEq for TypeDefinition {
                 true
             }
             _ => false,
+        }
+    }
+}
+
+
+impl TypeDefinition {
+    /// Creates a new structural type.
+    pub fn structural(
+        structural_type: impl Into<StructuralTypeDefinition>,
+    ) -> Self {
+        TypeDefinition::Structural(structural_type.into())
+    }
+
+    /// Creates a new structural list type.
+    pub fn list(element_types: Vec<Type>) -> Self {
+        TypeDefinition::Structural(
+            StructuralTypeDefinition::List(element_types),
+        )
+    }
+
+    /// Creates a new union type.
+    pub fn union<T>(types: Vec<T>) -> Self
+    where
+        T: Into<Type>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
+        TypeDefinition::Union(types)
+    }
+
+    /// Creates a new intersection type.
+    pub fn intersection<T>(types: Vec<T>) -> Self
+    where
+        T: Into<Type>,
+    {
+        let types = types.into_iter().map(|t| t.into()).collect();
+        TypeDefinition::Intersection(types)
+    }
+
+    /// Creates a new reference type.
+    pub fn reference(
+        reference: Rc<RefCell<TypeReference>>,
+    ) -> Self {
+        TypeDefinition::Reference(reference.into())
+    }
+
+    /// Creates a new function type.
+    pub fn function(
+        parameters: Vec<(String, Type)>,
+        return_type: impl Into<Type>,
+    ) -> Self {
+        TypeDefinition::Function {
+            parameters,
+            return_type: Box::new(return_type.into()),
+        }
+    }
+
+    /// Creates a new marked type.
+    pub fn marked(
+        ty: impl Into<Type>,
+        markers: Vec<PointerAddress>,
+    ) -> Self {
+        TypeDefinition::MarkedType(
+            Box::new(ty.into()),
+            markers,
+        )
+    }
+    
+    pub fn into_type(self, reference_mutability: Option<ReferenceMutability>) -> Type {
+        Type {
+            type_definition: self,
+            base_type: None,
+            reference_mutability,
+        }
+    }
+}
+
+
+impl From<TypeDefinition> for Type {
+    fn from(type_definition: TypeDefinition) -> Self {
+        Type {
+            type_definition,
+            base_type: None,
+            reference_mutability: None,
         }
     }
 }

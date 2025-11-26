@@ -11,7 +11,6 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::r#type::Type;
@@ -25,7 +24,7 @@ use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
 use strum::IntoEnumIterator;
 
-type CoreLibTypes = HashMap<CoreLibPointerId, TypeContainer>;
+type CoreLibTypes = HashMap<CoreLibPointerId, Type>;
 
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
@@ -151,7 +150,7 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
     }
 }
 
-pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> TypeContainer {
+pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> Type {
     with_core_lib(|core_lib_types| {
         core_lib_types.get(&id.into()).unwrap().clone()
     })
@@ -161,11 +160,18 @@ pub fn get_core_lib_type_reference(
     id: impl Into<CoreLibPointerId>,
 ) -> Rc<RefCell<TypeReference>> {
     let type_container = get_core_lib_type(id);
-    match type_container {
-        TypeContainer::TypeReference(tr) => tr,
+    match type_container.type_definition {
+        TypeDefinition::Reference(tr) => tr,
         _ => core::panic!("Core lib type is not a TypeReference"),
     }
 }
+
+pub fn get_core_lib_type_definition(
+    id: impl Into<CoreLibPointerId>,
+) -> TypeDefinition {
+    get_core_lib_type(id).type_definition
+}
+
 
 fn has_core_lib_type<T>(id: T) -> bool
 where
@@ -179,15 +185,15 @@ pub fn load_core_lib(memory: &mut Memory) {
     with_core_lib(|core_lib_types| {
         let structure = core_lib_types
             .values()
-            .map(|def| match def {
-                TypeContainer::TypeReference(def) => {
-                    let name = def
+            .map(|ty| match ty.type_definition {
+                TypeDefinition::Reference(type_reference) => {
+                    let name = type_reference
                         .borrow()
                         .nominal_type_declaration
                         .as_ref()
                         .unwrap()
                         .to_string();
-                    let reference = Reference::TypeReference(def.clone());
+                    let reference = Reference::TypeReference(type_reference.clone());
                     memory.register_reference(&reference);
                     (name, ValueContainer::Reference(reference))
                 }
@@ -206,7 +212,7 @@ pub fn load_core_lib(memory: &mut Memory) {
 
 /// Creates a new instance of the core library as a ValueContainer
 /// including all core types as properties.
-pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
+pub fn create_core_lib() -> HashMap<CoreLibPointerId, Type> {
     let integer = integer();
     let decimal = decimal();
     vec![
@@ -232,10 +238,10 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         DecimalTypeVariant::iter()
             .map(|variant| decimal_variant(decimal.1.clone(), variant)),
     )
-    .collect::<HashMap<CoreLibPointerId, TypeContainer>>()
+    .collect::<HashMap<CoreLibPointerId, Type>>()
 }
 
-type CoreLibTypeDefinition = (CoreLibPointerId, TypeContainer);
+type CoreLibTypeDefinition = (CoreLibPointerId, Type);
 pub fn ty() -> CoreLibTypeDefinition {
     create_core_type("type", None, None, CoreLibPointerId::Type)
 }
@@ -270,7 +276,7 @@ pub fn decimal() -> CoreLibTypeDefinition {
 }
 
 pub fn decimal_variant(
-    base_type: TypeContainer,
+    base_type: Type,
     variant: DecimalTypeVariant,
 ) -> CoreLibTypeDefinition {
     let variant_name = variant.as_ref().to_string();
@@ -294,7 +300,7 @@ pub fn integer() -> CoreLibTypeDefinition {
 }
 
 pub fn integer_variant(
-    base_type: TypeContainer,
+    base_type: Type,
     variant: IntegerTypeVariant,
 ) -> CoreLibTypeDefinition {
     let variant_name = variant.as_ref().to_string();
@@ -310,19 +316,19 @@ pub fn integer_variant(
 fn create_core_type(
     name: &str,
     variant: Option<String>,
-    base_type: Option<TypeContainer>,
+    base_type: Option<Type>,
     pointer_id: CoreLibPointerId,
 ) -> CoreLibTypeDefinition {
     let base_type_ref = match base_type {
-        Some(TypeContainer::TypeReference(reference)) => Some(reference),
-        Some(TypeContainer::Type(_) | TypeContainer::TypeAlias(_)) => {
-            core::panic!("Base type must be a TypeReference")
+        Some(Type {type_definition: TypeDefinition::Reference(reference), ..}) => Some(reference),
+        Some(_) => {
+            core::panic!("Base type must be a Reference")
         }
         None => None,
     };
     (
         pointer_id.clone(),
-        TypeContainer::TypeReference(Rc::new(RefCell::new(TypeReference {
+        Type::new(TypeDefinition::reference(Rc::new(RefCell::new(TypeReference {
             nominal_type_declaration: Some(NominalTypeDeclaration {
                 name: name.to_string(),
                 variant,
@@ -333,7 +339,7 @@ fn create_core_type(
                 type_definition: TypeDefinition::Unit,
             },
             pointer_address: Some(PointerAddress::from(pointer_id)),
-        }))),
+        }))), None),
     )
 }
 
@@ -465,14 +471,7 @@ mod tests {
         // integer -> integer -> integer ...
         let integer_type = get_core_lib_type(CoreLibPointerId::Integer(None));
         let integer_base = integer_type.base_type();
-        assert_matches!(integer_base, TypeContainer::TypeReference(_));
-        assert_eq!(integer_base.to_string(), "integer");
-
-        let base = integer_base.base_type();
-        assert_matches!(base, TypeContainer::TypeReference(_));
-        assert_eq!(base.to_string(), "integer");
-
-        assert_eq!(integer_base, base);
+        assert_eq!(integer_base.unwrap().borrow().to_string(), "integer");
     }
 
     #[test]
@@ -481,18 +480,10 @@ mod tests {
         let integer_u8_type = get_core_lib_type(CoreLibPointerId::Integer(
             Some(IntegerTypeVariant::U8),
         ));
-        assert_matches!(integer_u8_type, TypeContainer::TypeReference(_));
         assert_eq!(integer_u8_type.to_string(), "integer/u8");
 
         let integer = integer_u8_type.base_type();
-        assert_matches!(integer, TypeContainer::TypeReference(_));
-        assert_eq!(integer.to_string(), "integer");
-        assert_ne!(integer, integer_u8_type);
-
-        let integer_again = integer.base_type();
-        assert_matches!(integer_again, TypeContainer::TypeReference(_));
-        assert_eq!(integer_again.to_string(), "integer");
-        assert_eq!(integer_again, integer);
+        assert_eq!(integer.unwrap().borrow().to_string(), "integer");
     }
 
     #[ignore]
