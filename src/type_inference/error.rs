@@ -3,24 +3,24 @@ use core::{fmt::Display, ops::Range};
 use crate::{
     compiler::error::ErrorCollector,
     global::operators::binary::ArithmeticOperator,
-    types::type_container::TypeContainer,
 };
+use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeError {
     SubvariantNotFound(String, String),
     // only for debugging purposes
-    InvalidDerefType(TypeContainer),
+    InvalidDerefType(Type),
     Unimplemented(String),
-    MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
+    MismatchedOperands(ArithmeticOperator, Type, Type),
     AssignmentToImmutableReference(String),
     AssignmentToImmutableValue(String),
     AssignmentToConstant(String),
 
     // can not assign value to variable of different type
     AssignmentTypeMismatch {
-        annotated_type: TypeContainer,
-        assigned_type: TypeContainer,
+        annotated_type: Type,
+        assigned_type: Type,
     },
 }
 

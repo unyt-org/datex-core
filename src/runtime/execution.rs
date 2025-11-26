@@ -1145,7 +1145,7 @@ fn handle_value(
     }
 
     let result_value = match &mut scope_container.scope {
-        
+
         Scope::KeyValuePair => {
             let key = &scope_container.active_value;
             match key {
@@ -1496,7 +1496,7 @@ fn handle_comparison_operation(
         }
         ComparisonOperator::Matches => {
             // TODO #407: Fix matches, rhs will always be a type, so actual_type() call is wrong
-            let v_type = value_container.actual_type(); // Type::try_from(value_container)?;
+            let v_type = value_container.actual_container_type(); // Type::try_from(value_container)?;
             let val = v_type.value_matches(active_value_container);
             Ok(ValueContainer::from(val))
         }

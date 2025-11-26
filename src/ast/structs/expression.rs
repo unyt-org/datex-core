@@ -9,7 +9,6 @@ use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -29,7 +28,7 @@ pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
-    pub ty: Option<TypeContainer>,
+    pub ty: Option<Type>,
 }
 impl Default for DatexExpression {
     fn default() -> Self {

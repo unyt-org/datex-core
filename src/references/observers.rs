@@ -195,7 +195,7 @@ mod tests {
         values::value_container::ValueContainer,
     };
     use datex_core::references::observers::Observer;
-
+    use crate::dif::r#type::DIFTypeDefinition;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -375,7 +375,7 @@ mod tests {
                 "a",
                 DIFValue::new(
                     DIFValueRepresentation::String("val".to_string()),
-                    None as Option<DIFTypeContainer>,
+                    None as Option<DIFTypeDefinition>,
                 ),
             )),
         };

@@ -1,16 +1,16 @@
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::{
     ast::structs::expression::{DatexExpression, VariableKind},
-    types::type_container::TypeContainer,
 };
 use core::fmt::Display;
+use crate::values::core_values::r#type::Type;
 
 #[derive(Clone, Debug)]
 pub struct VariableMetadata {
     pub original_realm_index: usize,
     pub is_cross_realm: bool,
     pub shape: VariableShape,
-    pub var_type: Option<TypeContainer>,
+    pub var_type: Option<Type>,
     pub name: String,
 }
 

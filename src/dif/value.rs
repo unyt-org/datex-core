@@ -4,7 +4,6 @@ use crate::dif::{
 };
 use crate::libs::core::CoreLibPointerId;
 use crate::stdlib::string::ToString;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
@@ -19,6 +18,8 @@ use core::result::Result;
 use datex_core::runtime::memory::Memory;
 use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
+use crate::dif::r#type::DIFTypeDefinition;
+use crate::types::definition::TypeDefinition;
 
 #[derive(Debug)]
 pub struct DIFReferenceNotFoundError;
@@ -28,7 +29,7 @@ pub struct DIFReferenceNotFoundError;
 pub struct DIFValue {
     pub value: DIFValueRepresentation,
     #[serde(skip_serializing_if = "Option::is_none", rename = "type")]
-    pub ty: Option<DIFTypeContainer>,
+    pub ty: Option<DIFTypeDefinition>,
 }
 impl DIFConvertible for DIFValue {}
 
@@ -50,7 +51,7 @@ impl DIFValue {
 impl DIFValue {
     pub fn new(
         value: DIFValueRepresentation,
-        ty: Option<impl Into<DIFTypeContainer>>,
+        ty: Option<impl Into<DIFTypeDefinition>>,
     ) -> Self {
         DIFValue {
             value,
@@ -257,11 +258,11 @@ impl DIFValue {
 /// - List
 /// - Map (if not empty, otherwise we cannot distinguish between empty map and empty list since both are represented as [] in DIF)
 fn get_type_if_non_default(
-    type_container: &TypeContainer,
+    type_definition: &TypeDefinition,
     memory: &RefCell<Memory>,
     is_empty_map: bool,
-) -> Option<DIFTypeContainer> {
-    match type_container {
+) -> Option<DIFTypeDefinition> {
+    match type_definition {
         TypeContainer::TypeReference(inner) => {
             if let Some(Ok(address)) = inner
                 .borrow()
@@ -284,13 +285,13 @@ fn get_type_if_non_default(
                 None
             } else {
                 Some(DIFTypeContainer::from_type_container(
-                    type_container,
+                    type_definition,
                     memory,
                 ))
             }
         }
         _ => Some(DIFTypeContainer::from_type_container(
-            type_container,
+            type_definition,
             memory,
         )),
     }
@@ -310,6 +311,7 @@ mod tests {
     };
     use core::cell::RefCell;
     use datex_core::values::value::Value;
+    use crate::dif::r#type::DIFTypeDefinition;
 
     fn get_mock_memory() -> RefCell<Memory> {
         RefCell::new(Memory::new(Endpoint::default()))
@@ -351,7 +353,7 @@ mod tests {
         let memory = get_mock_memory();
         let dif = DIFValue::from_value(&Value::from(123u16), &memory);
         assert!(dif.ty.is_some());
-        if let DIFTypeContainer::Reference(reference) = dif.ty.unwrap() {
+        if let DIFTypeDefinition::Reference(reference) = dif.ty.unwrap() {
             assert_eq!(
                 reference,
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::U16)).into()
@@ -362,7 +364,7 @@ mod tests {
 
         let dif = DIFValue::from_value(&Value::from(123i64), &memory);
         assert!(dif.ty.is_some());
-        if let DIFTypeContainer::Reference(reference) = dif.ty.unwrap() {
+        if let DIFTypeDefinition::Reference(reference) = dif.ty.unwrap() {
             assert_eq!(
                 reference,
                 CoreLibPointerId::Integer(Some(IntegerTypeVariant::I64)).into()

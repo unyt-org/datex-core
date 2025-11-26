@@ -12,7 +12,6 @@ use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
@@ -33,6 +32,8 @@ pub struct Type {
     pub reference_mutability: Option<ReferenceMutability>,
 }
 
+// x: &User; Type {reference: }
+
 impl Hash for Type {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.type_definition.hash(state);
@@ -41,12 +42,6 @@ impl Hash for Type {
             let ptr = Rc::as_ptr(ptr);
             ptr.hash(state); // hash the address
         }
-    }
-}
-
-impl Type {
-    pub fn as_type_container(self) -> TypeContainer {
-        TypeContainer::Type(self)
     }
 }
 
@@ -75,101 +70,26 @@ impl Type {
             None
         }
     }
-    pub fn mutability(&self) -> Option<ReferenceMutability> {
+    pub fn reference_mutability(&self) -> Option<ReferenceMutability> {
         self.reference_mutability.clone()
+    }
+
+    pub fn is_reference_type(&self) -> bool {
+        self.reference_mutability.is_some()
     }
 }
 
 impl Type {
-    /// Creates a new structural type.
-    pub fn structural(
-        structural_type: impl Into<StructuralTypeDefinition>,
-    ) -> Self {
+    
+    pub fn new(type_definition: TypeDefinition, reference_mutability: Option<ReferenceMutability>) -> Self {
         Type {
-            type_definition: TypeDefinition::Structural(structural_type.into()),
+            type_definition,
             base_type: None,
-            reference_mutability: None,
+            reference_mutability,
         }
     }
-
-    /// Creates a new structural list type.
-    pub fn list(element_types: Vec<TypeContainer>) -> Self {
-        Type {
-            type_definition: TypeDefinition::Structural(
-                StructuralTypeDefinition::List(element_types),
-            ),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a new union type.
-    pub fn union<T>(types: Vec<T>) -> Self
-    where
-        T: Into<TypeContainer>,
-    {
-        let types = types.into_iter().map(|t| t.into()).collect();
-        Type {
-            type_definition: TypeDefinition::Union(types),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a new intersection type.
-    pub fn intersection<T>(types: Vec<T>) -> Self
-    where
-        T: Into<TypeContainer>,
-    {
-        let types = types.into_iter().map(|t| t.into()).collect();
-        Type {
-            type_definition: TypeDefinition::Intersection(types),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a new reference type.
-    pub fn reference(
-        reference: impl Into<Rc<RefCell<TypeReference>>>,
-        mutability: Option<ReferenceMutability>,
-    ) -> Self {
-        Type {
-            type_definition: TypeDefinition::Reference(reference.into()),
-            base_type: None,
-            reference_mutability: mutability,
-        }
-    }
-
-    /// Creates a new function type.
-    pub fn function(
-        parameters: Vec<(String, TypeContainer)>,
-        return_type: impl Into<TypeContainer>,
-    ) -> Self {
-        Type {
-            type_definition: TypeDefinition::Function {
-                parameters,
-                return_type: Box::new(return_type.into()),
-            },
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a new marked type.
-    pub fn marked(
-        ty: impl Into<TypeContainer>,
-        markers: Vec<PointerAddress>,
-    ) -> Self {
-        Type {
-            type_definition: TypeDefinition::MarkedType(
-                Box::new(ty.into()),
-                markers,
-            ),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
+    
+    
 }
 
 impl Type {
