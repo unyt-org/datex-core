@@ -487,7 +487,7 @@ fn compile_expression(
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = rich_ast.metadata;
     // TODO #483: no clone
-    match rich_ast.ast.clone().data {
+    match rich_ast.ast.data.clone() {
         DatexExpressionData::Integer(int) => {
             append_encoded_integer(
                 &mut compilation_context.buffer,

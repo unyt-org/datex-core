@@ -10,6 +10,8 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
+use crate::libs::core::CoreLibPointerId;
+use crate::references::type_reference::TypeReference;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -84,6 +86,27 @@ impl Value {
     }
     pub fn actual_type(&self) -> &TypeContainer {
         self.actual_type.as_ref()
+    }
+
+    /// Returns true if the current Value's actual type is the same as its default type
+    /// E.g. if the type is integer for an Integer value, or integer/u8 for a typed integer value
+    /// This will return false for an integer value if the actual type is one of the following:
+    /// * a MarkedType<integer, x>
+    /// * a new nominal type containing an integer
+    /// TODO: this does not match all cases of default types from the point of view of the compiler -
+    /// integer variants (despite bigint) can be distinguished based on the instruction code, but for text variants,
+    /// the variant must be included in the compiler output - so we need to handle theses cases as well.
+    /// Generally speaking, all variants except the few integer variants should never be considered default types.
+    pub fn has_default_type(&self) -> bool {
+        if let TypeContainer::TypeReference(type_reference) = self.actual_type.as_ref() &&
+            let TypeReference {pointer_address: Some(pointer_address), ..} = &*type_reference.borrow() &&
+            let Ok(actual_type_core_ptr_id) = CoreLibPointerId::try_from(pointer_address) {
+            // actual_type has core type pointer id which is equal to the default core type pointer id of self.inner
+            let self_default_type_ptr_id = CoreLibPointerId::from(&self.inner);
+            self_default_type_ptr_id == actual_type_core_ptr_id
+        } else {
+           false
+        }
     }
 }
 
@@ -181,7 +204,11 @@ mod tests {
         },
     };
     use core::str::FromStr;
+    use std::rc::Rc;
     use log::{debug, info};
+    use datex_core::libs::core::get_core_lib_type_reference;
+    use crate::types::structural_type_definition::StructuralTypeDefinition;
+    use crate::values::core_values::r#type::Type;
 
     #[test]
     fn endpoint() {
@@ -338,5 +365,21 @@ mod tests {
             Value::from(42_i8),
             Value::from(Integer::from(42_i8))
         );
+    }
+
+    #[test]
+    fn default_types() {
+        let val = Value::from(Integer::from(42));
+        assert!(val.has_default_type());
+
+        let val = Value::from(42i8);
+        assert!(val.has_default_type());
+
+        let val = Value {
+            inner: CoreValue::Integer(Integer::from(42)),
+            actual_type: Box::new(TypeContainer::Type(Type::marked(get_core_lib_type_reference(CoreLibPointerId::Integer(None)), vec![]))),
+        };
+
+        assert!(!val.has_default_type());
     }
 }
