@@ -24,6 +24,7 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
+use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -150,6 +151,21 @@ impl Type {
                 parameters,
                 return_type: Box::new(return_type.into()),
             },
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a new marked type.
+    pub fn marked(
+        ty: impl Into<TypeContainer>,
+        markers: Vec<PointerAddress>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::MarkedType(
+                Box::new(ty.into()),
+                markers,
+            ),
             base_type: None,
             reference_mutability: None,
         }
