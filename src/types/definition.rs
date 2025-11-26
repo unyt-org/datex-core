@@ -20,39 +20,52 @@ use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
-    // { x: integer, y: text }
+    /// { x: integer, y: text }
     Structural(StructuralTypeDefinition),
 
     // TODO #371: Rename to generic?
-    // e.g. [integer], [integer; 5], Map<string, integer>
+    /// e.g. [integer], [integer; 5], Map<string, integer>
     Collection(CollectionTypeDefinition),
 
-    // type A = B
+    /// type A = B
     Reference(Rc<RefCell<TypeReference>>),
 
+    /// type
     Type(Box<Type>),
 
-    // A & B & C
-    Intersection(Vec<TypeContainer>),
-
-    // A | B | C
-    Union(Vec<TypeContainer>),
-    
-    // xy + Marker1 + Marker2
-    MarkedType(Box<TypeContainer>, Vec<PointerAddress>),
-
-    // ()
-    Unit,
-
-    Never,
-
-    Unknown,
-
+    /// a function type definition (function signature)
     Function {
         // FIXME #372: Include error type definition
         parameters: Vec<(String, TypeContainer)>,
         return_type: Box<TypeContainer>,
     },
+
+    /// innerType + Marker1 + Marker2
+    /// A special type that behaves like `innerType` but is marked with additional
+    /// pointer addresses that represent meta information about the type.
+    /// The type is treated as equivalent to `innerType` for most operations,
+    /// but the markers can be used to enforce additional constraints during
+    /// type checking or runtime behavior.
+    MarkedType(Box<TypeContainer>, Vec<PointerAddress>),
+
+    /// NOTE: all the types below can never exist as actual types of a runtime value - they are only
+    /// relevant for type space definitions and type checking.
+    
+    /// A & B & C
+    Intersection(Vec<TypeContainer>),
+
+    /// A | B | C
+    Union(Vec<TypeContainer>),
+
+    /// () - e.g. if a function has no return type
+    Unit,
+
+    /// never type
+    Never,
+
+    /// unknown type
+    Unknown,
+
 }
 
 impl Hash for TypeDefinition {
