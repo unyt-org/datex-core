@@ -109,7 +109,7 @@ impl TypeReference {
         }
     }
     pub fn mutability(&self) -> Option<ReferenceMutability> {
-        self.type_value.mutability()
+        self.type_value.reference_mutability()
     }
 }
 

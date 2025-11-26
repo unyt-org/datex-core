@@ -13,17 +13,17 @@ use core::fmt::Display;
 use core::hash::Hash;
 use core::prelude::rust_2024::*;
 
-// TODO #376: move match logic and other type stuff here
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeContainer {
-    Type(Type),
-    TypeReference(Rc<RefCell<TypeReference>>),
-    // FIXME either to this, or move the type alias as a TypeDefinition,
-    // which would allow for pointer id storage as well but would make
-    // the type matching more complex, then just storing the "transparency"
-    // in the most top-level type container
-    TypeAlias(Rc<RefCell<TypeAlias>>),
-}
+// // TODO #376: move match logic and other type stuff here
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub enum TypeContainer {
+//     Type(Type),
+//     TypeReference(Rc<RefCell<TypeReference>>),
+//     // FIXME either to this, or move the type alias as a TypeDefinition,
+//     // which would allow for pointer id storage as well but would make
+//     // the type matching more complex, then just storing the "transparency"
+//     // in the most top-level type container
+//     TypeAlias(Rc<RefCell<TypeAlias>>),
+// }
 
 impl Display for TypeContainer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

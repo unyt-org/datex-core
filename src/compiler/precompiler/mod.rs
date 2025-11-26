@@ -34,7 +34,6 @@ use crate::{
     global::operators::{BinaryOperator, binary::ArithmeticOperator},
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
-    types::type_container::TypeContainer,
     values::core_values::r#type::Type,
     visitor::{
         VisitAction,
@@ -48,6 +47,7 @@ use precompiled_ast::RichAst;
 use precompiled_ast::VariableShape;
 use scope::NewScopeType;
 use scope_stack::PrecompilerScopeStack;
+use crate::types::definition::TypeDefinition;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
@@ -303,7 +303,7 @@ impl<'a> Precompiler<'a> {
         };
 
         // register placeholder ref in metadata
-        let type_def = TypeContainer::TypeReference(reference.clone());
+        let type_def = Type::new(TypeDefinition::reference(reference), None);
         {
             self.ast_metadata
                 .borrow_mut()

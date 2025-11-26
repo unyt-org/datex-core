@@ -30,6 +30,7 @@ use core::unreachable;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use core::write;
+use crate::types::definition::TypeDefinition;
 
 #[derive(Debug)]
 pub struct IndexOutOfBoundsError {
@@ -479,7 +480,7 @@ impl Reference {
     /// Creates a new reference from a value container
     pub fn try_new_from_value_container(
         value_container: ValueContainer,
-        allowed_type: Option<TypeContainer>,
+        allowed_type: Option<TypeDefinition>,
         maybe_pointer_id: Option<PointerAddress>,
         mutability: ReferenceMutability,
     ) -> Result<Self, ReferenceCreationError> {
@@ -633,14 +634,14 @@ impl Reference {
         }
     }
 
-    pub fn allowed_type(&self) -> TypeContainer {
+    pub fn allowed_type(&self) -> TypeDefinition {
         match self {
             Reference::ValueReference(vr) => vr.borrow().allowed_type.clone(),
             Reference::TypeReference(_) => core::todo!("#293 type Type"),
         }
     }
 
-    pub fn actual_type(&self) -> TypeContainer {
+    pub fn actual_type(&self) -> TypeDefinition {
         match self {
             Reference::ValueReference(vr) => vr
                 .borrow()
