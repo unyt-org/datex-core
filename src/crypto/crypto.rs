@@ -16,11 +16,23 @@ pub trait CryptoTrait: Send + Sync {
     /// Generates an Ed25519 key pair.
     fn gen_ed25519(
         &self,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>
-                + 'static,
-        >,
+    ) -> Result<
+        (
+            Option<Result<(Vec<u8>, Vec<u8>), CryptoError>>,
+            Option<
+                Pin<
+                    Box<
+                        dyn Future<
+                                Output = Result<
+                                    (Vec<u8>, Vec<u8>),
+                                    CryptoError,
+                                >,
+                            > + 'static,
+                    >,
+                >,
+            >,
+        ),
+        CryptoError,
     >;
 
     /// Signs data with the given Ed25519 private key.
