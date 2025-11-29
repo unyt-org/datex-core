@@ -13,7 +13,6 @@ use crate::stdlib::{
     string::String,
 };
 use crate::traits::apply::Apply;
-use crate::types::type_container::TypeContainer;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use crate::{
@@ -92,8 +91,12 @@ impl TypeReference {
     pub fn as_ref_cell(self) -> Rc<RefCell<TypeReference>> {
         Rc::new(RefCell::new(self))
     }
-    pub fn as_type_container(self) -> TypeContainer {
-        TypeContainer::TypeReference(self.as_ref_cell())
+
+    /// Convert this TypeReference into a Type representing a reference to the underlying type
+    pub fn as_type(self) -> Type {
+        let mutability =
+            self.mutability().unwrap_or(ReferenceMutability::Immutable);
+        Type::reference(self.as_ref_cell(), mutability)
     }
 
     pub fn collapse_reference_chain(&self) -> TypeReference {
@@ -114,9 +117,9 @@ impl TypeReference {
 }
 
 impl TypeReference {
-    pub fn as_type(&self) -> &Type {
-        &self.type_value
-    }
+    // pub fn as_type(&self) -> &Type {
+    //     &self.type_value
+    // }
 
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         self.type_value.base_type()
