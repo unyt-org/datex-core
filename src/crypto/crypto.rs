@@ -40,7 +40,19 @@ pub trait CryptoTrait: Send + Sync {
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a>>;
+    ) -> Result<
+        (
+            Option<Result<[u8; 64], CryptoError>>,
+            Option<
+                Pin<
+                    Box<
+                        dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a,
+                    >,
+                >,
+            >,
+        ),
+        CryptoError,
+    >;
 
     /// Verifies an Ed25519 signature with the given public key and data.
     fn ver_ed25519<'a>(
@@ -48,7 +60,15 @@ pub trait CryptoTrait: Send + Sync {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>;
+    ) -> Result<
+        (
+            Option<Result<bool, CryptoError>>,
+            Option<
+                Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>,
+            >,
+        ),
+        CryptoError,
+    >;
 
     /// AES-256 in CTR mode encryption, returns the ciphertext.
     fn aes_ctr_encrypt<'a>(
