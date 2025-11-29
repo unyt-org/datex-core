@@ -2,7 +2,7 @@ use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::rc::Rc;
 use crate::traits::value_eq::ValueEq;
-use crate::types::type_container::TypeContainer;
+use crate::types::definition::TypeDefinition;
 use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -10,8 +10,6 @@ use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
 use core::prelude::rust_2024::*;
-use crate::types::definition::TypeDefinition;
-use crate::types::structural_type_definition::StructuralTypeDefinition;
 
 pub struct ValueReference {
     /// the value that this reference points to
