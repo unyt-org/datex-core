@@ -762,7 +762,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 {
                     // FIXME is this correct?
                     mark_type(Type::new(
-                        left.borrow().type_value.type_definition,
+                        left.borrow().type_value.type_definition.clone(),
                         None,
                     ))
                 } else {
@@ -873,7 +873,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         comparison_operation: &mut ComparisonOperation,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        mark_type(TypeContainer::boolean())
+        mark_type(Type::boolean())
     }
     fn visit_conditional(
         &mut self,
@@ -893,20 +893,19 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let inner_type = self.infer_expression(datex_expression)?;
-        mark_type(match &inner_type {
-            TypeContainer::Type(t) => TypeContainer::Type(Type {
-                type_definition: TypeDefinition::Type(Box::new(t.clone())),
+        mark_type(match &inner_type.inner_reference() {
+            None => Type {
+                type_definition: TypeDefinition::Type(Box::new(
+                    inner_type.clone(),
+                )),
                 reference_mutability: Some(ReferenceMutability::Mutable),
                 base_type: None,
-            }),
-            TypeContainer::TypeReference(r) => TypeContainer::Type(Type {
+            },
+            Some(r) => Type {
                 type_definition: TypeDefinition::Reference(r.clone()),
                 reference_mutability: Some(ReferenceMutability::Mutable),
                 base_type: None,
-            }),
-            TypeContainer::TypeAlias(_) => {
-                unimplemented!("CreateMut for TypeAlias is not implemented yet")
-            }
+            },
         })
     }
     fn visit_deref(
@@ -915,27 +914,19 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let inner_type = self.infer_expression(&mut deref.expression)?;
-        match &inner_type {
-            TypeContainer::Type(t) => {
-                if let TypeDefinition::Reference(r) = &t.type_definition {
-                    let bor = r.borrow();
-                    mark_type(bor.type_value.clone())
-                } else {
-                    self.record_error(SpannedTypeError {
-                        error: TypeError::InvalidDerefType(inner_type),
-                        span: Some(span.clone()),
-                    })
-                }
-            }
-            TypeContainer::TypeReference(r) => {
-                let bor = r.borrow();
-                mark_type(bor.type_value.clone())
-            }
-            TypeContainer::TypeAlias(_) => {
-                unimplemented!("Deref for TypeAlias is not implemented yet")
-            }
-        }
+        let deref_type = if let Some(reference) = inner_type.inner_reference() {
+            reference.borrow().type_value.clone()
+        } else {
+            self.record_error(SpannedTypeError {
+                error: TypeError::InvalidDerefType(inner_type),
+                span: Some(span.clone()),
+            })?;
+            Type::never()
+        };
+
+        mark_type(deref_type)
     }
+
     fn visit_function_declaration(
         &mut self,
         function_declaration: &mut FunctionDeclaration,
