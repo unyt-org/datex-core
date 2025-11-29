@@ -2,17 +2,17 @@ use core::fmt::Display;
 
 use crate::{
     references::type_reference::NominalTypeDeclaration,
-    types::type_container::TypeContainer,
+    values::core_values::r#type::Type,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeAlias {
     pub nominal_type_declaration: NominalTypeDeclaration,
-    pub type_container: TypeContainer,
+    pub type_container: Type,
 }
 
 impl TypeAlias {
-    pub fn new<T: Into<NominalTypeDeclaration>, U: Into<TypeContainer>>(
+    pub fn new<T: Into<NominalTypeDeclaration>, U: Into<Type>>(
         nominal_type_declaration: T,
         type_container: U,
     ) -> Self {
