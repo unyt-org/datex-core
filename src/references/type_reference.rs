@@ -13,6 +13,7 @@ use crate::stdlib::{
     string::String,
 };
 use crate::traits::apply::Apply;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use crate::{
@@ -120,6 +121,12 @@ impl TypeReference {
     // pub fn as_type(&self) -> &Type {
     //     &self.type_value
     // }
+
+    pub fn structural_type_definition(
+        &self,
+    ) -> Option<&StructuralTypeDefinition> {
+        self.type_value.structural_type_definition()
+    }
 
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
         self.type_value.base_type_reference()

@@ -1632,7 +1632,8 @@ mod tests {
         let next = {
             let var_type_ref = var_type.inner_reference().unwrap();
             let bor = var_type_ref.borrow();
-            let structural_type_definition = bor.structural_type().unwrap();
+            let structural_type_definition =
+                bor.structural_type_definition().unwrap();
             let fields = match structural_type_definition {
                 StructuralTypeDefinition::Map(fields) => fields,
                 _ => unreachable!(),
@@ -1761,7 +1762,7 @@ mod tests {
         let var_type = var.var_type.as_ref().unwrap();
         assert_eq!(
             var_type,
-            Type::union(vec![
+            &Type::union(vec![
                 get_core_lib_type(CoreLibPointerId::Text),
                 get_core_lib_type(CoreLibPointerId::Integer(None))
             ])
@@ -1783,7 +1784,7 @@ mod tests {
                 annotated_type,
                 assigned_type
             } if *annotated_type == get_core_lib_type(CoreLibPointerId::Integer(None))
-              && assigned_type == Type::structural(StructuralTypeDefinition::Text("hello".to_string().into()))
+              && assigned_type == &Type::structural(StructuralTypeDefinition::Text("hello".to_string().into()))
         );
     }
 

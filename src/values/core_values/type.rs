@@ -114,7 +114,9 @@ impl Type {
         }
     }
 
-    pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
+    pub fn structural_type_definition(
+        &self,
+    ) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {
             Some(s)
         } else {
