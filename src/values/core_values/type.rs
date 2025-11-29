@@ -143,6 +143,15 @@ impl Type {
             reference_mutability: Some(reference_mutability),
         }
     }
+    pub fn structural(
+        structural_type: impl Into<StructuralTypeDefinition>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Structural(structural_type.into()),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
 }
 
 impl Type {
@@ -210,7 +219,7 @@ impl Type {
             TypeDefinition::Intersection(members) => {
                 // If self is an intersection, all members must match the other type
                 for member in members {
-                    if !member.as_type().matches_type(other) {
+                    if !member.matches_type(other) {
                         return false;
                     }
                 }
@@ -246,15 +255,11 @@ impl Type {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
                 // value must match at least one of the union types
-                types
-                    .iter()
-                    .any(|t| Type::value_matches_type(value, &t.as_type()))
+                types.iter().any(|t| Type::value_matches_type(value, &t))
             }
             TypeDefinition::Intersection(types) => {
                 // value must match all of the intersection types
-                types
-                    .iter()
-                    .all(|t| Type::value_matches_type(value, &t.as_type()))
+                types.iter().all(|t| Type::value_matches_type(value, &t))
             }
             TypeDefinition::Structural(structural_type) => {
                 structural_type.value_matches(value)
@@ -280,7 +285,7 @@ impl Type {
             TypeDefinition::Never => false,
             TypeDefinition::Unknown => false,
             TypeDefinition::MarkedType(ty, _) => {
-                Type::value_matches_type(value, &ty.as_type())
+                Type::value_matches_type(value, &ty)
             }
         }
     }
@@ -340,25 +345,21 @@ impl From<&CoreValue> for Type {
                     .iter()
                     .map(|v| Type::from(v.to_value().borrow().inner.clone()))
                     .collect::<Vec<_>>();
-                Type::structural(StructuralTypeDefinition::List(
-                    types.into_iter().map(TypeContainer::from).collect(),
-                ))
+                Type::structural(StructuralTypeDefinition::List(types))
             }
             CoreValue::Map(map) => {
                 let struct_types = map
                     .into_iter()
                     .map(|(key, value)| {
                         (
-                            TypeContainer::from(Type::from(
+                            Type::from(
                                 ValueContainer::from(key)
                                     .to_value()
                                     .borrow()
                                     .inner
                                     .clone(),
-                            )),
-                            TypeContainer::from(Type::from(
-                                value.to_value().borrow().inner.clone(),
-                            )),
+                            ),
+                            Type::from(value.to_value().borrow().inner.clone()),
                         )
                     })
                     .collect::<Vec<_>>();
