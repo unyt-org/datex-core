@@ -184,7 +184,7 @@ pub fn load_core_lib(memory: &mut Memory) {
     with_core_lib(|core_lib_types| {
         let structure = core_lib_types
             .values()
-            .map(|ty| match ty.type_definition {
+            .map(|ty| match &ty.type_definition {
                 TypeDefinition::Reference(type_reference) => {
                     let name = type_reference
                         .borrow()

@@ -1,5 +1,5 @@
 use crate::dif::DIFConvertible;
-use crate::dif::representation::{DIFTypeRepresentation};
+use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::Reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
@@ -74,7 +74,7 @@ impl DIFStructuralTypeDefinition {
 }
 
 impl DIFTypeDefinition {
-    fn from_type_definition(
+    pub fn from_type_definition(
         type_def: &TypeDefinition,
         memory: &RefCell<Memory>,
     ) -> Self {
@@ -101,9 +101,7 @@ impl DIFTypeDefinition {
                 DIFTypeDefinition::Intersection(
                     types
                         .iter()
-                        .map(|t| {
-                            DIFType::from_type(t, memory)
-                        })
+                        .map(|t| DIFType::from_type(t, memory))
                         .collect(),
                 )
             }
@@ -129,40 +127,23 @@ impl DIFTypeDefinition {
                 parameters: parameters
                     .iter()
                     .map(|(name, ty)| {
-                        (
-                            name.clone(),
-                            DIFType::from_type(ty, memory),
-                        )
+                        (name.clone(), DIFType::from_type(ty, memory))
                     })
                     .collect(),
-                return_type: Box::new(DIFType::from_type(
-                    return_type,
-                    memory,
-                )),
+                return_type: Box::new(DIFType::from_type(return_type, memory)),
             },
         }
     }
 
-    fn to_type_definition(
-        &self,
-        memory: &RefCell<Memory>,
-    ) -> TypeDefinition {
+    fn to_type_definition(&self, memory: &RefCell<Memory>) -> TypeDefinition {
         match self {
             DIFTypeDefinition::Intersection(types) => {
                 TypeDefinition::Intersection(
-                    types
-                        .iter()
-                        .map(|t| {
-                            t.to_type(memory)
-                        })
-                        .collect(),
+                    types.iter().map(|t| t.to_type(memory)).collect(),
                 )
             }
             DIFTypeDefinition::Union(types) => TypeDefinition::Union(
-                types
-                    .iter()
-                    .map(|t| t.to_type(memory))
-                    .collect(),
+                types.iter().map(|t| t.to_type(memory)).collect(),
             ),
             DIFTypeDefinition::Reference(type_ref_addr) => {
                 let type_ref = memory
@@ -174,7 +155,7 @@ impl DIFTypeDefinition {
             }
             DIFTypeDefinition::Type(dif_type) => {
                 TypeDefinition::Type(Box::new(dif_type.to_type(memory)))
-            },
+            }
             DIFTypeDefinition::MarkedType(ty, markers) => {
                 TypeDefinition::MarkedType(
                     Box::new(ty.to_type(memory)),
@@ -233,17 +214,33 @@ impl DIFType {
         }
     }
 
+    pub(crate) fn from_type_definition(
+        type_def: &TypeDefinition,
+        memory: &RefCell<Memory>,
+    ) -> Self {
+        DIFType {
+            name: None,
+            mutability: None,
+            type_definition: DIFTypeDefinition::from_type_definition(
+                type_def, memory,
+            ),
+        }
+    }
+
     pub(crate) fn to_type(&self, memory: &RefCell<Memory>) -> Type {
         Type {
             reference_mutability: self.mutability.clone(),
-            type_definition: DIFTypeDefinition::to_type_definition(
-                &self.type_definition,
-                memory,
-            ),
+            type_definition: self.to_type_definition(memory),
             base_type: None,
         }
     }
 
+    pub(crate) fn to_type_definition(
+        &self,
+        memory: &RefCell<Memory>,
+    ) -> TypeDefinition {
+        DIFTypeDefinition::to_type_definition(&self.type_definition, memory)
+    }
 }
 
 impl From<DIFTypeRepresentation> for DIFType {
@@ -284,11 +281,11 @@ mod tests {
                     value: DIFTypeRepresentation::Object(vec![
                         (
                             "field1".to_string(),
-                            DIFType::from(DIFTypeRepresentation::Null)
+                            DIFType::from(DIFTypeRepresentation::Null),
                         ),
                         (
                             "field2".to_string(),
-                            DIFType::from(DIFTypeRepresentation::Number(42.0))
+                            DIFType::from(DIFTypeRepresentation::Number(42.0)),
                         ),
                     ]),
                     ty: None,

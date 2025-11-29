@@ -26,8 +26,6 @@ use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
 use datex_core::types::definition::TypeDefinition;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
