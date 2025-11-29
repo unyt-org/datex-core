@@ -93,19 +93,29 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a>> {
-        Box::pin(async move {
-            let sig_key = PKey::private_key_from_pkcs8(pri_key)
-                .map_err(|_| CryptoError::KeyImportFailed)?;
-            let mut signer = Signer::new_without_digest(&sig_key)
-                .map_err(|_| CryptoError::SigningError)?;
-            let signature = signer
-                .sign_oneshot_to_vec(data)
-                .map_err(|_| CryptoError::SigningError)?;
-            let signature: [u8; 64] =
-                signature.try_into().expect("Invalid signature length");
-            Ok(signature)
-        })
+    ) -> Result<
+        (
+            Option<Result<[u8; 64], CryptoError>>,
+            Option<
+                Pin<
+                    Box<
+                        dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a,
+                    >,
+                >,
+            >,
+        ),
+        CryptoError,
+    > {
+        let sig_key = PKey::private_key_from_pkcs8(pri_key)
+            .map_err(|_| CryptoError::KeyImportFailed)?;
+        let mut signer = Signer::new_without_digest(&sig_key)
+            .map_err(|_| CryptoError::SigningError)?;
+        let signature = signer
+            .sign_oneshot_to_vec(data)
+            .map_err(|_| CryptoError::SigningError)?;
+        let signature: [u8; 64] =
+            signature.try_into().expect("Invalid signature length");
+        Ok((Some(Ok(signature)), None))
     }
 
     // EdDSA verification of signature
@@ -114,16 +124,23 @@ impl CryptoTrait for CryptoNative {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>> {
-        Box::pin(async move {
-            let public_key = PKey::public_key_from_der(pub_key)
-                .map_err(|_| CryptoError::KeyImportFailed)?;
-            let mut verifier = Verifier::new_without_digest(&public_key)
-                .map_err(|_| CryptoError::KeyImportFailed)?;
-            verifier
-                .verify_oneshot(sig, data)
-                .map_err(|_| CryptoError::VerificationError)
-        })
+    ) -> Result<
+        (
+            Option<Result<bool, CryptoError>>,
+            Option<
+                Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>,
+            >,
+        ),
+        CryptoError,
+    > {
+        let public_key = PKey::public_key_from_der(pub_key)
+            .map_err(|_| CryptoError::KeyImportFailed)?;
+        let mut verifier = Verifier::new_without_digest(&public_key)
+            .map_err(|_| CryptoError::KeyImportFailed)?;
+        let verification = verifier
+            .verify_oneshot(sig, data)
+            .map_err(|_| CryptoError::VerificationError)?;
+        Ok((Some(Ok(verification)), None))
     }
 
     // AES CTR
@@ -257,8 +274,25 @@ mod tests {
             todo!()
         };
 
-        let sig: [u8; 64] = CRYPTO.sig_ed25519(&pri_key, &data).await.unwrap();
-        assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
+        let (a, b) = CRYPTO.sig_ed25519(&pri_key, &data).unwrap();
+        let sig: [u8; 64] = if a.is_some() {
+            a.unwrap().unwrap()
+        } else if b.is_some() {
+            b.unwrap().await.unwrap()
+        } else {
+            todo!()
+        };
+
+        let (a, b) = CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap();
+        let verification: bool = if a.is_some() {
+            a.unwrap().unwrap()
+        } else if b.is_some() {
+            b.unwrap().await.unwrap()
+        } else {
+            todo!()
+        };
+
+        assert!(verification)
     }
 
     // AES CTR
