@@ -756,8 +756,8 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         match binary_operation.operator {
             BinaryOperator::Arithmetic(op) => {
                 // if base types are the same, use that as result type
-                if let Some(left) = left_type.base_type()
-                    && let Some(right) = right_type.base_type()
+                if let Some(left) = left_type.base_type_reference()
+                    && let Some(right) = right_type.base_type_reference()
                     && left == right
                 {
                     // FIXME is this correct?
@@ -940,7 +940,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             };
         let inferred_return_type = self
             .infer_expression(&mut function_declaration.body)
-            .unwrap_or(TypeContainer::never());
+            .unwrap_or(Type::never());
 
         let parameters = function_declaration
             .parameters
@@ -948,7 +948,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             .map(|(name, param_type_expr)| {
                 let param_type = self
                     .infer_type_expression(param_type_expr)
-                    .unwrap_or(TypeContainer::never());
+                    .unwrap_or(Type::never());
                 (name.clone(), param_type)
             })
             .collect();
@@ -984,10 +984,10 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let inner = self.infer_expression(&mut unary_operation.expression)?;
         mark_type(match op {
             UnaryOperator::Logical(op) => match op {
-                LogicalUnaryOperator::Not => TypeContainer::boolean(),
+                LogicalUnaryOperator::Not => Type::boolean(),
             },
             UnaryOperator::Arithmetic(_) | UnaryOperator::Bitwise(_) => {
-                inner.base_type()
+                inner.base_type().unwrap_or(Type::never())
             }
             UnaryOperator::Reference(_) => return Err(SpannedTypeError {
                 error: TypeError::Unimplemented(
@@ -1017,12 +1017,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
                 // if it's a TypeReference and it has the pointer address set, we can
                 // remap the expression to a GetReference
-                if let TypeContainer::TypeReference(t) = &base_type
-                    && let Some(addr) = &t.borrow().pointer_address
+                if let Some(reference) = base_type.inner_reference()
+                    && let Some(addr) = &reference.borrow().pointer_address
                 {
                     Ok(addr.clone())
                 } else {
-                    // otherwise, unimplemented
                     Err(SpannedTypeError {
                         error: TypeError::Unimplemented(
                             "VariantAccess on Type not implemented".into(),
@@ -1084,28 +1083,14 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let mut expression_type =
             self.infer_expression(&mut deref_assignment.deref_expression)?;
         for _ in 0..deref_assignment.deref_count - 1 {
-            expression_type = match &expression_type {
-                TypeContainer::Type(t) => {
-                    if let TypeDefinition::Reference(r) = &t.type_definition {
-                        let bor = r.borrow();
-                        bor.type_value.clone()
-                    } else {
-                        return Err(SpannedTypeError {
-                            error: TypeError::InvalidDerefType(expression_type),
-                            span: Some(span.clone()),
-                        });
-                    }
-                }
-                TypeContainer::TypeReference(r) => {
-                    let bor = r.borrow();
-                    bor.type_value.clone()
-                }
-                TypeContainer::TypeAlias(_) => {
-                    unimplemented!(
-                        "DerefAssignment for TypeAlias is not implemented yet"
-                    )
-                }
-            };
+            if let Some(reference) = expression_type.inner_reference() {
+                expression_type = reference.borrow().type_value.clone();
+            } else {
+                return Err(SpannedTypeError {
+                    error: TypeError::InvalidDerefType(expression_type),
+                    span: Some(span.clone()),
+                });
+            }
         }
         let assigned_type =
             self.infer_expression(&mut deref_assignment.assigned_expression)?;
@@ -1217,7 +1202,10 @@ mod tests {
         libs::core::{
             CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
         },
-        references::type_reference::{NominalTypeDeclaration, TypeReference},
+        references::{
+            reference::ReferenceMutability,
+            type_reference::{NominalTypeDeclaration, TypeReference},
+        },
         type_inference::{
             error::{SpannedTypeError, TypeError},
             infer_expression_type_detailed_errors,
@@ -1548,9 +1536,7 @@ mod tests {
                 Type::structural(StructuralTypeDefinition::Text(
                     "a".to_string().into()
                 )),
-                TypeContainer::Type(Type::from(CoreValue::from(
-                    Integer::from(1)
-                )))
+                Type::from(CoreValue::from(Integer::from(1)))
             )]))
         );
     }
@@ -1567,11 +1553,12 @@ mod tests {
         let nominal_ref = TypeReference::nominal(
             Type::reference(
                 get_core_lib_type_reference(CoreLibPointerId::Integer(None)),
-                None,
+                ReferenceMutability::Immutable,
             ),
             NominalTypeDeclaration::from("A"),
             None,
-        );
+        )
+        .as_type();
         assert_eq!(var_a.var_type, Some(nominal_ref));
     }
 
@@ -1584,9 +1571,9 @@ mod tests {
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
         let var_type = var_a.var_type.as_ref().unwrap();
-        if let TypeContainer::TypeReference(r) = var_type {
+        if let Some(reference) = &var_type.inner_reference() {
             assert_eq!(
-                r,
+                reference,
                 &get_core_lib_type_reference(CoreLibPointerId::Integer(None))
             );
         } else {
@@ -1624,7 +1611,7 @@ mod tests {
         let metadata = metadata.borrow();
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(var_type.is_reference());
     }
 
     #[test]
@@ -1639,25 +1626,18 @@ mod tests {
         let metadata = metadata.borrow();
         let var = metadata.variable_metadata(0).unwrap();
         let var_type = var.var_type.as_ref().unwrap();
-        assert!(matches!(var_type, TypeContainer::TypeReference(_)));
+        assert!(var_type.is_reference());
 
         // get next field, as wrapped in union
         let next = {
-            let var_type_ref = match var_type {
-                TypeContainer::TypeReference(r) => r,
-                _ => unreachable!(),
-            };
+            let var_type_ref = var_type.inner_reference().unwrap();
             let bor = var_type_ref.borrow();
             let structural_type_definition = bor.structural_type().unwrap();
             let fields = match structural_type_definition {
                 StructuralTypeDefinition::Map(fields) => fields,
                 _ => unreachable!(),
             };
-            let inner_union = match &fields[1].1 {
-                TypeContainer::Type(r) => r.clone(),
-                _ => unreachable!(),
-            }
-            .type_definition;
+            let inner_union = &fields[1].1.type_definition;
             match inner_union {
                 TypeDefinition::Union(members) => {
                     assert_eq!(members.len(), 2);
@@ -1712,7 +1692,7 @@ mod tests {
         );
 
         let inferred = infer_from_script("10; 20; 30;");
-        assert_eq!(inferred, TypeContainer::unit());
+        assert_eq!(inferred, Type::unit());
     }
 
     #[test]
@@ -1733,27 +1713,24 @@ mod tests {
         );
 
         let inferred = infer_from_script("var y: integer = 100u8; y");
-        assert_eq!(inferred, TypeContainer::integer());
+        assert_eq!(inferred, Type::integer());
     }
 
     #[test]
     fn var_declaration_with_type_annotation() {
         let inferred = infer_from_script("var x: integer = 42");
-        assert_eq!(inferred, TypeContainer::integer());
+        assert_eq!(inferred, Type::integer());
         let inferred = infer_from_script("var x: integer/u8 = 42");
-        assert_eq!(
-            inferred,
-            TypeContainer::typed_integer(IntegerTypeVariant::U8)
-        );
+        assert_eq!(inferred, Type::typed_integer(IntegerTypeVariant::U8));
 
         let inferred = infer_from_script("var x: decimal = 42");
-        assert_eq!(inferred, TypeContainer::decimal());
+        assert_eq!(inferred, Type::decimal());
 
         let inferred = infer_from_script("var x: boolean = true");
-        assert_eq!(inferred, TypeContainer::boolean());
+        assert_eq!(inferred, Type::boolean());
 
         let inferred = infer_from_script("var x: text = 'hello'");
-        assert_eq!(inferred, TypeContainer::text());
+        assert_eq!(inferred, Type::text());
     }
 
     #[test]
@@ -1813,10 +1790,10 @@ mod tests {
     #[test]
     fn binary_operation() {
         let inferred = infer_from_script("10 + 32");
-        assert_eq!(inferred, TypeContainer::integer());
+        assert_eq!(inferred, Type::integer());
 
         let inferred = infer_from_script("10 + 'test'");
-        assert_eq!(inferred, TypeContainer::never());
+        assert_eq!(inferred, Type::never());
     }
 
     #[test]

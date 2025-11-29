@@ -172,7 +172,6 @@ pub fn get_core_lib_type_definition(
     get_core_lib_type(id).type_definition
 }
 
-
 fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
@@ -193,7 +192,8 @@ pub fn load_core_lib(memory: &mut Memory) {
                         .as_ref()
                         .unwrap()
                         .to_string();
-                    let reference = Reference::TypeReference(type_reference.clone());
+                    let reference =
+                        Reference::TypeReference(type_reference.clone());
                     memory.register_reference(&reference);
                     (name, ValueContainer::Reference(reference))
                 }
@@ -320,7 +320,10 @@ fn create_core_type(
     pointer_id: CoreLibPointerId,
 ) -> CoreLibTypeDefinition {
     let base_type_ref = match base_type {
-        Some(Type {type_definition: TypeDefinition::Reference(reference), ..}) => Some(reference),
+        Some(Type {
+            type_definition: TypeDefinition::Reference(reference),
+            ..
+        }) => Some(reference),
         Some(_) => {
             core::panic!("Base type must be a Reference")
         }
@@ -328,18 +331,21 @@ fn create_core_type(
     };
     (
         pointer_id.clone(),
-        Type::new(TypeDefinition::reference(Rc::new(RefCell::new(TypeReference {
-            nominal_type_declaration: Some(NominalTypeDeclaration {
-                name: name.to_string(),
-                variant,
-            }),
-            type_value: Type {
-                base_type: base_type_ref,
-                reference_mutability: None,
-                type_definition: TypeDefinition::Unit,
-            },
-            pointer_address: Some(PointerAddress::from(pointer_id)),
-        }))), None),
+        Type::new(
+            TypeDefinition::reference(Rc::new(RefCell::new(TypeReference {
+                nominal_type_declaration: Some(NominalTypeDeclaration {
+                    name: name.to_string(),
+                    variant,
+                }),
+                type_value: Type {
+                    base_type: base_type_ref,
+                    reference_mutability: None,
+                    type_definition: TypeDefinition::Unit,
+                },
+                pointer_address: Some(PointerAddress::from(pointer_id)),
+            }))),
+            None,
+        ),
     )
 }
 
@@ -470,7 +476,7 @@ mod tests {
     fn base_type_simple() {
         // integer -> integer -> integer ...
         let integer_type = get_core_lib_type(CoreLibPointerId::Integer(None));
-        let integer_base = integer_type.base_type();
+        let integer_base = integer_type.base_type_reference();
         assert_eq!(integer_base.unwrap().borrow().to_string(), "integer");
     }
 
@@ -482,7 +488,7 @@ mod tests {
         ));
         assert_eq!(integer_u8_type.to_string(), "integer/u8");
 
-        let integer = integer_u8_type.base_type();
+        let integer = integer_u8_type.base_type_reference();
         assert_eq!(integer.unwrap().borrow().to_string(), "integer");
     }
 

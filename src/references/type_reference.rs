@@ -122,7 +122,7 @@ impl TypeReference {
     // }
 
     pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
-        self.type_value.base_type()
+        self.type_value.base_type_reference()
     }
 
     pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
@@ -130,7 +130,7 @@ impl TypeReference {
     }
 
     pub fn matches_type(&self, other: &Type) -> bool {
-        if let Some(base) = other.base_type() {
+        if let Some(base) = other.base_type_reference() {
             return *self == *base.borrow();
         }
 
