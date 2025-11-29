@@ -106,6 +106,14 @@ impl Type {
     pub fn is_reference(&self) -> bool {
         core::matches!(self.type_definition, TypeDefinition::Reference(_))
     }
+    pub fn inner_reference(&self) -> Option<Rc<RefCell<TypeReference>>> {
+        if let TypeDefinition::Reference(reference) = &self.type_definition {
+            Some(reference.clone())
+        } else {
+            None
+        }
+    }
+
     pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {
             Some(s)
@@ -123,6 +131,9 @@ impl Type {
 }
 
 impl Type {
+    /// Creates a new Type with the given TypeDefinition and optional ReferenceMutability
+    /// FIXME: If the TypeDefinition is a Reference, the ReferenceMutability must be Some,
+    /// otherwise it must be None.
     pub fn new(
         type_definition: TypeDefinition,
         reference_mutability: Option<ReferenceMutability>,
@@ -133,6 +144,8 @@ impl Type {
             reference_mutability,
         }
     }
+
+    /// Creates a reference type pointing to the given TypeReference with the specified mutability
     pub fn reference(
         type_definition: Rc<RefCell<TypeReference>>,
         reference_mutability: ReferenceMutability,
@@ -143,11 +156,46 @@ impl Type {
             reference_mutability: Some(reference_mutability),
         }
     }
+
+    /// Creates a structural type from the given structural type definition
     pub fn structural(
         structural_type: impl Into<StructuralTypeDefinition>,
     ) -> Self {
         Type {
-            type_definition: TypeDefinition::Structural(structural_type.into()),
+            type_definition: TypeDefinition::structural(structural_type),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a union type from the given member types
+    pub fn union<T>(types: Vec<T>) -> Self
+    where
+        T: Into<Type>,
+    {
+        Type {
+            type_definition: TypeDefinition::union(types),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates an intersection type from the given member types
+    pub fn intersection<T: Into<Type>>(members: Vec<T>) -> Self {
+        Type {
+            type_definition: TypeDefinition::intersection(members),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    /// Creates a function type from the given parameter types and return type
+    pub fn function(
+        parameters: Vec<(String, Type)>,
+        return_type: impl Into<Type>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::function(parameters, return_type),
             base_type: None,
             reference_mutability: None,
         }
@@ -204,7 +252,7 @@ impl Type {
         let other_base_type =
             other.base_type().expect("other type has no base type");
         let other_base_type = other_base_type.borrow();
-        let other_base_type = other_base_type.clone().as_type_container();
+        let other_base_type = other_base_type.clone().as_type();
 
         match &self.type_definition {
             TypeDefinition::Union(members) => {

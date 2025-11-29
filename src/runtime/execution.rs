@@ -35,7 +35,6 @@ use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::error::IllegalTypeError;
-use crate::types::type_container::TypeContainer;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
@@ -565,7 +564,7 @@ impl Display for ExecutionError {
 #[derive(Debug)]
 pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
-    InternalTypeReturn(Option<TypeContainer>),
+    InternalTypeReturn(Option<Type>),
     Return(Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
@@ -1123,7 +1122,7 @@ fn iterate_type_instructions(
                 }
                 TypeInstruction::LiteralInteger(integer) => {
                     yield Ok(ExecutionStep::InternalTypeReturn(Some(
-                        TypeContainer::Type(Type::structural(integer.0)),
+                        Type::structural(integer.0),
                     )));
                 }
                 _ => core::todo!("#405 Undescribed by author."),
@@ -1145,7 +1144,6 @@ fn handle_value(
     }
 
     let result_value = match &mut scope_container.scope {
-
         Scope::KeyValuePair => {
             let key = &scope_container.active_value;
             match key {
