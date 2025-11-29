@@ -1,6 +1,9 @@
+use crate::libs::core::CoreLibPointerId;
+use crate::references::type_reference::TypeReference;
 use crate::stdlib::boxed::Box;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
+use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::value_container::ValueError;
@@ -9,9 +12,6 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
-use crate::libs::core::CoreLibPointerId;
-use crate::references::type_reference::TypeReference;
-use crate::types::definition::TypeDefinition;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -98,14 +98,20 @@ impl Value {
     /// the variant must be included in the compiler output - so we need to handle theses cases as well.
     /// Generally speaking, all variants except the few integer variants should never be considered default types.
     pub fn has_default_type(&self) -> bool {
-        if let TypeDefinition::Reference(type_reference) = self.actual_type.as_ref() &&
-            let TypeReference {pointer_address: Some(pointer_address), ..} = &*type_reference.borrow() &&
-            let Ok(actual_type_core_ptr_id) = CoreLibPointerId::try_from(pointer_address) {
+        if let TypeDefinition::Reference(type_reference) =
+            self.actual_type.as_ref()
+            && let TypeReference {
+                pointer_address: Some(pointer_address),
+                ..
+            } = &*type_reference.borrow()
+            && let Ok(actual_type_core_ptr_id) =
+                CoreLibPointerId::try_from(pointer_address)
+        {
             // actual_type has core type pointer id which is equal to the default core type pointer id of self.inner
             let self_default_type_ptr_id = CoreLibPointerId::from(&self.inner);
             self_default_type_ptr_id == actual_type_core_ptr_id
         } else {
-           false
+            false
         }
     }
 }
@@ -194,6 +200,8 @@ where
 /// The value is a holder for a combination of a CoreValue representation and its actual type.
 mod tests {
     use super::*;
+    use crate::types::structural_type_definition::StructuralTypeDefinition;
+    use crate::values::core_values::r#type::Type;
     use crate::{
         assert_structural_eq, datex_list,
         logger::init_logger_debug,
@@ -204,11 +212,11 @@ mod tests {
         },
     };
     use core::str::FromStr;
-    use std::rc::Rc;
+    use datex_core::libs::core::{
+        get_core_lib_type, get_core_lib_type_reference,
+    };
     use log::{debug, info};
-    use datex_core::libs::core::{get_core_lib_type, get_core_lib_type_reference};
-    use crate::types::structural_type_definition::StructuralTypeDefinition;
-    use crate::values::core_values::r#type::Type;
+    use std::rc::Rc;
 
     #[test]
     fn endpoint() {
@@ -377,7 +385,10 @@ mod tests {
 
         let val = Value {
             inner: CoreValue::Integer(Integer::from(42)),
-            actual_type: Box::new(TypeDefinition::MarkedType(get_core_lib_type(CoreLibPointerId::Integer(None)), vec![])),
+            actual_type: Box::new(TypeDefinition::MarkedType(
+                Box::new(get_core_lib_type(CoreLibPointerId::Integer(None))),
+                vec![],
+            )),
         };
 
         assert!(!val.has_default_type());

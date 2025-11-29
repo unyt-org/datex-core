@@ -1,4 +1,4 @@
-use crate::types::type_container::TypeContainer;
+use crate::values::core_values::r#type::Type;
 
 pub mod expression;
 pub mod type_expression;
@@ -17,9 +17,9 @@ pub enum VisitAction<T: Sized> {
     /// Replace the current node with a new one, and recurse into it
     ReplaceRecurse(T),
     /// Set the type annotation of the current node, and recurse into child nodes
-    SetTypeRecurseChildNodes(TypeContainer),
+    SetTypeRecurseChildNodes(Type),
     /// Set the type annotation of the current node, skipping child nodes
-    SetTypeSkipChildren(TypeContainer),
+    SetTypeSkipChildren(Type),
     /// Convert the current node to a no-op
     ToNoop,
 }
