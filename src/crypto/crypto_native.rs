@@ -58,24 +58,34 @@ impl CryptoTrait for CryptoNative {
     // EdDSA keygen
     fn gen_ed25519(
         &self,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>>
-                + 'static,
-        >,
+    ) -> Result<
+        (
+            Option<Result<(Vec<u8>, Vec<u8>), CryptoError>>,
+            Option<
+                Pin<
+                    Box<
+                        dyn Future<
+                                Output = Result<
+                                    (Vec<u8>, Vec<u8>),
+                                    CryptoError,
+                                >,
+                            > + 'static,
+                    >,
+                >,
+            >,
+        ),
+        CryptoError,
     > {
-        Box::pin(async move {
-            let key = PKey::generate_ed25519()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        let key = PKey::generate_ed25519()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
 
-            let public_key: Vec<u8> = key
-                .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            let private_key: Vec<u8> = key
-                .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-            Ok((public_key, private_key))
-        })
+        let public_key: Vec<u8> = key
+            .public_key_to_der()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        let private_key: Vec<u8> = key
+            .private_key_to_pkcs8()
+            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+        Ok((Some(Ok((public_key, private_key))), None))
     }
 
     // EdDSA signature
@@ -238,7 +248,14 @@ mod tests {
     pub async fn test_dsa_ed2519() {
         let data = b"Some message to sign".to_vec();
 
-        let (pub_key, pri_key) = CRYPTO.gen_ed25519().await.unwrap();
+        let (a, b) = CRYPTO.gen_ed25519().unwrap();
+        let (pub_key, pri_key) = if a.is_some() {
+            a.unwrap().unwrap()
+        } else if b.is_some() {
+            b.unwrap().await.unwrap()
+        } else {
+            todo!()
+        };
 
         let sig: [u8; 64] = CRYPTO.sig_ed25519(&pri_key, &data).await.unwrap();
         assert!(CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap());
