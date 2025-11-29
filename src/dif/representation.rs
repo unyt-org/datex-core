@@ -1,6 +1,8 @@
 use crate::dif::r#type::{DIFType, DIFTypeContainer, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type, get_core_lib_type_definition};
+use crate::libs::core::{
+    CoreLibPointerId, get_core_lib_type, get_core_lib_type_definition,
+};
 use crate::runtime::memory::Memory;
 use crate::std_random::RandomState;
 use crate::stdlib::boxed::Box;
@@ -13,6 +15,7 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
+use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
@@ -25,7 +28,6 @@ use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-use crate::values::core_values::map::Map;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFValueRepresentation {
@@ -147,8 +149,8 @@ impl DIFValueRepresentation {
         type_definition: &DIFTypeDefinition,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(match type_definition {
-            DIFTypeContainer::Reference(r) => {
+        Ok(match &type_definition {
+            DIFTypeDefinition::Reference(r) => {
                 if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
                     match core_lib_ptr_id {
                         // special mappings:
@@ -172,15 +174,17 @@ impl DIFValueRepresentation {
                         }
                         // type map and represented as object -> convert to map
                         CoreLibPointerId::Map
-                        if let DIFValueRepresentation::Array(array) =
-                            self =>
-                            {
-                                // assert that array is empty, otherwise this is not a valid DIF representation
-                                if !array.is_empty() {
-                                    unreachable!("Invalid DIF value, non-empty array with map type")
-                                }
-                                Value::from(CoreValue::Map(Map::Fixed(vec![])))
+                            if let DIFValueRepresentation::Array(array) =
+                                self =>
+                        {
+                            // assert that array is empty, otherwise this is not a valid DIF representation
+                            if !array.is_empty() {
+                                unreachable!(
+                                    "Invalid DIF value, non-empty array with map type"
+                                )
                             }
+                            Value::from(CoreValue::Map(Map::Fixed(vec![])))
+                        }
                         // otherwise, use default mapping
                         _ => self.to_default_value(memory)?,
                     }
@@ -188,13 +192,16 @@ impl DIFValueRepresentation {
                     core::todo!("#389 Handle non-core library type references")
                 }
             }
-            DIFTypeContainer::Type(dif_type) => {
+            DIFTypeDefinition::Type(dif_type) => {
                 let val = self.to_default_value(memory)?;
-                let ty = dif_type.to_type(memory);
+                let ty = dif_type.to_type_definition(memory);
                 Value {
                     actual_type: Box::new(ty),
                     ..val
                 }
+            }
+            e => {
+                core::todo!("Handle type definitions: {:?}", e)
             }
         })
     }
@@ -238,11 +245,7 @@ impl DIFTypeRepresentation {
             }
             StructuralTypeDefinition::List(arr) => {
                 DIFTypeRepresentation::Array(
-                    arr.iter()
-                        .map(|v| {
-                            DIFType::from_type(v, memory)
-                        })
-                        .collect(),
+                    arr.iter().map(|v| DIFType::from_type(v, memory)).collect(),
                 )
             }
             StructuralTypeDefinition::Map(fields) => {
@@ -251,12 +254,8 @@ impl DIFTypeRepresentation {
                         .iter()
                         .map(|(k, v)| {
                             (
-                                DIFType::from_type(
-                                    k, memory,
-                                ),
-                                DIFType::from_type(
-                                    v, memory,
-                                ),
+                                DIFType::from_type(k, memory),
+                                DIFType::from_type(v, memory),
                             )
                         })
                         .collect(),
@@ -479,26 +478,21 @@ impl<'de> Deserialize<'de> for DIFTypeRepresentation {
             where
                 A: SeqAccess<'de>,
             {
-                let first_entry = seq
-                    .next_element::<DeserializeMapOrArray<DIFType>>(
-                    )?;
+                let first_entry =
+                    seq.next_element::<DeserializeMapOrArray<DIFType>>()?;
                 match first_entry {
                     Some(DeserializeMapOrArray::ArrayEntry(first)) => {
                         let mut elements = vec![first];
-                        while let Some(elem) =
-                            seq.next_element::<DIFType>()?
-                        {
+                        while let Some(elem) = seq.next_element::<DIFType>()? {
                             elements.push(elem);
                         }
                         Ok(DIFTypeRepresentation::Array(elements))
                     }
                     Some(DeserializeMapOrArray::MapEntry(k, v)) => {
                         let mut elements = vec![(k, v)];
-                        while let Some((k, v)) = seq.next_element::<(
-                            DIFType,
-                            DIFType,
-                        )>(
-                        )? {
+                        while let Some((k, v)) =
+                            seq.next_element::<(DIFType, DIFType)>()?
+                        {
                             elements.push((k, v));
                         }
                         Ok(DIFTypeRepresentation::Map(elements))
