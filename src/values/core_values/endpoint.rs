@@ -85,6 +85,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
         Err(ValueError::TypeConversionError)
     }
 }
+
 // also for ref
 // impl<T: Into<ValueContainer>> TryFrom<&Option<T>> for Endpoint {
 //     type Error = ValueError;

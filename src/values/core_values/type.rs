@@ -1,5 +1,7 @@
 #[cfg(feature = "compiler")]
 use crate::ast::structs::expression::DatexExpressionData;
+use crate::libs::core::CoreLibPointerId;
+use crate::libs::core::get_core_lib_type;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
@@ -15,7 +17,10 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
+use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::text::Text;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
@@ -23,7 +28,6 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
-use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -42,6 +46,45 @@ impl Hash for Type {
             let ptr = Rc::as_ptr(ptr);
             ptr.hash(state); // hash the address
         }
+    }
+}
+
+impl Type {
+    pub fn unit() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unit)
+    }
+    pub fn null() -> Self {
+        get_core_lib_type(CoreLibPointerId::Null)
+    }
+    pub fn never() -> Self {
+        get_core_lib_type(CoreLibPointerId::Never)
+    }
+    pub fn unknown() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unknown)
+    }
+    pub fn text() -> Self {
+        get_core_lib_type(CoreLibPointerId::Text)
+    }
+    pub fn integer() -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(None))
+    }
+    pub fn typed_integer(variant: IntegerTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(Some(variant)))
+    }
+    pub fn decimal() -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(None))
+    }
+    pub fn typed_decimal(variant: DecimalTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(Some(variant)))
+    }
+    pub fn boolean() -> Self {
+        get_core_lib_type(CoreLibPointerId::Boolean)
+    }
+    pub fn endpoint() -> Self {
+        get_core_lib_type(CoreLibPointerId::Endpoint)
+    }
+    pub fn ty() -> Self {
+        get_core_lib_type(CoreLibPointerId::Type)
     }
 }
 
@@ -80,16 +123,26 @@ impl Type {
 }
 
 impl Type {
-    
-    pub fn new(type_definition: TypeDefinition, reference_mutability: Option<ReferenceMutability>) -> Self {
+    pub fn new(
+        type_definition: TypeDefinition,
+        reference_mutability: Option<ReferenceMutability>,
+    ) -> Self {
         Type {
             type_definition,
             base_type: None,
             reference_mutability,
         }
     }
-    
-    
+    pub fn reference(
+        type_definition: Rc<RefCell<TypeReference>>,
+        reference_mutability: ReferenceMutability,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Reference(type_definition),
+            base_type: None,
+            reference_mutability: Some(reference_mutability),
+        }
+    }
 }
 
 impl Type {
