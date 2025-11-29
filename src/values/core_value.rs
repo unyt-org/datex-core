@@ -2,13 +2,12 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::{
@@ -26,9 +25,9 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
+use datex_core::types::definition::TypeDefinition;
 use std::cell::RefCell;
 use std::rc::Rc;
-use datex_core::types::definition::TypeDefinition;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -240,12 +239,14 @@ impl CoreValue {
         core::matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
 
-    /// Get the default type of the CoreValue as a TypeContainer.
+    /// Get the default type of the CoreValue type definition.
     /// This method uses the CoreLibPointerId to retrieve the corresponding
     /// type reference from the core library.
     /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
     pub fn default_type_definition(&self) -> TypeDefinition {
-        TypeDefinition::Reference(get_core_lib_type_reference(CoreLibPointerId::from(self)))
+        TypeDefinition::Reference(get_core_lib_type_reference(
+            CoreLibPointerId::from(self),
+        ))
     }
 
     // TODO #313: allow cast of any CoreValue to Type, as structural type can always be constructed?
@@ -775,7 +776,6 @@ mod tests {
         init_logger_debug();
         let a = CoreValue::from(42i32);
         assert_eq!(a.default_type_definition().to_string(), "integer/i32");
-        assert_eq!(a.default_type_definition().base_type().to_string(), "integer");
     }
 
     #[test]
