@@ -209,7 +209,7 @@ impl Type {
     /// 42u8 -> integer
     /// 42 -> integer
     /// User/variant -> User
-    pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
+    pub fn base_type_reference(&self) -> Option<Rc<RefCell<TypeReference>>> {
         // has direct base type (e.g. integer/u8 -> integer)
         if let Some(base_type) = &self.base_type {
             return Some(base_type.clone());
@@ -233,6 +233,11 @@ impl Type {
         })
     }
 
+    pub fn base_type(&self) -> Option<Type> {
+        self.base_type_reference()
+            .map(|r| Type::reference(r, ReferenceMutability::Immutable))
+    }
+
     /// 1 matches 1 -> true
     /// 1 matches 2 -> false
     /// 1 matches 1 | 2 -> true
@@ -249,8 +254,9 @@ impl Type {
         // TODO #324
         // println!("Matching types: {} and {}", self, other);
 
-        let other_base_type =
-            other.base_type().expect("other type has no base type");
+        let other_base_type = other
+            .base_type_reference()
+            .expect("other type has no base type");
         let other_base_type = other_base_type.borrow();
         let other_base_type = other_base_type.clone().as_type();
 
@@ -277,7 +283,7 @@ impl Type {
             _ => {}
         }
 
-        if self.base_type() == other.base_type() {
+        if self.base_type_reference() == other.base_type_reference() {
             return true;
         }
         false
