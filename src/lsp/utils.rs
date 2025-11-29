@@ -1,13 +1,13 @@
 use crate::lsp::LanguageServerBackend;
 use crate::lsp::errors::SpannedLSPCompilerError;
 use crate::lsp::type_hint_collector::TypeHintCollector;
+use crate::values::core_values::r#type::Type;
 use datex_core::ast::structs::expression::{
     DatexExpression, DatexExpressionData, List, Map, Statements,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
 use datex_core::compiler::error::DetailedCompilerErrors;
 use datex_core::compiler::precompiler::precompiled_ast::VariableMetadata;
-use datex_core::types::type_container::TypeContainer;
 use datex_core::values::core_values::decimal::Decimal;
 use datex_core::values::core_values::decimal::typed_decimal::TypedDecimal;
 use datex_core::values::core_values::endpoint::Endpoint;
@@ -55,7 +55,7 @@ impl LanguageServerBackend {
     pub(crate) fn get_type_hints(
         &self,
         url: Url,
-    ) -> Option<Vec<(Position, Option<TypeContainer>)>> {
+    ) -> Option<Vec<(Position, Option<Type>)>> {
         let mut workspace = self.compiler_workspace.borrow_mut();
         let file = workspace.get_file_mut(&url).unwrap();
         if let Some(rich_ast) = &mut file.rich_ast {
