@@ -1,7 +1,6 @@
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
 };
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use core::prelude::rust_2024::*;
 use core::result::Result;
@@ -16,6 +15,7 @@ use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
+use crate::types::definition::TypeDefinition;
 use crate::values::core_values::map::MapAccessError;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
@@ -27,10 +27,9 @@ use core::hash::{Hash, Hasher};
 use core::ops::FnOnce;
 use core::option::Option;
 use core::unreachable;
+use core::write;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use core::write;
-use crate::types::definition::TypeDefinition;
 
 #[derive(Debug)]
 pub struct IndexOutOfBoundsError {
@@ -53,7 +52,6 @@ impl Display for KeyNotFoundError {
         write!(f, "Property not found: {}", self.key)
     }
 }
-
 
 #[derive(Debug)]
 pub enum AccessError {
@@ -110,10 +108,7 @@ impl Display for AccessError {
 
 #[derive(Debug)]
 pub enum TypeError {
-    TypeMismatch {
-        expected: TypeContainer,
-        found: TypeContainer,
-    },
+    TypeMismatch { expected: Type, found: Type },
 }
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -121,8 +116,7 @@ impl Display for TypeError {
             TypeError::TypeMismatch { expected, found } => write!(
                 f,
                 "Type mismatch: expected {}, found {}",
-                expected,
-                found
+                expected, found
             ),
         }
     }
@@ -510,7 +504,7 @@ impl Reference {
                         }
                         Reference::TypeReference(
                             TypeReference::anonymous(
-                                Type::reference(tr.clone(), Some(mutability)),
+                                Type::reference(tr.clone(), mutability),
                                 maybe_pointer_id,
                             )
                             .as_ref_cell(),
@@ -710,19 +704,18 @@ impl Reference {
     // -> we could avoid some clones if so (as get, addition, set would all be a clone)
     pub fn try_get_property<'a>(
         &self,
-        key: impl Into<ValueKey<'a>>
+        key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| {
             match value.inner {
                 CoreValue::Map(ref mut map) => {
                     // If the value is a map, get the property
                     Ok(map.get(key)?.clone())
-                },
+                }
                 CoreValue::List(ref mut list) => {
                     if let Some(index) = key.into().try_as_index() {
                         Ok(list.get(index)?.clone())
-                    }
-                    else {
+                    } else {
                         Err(AccessError::InvalidIndexKey)
                     }
                 }
@@ -730,8 +723,7 @@ impl Reference {
                     if let Some(index) = key.into().try_as_index() {
                         let char = text.char_at(index)?;
                         Ok(ValueContainer::from(char.to_string()))
-                    }
-                    else {
+                    } else {
                         Err(AccessError::InvalidIndexKey)
                     }
                 }
@@ -865,7 +857,9 @@ mod tests {
 
         assert_matches!(
             reference.try_get_property(100),
-            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 100 }))
+            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError {
+                index: 100
+            }))
         );
 
         let text_ref = Reference::from(ValueContainer::from("hello"));
@@ -876,7 +870,9 @@ mod tests {
         assert!(text_ref.try_get_property(5).is_err());
         assert_matches!(
             text_ref.try_get_property(100),
-            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError { index: 100 }))
+            Err(AccessError::IndexOutOfBounds(IndexOutOfBoundsError {
+                index: 100
+            }))
         );
     }
 
