@@ -1,3 +1,4 @@
+use crate::crypto::crypto::MaybeAsync;
 use crate::stdlib::sync::OnceLock;
 use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
 use crate::stdlib::{future::Future, pin::Pin};
@@ -56,26 +57,9 @@ impl CryptoTrait for CryptoNative {
     }
 
     // EdDSA keygen
-    fn gen_ed25519(
-        &self,
-    ) -> Result<
-        (
-            Option<Result<(Vec<u8>, Vec<u8>), CryptoError>>,
-            Option<
-                Pin<
-                    Box<
-                        dyn Future<
-                                Output = Result<
-                                    (Vec<u8>, Vec<u8>),
-                                    CryptoError,
-                                >,
-                            > + 'static,
-                    >,
-                >,
-            >,
-        ),
-        CryptoError,
-    > {
+    fn gen_ed25519<'a>(
+        &'a self,
+    ) -> Result<MaybeAsync<'a, (Vec<u8>, Vec<u8>)>, CryptoError> {
         let key = PKey::generate_ed25519()
             .map_err(|_| CryptoError::KeyGeneratorFailed)?;
 
@@ -85,7 +69,7 @@ impl CryptoTrait for CryptoNative {
         let private_key: Vec<u8> = key
             .private_key_to_pkcs8()
             .map_err(|_| CryptoError::KeyGeneratorFailed)?;
-        Ok((Some(Ok((public_key, private_key))), None))
+        Ok(MaybeAsync::Syn(Ok((public_key, private_key))))
     }
 
     // EdDSA signature
@@ -93,19 +77,7 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Result<
-        (
-            Option<Result<[u8; 64], CryptoError>>,
-            Option<
-                Pin<
-                    Box<
-                        dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a,
-                    >,
-                >,
-            >,
-        ),
-        CryptoError,
-    > {
+    ) -> Result<MaybeAsync<'a, [u8; 64]>, CryptoError> {
         let sig_key = PKey::private_key_from_pkcs8(pri_key)
             .map_err(|_| CryptoError::KeyImportFailed)?;
         let mut signer = Signer::new_without_digest(&sig_key)
@@ -115,7 +87,7 @@ impl CryptoTrait for CryptoNative {
             .map_err(|_| CryptoError::SigningError)?;
         let signature: [u8; 64] =
             signature.try_into().expect("Invalid signature length");
-        Ok((Some(Ok(signature)), None))
+        Ok(MaybeAsync::Syn(Ok(signature)))
     }
 
     // EdDSA verification of signature
@@ -124,15 +96,7 @@ impl CryptoTrait for CryptoNative {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Result<
-        (
-            Option<Result<bool, CryptoError>>,
-            Option<
-                Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>,
-            >,
-        ),
-        CryptoError,
-    > {
+    ) -> Result<MaybeAsync<'a, bool>, CryptoError> {
         let public_key = PKey::public_key_from_der(pub_key)
             .map_err(|_| CryptoError::KeyImportFailed)?;
         let mut verifier = Verifier::new_without_digest(&public_key)
@@ -140,7 +104,7 @@ impl CryptoTrait for CryptoNative {
         let verification = verifier
             .verify_oneshot(sig, data)
             .map_err(|_| CryptoError::VerificationError)?;
-        Ok((Some(Ok(verification)), None))
+        Ok(MaybeAsync::Syn(Ok(verification)))
     }
 
     // AES CTR
@@ -262,39 +226,54 @@ mod tests {
 
     // Signatures
     #[tokio::test]
-    pub async fn test_dsa_ed2519() {
+    pub async fn asy_dsa_ed2519() {
         let data = b"Some message to sign".to_vec();
 
-        let (a, b) = CRYPTO.gen_ed25519().unwrap();
-        let (pub_key, pri_key) = if a.is_some() {
-            a.unwrap().unwrap()
-        } else if b.is_some() {
-            b.unwrap().await.unwrap()
-        } else {
-            todo!()
+        let (pub_key, pri_key) = match CRYPTO.gen_ed25519().unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => fut.await.unwrap(),
         };
 
-        let (a, b) = CRYPTO.sig_ed25519(&pri_key, &data).unwrap();
-        let sig: [u8; 64] = if a.is_some() {
-            a.unwrap().unwrap()
-        } else if b.is_some() {
-            b.unwrap().await.unwrap()
-        } else {
-            todo!()
+        let sig = match CRYPTO.sig_ed25519(&pri_key, &data).unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => fut.await.unwrap(),
         };
 
-        let (a, b) = CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap();
-        let verification: bool = if a.is_some() {
-            a.unwrap().unwrap()
-        } else if b.is_some() {
-            b.unwrap().await.unwrap()
-        } else {
-            todo!()
+        let ver = match CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => fut.await.unwrap(),
         };
 
-        assert!(verification)
+        assert!(ver)
     }
 
+    #[test]
+    pub fn syn_dsa_ed2519() {
+        let data = b"Some message to sign".to_vec();
+
+        let (pub_key, pri_key) = match CRYPTO.gen_ed25519().unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => {
+                panic!("Can't handle future (without async).")
+            }
+        };
+
+        let sig = match CRYPTO.sig_ed25519(&pri_key, &data).unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => {
+                panic!("Can't handle future (without async).")
+            }
+        };
+
+        let ver = match CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap() {
+            MaybeAsync::Syn(res) => res.unwrap(),
+            MaybeAsync::Asy(fut) => {
+                panic!("Can't handle future (without async).")
+            }
+        };
+
+        assert!(ver)
+    }
     // AES CTR
     #[tokio::test]
     pub async fn aes_ctr_roundtrip() {
@@ -312,7 +291,7 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn test_keywrapping() {
+    pub async fn keywrapping() {
         let kek_bytes = [1u8; 32];
         let sym_key: [u8; 32] =
             CRYPTO.random_bytes(32_usize).try_into().unwrap();
@@ -324,7 +303,7 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn test_keywrapping_more() {
+    pub async fn keywrapping_more() {
         // Copy pasta from Web Crypto implementation
         let kek: [u8; 32] = [
             176, 213, 29, 202, 131, 45, 220, 153, 250, 120, 219, 65, 177, 117,
@@ -349,7 +328,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_dh_x25519() {
+    async fn dif_hel_x25519() {
         let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
         let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
 
@@ -363,7 +342,7 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn test_multi_roundtrip() {
+    pub async fn crypto_multi_roundtrip() {
         // Given
         let mut client_list = Vec::new();
 

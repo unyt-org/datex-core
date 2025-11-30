@@ -6,6 +6,12 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use crate::stdlib::{future::Future, pin::Pin};
+
+pub enum MaybeAsync<'a, T> {
+    Syn(Result<T, CryptoError>),
+    Asy(Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>>),
+}
+
 pub trait CryptoTrait: Send + Sync {
     /// Creates a new UUID.
     fn create_uuid(&self) -> String;
@@ -14,45 +20,16 @@ pub trait CryptoTrait: Send + Sync {
     fn random_bytes(&self, length: usize) -> Vec<u8>;
 
     /// Generates an Ed25519 key pair.
-    fn gen_ed25519(
-        &self,
-    ) -> Result<
-        (
-            Option<Result<(Vec<u8>, Vec<u8>), CryptoError>>,
-            Option<
-                Pin<
-                    Box<
-                        dyn Future<
-                                Output = Result<
-                                    (Vec<u8>, Vec<u8>),
-                                    CryptoError,
-                                >,
-                            > + 'static,
-                    >,
-                >,
-            >,
-        ),
-        CryptoError,
-    >;
+    fn gen_ed25519<'a>(
+        &'a self,
+    ) -> Result<MaybeAsync<'a, (Vec<u8>, Vec<u8>)>, CryptoError>;
 
     /// Signs data with the given Ed25519 private key.
     fn sig_ed25519<'a>(
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Result<
-        (
-            Option<Result<[u8; 64], CryptoError>>,
-            Option<
-                Pin<
-                    Box<
-                        dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a,
-                    >,
-                >,
-            >,
-        ),
-        CryptoError,
-    >;
+    ) -> Result<MaybeAsync<'a, [u8; 64]>, CryptoError>;
 
     /// Verifies an Ed25519 signature with the given public key and data.
     fn ver_ed25519<'a>(
@@ -60,15 +37,7 @@ pub trait CryptoTrait: Send + Sync {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Result<
-        (
-            Option<Result<bool, CryptoError>>,
-            Option<
-                Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>,
-            >,
-        ),
-        CryptoError,
-    >;
+    ) -> Result<MaybeAsync<'a, bool>, CryptoError>;
 
     /// AES-256 in CTR mode encryption, returns the ciphertext.
     fn aes_ctr_encrypt<'a>(
