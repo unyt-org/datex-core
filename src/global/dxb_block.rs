@@ -218,7 +218,7 @@ impl DXBBlock {
         let signature = match routing_header.flags.signature_type() {
             SignatureType::Encrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = vec![0u8; 255];
+                let mut signature = Vec::from([0u8; 255]);
                 reader.read_exact(&mut signature)?;
 
                 // TODO #111: decrypt the signature
@@ -226,7 +226,7 @@ impl DXBBlock {
             }
             SignatureType::Unencrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = vec![0u8; 255];
+                let mut signature = Vec::from([0u8; 255]);
                 reader.read_exact(&mut signature)?;
                 Some(signature)
             }
@@ -237,7 +237,7 @@ impl DXBBlock {
         let decrypted_bytes = match routing_header.flags.encryption_type() {
             EncryptionType::Encrypted => {
                 // TODO #113: decrypt the body
-                let mut decrypted_bytes = vec![0u8; 255];
+                let mut decrypted_bytes = Vec::from([0u8; 255]);
                 reader.read_exact(&mut decrypted_bytes)?;
                 decrypted_bytes
             }

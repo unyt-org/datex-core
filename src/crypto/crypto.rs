@@ -26,9 +26,7 @@ where
     pub fn syn_resolve(self) -> Result<T, CryptoError> {
         match self {
             MaybeAsync::Syn(res) => res,
-            MaybeAsync::Asy(_) => {
-                Err(CryptoError::Other("Async runtime required.".to_string()))
-            }
+            MaybeAsync::Asy(_) => Err(CryptoError::AsyncError),
         }
     }
 }
@@ -108,26 +106,27 @@ pub struct Crypto;
 #[derive(Debug, Clone)]
 pub enum CryptoError {
     Other(String),
-    KeyGeneratorFailed,
-    KeyExportFailed,
-    KeyImportFailed,
+    KeyGenerationError,
+    KeyExportError,
+    KeyImportError,
     EncryptionError,
     DecryptionError,
     SigningError,
     VerificationError,
+    AsyncError,
 }
 
 impl Display for CryptoError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             CryptoError::Other(msg) => core::write!(f, "CryptoError: {}", msg),
-            CryptoError::KeyGeneratorFailed => {
+            CryptoError::KeyGenerationError => {
                 core::write!(f, "CryptoError: Key generation failed")
             }
-            CryptoError::KeyExportFailed => {
+            CryptoError::KeyExportError => {
                 core::write!(f, "CryptoError: Key export failed")
             }
-            CryptoError::KeyImportFailed => {
+            CryptoError::KeyImportError => {
                 core::write!(f, "CryptoError: Key import failed")
             }
             CryptoError::EncryptionError => {
@@ -141,6 +140,9 @@ impl Display for CryptoError {
             }
             CryptoError::VerificationError => {
                 core::write!(f, "CryptoError: Verification failed")
+            }
+            CryptoError::AsyncError => {
+                core::write!(f, "CryptoError: Async code execution failed")
             }
         }
     }
