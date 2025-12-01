@@ -11,6 +11,27 @@ pub enum MaybeAsync<'a, T> {
     Syn(Result<T, CryptoError>),
     Asy(Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>>),
 }
+impl<'a, T> MaybeAsync<'a, T>
+where
+    T: Send + 'a,
+{
+    pub fn asy_resolve(
+        self,
+    ) -> Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>> {
+        match self {
+            MaybeAsync::Syn(res) => Box::pin(async move { res }),
+            MaybeAsync::Asy(fut) => fut,
+        }
+    }
+    pub fn syn_resolve(self) -> Result<T, CryptoError> {
+        match self {
+            MaybeAsync::Syn(res) => res,
+            MaybeAsync::Asy(_) => {
+                Err(CryptoError::Other("Async runtime required.".to_string()))
+            }
+        }
+    }
+}
 
 pub trait CryptoTrait: Send + Sync {
     /// Creates a new UUID.
