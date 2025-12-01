@@ -33,6 +33,7 @@ pub enum HeaderParsingError {
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
+    pub signature: Option<Vec<u8>>,
     pub encrypted_header: EncryptedHeader,
     pub body: Vec<u8>,
 
@@ -162,6 +163,7 @@ impl DXBBlock {
         DXBBlock {
             routing_header,
             block_header,
+            signature: None,
             encrypted_header,
             body,
             raw_bytes: None,
@@ -171,6 +173,7 @@ impl DXBBlock {
     pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;
+        self.signature.write(&mut writer)?;
         self.block_header.write(&mut writer)?;
         self.encrypted_header.write(&mut writer)?;
         let mut bytes = writer.into_inner();
@@ -212,10 +215,10 @@ impl DXBBlock {
         let mut reader = Cursor::new(bytes);
         let routing_header = RoutingHeader::read(&mut reader)?;
 
-        let _signature = match routing_header.flags.signature_type() {
+        let signature = match routing_header.flags.signature_type() {
             SignatureType::Encrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::with_capacity(255);
+                let mut signature = vec![0u8; 255];
                 reader.read_exact(&mut signature)?;
 
                 // TODO #111: decrypt the signature
@@ -223,7 +226,7 @@ impl DXBBlock {
             }
             SignatureType::Unencrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::with_capacity(255);
+                let mut signature = vec![0u8; 255];
                 reader.read_exact(&mut signature)?;
                 Some(signature)
             }
@@ -234,7 +237,7 @@ impl DXBBlock {
         let decrypted_bytes = match routing_header.flags.encryption_type() {
             EncryptionType::Encrypted => {
                 // TODO #113: decrypt the body
-                let mut decrypted_bytes = Vec::with_capacity(255);
+                let mut decrypted_bytes = vec![0u8; 255];
                 reader.read_exact(&mut decrypted_bytes)?;
                 decrypted_bytes
             }
@@ -255,6 +258,7 @@ impl DXBBlock {
         Ok(DXBBlock {
             routing_header,
             block_header,
+            signature,
             encrypted_header,
             body,
             raw_bytes: Some(bytes.to_vec()),
@@ -354,7 +358,7 @@ mod tests {
             dxb_block::DXBBlock,
             protocol_structures::{
                 encrypted_header::{self, EncryptedHeader},
-                routing_header::RoutingHeader,
+                routing_header::{RoutingHeader, SignatureType},
             },
         },
         values::core_values::endpoint::Endpoint,
@@ -389,7 +393,34 @@ mod tests {
             block.recalculate_struct();
             let block_bytes = block.to_bytes().unwrap();
             let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            println!("Block: {:?}", block);
             assert_eq!(block, block3);
         }
+    }
+
+    #[test]
+    pub fn signature_to_and_from_bytes() {
+        let mut routing_header = RoutingHeader::default()
+            .with_sender(Endpoint::from_str("@test").unwrap())
+            .to_owned();
+        routing_header.set_size(304);
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                ..Default::default()
+            },
+            routing_header,
+            ..DXBBlock::default()
+        };
+        block
+            .routing_header
+            .flags
+            .set_signature_type(SignatureType::Unencrypted);
+        block.signature = Some(vec![0u8; 255]);
+
+        let block_bytes = block.to_bytes().unwrap();
+        let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+        assert_eq!(block, block2);
+        assert_eq!(block.signature, block2.signature);
     }
 }

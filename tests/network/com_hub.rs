@@ -315,6 +315,57 @@ pub async fn test_receive() {
 }
 
 #[tokio::test]
+pub async fn signature_prepare_block_com_hub() {
+    use datex_core::crypto::crypto::CryptoTrait;
+    use datex_core::crypto::crypto_native::CryptoNative;
+    let crypto = CryptoNative {};
+
+    run_async! {
+        // init mock setup
+        init_global_context();
+        let (com_hub, _, socket) = get_mock_setup_and_socket().await;
+
+        // receive block
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                flags: encrypted_header::Flags::new()
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
+                ..Default::default()
+            },
+            ..DXBBlock::default()
+        };
+
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
+        block.recalculate_struct();
+        block = com_hub.prepare_own_block(block);
+
+        let block_bytes = block.to_bytes().unwrap();
+        {
+            let socket_ref = socket.try_lock().unwrap();
+            let receive_queue = socket_ref.get_receive_queue();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
+            let _ = receive_queue_mut.write(block_bytes.as_slice());
+        }
+        com_hub.update_async().await;
+
+        let last_block = get_last_received_single_block_from_com_hub(&com_hub);
+        assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
+        assert_eq!(block.signature, last_block.signature);
+
+        let raw_sign = block.signature.as_ref().unwrap();
+        let (signature, rest) = raw_sign.split_at(64);
+        let (pub_key, _other_rest) = rest.split_at(44);
+        let ver = crypto.ver_ed25519(pub_key, signature, pub_key)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        assert!(ver);
+
+    }
+}
+
+#[tokio::test]
 pub async fn test_receive_multiple() {
     run_async! {
         // init mock setup
