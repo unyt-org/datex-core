@@ -730,21 +730,24 @@ impl ComHub {
                 // TODO #180: verify signature and abort if invalid
                 // Check if signature is following in some later block and add them to
                 // a pool of incoming blocks awaiting some signature
-                #[cfg(feature = "native_crypto")]
-                {
-                    use crate::runtime::global_context::get_global_context;
-                    let raw_sign = block.signature.as_ref().unwrap();
-                    let (signature, rest) = raw_sign.split_at(64);
-                    let (pub_key, _other_rest) = rest.split_at(44);
-                    let ver = get_global_context()
-                        .crypto
-                        .ver_ed25519(pub_key, signature, pub_key)
-                        .unwrap()
-                        .syn_resolve()
-                        .unwrap();
-                    return ver;
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "native_crypto")] {
+                        use crate::runtime::global_context::get_global_context;
+                        let raw_sign = block.signature.as_ref().unwrap();
+                        let (signature, rest) = raw_sign.split_at(64);
+                        let (pub_key, _other_rest) = rest.split_at(44);
+                        let ver = get_global_context()
+                            .crypto
+                            .ver_ed25519(pub_key, signature, pub_key)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+                        return ver;
+                    }
+                    else {
+                        true
+                    }
                 }
-                true
             }
             false => {
                 let endpoint = block.routing_header.sender.clone();
@@ -1369,8 +1372,8 @@ impl ComHub {
     /// TODO #379 @Norbert
     pub fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
         // TODO #188 signature & encryption
-        #[cfg(feature = "native_crypto")]
-        {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "native_crypto")] {
             use crate::runtime::global_context::get_global_context;
 
             let crypto = get_global_context().crypto;
@@ -1383,12 +1386,13 @@ impl ComHub {
                 .unwrap();
             // 147 = 255 - (64 + 44)
             block.signature =
-                Some([signature.to_vec(), pub_key, vec![0u8; 147]].concat());
+                Some([signature.to_vec(), pub_key, Vec::from([0u8; 147])].concat());
 
             block
                 .routing_header
                 .flags
                 .set_signature_type(SignatureType::Unencrypted);
+            }
         }
 
         let now = Time::now();

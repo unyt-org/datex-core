@@ -61,14 +61,14 @@ impl CryptoTrait for CryptoNative {
         &'a self,
     ) -> Result<MaybeAsync<'a, (Vec<u8>, Vec<u8>)>, CryptoError> {
         let key = PKey::generate_ed25519()
-            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            .map_err(|_| CryptoError::KeyGenerationError)?;
 
         let public_key: Vec<u8> = key
             .public_key_to_der()
-            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            .map_err(|_| CryptoError::KeyGenerationError)?;
         let private_key: Vec<u8> = key
             .private_key_to_pkcs8()
-            .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+            .map_err(|_| CryptoError::KeyGenerationError)?;
         Ok(MaybeAsync::Syn(Ok((public_key, private_key))))
     }
 
@@ -79,7 +79,7 @@ impl CryptoTrait for CryptoNative {
         data: &'a [u8],
     ) -> Result<MaybeAsync<'a, [u8; 64]>, CryptoError> {
         let sig_key = PKey::private_key_from_pkcs8(pri_key)
-            .map_err(|_| CryptoError::KeyImportFailed)?;
+            .map_err(|_| CryptoError::KeyImportError)?;
         let mut signer = Signer::new_without_digest(&sig_key)
             .map_err(|_| CryptoError::SigningError)?;
         let signature = signer
@@ -98,9 +98,9 @@ impl CryptoTrait for CryptoNative {
         data: &'a [u8],
     ) -> Result<MaybeAsync<'a, bool>, CryptoError> {
         let public_key = PKey::public_key_from_der(pub_key)
-            .map_err(|_| CryptoError::KeyImportFailed)?;
+            .map_err(|_| CryptoError::KeyImportError)?;
         let mut verifier = Verifier::new_without_digest(&public_key)
-            .map_err(|_| CryptoError::KeyImportFailed)?;
+            .map_err(|_| CryptoError::KeyImportError)?;
         let verification = verifier
             .verify_oneshot(sig, data)
             .map_err(|_| CryptoError::VerificationError)?;
@@ -180,17 +180,17 @@ impl CryptoTrait for CryptoNative {
     {
         Box::pin(async move {
             let key = PKey::generate_x25519()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGenerationError)?;
             let public_key: [u8; 44] = key
                 .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .map_err(|_| CryptoError::KeyGenerationError)?
                 .try_into()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGenerationError)?;
             let private_key: [u8; 48] = key
                 .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?
+                .map_err(|_| CryptoError::KeyGenerationError)?
                 .try_into()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGenerationError)?;
             Ok((public_key, private_key))
         })
     }
@@ -203,18 +203,18 @@ impl CryptoTrait for CryptoNative {
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
         Box::pin(async move {
             let peer_pub = PKey::public_key_from_der(peer_pub)
-                .map_err(|_| CryptoError::KeyImportFailed)?;
+                .map_err(|_| CryptoError::KeyImportError)?;
             let my_priv = PKey::private_key_from_pkcs8(pri_key)
-                .map_err(|_| CryptoError::KeyImportFailed)?;
+                .map_err(|_| CryptoError::KeyImportError)?;
 
             let mut deriver = Deriver::new(&my_priv)
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGenerationError)?;
             deriver
                 .set_peer(&peer_pub)
-                .map_err(|_| CryptoError::KeyGeneratorFailed)?;
+                .map_err(|_| CryptoError::KeyGenerationError)?;
             deriver
                 .derive_to_vec()
-                .map_err(|_| CryptoError::KeyGeneratorFailed)
+                .map_err(|_| CryptoError::KeyGenerationError)
         })
     }
 }
