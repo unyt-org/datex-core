@@ -229,20 +229,20 @@ mod tests {
     pub async fn asy_dsa_ed2519() {
         let data = b"Some message to sign".to_vec();
 
-        let (pub_key, pri_key) = match CRYPTO.gen_ed25519().unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => fut.await.unwrap(),
-        };
-
-        let sig = match CRYPTO.sig_ed25519(&pri_key, &data).unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => fut.await.unwrap(),
-        };
-
-        let ver = match CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => fut.await.unwrap(),
-        };
+        let (pub_key, pri_key) =
+            CRYPTO.gen_ed25519().unwrap().syn_resolve().unwrap();
+        let sig = CRYPTO
+            .sig_ed25519(&pri_key, &data)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        let ver = CRYPTO
+            .ver_ed25519(&pub_key, &sig, &data)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
 
         assert!(ver)
     }
@@ -251,26 +251,18 @@ mod tests {
     pub fn syn_dsa_ed2519() {
         let data = b"Some message to sign".to_vec();
 
-        let (pub_key, pri_key) = match CRYPTO.gen_ed25519().unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => {
-                panic!("Can't handle future (without async).")
-            }
-        };
-
-        let sig = match CRYPTO.sig_ed25519(&pri_key, &data).unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => {
-                panic!("Can't handle future (without async).")
-            }
-        };
-
-        let ver = match CRYPTO.ver_ed25519(&pub_key, &sig, &data).unwrap() {
-            MaybeAsync::Syn(res) => res.unwrap(),
-            MaybeAsync::Asy(fut) => {
-                panic!("Can't handle future (without async).")
-            }
-        };
+        let (pub_key, pri_key) =
+            CRYPTO.gen_ed25519().unwrap().syn_resolve().unwrap();
+        let sig = CRYPTO
+            .sig_ed25519(&pri_key, &data)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        let ver = CRYPTO
+            .ver_ed25519(&pub_key, &sig, &data)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
 
         assert!(ver)
     }
