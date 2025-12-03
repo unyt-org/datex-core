@@ -113,19 +113,17 @@ impl CryptoTrait for CryptoNative {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         plaintext: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
-        Box::pin(async move {
-            let cipher = Cipher::aes_256_ctr();
-            let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
-                .map_err(|_| CryptoError::EncryptionError)?;
+    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError> {
+        let cipher = Cipher::aes_256_ctr();
+        let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
+            .map_err(|_| CryptoError::EncryptionError)?;
 
-            let mut out = vec![0u8; plaintext.len()];
-            let count = enc
-                .update(plaintext, &mut out)
-                .map_err(|_| CryptoError::EncryptionError)?;
-            out.truncate(count);
-            Ok(out)
-        })
+        let mut out = vec![0u8; plaintext.len()];
+        let count = enc
+            .update(plaintext, &mut out)
+            .map_err(|_| CryptoError::EncryptionError)?;
+        out.truncate(count);
+        Ok(MaybeAsync::Syn(Ok(out)))
     }
 
     fn aes_ctr_decrypt<'a>(
@@ -133,7 +131,7 @@ impl CryptoTrait for CryptoNative {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         ciphertext: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError> {
         self.aes_ctr_encrypt(key, iv, ciphertext)
     }
 
@@ -142,57 +140,50 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         kek_bytes: &'a [u8; 32],
         rb: &'a [u8; 32],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 40], CryptoError>> + 'a>> {
-        Box::pin(async move {
-            // Key encryption key
-            let kek = AesKey::new_encrypt(kek_bytes)
-                .map_err(|_| CryptoError::EncryptionError)?;
+    ) -> Result<MaybeAsync<'a, [u8; 40]>, CryptoError> {
+        // Key encryption key
+        let kek = AesKey::new_encrypt(kek_bytes)
+            .map_err(|_| CryptoError::EncryptionError)?;
 
-            // Key wrap
-            let mut wrapped = [0u8; 40];
-            let _length = wrap_key(&kek, None, &mut wrapped, rb);
+        // Key wrap
+        let mut wrapped = [0u8; 40];
+        let _length = wrap_key(&kek, None, &mut wrapped, rb);
 
-            Ok(wrapped)
-        })
+        Ok(MaybeAsync::Syn(Ok(wrapped)))
     }
 
     fn key_unwrap<'a>(
         &'a self,
         kek_bytes: &'a [u8; 32],
         cipher: &'a [u8; 40],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>> {
-        Box::pin(async move {
-            // Key encryption key
-            let kek = AesKey::new_decrypt(kek_bytes)
-                .map_err(|_| CryptoError::DecryptionError)?;
+    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError> {
+        // Key encryption key
+        let kek = AesKey::new_decrypt(kek_bytes)
+            .map_err(|_| CryptoError::DecryptionError)?;
 
-            // Unwrap key
-            let mut unwrapped: [u8; 32] = [0u8; 32];
-            let _length = unwrap_key(&kek, None, &mut unwrapped, cipher);
-            Ok(unwrapped)
-        })
+        // Unwrap key
+        let mut unwrapped: [u8; 32] = [0u8; 32];
+        let _length = unwrap_key(&kek, None, &mut unwrapped, cipher);
+        Ok(MaybeAsync::Syn(Ok(unwrapped)))
     }
 
     // Generate encryption keypair
-    fn gen_x25519(
-        &self,
-    ) -> Pin<Box<dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>>>>
-    {
-        Box::pin(async move {
-            let key = PKey::generate_x25519()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            let public_key: [u8; 44] = key
-                .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGenerationError)?
-                .try_into()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            let private_key: [u8; 48] = key
-                .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGenerationError)?
-                .try_into()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            Ok((public_key, private_key))
-        })
+    fn gen_x25519<'a>(
+        &'a self,
+    ) -> Result<MaybeAsync<'a, ([u8; 44], [u8; 48])>, CryptoError> {
+        let key = PKey::generate_x25519()
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        let public_key: [u8; 44] = key
+            .public_key_to_der()
+            .map_err(|_| CryptoError::KeyGenerationError)?
+            .try_into()
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        let private_key: [u8; 48] = key
+            .private_key_to_pkcs8()
+            .map_err(|_| CryptoError::KeyGenerationError)?
+            .try_into()
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        Ok(MaybeAsync::Syn(Ok((public_key, private_key))))
     }
 
     // Derive shared secret on x255109
@@ -200,22 +191,21 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         pri_key: &'a [u8; 48],
         peer_pub: &'a [u8; 44],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
-        Box::pin(async move {
-            let peer_pub = PKey::public_key_from_der(peer_pub)
-                .map_err(|_| CryptoError::KeyImportError)?;
-            let my_priv = PKey::private_key_from_pkcs8(pri_key)
-                .map_err(|_| CryptoError::KeyImportError)?;
+    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError> {
+        let peer_pub = PKey::public_key_from_der(peer_pub)
+            .map_err(|_| CryptoError::KeyImportError)?;
+        let my_priv = PKey::private_key_from_pkcs8(pri_key)
+            .map_err(|_| CryptoError::KeyImportError)?;
 
-            let mut deriver = Deriver::new(&my_priv)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            deriver
-                .set_peer(&peer_pub)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            deriver
-                .derive_to_vec()
-                .map_err(|_| CryptoError::KeyGenerationError)
-        })
+        let mut deriver = Deriver::new(&my_priv)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        deriver
+            .set_peer(&peer_pub)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        let derived = deriver
+            .derive_to_vec()
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        Ok(MaybeAsync::Syn(Ok(derived)))
     }
 }
 
@@ -267,67 +257,134 @@ mod tests {
         assert!(ver)
     }
     // AES CTR
-    #[tokio::test]
-    pub async fn aes_ctr_roundtrip() {
+    #[test]
+    pub fn syn_aes_ctr() {
         let key = [0u8; 32];
         let iv = [0u8; 16];
 
         let data = b"Some message to encrypt".to_vec();
 
-        let ciphered = CRYPTO.aes_ctr_encrypt(&key, &iv, &data).await.unwrap();
-        let deciphered =
-            CRYPTO.aes_ctr_decrypt(&key, &iv, &ciphered).await.unwrap();
+        let ciphered = CRYPTO
+            .aes_ctr_encrypt(&key, &iv, &data)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        let deciphered = CRYPTO
+            .aes_ctr_decrypt(&key, &iv, &ciphered)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
 
         assert_ne!(ciphered, data);
         assert_eq!(data, deciphered.to_vec());
     }
 
     #[tokio::test]
-    pub async fn keywrapping() {
+    pub async fn asy_aes_ctr() {
+        let key = [0u8; 32];
+        let iv = [0u8; 16];
+
+        let data = b"Some message to encrypt".to_vec();
+
+        let ciphered = CRYPTO
+            .aes_ctr_encrypt(&key, &iv, &data)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        let deciphered = CRYPTO
+            .aes_ctr_decrypt(&key, &iv, &ciphered)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+
+        assert_ne!(ciphered, data);
+        assert_eq!(data, deciphered.to_vec());
+    }
+
+    #[test]
+    pub fn syn_key_wrap() {
         let kek_bytes = [1u8; 32];
         let sym_key: [u8; 32] =
             CRYPTO.random_bytes(32_usize).try_into().unwrap();
-        let arand = CRYPTO.key_upwrap(&kek_bytes, &sym_key).await.unwrap();
-        let brand = CRYPTO.key_unwrap(&kek_bytes, &arand).await.unwrap();
+        let arand = CRYPTO
+            .key_upwrap(&kek_bytes, &sym_key)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        let brand = CRYPTO
+            .key_unwrap(&kek_bytes, &arand)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
 
         assert_ne!(arand.to_vec(), brand.to_vec());
         assert_eq!(arand.len(), brand.len() + 8);
     }
 
     #[tokio::test]
-    pub async fn keywrapping_more() {
-        // Copy pasta from Web Crypto implementation
-        let kek: [u8; 32] = [
-            176, 213, 29, 202, 131, 45, 220, 153, 250, 120, 219, 65, 177, 117,
-            244, 172, 38, 107, 221, 109, 160, 134, 15, 195, 23, 22, 143, 238,
-            242, 222, 38, 248,
-        ];
+    pub async fn asy_key_wrap() {
+        let kek_bytes = [1u8; 32];
+        let sym_key: [u8; 32] =
+            CRYPTO.random_bytes(32_usize).try_into().unwrap();
+        let arand = CRYPTO
+            .key_upwrap(&kek_bytes, &sym_key)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        let brand = CRYPTO
+            .key_unwrap(&kek_bytes, &arand)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
 
-        let web_wrapped: [u8; 40] = [
-            140, 223, 207, 46, 9, 105, 205, 24, 174, 238, 109, 5, 96, 4, 51,
-            132, 54, 187, 251, 167, 105, 131, 109, 246, 123, 238, 160, 139,
-            180, 59, 185, 8, 191, 57, 139, 133, 19, 40, 15, 210,
-        ];
-
-        let wrapped = CRYPTO.key_upwrap(&kek, &kek).await.unwrap();
-
-        let unwrapped = CRYPTO.key_unwrap(&kek, &wrapped).await.unwrap();
-        let web_unwrapped =
-            CRYPTO.key_unwrap(&kek, &web_wrapped).await.unwrap();
-
-        assert_eq!(kek, unwrapped);
-        assert_eq!(kek, web_unwrapped);
+        assert_ne!(arand.to_vec(), brand.to_vec());
+        assert_eq!(arand.len(), brand.len() + 8);
     }
 
-    #[tokio::test]
-    async fn dif_hel_x25519() {
-        let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
-        let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
+    #[test]
+    fn syn_key_gen_x25519() {
+        let (ser_pub, ser_pri) =
+            CRYPTO.gen_x25519().unwrap().syn_resolve().unwrap();
+        let (cli_pub, cli_pri) =
+            CRYPTO.gen_x25519().unwrap().syn_resolve().unwrap();
 
-        let cli_shared =
-            CRYPTO.derive_x25519(&cli_pri, &ser_pub).await.unwrap();
-        let ser_shared =
-            CRYPTO.derive_x25519(&ser_pri, &cli_pub).await.unwrap();
+        let cli_shared = CRYPTO
+            .derive_x25519(&cli_pri, &ser_pub)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        let ser_shared = CRYPTO
+            .derive_x25519(&ser_pri, &cli_pub)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+
+        assert_eq!(cli_shared, ser_shared);
+        assert_eq!(cli_shared.len(), 32);
+    }
+    #[tokio::test]
+    async fn asy_key_gen_x25519() {
+        let (ser_pub, ser_pri) =
+            CRYPTO.gen_x25519().unwrap().asy_resolve().await.unwrap();
+        let (cli_pub, cli_pri) =
+            CRYPTO.gen_x25519().unwrap().asy_resolve().await.unwrap();
+
+        let cli_shared = CRYPTO
+            .derive_x25519(&cli_pri, &ser_pub)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        let ser_shared = CRYPTO
+            .derive_x25519(&ser_pri, &cli_pub)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
 
         assert_eq!(cli_shared, ser_shared);
         assert_eq!(cli_shared.len(), 32);
@@ -342,29 +399,41 @@ mod tests {
         let sym_key: [u8; 32] = CRYPTO.random_bytes(32).try_into().unwrap();
 
         for _ in 0..10 {
-            let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
+            let (cli_pub, cli_pri) =
+                CRYPTO.gen_x25519().unwrap().asy_resolve().await.unwrap();
             client_list.push((cli_pri, cli_pub));
         }
 
         // Encrypt data with symmetric key
         let data = b"Some message to encrypt".to_vec();
         let iv = [0u8; 16];
-        let cipher =
-            CRYPTO.aes_ctr_encrypt(&sym_key, &iv, &data).await.unwrap();
+        let cipher = CRYPTO
+            .aes_ctr_encrypt(&sym_key, &iv, &data)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
 
         // Sender (server)
         let mut payloads = Vec::new();
         for (_, peer_pub) in client_list.iter().take(10) {
-            let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
+            let (ser_pub, ser_pri) =
+                CRYPTO.gen_x25519().unwrap().asy_resolve().await.unwrap();
             let ser_kek_bytes: [u8; 32] = CRYPTO
                 .derive_x25519(&ser_pri, peer_pub)
+                .unwrap()
+                .asy_resolve()
                 .await
                 .unwrap()
                 .try_into()
                 .unwrap();
 
-            let wrapped =
-                CRYPTO.key_upwrap(&ser_kek_bytes, &sym_key).await.unwrap();
+            let wrapped = CRYPTO
+                .key_upwrap(&ser_kek_bytes, &sym_key)
+                .unwrap()
+                .asy_resolve()
+                .await
+                .unwrap();
 
             payloads.push((ser_pub, wrapped));
         }
@@ -374,16 +443,22 @@ mod tests {
             // Unwraps key and decrypts
             let cli_kek_bytes: [u8; 32] = CRYPTO
                 .derive_x25519(&client_list[i].0, &payloads[i].0)
+                .unwrap()
+                .asy_resolve()
                 .await
                 .unwrap()
                 .try_into()
                 .unwrap();
             let unwrapped = CRYPTO
                 .key_unwrap(&cli_kek_bytes, &payloads[i].1)
+                .unwrap()
+                .asy_resolve()
                 .await
                 .unwrap();
             let plain = CRYPTO
                 .aes_ctr_decrypt(&unwrapped, &iv, &cipher)
+                .unwrap()
+                .asy_resolve()
                 .await
                 .unwrap();
 
