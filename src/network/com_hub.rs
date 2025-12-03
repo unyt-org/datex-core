@@ -734,8 +734,7 @@ impl ComHub {
                     if #[cfg(feature = "native_crypto")] {
                         use crate::runtime::global_context::get_global_context;
                         let raw_sign = block.signature.as_ref().unwrap();
-                        let (signature, rest) = raw_sign.split_at(64);
-                        let (pub_key, _other_rest) = rest.split_at(44);
+                        let (signature, pub_key) = raw_sign.split_at(64);
                         let ver = get_global_context()
                             .crypto
                             .ver_ed25519(pub_key, signature, pub_key)
@@ -1374,24 +1373,24 @@ impl ComHub {
         // TODO #188 signature & encryption
         cfg_if::cfg_if! {
             if #[cfg(feature = "native_crypto")] {
-            use crate::runtime::global_context::get_global_context;
+                use crate::runtime::global_context::get_global_context;
 
-            let crypto = get_global_context().crypto;
-            let (pub_key, pri_key) =
-                crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
-            let signature = crypto
-                .sig_ed25519(&pri_key, &pub_key)
-                .unwrap()
-                .syn_resolve()
-                .unwrap();
-            // 147 = 255 - (64 + 44)
-            block.signature =
-                Some([signature.to_vec(), pub_key, Vec::from([0u8; 147])].concat());
+                let crypto = get_global_context().crypto;
+                let (pub_key, pri_key) =
+                    crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+                let signature = crypto
+                    .sig_ed25519(&pri_key, &pub_key)
+                    .unwrap()
+                    .syn_resolve()
+                    .unwrap();
+                // 64 + 44 = 108
+                block.signature =
+                    Some([signature.to_vec(), pub_key].concat());
 
-            block
-                .routing_header
-                .flags
-                .set_signature_type(SignatureType::Unencrypted);
+                block
+                    .routing_header
+                    .flags
+                    .set_signature_type(SignatureType::Unencrypted);
             }
         }
 

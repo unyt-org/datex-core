@@ -218,7 +218,7 @@ impl DXBBlock {
         let signature = match routing_header.flags.signature_type() {
             SignatureType::Encrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::from([0u8; 255]);
+                let mut signature = Vec::from([0u8; 108]);
                 reader.read_exact(&mut signature)?;
 
                 // TODO #111: decrypt the signature
@@ -226,7 +226,7 @@ impl DXBBlock {
             }
             SignatureType::Unencrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::from([0u8; 255]);
+                let mut signature = Vec::from([0u8; 108]);
                 reader.read_exact(&mut signature)?;
                 Some(signature)
             }
@@ -403,7 +403,7 @@ mod tests {
         let mut routing_header = RoutingHeader::default()
             .with_sender(Endpoint::from_str("@test").unwrap())
             .to_owned();
-        routing_header.set_size(304);
+        routing_header.set_size(157);
         let mut block = DXBBlock {
             body: vec![0x01, 0x02, 0x03],
             encrypted_header: EncryptedHeader {
@@ -416,7 +416,7 @@ mod tests {
             .routing_header
             .flags
             .set_signature_type(SignatureType::Unencrypted);
-        block.signature = Some(vec![0u8; 255]);
+        block.signature = Some(vec![0u8; 108]);
 
         let block_bytes = block.to_bytes().unwrap();
         let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();

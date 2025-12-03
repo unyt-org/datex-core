@@ -354,8 +354,7 @@ pub async fn signature_prepare_block_com_hub() {
         assert_eq!(block.signature, last_block.signature);
 
         let raw_sign = block.signature.as_ref().unwrap();
-        let (signature, rest) = raw_sign.split_at(64);
-        let (pub_key, _other_rest) = rest.split_at(44);
+        let (signature, pub_key) = raw_sign.split_at(64);
         let ver = crypto.ver_ed25519(pub_key, signature, pub_key)
             .unwrap()
             .syn_resolve()
