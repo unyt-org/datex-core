@@ -9,6 +9,7 @@ use openssl::{
     md::Md,
     pkey::{Id, PKey},
     pkey_ctx::{HkdfMode, PkeyCtx},
+    sha::sha256,
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
@@ -52,6 +53,14 @@ impl CryptoTrait for CryptoNative {
     fn random_bytes(&self, length: usize) -> Vec<u8> {
         let mut rng = rand::thread_rng();
         (0..length).map(|_| rng.r#gen()).collect()
+    }
+
+    fn hash<'a>(
+        &'a self,
+        to_digest: &'a [u8],
+    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError> {
+        let hash = sha256(to_digest);
+        Ok(MaybeAsync::Syn(Ok(hash)))
     }
 
     fn hkdf<'a>(
@@ -236,6 +245,21 @@ impl CryptoTrait for CryptoNative {
 mod tests {
     use super::*;
     static CRYPTO: CryptoNative = CryptoNative {};
+
+    #[test]
+    pub fn hash_derivation() {
+        let ikm = Vec::from([0u8; 32]);
+        let hash = CRYPTO.hash(&ikm).unwrap().syn_resolve().unwrap();
+        assert_eq!(
+            hash,
+            [
+                102, 104, 122, 173, 248, 98, 189, 119, 108, 143, 193, 139, 142,
+                159, 142, 32, 8, 151, 20, 133, 110, 226, 51, 179, 144, 42, 89,
+                29, 13, 95, 41, 37
+            ]
+        );
+    }
+
     #[test]
     pub fn syn_hash_key_derivation() {
         let mut ikm = Vec::from([0u8; 32]);
