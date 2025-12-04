@@ -316,10 +316,6 @@ pub async fn test_receive() {
 
 #[tokio::test]
 pub async fn unencrypted_signature_prepare_block_com_hub() {
-    use datex_core::crypto::crypto::CryptoTrait;
-    use datex_core::crypto::crypto_native::CryptoNative;
-    let crypto = CryptoNative {};
-
     run_async! {
         // init mock setup
         init_global_context();
@@ -338,6 +334,7 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
 
         block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         block.recalculate_struct();
+
         block.routing_header.flags.set_signature_type(SignatureType::Unencrypted);
         block = com_hub.prepare_own_block(block);
 
@@ -354,22 +351,12 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
         assert_eq!(block.signature, last_block.signature);
 
-        let raw_sign = block.signature.as_ref().unwrap();
-        let (signature, pub_key) = raw_sign.split_at(64);
-        let ver = crypto.ver_ed25519(pub_key, signature, pub_key)
-            .unwrap()
-            .syn_resolve()
-            .unwrap();
-        assert!(ver);
+        assert!(com_hub.validate_block(&last_block));
     }
 }
 
 #[tokio::test]
 pub async fn encrypted_signature_prepare_block_com_hub() {
-    use datex_core::crypto::crypto::CryptoTrait;
-    use datex_core::crypto::crypto_native::CryptoNative;
-    let crypto = CryptoNative {};
-
     run_async! {
         // init mock setup
         init_global_context();
@@ -388,6 +375,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
 
         block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
         block.recalculate_struct();
+
         block.routing_header.flags.set_signature_type(SignatureType::Encrypted);
         block = com_hub.prepare_own_block(block);
 
@@ -404,16 +392,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
         assert_eq!(block.signature, last_block.signature);
 
-        let raw_sign = block.signature.as_ref().unwrap();
-        let (enc_sig, pub_key) = raw_sign.split_at(64);
-        let hash = crypto.hkdf(pub_key, &[0u8; 16]).unwrap().syn_resolve().unwrap();
-        let signature = crypto.aes_ctr_encrypt(&hash, &[0u8; 16], enc_sig).unwrap().syn_resolve().unwrap();
-        let ver = crypto.ver_ed25519(pub_key, &signature, pub_key)
-            .unwrap()
-            .syn_resolve()
-            .unwrap();
-        assert!(ver);
-
+        assert!(com_hub.validate_block(&last_block));
     }
 }
 

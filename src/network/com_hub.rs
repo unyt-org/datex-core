@@ -719,7 +719,7 @@ impl ComHub {
 
     /// Validates a block including it's signature if set
     /// TODO #378 @Norbert
-    fn validate_block(&self, block: &DXBBlock) -> bool {
+    pub fn validate_block(&self, block: &DXBBlock) -> bool {
         // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
@@ -748,19 +748,42 @@ impl ComHub {
                                     .syn_resolve()
                                     .unwrap();
 
+                                let raw_signed = [
+                                    pub_key,
+                                    &block.body.clone()
+                                    ]
+                                    .concat();
+                                let hashed_signed = crypto
+                                    .hash(&raw_signed)
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+
                                 let ver = crypto
-                                    .ver_ed25519(pub_key, &signature, pub_key)
+                                    .ver_ed25519(pub_key, &signature, &hashed_signed)
                                     .unwrap()
                                     .syn_resolve()
                                     .unwrap();
                                 return ver;
                             },
                             SignatureType::Unencrypted => {
+                                let crypto = get_global_context().crypto;
                                 let raw_sign = block.signature.as_ref().unwrap();
                                 let (signature, pub_key) = raw_sign.split_at(64);
-                                let ver = get_global_context()
-                                    .crypto
-                                    .ver_ed25519(pub_key, signature, pub_key)
+
+                                let raw_signed = [
+                                    pub_key,
+                                    &block.body.clone()
+                                    ]
+                                    .concat();
+                                let hashed_signed = crypto
+                                    .hash(&raw_signed)
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+
+                                let ver = crypto
+                                    .ver_ed25519(pub_key, signature, &hashed_signed)
                                     .unwrap()
                                     .syn_resolve()
                                     .unwrap();
@@ -1407,13 +1430,33 @@ impl ComHub {
                         let crypto = get_global_context().crypto;
                         let (pub_key, pri_key) =
                             crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
-                        let signature = crypto
-                            .sig_ed25519(&pri_key, &pub_key)
+
+                        let raw_signed = [
+                            pub_key.clone(),
+                            block.body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash(&raw_signed)
                             .unwrap()
                             .syn_resolve()
                             .unwrap();
-                        let hash = crypto.hkdf(&pub_key, &[0u8; 16]).unwrap().syn_resolve().unwrap();
-                        let enc_sig = crypto.aes_ctr_encrypt(&hash, &[0u8; 16], &signature).unwrap().syn_resolve().unwrap();
+
+                        let signature = crypto
+                            .sig_ed25519(&pri_key, &hashed_signed)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+                        let hash = crypto
+                            .hkdf(&pub_key, &[0u8; 16])
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+                        let enc_sig = crypto
+                            .aes_ctr_encrypt(&hash, &[0u8; 16], &signature)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
                         // 64 + 44 = 108
                         block.signature =
                             Some([enc_sig.to_vec(), pub_key].concat());
@@ -1422,8 +1465,20 @@ impl ComHub {
                         let crypto = get_global_context().crypto;
                         let (pub_key, pri_key) =
                             crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+
+                        let raw_signed = [
+                            pub_key.clone(),
+                            block.body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash(&raw_signed)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+
                         let signature = crypto
-                            .sig_ed25519(&pri_key, &pub_key)
+                            .sig_ed25519(&pri_key, &hashed_signed)
                             .unwrap()
                             .syn_resolve()
                             .unwrap();
