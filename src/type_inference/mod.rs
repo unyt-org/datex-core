@@ -25,7 +25,7 @@ use crate::{
 };
 
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
-
+use log::info;
 use crate::{
     ast::structs::{
         expression::{
@@ -631,7 +631,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
         match variable_assignment.operator {
             AssignmentOperator::Assign => {
-                if !annotated_type.matches_type(&assigned_type) {
+                if !assigned_type.matches_type(&annotated_type) {
                     return Err(SpannedTypeError {
                         error: TypeError::AssignmentTypeMismatch {
                             annotated_type,
@@ -725,7 +725,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             if let Some(specific) = &mut variable_declaration.type_annotation {
                 // FIXME check if matches
                 let annotated_type = self.infer_type_expression(specific)?;
-                if !annotated_type.matches_type(&init_type) {
+                if !init_type.matches_type(&annotated_type) {
                     self.record_error(SpannedTypeError::new_with_span(
                         TypeError::AssignmentTypeMismatch {
                             annotated_type: annotated_type.clone(),
@@ -753,6 +753,8 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let left_type = self.infer_expression(&mut binary_operation.left)?;
         let right_type = self.infer_expression(&mut binary_operation.right)?;
 
+        println!("base types: left: {:?}, right: {:?}", left_type.base_type_reference(), right_type.base_type_reference());
+
         match binary_operation.operator {
             BinaryOperator::Arithmetic(op) => {
                 // if base types are the same, use that as result type
@@ -760,11 +762,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                     && let Some(right) = right_type.base_type_reference()
                     && left == right
                 {
-                    // FIXME is this correct?
-                    mark_type(Type::new(
-                        left.borrow().type_value.type_definition.clone(),
-                        None,
-                    ))
+                    mark_type(Type::new(TypeDefinition::Reference(left), None))
                 } else {
                     Err(SpannedTypeError {
                         error: TypeError::MismatchedOperands(
@@ -814,9 +812,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 }
                 Some(r) => {
                     // FIXME is this necesarry?
-                    reference.borrow_mut().type_value = Type::reference(
-                        r.clone(),
-                        ReferenceMutability::Immutable,
+                    reference.borrow_mut().type_value = Type::new(
+                        TypeDefinition::Reference(r.clone()),
+                        None
                     );
                 }
             }
@@ -953,11 +951,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             })
             .collect();
 
-        // Check if annotated return type matches inferred return type
+        // Check if inferred return type matches the annotated return type
         // if an annotated return type is provided
         if let Some(annotated_type) = annotated_return_type {
             // If they match, use the annotated type
-            if annotated_type.matches_type(&inferred_return_type) {
+            if inferred_return_type.matches_type(&annotated_type) {
                 return mark_type(Type::function(parameters, annotated_type));
             }
             // If they don't match, record an error
@@ -1276,9 +1274,13 @@ mod tests {
         let mut res =
             precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
                 .expect("Precompilation failed");
-        infer_expression_type_simple_error(&mut res)
-            .expect("Type inference failed");
-        res
+        let inferred_res = infer_expression_type_simple_error(&mut res);
+        if let Err(err) = infer_expression_type_simple_error(&mut res) {
+            panic!("Type inference failed: {:#?}", err);
+        }
+        else {
+            res
+        }
     }
 
     /// Infers the AST of the given expression.
@@ -1316,6 +1318,21 @@ mod tests {
         infer_expression_type_with_errors(&mut res)
             .expect("Type inference failed")
             .into()
+    }
+
+    /// Infers the type definition of the given source code.
+    /// Panics if parsing, precompilation or type inference fails.
+    /// Returns the TypeDefinition if the inferred type is a TypeReference.
+    fn infer_from_script_get_reference_type(
+        src: &str,
+    ) -> Type {
+        let inferred_type = infer_from_script(src);
+        inferred_type
+            .inner_reference()
+            .expect("Expected type to be a TypeReference")
+            .borrow()
+            .type_value
+            .clone()
     }
 
     /// Infers the type of the given expression.
@@ -1550,16 +1567,23 @@ mod tests {
         let metadata = metadata.borrow();
         let var_a = metadata.variable_metadata(0).unwrap();
 
-        let nominal_ref = TypeReference::nominal(
-            Type::reference(
-                get_core_lib_type_reference(CoreLibPointerId::Integer(None)),
-                ReferenceMutability::Immutable,
+        let nominal_type_def = Type::new(
+            TypeDefinition::Reference(
+                Rc::new(RefCell::new(
+                    TypeReference::nominal(
+                        get_core_lib_type(CoreLibPointerId::Integer(None)),
+                        NominalTypeDeclaration::from("A".to_string()),
+                        None,
+                    )
+                ))
             ),
-            NominalTypeDeclaration::from("A"),
             None,
-        )
-        .as_type();
-        assert_eq!(var_a.var_type, Some(nominal_ref));
+        );
+
+        assert_eq!(
+            var_a.var_type,
+            Some(nominal_type_def)
+        );
     }
 
     #[test]
@@ -1799,7 +1823,7 @@ mod tests {
 
     #[test]
     fn infer_typed_literal() {
-        let inferred_type = infer_from_script("type X = 42u8");
+        let inferred_type = infer_from_script_get_reference_type("type X = 42u8");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
@@ -1807,7 +1831,7 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_from_script("type X = 42i32");
+        let inferred_type = infer_from_script_get_reference_type("type X = 42i32");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedInteger(
@@ -1815,7 +1839,7 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_from_script("type X = 42.69f32");
+        let inferred_type = infer_from_script_get_reference_type("type X = 42.69f32");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::TypedDecimal(
@@ -1826,7 +1850,7 @@ mod tests {
 
     #[test]
     fn infer_type_simple_literal() {
-        let inferred_type = infer_from_script("type X = 42");
+        let inferred_type = infer_from_script_get_reference_type("type X = 42");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Integer(Integer::from(
@@ -1834,7 +1858,7 @@ mod tests {
             )))
         );
 
-        let inferred_type = infer_from_script("type X = 3/4");
+        let inferred_type = infer_from_script_get_reference_type("type X = 3/4");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Decimal(
@@ -1842,19 +1866,19 @@ mod tests {
             ))
         );
 
-        let inferred_type = infer_from_script("type X = true");
+        let inferred_type = infer_from_script_get_reference_type("type X = true");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(true)))
         );
 
-        let inferred_type = infer_from_script("type X = false");
+        let inferred_type = infer_from_script_get_reference_type("type X = false");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Boolean(Boolean(false)))
         );
 
-        let inferred_type = infer_from_script(r#"type X = "hello""#);
+        let inferred_type = infer_from_script_get_reference_type(r#"type X = "hello""#);
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Text(
@@ -1867,7 +1891,7 @@ mod tests {
     // TODO #451 resolve intersection and union types properly
     // by merging the member types if one is base (one level higher) than the other
     fn infer_intersection_type_expression() {
-        let inferred_type = infer_from_script("type X = integer/u8 & 42");
+        let inferred_type = infer_from_script_get_reference_type("type X = integer/u8 & 42");
         assert_eq!(
             inferred_type,
             Type::intersection(vec![
@@ -1883,7 +1907,7 @@ mod tests {
 
     #[test]
     fn infer_union_type_expression() {
-        let inferred_type = infer_from_script("type X = integer/u8 | decimal");
+        let inferred_type = infer_from_script_get_reference_type("type X = integer/u8 | decimal");
         assert_eq!(
             inferred_type,
             Type::union(vec![
@@ -1897,7 +1921,7 @@ mod tests {
 
     #[test]
     fn infer_empty_struct_type_expression() {
-        let inferred_type = infer_from_script("type X = {}");
+        let inferred_type = infer_from_script_get_reference_type("type X = {}");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Map(vec![]))
@@ -1907,7 +1931,7 @@ mod tests {
     #[test]
     fn infer_struct_type_expression() {
         let inferred_type =
-            infer_from_script("type X = { a: integer/u8, b: decimal }");
+            infer_from_script_get_reference_type("type X = { a: integer/u8, b: decimal }");
         assert_eq!(
             inferred_type,
             Type::structural(StructuralTypeDefinition::Map(vec![
