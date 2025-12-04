@@ -1,14 +1,8 @@
-use crate::crypto::crypto::MaybeAsync;
+use super::crypto::{CryptoError, CryptoTrait, MaybeAsync};
 use crate::stdlib::sync::OnceLock;
 use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
-use crate::stdlib::{future::Future, pin::Pin};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use rand::Rng;
-
-use super::crypto::{CryptoError, CryptoTrait};
-use uuid::Uuid;
-
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
@@ -18,6 +12,8 @@ use openssl::{
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
+use rand::Rng;
+use uuid::Uuid;
 
 static UUID_COUNTER: OnceLock<AtomicU64> = OnceLock::new();
 
@@ -63,7 +59,7 @@ impl CryptoTrait for CryptoNative {
         ikm: &'a [u8],
         salt: &'a [u8],
     ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError> {
-        let info = b"dxb";
+        let info = b"";
         let mut ctx = PkeyCtx::new_id(Id::HKDF)
             .map_err(|_| CryptoError::KeyGenerationError)?;
         ctx.derive_init()
@@ -243,18 +239,25 @@ mod tests {
     #[test]
     pub fn syn_hash_key_derivation() {
         let mut ikm = Vec::from([0u8; 32]);
-        let salt = Vec::from([0u8; 32]);
+        let salt = Vec::from([0u8; 16]);
         let hash_a = CRYPTO.hkdf(&ikm, &salt).unwrap().syn_resolve().unwrap();
         ikm[0] = 1u8;
         let hash_b = CRYPTO.hkdf(&ikm, &salt).unwrap().syn_resolve().unwrap();
         assert_ne!(hash_a, hash_b);
         assert_ne!(hash_a.to_vec(), ikm);
-        println!("Hash: {:?}", hash_a);
+        assert_eq!(
+            hash_a,
+            [
+                223, 114, 4, 84, 111, 27, 238, 120, 184, 83, 36, 167, 137, 140,
+                161, 25, 179, 135, 224, 19, 134, 209, 174, 240, 55, 120, 29,
+                74, 138, 3, 106, 238
+            ]
+        );
     }
     #[tokio::test]
     pub async fn asy_hash_key_derivation() {
         let mut ikm = Vec::from([0u8; 32]);
-        let salt = Vec::from([0u8; 32]);
+        let salt = Vec::from([0u8; 16]);
         let hash_a = CRYPTO
             .hkdf(&ikm, &salt)
             .unwrap()
