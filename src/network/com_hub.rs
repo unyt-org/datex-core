@@ -733,15 +733,43 @@ impl ComHub {
                 cfg_if::cfg_if! {
                     if #[cfg(feature = "native_crypto")] {
                         use crate::runtime::global_context::get_global_context;
-                        let raw_sign = block.signature.as_ref().unwrap();
-                        let (signature, pub_key) = raw_sign.split_at(64);
-                        let ver = get_global_context()
-                            .crypto
-                            .ver_ed25519(pub_key, signature, pub_key)
-                            .unwrap()
-                            .syn_resolve()
-                            .unwrap();
-                        return ver;
+                        match block.routing_header.flags.signature_type() {
+                            SignatureType::Encrypted => {
+                                let crypto = get_global_context().crypto;
+                                let raw_sign = block.signature.as_ref().unwrap();
+                                let (enc_sign, pub_key) = raw_sign.split_at(64);
+                                let hash = crypto.hkdf(pub_key, &[0u8; 16])
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+                                let signature = crypto
+                                    .aes_ctr_encrypt(&hash, &[0u8; 16], enc_sign)
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+
+                                let ver = crypto
+                                    .ver_ed25519(pub_key, &signature, pub_key)
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+                                return ver;
+                            },
+                            SignatureType::Unencrypted => {
+                                let raw_sign = block.signature.as_ref().unwrap();
+                                let (signature, pub_key) = raw_sign.split_at(64);
+                                let ver = get_global_context()
+                                    .crypto
+                                    .ver_ed25519(pub_key, signature, pub_key)
+                                    .unwrap()
+                                    .syn_resolve()
+                                    .unwrap();
+                                return ver;
+                            },
+                            SignatureType::None => {
+                                unreachable!("If (is_signed == true) => !None");
+                            }
+                        }
                     }
                     else {
                         true
@@ -1374,23 +1402,39 @@ impl ComHub {
         cfg_if::cfg_if! {
             if #[cfg(feature = "native_crypto")] {
                 use crate::runtime::global_context::get_global_context;
-
-                let crypto = get_global_context().crypto;
-                let (pub_key, pri_key) =
-                    crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
-                let signature = crypto
-                    .sig_ed25519(&pri_key, &pub_key)
-                    .unwrap()
-                    .syn_resolve()
-                    .unwrap();
-                // 64 + 44 = 108
-                block.signature =
-                    Some([signature.to_vec(), pub_key].concat());
-
-                block
-                    .routing_header
-                    .flags
-                    .set_signature_type(SignatureType::Unencrypted);
+                match block.routing_header.flags.signature_type() {
+                    SignatureType::Encrypted => {
+                        let crypto = get_global_context().crypto;
+                        let (pub_key, pri_key) =
+                            crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+                        let signature = crypto
+                            .sig_ed25519(&pri_key, &pub_key)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+                        let hash = crypto.hkdf(&pub_key, &[0u8; 16]).unwrap().syn_resolve().unwrap();
+                        let enc_sig = crypto.aes_ctr_encrypt(&hash, &[0u8; 16], &signature).unwrap().syn_resolve().unwrap();
+                        // 64 + 44 = 108
+                        block.signature =
+                            Some([enc_sig.to_vec(), pub_key].concat());
+                    }
+                    SignatureType::Unencrypted => {
+                        let crypto = get_global_context().crypto;
+                        let (pub_key, pri_key) =
+                            crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+                        let signature = crypto
+                            .sig_ed25519(&pri_key, &pub_key)
+                            .unwrap()
+                            .syn_resolve()
+                            .unwrap();
+                        // 64 + 44 = 108
+                        block.signature =
+                            Some([signature.to_vec(), pub_key].concat());
+                    }
+                    SignatureType::None => {
+                        /* Ignored */
+                    }
+                }
             }
         }
 
