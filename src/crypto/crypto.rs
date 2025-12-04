@@ -38,6 +38,13 @@ pub trait CryptoTrait: Send + Sync {
     /// Generates cryptographically secure random bytes of the specified length.
     fn random_bytes(&self, length: usize) -> Vec<u8>;
 
+    /// Hash key derivation function.
+    fn hkdf<'a>(
+        &'a self,
+        ikm: &'a [u8],
+        salt: &'a [u8],
+    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError>;
+
     /// Generates an Ed25519 key pair.
     fn gen_ed25519<'a>(
         &'a self,
