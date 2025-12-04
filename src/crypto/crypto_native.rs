@@ -12,7 +12,9 @@ use uuid::Uuid;
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
-    pkey::PKey,
+    md::Md,
+    pkey::{Id, PKey},
+    pkey_ctx::{HkdfMode, PkeyCtx},
     sign::{Signer, Verifier},
     symm::{Cipher, Crypter, Mode},
 };
@@ -56,6 +58,31 @@ impl CryptoTrait for CryptoNative {
         (0..length).map(|_| rng.r#gen()).collect()
     }
 
+    fn hkdf<'a>(
+        &'a self,
+        ikm: &'a [u8],
+        salt: &'a [u8],
+    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError> {
+        let info = b"dxb";
+        let mut ctx = PkeyCtx::new_id(Id::HKDF)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.derive_init()
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.set_hkdf_mode(HkdfMode::EXTRACT_THEN_EXPAND)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.set_hkdf_md(Md::sha256())
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.set_hkdf_salt(salt)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.set_hkdf_key(ikm)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        ctx.add_hkdf_info(info)
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        let mut okm = [0u8; 32_usize];
+        ctx.derive(Some(&mut okm))
+            .map_err(|_| CryptoError::KeyGenerationError)?;
+        Ok(MaybeAsync::Syn(Ok(okm)))
+    }
     // EdDSA keygen
     fn gen_ed25519<'a>(
         &'a self,
@@ -213,6 +240,57 @@ impl CryptoTrait for CryptoNative {
 mod tests {
     use super::*;
     static CRYPTO: CryptoNative = CryptoNative {};
+    #[test]
+    pub fn syn_hash_key_derivation() {
+        let mut ikm = Vec::from([0u8; 32]);
+        let salt = Vec::from([0u8; 32]);
+        let hash_a = CRYPTO.hkdf(&ikm, &salt).unwrap().syn_resolve().unwrap();
+        ikm[0] = 1u8;
+        let hash_b = CRYPTO.hkdf(&ikm, &salt).unwrap().syn_resolve().unwrap();
+        assert_ne!(hash_a, hash_b);
+        assert_ne!(hash_a.to_vec(), ikm);
+        println!("Hash: {:?}", hash_a);
+    }
+    #[tokio::test]
+    pub async fn asy_hash_key_derivation() {
+        let mut ikm = Vec::from([0u8; 32]);
+        let salt = Vec::from([0u8; 32]);
+        let hash_a = CRYPTO
+            .hkdf(&ikm, &salt)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        ikm[0] = 1u8;
+        let hash_b = CRYPTO
+            .hkdf(&ikm, &salt)
+            .unwrap()
+            .asy_resolve()
+            .await
+            .unwrap();
+        assert_ne!(hash_a, hash_b);
+        assert_ne!(hash_a.to_vec(), ikm);
+    }
+
+    #[test]
+    pub fn syn_dsa_ed2519() {
+        let data = b"Some message to sign".to_vec();
+
+        let (pub_key, pri_key) =
+            CRYPTO.gen_ed25519().unwrap().syn_resolve().unwrap();
+        let sig = CRYPTO
+            .sig_ed25519(&pri_key, &data)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+        let ver = CRYPTO
+            .ver_ed25519(&pub_key, &sig, &data)
+            .unwrap()
+            .syn_resolve()
+            .unwrap();
+
+        assert!(ver)
+    }
 
     // Signatures
     #[tokio::test]
@@ -237,25 +315,6 @@ mod tests {
         assert!(ver)
     }
 
-    #[test]
-    pub fn syn_dsa_ed2519() {
-        let data = b"Some message to sign".to_vec();
-
-        let (pub_key, pri_key) =
-            CRYPTO.gen_ed25519().unwrap().syn_resolve().unwrap();
-        let sig = CRYPTO
-            .sig_ed25519(&pri_key, &data)
-            .unwrap()
-            .syn_resolve()
-            .unwrap();
-        let ver = CRYPTO
-            .ver_ed25519(&pub_key, &sig, &data)
-            .unwrap()
-            .syn_resolve()
-            .unwrap();
-
-        assert!(ver)
-    }
     // AES CTR
     #[test]
     pub fn syn_aes_ctr() {
