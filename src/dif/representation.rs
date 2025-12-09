@@ -149,7 +149,7 @@ impl DIFValueRepresentation {
         type_definition: &DIFTypeDefinition,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(match &type_definition {
+        Ok(match type_definition {
             DIFTypeDefinition::Reference(r) => {
                 if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
                     match core_lib_ptr_id {

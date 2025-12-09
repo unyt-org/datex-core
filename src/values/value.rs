@@ -91,7 +91,7 @@ impl Value {
     /// Returns true if the current Value's actual type is the same as its default type
     /// E.g. if the type is integer for an Integer value, or integer/u8 for a typed integer value
     /// This will return false for an integer value if the actual type is one of the following:
-    /// * a MarkedType<integer, x>
+    /// * an ImplType<integer, x>
     /// * a new nominal type containing an integer
     /// TODO: this does not match all cases of default types from the point of view of the compiler -
     /// integer variants (despite bigint) can be distinguished based on the instruction code, but for text variants,
@@ -382,7 +382,7 @@ mod tests {
 
         let val = Value {
             inner: CoreValue::Integer(Integer::from(42)),
-            actual_type: Box::new(TypeDefinition::MarkedType(
+            actual_type: Box::new(TypeDefinition::ImplType(
                 Box::new(get_core_lib_type(CoreLibPointerId::Integer(None))),
                 vec![],
             )),
