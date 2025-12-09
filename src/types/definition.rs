@@ -45,9 +45,9 @@ pub enum TypeDefinition {
     /// A special type that behaves like `innerType` but is marked with additional
     /// pointer addresses that represent meta information about the type.
     /// The type is treated as equivalent to `innerType` for most operations,
-    /// but the markers can be used to enforce additional constraints during
+    /// but the impl markers can be used to enforce additional constraints during
     /// type checking or runtime behavior.
-    MarkedType(Box<Type>, Vec<PointerAddress>),
+    ImplType(Box<Type>, Vec<PointerAddress>),
 
     /// NOTE: all the types below can never exist as actual types of a runtime value - they are only
     /// relevant for type space definitions and type checking.
@@ -109,9 +109,9 @@ impl Hash for TypeDefinition {
                 }
                 return_type.hash(state);
             }
-            TypeDefinition::MarkedType(ty, markers) => {
+            TypeDefinition::ImplType(ty, impls) => {
                 ty.hash(state);
-                for marker in markers {
+                for marker in impls {
                     marker.hash(state);
                 }
             }
@@ -131,9 +131,9 @@ impl Display for TypeDefinition {
             TypeDefinition::Unit => core::write!(f, "()"),
             TypeDefinition::Unknown => core::write!(f, "unknown"),
             TypeDefinition::Never => core::write!(f, "never"),
-            TypeDefinition::MarkedType(ty, markers) => {
+            TypeDefinition::ImplType(ty, impls) => {
                 core::write!(f, "{}", ty)?;
-                for marker in markers {
+                for marker in impls {
                     core::write!(f, " + {}", marker)?;
                 }
                 Ok(())
@@ -253,14 +253,14 @@ impl TypeDefinition {
         }
     }
 
-    /// Creates a new marked type.
-    pub fn marked(
+    /// Creates a new type with impls.
+    pub fn impl_type(
         ty: impl Into<Type>,
-        markers: Vec<PointerAddress>,
+        impls: Vec<PointerAddress>,
     ) -> Self {
-        TypeDefinition::MarkedType(
+        TypeDefinition::ImplType(
             Box::new(ty.into()),
-            markers,
+            impls,
         )
     }
     

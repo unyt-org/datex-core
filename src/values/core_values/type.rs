@@ -388,7 +388,7 @@ impl Type {
             TypeDefinition::Unit => false, // unit type does not match any value
             TypeDefinition::Never => false,
             TypeDefinition::Unknown => false,
-            TypeDefinition::MarkedType(ty, _) => {
+            TypeDefinition::ImplType(ty, _) => {
                 Type::value_matches_type(value, &ty)
             }
         }
