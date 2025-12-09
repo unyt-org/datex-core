@@ -30,7 +30,7 @@ pub enum DIFTypeDefinition {
     // e.g. A | B | C
     Union(Vec<DIFType>),
 
-    MarkedType(Box<DIFType>, Vec<PointerAddress>),
+    ImplType(Box<DIFType>, Vec<PointerAddress>),
 
     // ()
     Unit,
@@ -111,10 +111,10 @@ impl DIFTypeDefinition {
                     .map(|t| DIFType::from_type(t, memory))
                     .collect(),
             ),
-            TypeDefinition::MarkedType(ty, markers) => {
-                DIFTypeDefinition::MarkedType(
+            TypeDefinition::ImplType(ty, impls) => {
+                DIFTypeDefinition::ImplType(
                     Box::new(DIFType::from_type(ty, memory)),
-                    markers.clone(),
+                    impls.clone(),
                 )
             }
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
@@ -156,10 +156,10 @@ impl DIFTypeDefinition {
             DIFTypeDefinition::Type(dif_type) => {
                 TypeDefinition::Type(Box::new(dif_type.to_type(memory)))
             }
-            DIFTypeDefinition::MarkedType(ty, markers) => {
-                TypeDefinition::MarkedType(
+            DIFTypeDefinition::ImplType(ty, impls) => {
+                TypeDefinition::ImplType(
                     Box::new(ty.to_type(memory)),
-                    markers.clone(),
+                    impls.clone(),
                 )
             }
             DIFTypeDefinition::Unit => TypeDefinition::Unit,
