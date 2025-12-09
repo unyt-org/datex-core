@@ -41,6 +41,10 @@ use crate::network::com_interfaces::default_com_interfaces::local_loopback_inter
 use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
 
+use async_stream::stream;
+use futures::pin_mut;
+use futures::stream::StreamExt;
+
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
     pub known_since: u64,
@@ -195,7 +199,7 @@ pub enum SocketEndpointRegistrationError {
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn update_loop_task(self_rc: Rc<ComHub>) {
     while *self_rc.update_loop_running.borrow() {
-        self_rc.update();
+        self_rc.update().await;
         sleep(Duration::from_millis(1)).await;
     }
     if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
@@ -411,7 +415,7 @@ impl ComHub {
         }
 
         // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()
-        self.update_sockets();
+        self.update_sockets().await;
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
@@ -434,7 +438,7 @@ impl ComHub {
         Some(interface)
     }
 
-    pub(crate) fn receive_block(
+    pub(crate) async fn receive_block(
         &self,
         block: &DXBBlock,
         socket_uuid: ComInterfaceSocketUUID,
@@ -442,7 +446,7 @@ impl ComHub {
         info!("{} received block: {}", self.endpoint, block);
 
         // ignore invalid blocks (e.g. invalid signature)
-        if !self.validate_block(block) {
+        if !self.validate_block(block).await {
             warn!("Block validation failed. Dropping block...");
             return;
         }
@@ -461,7 +465,8 @@ impl ComHub {
             self.register_socket_endpoint_from_incoming_block(
                 socket_uuid.clone(),
                 block,
-            );
+            )
+            .await;
         }
 
         let receivers = block.receiver_endpoints();
@@ -478,13 +483,15 @@ impl ComHub {
 
                 match block_type {
                     BlockType::Trace => {
-                        self.handle_trace_block(block, socket_uuid.clone());
+                        self.handle_trace_block(block, socket_uuid.clone())
+                            .await;
                     }
                     BlockType::TraceBack => {
                         self.handle_trace_back_block(
                             block,
                             socket_uuid.clone(),
-                        );
+                        )
+                        .await;
                     }
                     _ => {
                         self.block_handler.handle_incoming_block(block.clone());
@@ -518,7 +525,8 @@ impl ComHub {
                                 ),
                                 socket_uuid.clone(),
                                 is_for_own,
-                            );
+                            )
+                            .await;
                         }
                         _ => {
                             self.redirect_block(
@@ -527,7 +535,8 @@ impl ComHub {
                                 ),
                                 socket_uuid.clone(),
                                 is_for_own,
-                            );
+                            )
+                            .await;
                         }
                     }
                 }
@@ -556,12 +565,12 @@ impl ComHub {
 
     /// Registers the socket endpoint from an incoming block
     /// if the endpoint is not already registered for the socket
-    fn register_socket_endpoint_from_incoming_block(
+    async fn register_socket_endpoint_from_incoming_block(
         &self,
         socket_uuid: ComInterfaceSocketUUID,
         block: &DXBBlock,
     ) {
-        let socket = self.get_socket_by_uuid(&socket_uuid);
+        let socket = self.get_socket_by_uuid(&socket_uuid).await;
         let mut socket_ref = socket.try_lock().unwrap();
 
         let distance = block.routing_header.distance;
@@ -596,7 +605,7 @@ impl ComHub {
 
     /// Prepares a block and relays it to the given receivers.
     /// The routing distance is incremented by 1.
-    pub(crate) fn redirect_block(
+    pub(crate) async fn redirect_block(
         &self,
         mut block: DXBBlock,
         incoming_socket: ComInterfaceSocketUUID,
@@ -655,6 +664,7 @@ impl ComHub {
                     excluded_sockets.push(original_socket_uuid.clone())
                 }
                 self.send_block(block.clone(), excluded_sockets, forked)
+                    .await
             }
         };
 
@@ -683,6 +693,7 @@ impl ComHub {
                     );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
+                    .await
                     .try_lock()
                     .unwrap()
                     .can_send()
@@ -694,6 +705,7 @@ impl ComHub {
                         &unreachable_endpoints,
                         if forked { Some(0) } else { None },
                     )
+                    .await
                 } else {
                     error!(
                         "Tried to send bounce back block, but cannot send back to incoming socket"
@@ -704,22 +716,24 @@ impl ComHub {
             // and try to send it via other remaining sockets that are not on the blacklist for the
             // block receiver
             else {
-                self.send_block(block, vec![], forked).unwrap_or_else(|_| {
-                    error!(
-                        "Failed to send out block to {}",
-                        unreachable_endpoints
-                            .iter()
-                            .map(|e| e.to_string())
-                            .join(",")
-                    );
-                });
+                self.send_block(block, vec![], forked).await.unwrap_or_else(
+                    |_| {
+                        error!(
+                            "Failed to send out block to {}",
+                            unreachable_endpoints
+                                .iter()
+                                .map(|e| e.to_string())
+                                .join(",")
+                        );
+                    },
+                );
             }
         }
     }
 
     /// Validates a block including it's signature if set
     /// TODO #378 @Norbert
-    pub fn validate_block(&self, block: &DXBBlock) -> bool {
+    pub async fn validate_block(&self, block: &DXBBlock) -> bool {
         // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
@@ -739,13 +753,11 @@ impl ComHub {
                                 let raw_sign = block.signature.as_ref().unwrap();
                                 let (enc_sign, pub_key) = raw_sign.split_at(64);
                                 let hash = crypto.hkdf(pub_key, &[0u8; 16])
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
                                 let signature = crypto
                                     .aes_ctr_encrypt(&hash, &[0u8; 16], enc_sign)
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
 
                                 let raw_signed = [
@@ -755,14 +767,12 @@ impl ComHub {
                                     .concat();
                                 let hashed_signed = crypto
                                     .hash(&raw_signed)
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
 
                                 let ver = crypto
                                     .ver_ed25519(pub_key, &signature, &hashed_signed)
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
                                 return ver;
                             },
@@ -778,14 +788,12 @@ impl ComHub {
                                     .concat();
                                 let hashed_signed = crypto
                                     .hash(&raw_signed)
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
 
                                 let ver = crypto
                                     .ver_ed25519(pub_key, signature, &hashed_signed)
-                                    .unwrap()
-                                    .syn_resolve()
+                                    .await
                                     .unwrap();
                                 return ver;
                             },
@@ -920,7 +928,7 @@ impl ComHub {
     /// In contrast to the update() function, this function is asynchronous
     /// and will wait for all background tasks scheduled by the update() function to finish
     pub async fn update_async(&self) {
-        self.update();
+        self.update().await;
         self.wait_for_update_async().await;
     }
 
@@ -957,7 +965,7 @@ impl ComHub {
     /// If the priority is not set to `InterfacePriority::None`, the socket
     /// is also registered as a fallback socket for outgoing connections with the
     /// specified priority.
-    fn add_socket(
+    async fn add_socket(
         &self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
@@ -1009,7 +1017,7 @@ impl ComHub {
                 .set_signature_type(SignatureType::Unencrypted);
             // TODO #182 include fingerprint of the own public key into body
 
-            let block = self.prepare_own_block(block);
+            let block = self.prepare_own_block(block).await;
 
             drop(socket_ref);
             self.send_block_to_endpoints_via_socket(
@@ -1017,7 +1025,8 @@ impl ComHub {
                 &socket_uuid,
                 &[Endpoint::ANY],
                 None,
-            );
+            )
+            .await;
         }
     }
 
@@ -1130,7 +1139,7 @@ impl ComHub {
     /// Returns the socket for a given UUID
     /// The socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) fn get_socket_by_uuid(
+    pub(crate) async fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Arc<Mutex<ComInterfaceSocket>> {
@@ -1163,11 +1172,11 @@ impl ComHub {
     /// Returns the com interface for a given socket UUID
     /// The interface and socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) fn get_com_interface_from_socket_uuid(
+    pub(crate) async fn get_com_interface_from_socket_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
-        let socket = self.get_socket_by_uuid(socket_uuid);
+        let socket = self.get_socket_by_uuid(socket_uuid).await;
         let socket = socket.try_lock().unwrap();
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
@@ -1179,67 +1188,64 @@ impl ComHub {
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
-    ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
-        core::iter::from_coroutine(
-            #[coroutine]
-            move || {
-                let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
-                // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
-                let endpoint_sockets =
-                    endpoint_sockets_borrow.get(endpoint).cloned();
-                if endpoint_sockets.is_none() {
-                    return;
-                }
-                for (socket_uuid, _) in endpoint_sockets.unwrap() {
+    ) -> impl StreamExt<Item = ComInterfaceSocketUUID> + 'a {
+        stream! {
+            let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
+            // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
+            let endpoint_sockets =
+                endpoint_sockets_borrow.get(endpoint).cloned();
+            if endpoint_sockets.is_none() {
+                return;
+            }
+            for (socket_uuid, _) in endpoint_sockets.unwrap() {
+                {
+                    let socket = self.get_socket_by_uuid(&socket_uuid).await;
+                    let socket = socket.try_lock().unwrap();
+
+                    // check if only_direct is set and the endpoint equals the direct endpoint of the socket
+                    if options.only_direct
+                        && socket.direct_endpoint.is_some()
+                        && socket.direct_endpoint.as_ref().unwrap()
+                            == endpoint
                     {
-                        let socket = self.get_socket_by_uuid(&socket_uuid);
-                        let socket = socket.try_lock().unwrap();
-
-                        // check if only_direct is set and the endpoint equals the direct endpoint of the socket
-                        if options.only_direct
-                            && socket.direct_endpoint.is_some()
-                            && socket.direct_endpoint.as_ref().unwrap()
-                                == endpoint
-                        {
-                            debug!(
-                                "No direct socket found for endpoint {endpoint}. Skipping..."
-                            );
-                            continue;
-                        }
-
-                        // check if the socket is excluded if exclude_socket is set
-                        if options.exclude_sockets.contains(&socket.uuid) {
-                            debug!(
-                                "Socket {} is excluded for endpoint {}. Skipping...",
-                                socket.uuid, endpoint
-                            );
-                            continue;
-                        }
-
-                        // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
-                        // only yield outgoing sockets
-                        // if a non-outgoing socket is found, all following sockets
-                        // will also be non-outgoing
-                        if !socket.can_send() {
-                            info!(
-                                "Socket {} is not outgoing for endpoint {}. Skipping...",
-                                socket.uuid, endpoint
-                            );
-                            return;
-                        }
+                        debug!(
+                            "No direct socket found for endpoint {endpoint}. Skipping..."
+                        );
+                        continue;
                     }
 
-                    debug!(
-                        "Found matching socket {socket_uuid} for endpoint {endpoint}"
-                    );
-                    yield socket_uuid.clone()
+                    // check if the socket is excluded if exclude_socket is set
+                    if options.exclude_sockets.contains(&socket.uuid) {
+                        debug!(
+                            "Socket {} is excluded for endpoint {}. Skipping...",
+                            socket.uuid, endpoint
+                        );
+                        continue;
+                    }
+
+                    // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
+                    // only yield outgoing sockets
+                    // if a non-outgoing socket is found, all following sockets
+                    // will also be non-outgoing
+                    if !socket.can_send() {
+                        info!(
+                            "Socket {} is not outgoing for endpoint {}. Skipping...",
+                            socket.uuid, endpoint
+                        );
+                        return;
+                    }
                 }
-            },
-        )
+
+                debug!(
+                    "Found matching socket {socket_uuid} for endpoint {endpoint}"
+                );
+                yield socket_uuid.clone()
+            }
+        }
     }
 
     /// Finds the best matching socket over which an endpoint is known to be reachable.
-    fn find_known_endpoint_socket(
+    async fn find_known_endpoint_socket(
         &self,
         endpoint: &Endpoint,
         exclude_socket: &[ComInterfaceSocketUUID],
@@ -1252,12 +1258,14 @@ impl ComHub {
                     exact_instance: false,
                     exclude_sockets: exclude_socket,
                 };
-                if let Some(socket) =
-                    self.iterate_endpoint_sockets(endpoint, options).next()
-                {
+                let mut stream =
+                    self.iterate_endpoint_sockets(endpoint, options);
+                pin_mut!(stream);
+                if let Some(socket) = stream.next().await {
                     return Some(socket);
+                } else {
+                    None
                 }
-                None
             }
 
             // find socket for exact instance
@@ -1268,12 +1276,14 @@ impl ComHub {
                     exact_instance: true,
                     exclude_sockets: exclude_socket,
                 };
-                if let Some(socket) =
-                    self.iterate_endpoint_sockets(endpoint, options).next()
-                {
+                let mut stream =
+                    self.iterate_endpoint_sockets(endpoint, options);
+                pin_mut!(stream);
+                if let Some(socket) = stream.next().await {
                     return Some(socket);
+                } else {
+                    None
                 }
-                None
             }
 
             // TODO #185: how to handle broadcasts?
@@ -1286,7 +1296,7 @@ impl ComHub {
     /// Finds the best socket over which to send a block to an endpoint.
     /// If a known socket is found, it is returned, otherwise the default socket is returned, if it
     /// exists and is not excluded.
-    fn find_best_endpoint_socket(
+    async fn find_best_endpoint_socket(
         &self,
         endpoint: &Endpoint,
         exclude_sockets: &[ComInterfaceSocketUUID],
@@ -1296,13 +1306,15 @@ impl ComHub {
         if endpoint == &self.endpoint
             && let Some(socket) = self
                 .find_known_endpoint_socket(&Endpoint::LOCAL, exclude_sockets)
+                .await
         {
             return Some(socket);
         }
 
         // find best known socket for endpoint
-        let matching_socket =
-            self.find_known_endpoint_socket(endpoint, exclude_sockets);
+        let matching_socket = self
+            .find_known_endpoint_socket(endpoint, exclude_sockets)
+            .await;
 
         // if a matching socket is found, return it
         if matching_socket.is_some() {
@@ -1312,7 +1324,7 @@ impl ComHub {
         else {
             let sockets = self.fallback_sockets.borrow();
             for (socket_uuid, _, _) in sockets.iter() {
-                let socket = self.get_socket_by_uuid(socket_uuid);
+                let socket = self.get_socket_by_uuid(socket_uuid).await;
                 info!(
                     "{}: Find best for {}: {} ({}); excluded:{}",
                     self.endpoint,
@@ -1337,7 +1349,7 @@ impl ComHub {
 
     /// Returns all receivers to which the block has to be sent, grouped by the
     /// outbound socket uuids
-    fn get_outbound_receiver_groups(
+    async fn get_outbound_receiver_groups(
         &self,
         // TODO #187: do we need the block here for additional information (match conditions),
         // otherwise receivers are enough
@@ -1347,19 +1359,30 @@ impl ComHub {
         let receivers = block.receiver_endpoints();
 
         if !receivers.is_empty() {
-            let endpoint_sockets = receivers
-                .iter()
-                .map(|e| {
-                    // add sockets from endpoint blacklist
-                    if let Some(blacklist) =
-                        self.endpoint_sockets_blacklist.borrow().get(e)
-                    {
-                        exclude_sockets.extend(blacklist.iter().cloned());
-                    }
-                    let socket =
-                        self.find_best_endpoint_socket(e, &exclude_sockets);
-                    (socket, e)
-                })
+            // Prepare vec with endpoints and corresponding blacklists
+            let mut prepped = Vec::with_capacity(receivers.len());
+            for e in receivers.iter() {
+                // add sockets from endpoint blacklist
+                if let Some(blacklist) =
+                    self.endpoint_sockets_blacklist.borrow().get(e)
+                {
+                    exclude_sockets.extend(blacklist.iter().cloned());
+                }
+                prepped.push((e.clone(), exclude_sockets.clone()));
+            }
+
+            // Async evaluate
+            let mut results = Vec::with_capacity(prepped.len());
+            for (endpoint, exclude) in prepped {
+                let socket = self
+                    .find_best_endpoint_socket(&endpoint, &exclude_sockets)
+                    .await;
+                results.push((socket, endpoint));
+            }
+
+            // Group results synchronously
+            let endpoint_sockets = results
+                .into_iter()
                 .group_by(|(socket, _)| socket.clone())
                 .into_iter()
                 .map(|(socket, group)| {
@@ -1400,18 +1423,18 @@ impl ComHub {
     /// collecting incoming data and sending out queued blocks.
     /// Updates are scheduled in local tasks and are not immediately visible.
     /// To wait for the block update to finish, use `wait_for_update_async()`.
-    pub fn update(&self) {
+    pub async fn update(&self) {
         // update all interfaces
         self.update_interfaces();
 
         // update own socket lists for routing
-        self.update_sockets();
+        self.update_sockets().await;
 
         // update sockets block collectors
         self.collect_incoming_data();
 
         // receive blocks from all sockets
-        self.receive_incoming_blocks();
+        self.receive_incoming_blocks().await;
 
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
@@ -1420,7 +1443,7 @@ impl ComHub {
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     /// TODO #379 @Norbert
-    pub fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
+    pub async fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
         // TODO #188 signature & encryption
         cfg_if::cfg_if! {
             if #[cfg(feature = "native_crypto")] {
@@ -1429,7 +1452,7 @@ impl ComHub {
                     SignatureType::Encrypted => {
                         let crypto = get_global_context().crypto;
                         let (pub_key, pri_key) =
-                            crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+                            crypto.gen_ed25519().await.unwrap();
 
                         let raw_signed = [
                             pub_key.clone(),
@@ -1438,24 +1461,20 @@ impl ComHub {
                             .concat();
                         let hashed_signed = crypto
                             .hash(&raw_signed)
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
 
                         let signature = crypto
                             .sig_ed25519(&pri_key, &hashed_signed)
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
                         let hash = crypto
                             .hkdf(&pub_key, &[0u8; 16])
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
                         let enc_sig = crypto
                             .aes_ctr_encrypt(&hash, &[0u8; 16], &signature)
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
                         // 64 + 44 = 108
                         block.signature =
@@ -1464,7 +1483,7 @@ impl ComHub {
                     SignatureType::Unencrypted => {
                         let crypto = get_global_context().crypto;
                         let (pub_key, pri_key) =
-                            crypto.gen_ed25519().unwrap().syn_resolve().unwrap();
+                            crypto.gen_ed25519().await.unwrap();
 
                         let raw_signed = [
                             pub_key.clone(),
@@ -1473,14 +1492,12 @@ impl ComHub {
                             .concat();
                         let hashed_signed = crypto
                             .hash(&raw_signed)
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
 
                         let signature = crypto
                             .sig_ed25519(&pri_key, &hashed_signed)
-                            .unwrap()
-                            .syn_resolve()
+                            .await
                             .unwrap();
                         // 64 + 44 = 108
                         block.signature =
@@ -1506,14 +1523,14 @@ impl ComHub {
     }
 
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
-    pub fn send_own_block(
+    pub async fn send_own_block(
         &self,
         mut block: DXBBlock,
     ) -> Result<(), Vec<Endpoint>> {
-        block = self.prepare_own_block(block);
+        block = self.prepare_own_block(block).await;
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
-        self.send_block(block, vec![], false)
+        self.send_block(block, vec![], false).await
     }
 
     /// Sends a block and wait for a response block.
@@ -1531,7 +1548,7 @@ impl ComHub {
         let has_exact_receiver_count = block.has_exact_receiver_count();
         let receivers = block.receiver_endpoints();
 
-        let res = self.send_own_block(block);
+        let res = self.send_own_block(block).await;
         let failed_endpoints = res.err().unwrap_or_default();
 
         // yield
@@ -1701,14 +1718,15 @@ impl ComHub {
     /// The original_socket parameter is used to prevent sending the block back to the sender.
     /// When this method is called, the block is queued in the send queue.
     /// Returns an Err with a list of unreachable endpoints if the block could not be sent to all endpoints.
-    pub fn send_block(
+    pub async fn send_block(
         &self,
         mut block: DXBBlock,
         exclude_sockets: Vec<ComInterfaceSocketUUID>,
         forked: bool,
     ) -> Result<(), Vec<Endpoint>> {
-        let outbound_receiver_groups =
-            self.get_outbound_receiver_groups(&block, exclude_sockets);
+        let outbound_receiver_groups = self
+            .get_outbound_receiver_groups(&block, exclude_sockets)
+            .await;
 
         if outbound_receiver_groups.is_none() {
             error!("No outbound receiver groups found for block");
@@ -1738,7 +1756,8 @@ impl ComHub {
                     &socket_uuid,
                     &endpoints,
                     fork_count,
-                );
+                )
+                .await;
             } else {
                 error!(
                     "{}: cannot send block, no receiver sockets found for endpoints {:?}",
@@ -1761,7 +1780,7 @@ impl ComHub {
 
     /// Sends a block via a socket to a list of endpoints.
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
-    fn send_block_to_endpoints_via_socket(
+    async fn send_block_to_endpoints_via_socket(
         &self,
         mut block: DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -1793,6 +1812,7 @@ impl ComHub {
                             self.get_com_interface_from_socket_uuid(
                                 socket_uuid,
                             )
+                            .await
                             .borrow_mut()
                             .get_properties(),
                             socket_uuid.clone(),
@@ -1806,7 +1826,7 @@ impl ComHub {
             _ => {}
         }
 
-        let socket = self.get_socket_by_uuid(socket_uuid);
+        let socket = self.get_socket_by_uuid(socket_uuid).await;
         let mut socket_ref = socket.try_lock().unwrap();
 
         let is_broadcast = endpoints
@@ -1920,7 +1940,7 @@ impl ComHub {
 
     /// Updates all known sockets for all interfaces to update routing
     /// information, remove deleted sockets and add new sockets and endpoint relations
-    fn update_sockets(&self) {
+    async fn update_sockets(&self) {
         let mut new_sockets = Vec::new();
         let mut deleted_sockets = Vec::new();
         let mut registered_sockets = Vec::new();
@@ -1938,13 +1958,13 @@ impl ComHub {
         }
 
         for (socket, priority) in new_sockets {
-            self.add_socket(socket.clone(), priority);
+            self.add_socket(socket.clone(), priority).await;
         }
         for socket_uuid in deleted_sockets {
             self.delete_socket(&socket_uuid);
         }
         for (socket_uuid, distance, endpoint) in registered_sockets {
-            let socket = self.get_socket_by_uuid(&socket_uuid);
+            let socket = self.get_socket_by_uuid(&socket_uuid).await;
             self.register_socket_endpoint(socket, endpoint.clone(), distance)
                 .unwrap_or_else(|e| {
                     error!(
@@ -1966,7 +1986,7 @@ impl ComHub {
 
     /// Collects all blocks from the receive queues of all sockets and process them
     /// in the receive_block method.
-    fn receive_incoming_blocks(&self) {
+    async fn receive_incoming_blocks(&self) {
         let mut blocks = vec![];
         // iterate over all sockets
         for (socket, _) in self.sockets.borrow().values() {
@@ -1978,7 +1998,7 @@ impl ComHub {
 
         for (uuid, blocks) in blocks {
             for block in blocks.iter() {
-                self.receive_block(block, uuid.clone());
+                self.receive_block(block, uuid.clone()).await;
             }
         }
     }

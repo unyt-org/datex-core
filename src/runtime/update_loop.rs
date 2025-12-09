@@ -39,7 +39,8 @@ async fn handle_incoming_section_task(
         result,
         endpoint,
         context_id,
-    );
+    )
+    .await;
     // TODO #231: handle errors in sending response
 }
 
@@ -89,7 +90,7 @@ impl RuntimeInternal {
     /// main update loop
     async fn update(self_rc: Rc<RuntimeInternal>) {
         // update the ComHub
-        self_rc.com_hub.update();
+        self_rc.com_hub.update().await;
         // handle incoming sections
         RuntimeInternal::handle_incoming_sections(self_rc);
     }
@@ -113,7 +114,7 @@ impl RuntimeInternal {
         }
     }
 
-    fn send_response_block(
+    async fn send_response_block(
         self_rc: Rc<RuntimeInternal>,
         result: Result<Option<ValueContainer>, ExecutionError>,
         receiver_endpoint: Endpoint,
@@ -151,7 +152,7 @@ impl RuntimeInternal {
             );
             block.set_receivers(core::slice::from_ref(&receiver_endpoint));
 
-            self_rc.com_hub.send_own_block(block)
+            self_rc.com_hub.send_own_block(block).await
         } else {
             core::todo!("#233 Handle returning error response block");
         }

@@ -42,26 +42,28 @@ pub trait CryptoTrait: Send + Sync {
     fn hash<'a>(
         &'a self,
         to_digest: &'a [u8],
-    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>>;
 
     /// Hash key derivation function.
     fn hkdf<'a>(
         &'a self,
         ikm: &'a [u8],
         salt: &'a [u8],
-    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>>;
 
     /// Generates an Ed25519 key pair.
     fn gen_ed25519<'a>(
         &'a self,
-    ) -> Result<MaybeAsync<'a, (Vec<u8>, Vec<u8>)>, CryptoError>;
+    ) -> Pin<
+        Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'a>,
+    >;
 
     /// Signs data with the given Ed25519 private key.
     fn sig_ed25519<'a>(
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Result<MaybeAsync<'a, [u8; 64]>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a>>;
 
     /// Verifies an Ed25519 signature with the given public key and data.
     fn ver_ed25519<'a>(
@@ -69,7 +71,7 @@ pub trait CryptoTrait: Send + Sync {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Result<MaybeAsync<'a, bool>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>>;
 
     /// AES-256 in CTR mode encryption, returns the ciphertext.
     fn aes_ctr_encrypt<'a>(
@@ -77,7 +79,7 @@ pub trait CryptoTrait: Send + Sync {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         plaintext: &'a [u8],
-    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 
     /// AES-256 in CTR mode decryption, returns the plaintext.
     fn aes_ctr_decrypt<'a>(
@@ -85,33 +87,37 @@ pub trait CryptoTrait: Send + Sync {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         cipher: &'a [u8],
-    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 
     /// AES Key Wrap (RFC 3394), returns the wrapped key (ciphertext).
     fn key_upwrap<'a>(
         &'a self,
         kek_bytes: &'a [u8; 32],
         rb: &'a [u8; 32],
-    ) -> Result<MaybeAsync<'a, [u8; 40]>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 40], CryptoError>> + 'a>>;
 
     /// AES Key Unwrap (RFC 3394), returns the unwrapped key (plaintext).
     fn key_unwrap<'a>(
         &'a self,
         kek_bytes: &'a [u8; 32],
         cipher: &'a [u8; 40],
-    ) -> Result<MaybeAsync<'a, [u8; 32]>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>>;
 
     /// Generates an X25519 key pair, returns (public_key, private_key).
     fn gen_x25519<'a>(
         &'a self,
-    ) -> Result<MaybeAsync<'a, ([u8; 44], [u8; 48])>, CryptoError>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>> + 'a,
+        >,
+    >;
 
     /// Derives a shared secret using X25519 given my private key and the peer's public key.
     fn derive_x25519<'a>(
         &'a self,
         pri_key: &'a [u8; 48],
         peer_pub: &'a [u8; 44],
-    ) -> Result<MaybeAsync<'a, Vec<u8>>, CryptoError>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>>;
 }
 
 pub struct Crypto;
