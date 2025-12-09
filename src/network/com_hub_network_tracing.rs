@@ -381,7 +381,6 @@ impl ComHub {
             distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
                 self.get_com_interface_from_socket_uuid(&original_socket)
-                    .await
                     .borrow_mut()
                     .get_properties(),
                 original_socket.clone(),
@@ -407,7 +406,7 @@ impl ComHub {
         Some(())
     }
 
-    pub(crate) async fn handle_trace_back_block(
+    pub(crate) fn handle_trace_back_block(
         &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
@@ -429,7 +428,6 @@ impl ComHub {
                 distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket)
-                        .await
                         .borrow_mut()
                         .get_properties(),
                     original_socket.clone(),
@@ -471,7 +469,6 @@ impl ComHub {
                 distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket)
-                        .await
                         .borrow_mut()
                         .get_properties(),
                     original_socket.clone(),

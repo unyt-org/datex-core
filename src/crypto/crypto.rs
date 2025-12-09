@@ -4,7 +4,8 @@ use crate::stdlib::vec::Vec;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-
+type CryptoResult<'a, T> =
+    Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>>;
 use crate::stdlib::{future::Future, pin::Pin};
 
 pub trait CryptoTrait: Send + Sync {

@@ -102,7 +102,7 @@ impl Display for ComHubMetadata {
 }
 
 impl ComHub {
-    pub async fn get_metadata(&self) -> ComHubMetadata {
+    pub fn get_metadata(&self) -> ComHubMetadata {
         let mut metadata = ComHubMetadata {
             endpoint: self.endpoint.clone(),
             interfaces: Vec::new(),
@@ -116,7 +116,7 @@ impl ComHub {
 
         for (endpoint, sockets) in self.endpoint_sockets.borrow().iter() {
             for (socket_uuid, properties) in sockets {
-                let socket = self.get_socket_by_uuid(socket_uuid).await;
+                let socket = self.get_socket_by_uuid(socket_uuid);
                 let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
@@ -176,8 +176,8 @@ impl ComHub {
         metadata
     }
 
-    pub async fn print_metadata(&self) {
-        let metadata = self.get_metadata().await;
+    pub fn print_metadata(&self) {
+        let metadata = self.get_metadata();
         info!("ComHub Metadata:\n{metadata}");
     }
 }
