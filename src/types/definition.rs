@@ -1,3 +1,4 @@
+use crate::references::reference::ReferenceMutability;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
@@ -5,6 +6,7 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
 use crate::values::core_values::r#type::Type;
+use crate::values::pointer::PointerAddress;
 use crate::{
     traits::structural_eq::StructuralEq,
     types::{
@@ -15,8 +17,6 @@ use crate::{
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::references::type_reference::TypeReference;
-use crate::references::reference::ReferenceMutability;
-use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -65,7 +65,6 @@ pub enum TypeDefinition {
 
     /// unknown type
     Unknown,
-
 }
 
 impl Hash for TypeDefinition {
@@ -200,7 +199,6 @@ impl StructuralEq for TypeDefinition {
     }
 }
 
-
 impl TypeDefinition {
     /// Creates a new structural type.
     pub fn structural(
@@ -211,9 +209,9 @@ impl TypeDefinition {
 
     /// Creates a new structural list type.
     pub fn list(element_types: Vec<Type>) -> Self {
-        TypeDefinition::Structural(
-            StructuralTypeDefinition::List(element_types),
-        )
+        TypeDefinition::Structural(StructuralTypeDefinition::List(
+            element_types,
+        ))
     }
 
     /// Creates a new union type.
@@ -235,9 +233,7 @@ impl TypeDefinition {
     }
 
     /// Creates a new reference type.
-    pub fn reference(
-        reference: Rc<RefCell<TypeReference>>,
-    ) -> Self {
+    pub fn reference(reference: Rc<RefCell<TypeReference>>) -> Self {
         TypeDefinition::Reference(reference)
     }
 
@@ -253,17 +249,14 @@ impl TypeDefinition {
     }
 
     /// Creates a new type with impls.
-    pub fn impl_type(
-        ty: impl Into<Type>,
-        impls: Vec<PointerAddress>,
-    ) -> Self {
-        TypeDefinition::ImplType(
-            Box::new(ty.into()),
-            impls,
-        )
+    pub fn impl_type(ty: impl Into<Type>, impls: Vec<PointerAddress>) -> Self {
+        TypeDefinition::ImplType(Box::new(ty.into()), impls)
     }
-    
-    pub fn into_type(self, reference_mutability: Option<ReferenceMutability>) -> Type {
+
+    pub fn into_type(
+        self,
+        reference_mutability: Option<ReferenceMutability>,
+    ) -> Type {
         Type {
             type_definition: self,
             base_type: None,
@@ -271,7 +264,6 @@ impl TypeDefinition {
         }
     }
 }
-
 
 impl From<TypeDefinition> for Type {
     fn from(type_definition: TypeDefinition) -> Self {

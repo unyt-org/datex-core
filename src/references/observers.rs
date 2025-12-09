@@ -51,7 +51,9 @@ pub struct Observer {
 impl Observer {
     /// Creates a new observer with the given callback function,
     /// using default options and a transceiver ID of 0.
-    pub fn new<F: Fn(&DIFUpdateData, TransceiverId) + 'static>(callback: F) -> Self {
+    pub fn new<F: Fn(&DIFUpdateData, TransceiverId) + 'static>(
+        callback: F,
+    ) -> Self {
         Observer {
             transceiver_id: 0,
             options: ObserveOptions::default(),
@@ -174,10 +176,11 @@ impl Reference {
 
 #[cfg(test)]
 mod tests {
-    use crate::stdlib::borrow::Cow;
+    use crate::dif::r#type::DIFTypeDefinition;
     use crate::dif::update::{DIFUpdate, DIFUpdateData};
     use crate::references::observers::{ObserveOptions, TransceiverId};
     use crate::runtime::memory::Memory;
+    use crate::stdlib::borrow::Cow;
     use crate::stdlib::{
         assert_matches::assert_matches, cell::RefCell, rc::Rc,
     };
@@ -195,7 +198,6 @@ mod tests {
         values::value_container::ValueContainer,
     };
     use datex_core::references::observers::Observer;
-    use crate::dif::r#type::DIFTypeDefinition;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates
@@ -280,7 +282,8 @@ mod tests {
         let memory = &RefCell::new(Memory::default());
 
         let int_ref = Reference::try_mut_from(42.into()).unwrap();
-        let observed_updates = record_dif_updates(&int_ref, 0, ObserveOptions::default());
+        let observed_updates =
+            record_dif_updates(&int_ref, 0, ObserveOptions::default());
 
         // Update the value of the reference
         int_ref

@@ -1,5 +1,6 @@
 use super::super::core_value_trait::CoreValueTrait;
 use crate::collections::HashMap;
+use crate::references::reference::KeyNotFoundError;
 use crate::std_random::RandomState;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
@@ -13,7 +14,6 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use indexmap::IndexMap;
-use crate::references::reference::KeyNotFoundError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Map {
@@ -79,48 +79,40 @@ impl Map {
 
     /// Gets a value in the map by reference.
     /// Returns None if the key is not found.
-    pub fn get<'a>(&self, key: impl Into<ValueKey<'a>>) -> Result<&ValueContainer, KeyNotFoundError> {
+    pub fn get<'a>(
+        &self,
+        key: impl Into<ValueKey<'a>>,
+    ) -> Result<&ValueContainer, KeyNotFoundError> {
         let key = key.into();
         match self {
-            Map::Dynamic(map) => {
-                key.with_value_container(|key| {
-                    map.get(key)
-                })
-            }
-            Map::Fixed(vec) => {
-                key.with_value_container(|key| {
-                    vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
-                })
-            }
+            Map::Dynamic(map) => key.with_value_container(|key| map.get(key)),
+            Map::Fixed(vec) => key.with_value_container(|key| {
+                vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+            }),
             Map::Structural(vec) => {
                 // only works if key is a string
-                if let Some(string) = key.try_as_text()
-                {
+                if let Some(string) = key.try_as_text() {
                     vec.iter().find(|(k, _)| k == string).map(|(_, v)| v)
                 } else {
                     None
                 }
             }
-        }.ok_or_else(|| KeyNotFoundError {key: key.into()})
+        }
+        .ok_or_else(|| KeyNotFoundError { key: key.into() })
     }
 
     /// Checks if the map contains the given key.
     pub fn has<'a>(&self, key: impl Into<ValueKey<'a>>) -> bool {
         match self {
             Map::Dynamic(map) => {
-                key.into().with_value_container(|key| {
-                    map.contains_key(key)
-                })
+                key.into().with_value_container(|key| map.contains_key(key))
             }
-            Map::Fixed(vec) => {
-                key.into().with_value_container(|key| {
-                    vec.iter().any(|(k, _)| k == key)
-                })
-            },
+            Map::Fixed(vec) => key
+                .into()
+                .with_value_container(|key| vec.iter().any(|(k, _)| k == key)),
             Map::Structural(vec) => {
                 // only works if key is a string
-                if let Some(string) = key.into().try_as_text()
-                {
+                if let Some(string) = key.into().try_as_text() {
                     vec.iter().any(|(k, _)| k == string)
                 } else {
                     false
@@ -136,11 +128,13 @@ impl Map {
     ) -> Result<ValueContainer, MapAccessError> {
         let key = key.into();
         match self {
-            Map::Dynamic(map) => {
-                key.with_value_container(|key| {
-                    map.shift_remove(key).ok_or_else(|| MapAccessError::KeyNotFound(KeyNotFoundError { key: key.clone() }))
+            Map::Dynamic(map) => key.with_value_container(|key| {
+                map.shift_remove(key).ok_or_else(|| {
+                    MapAccessError::KeyNotFound(KeyNotFoundError {
+                        key: key.clone(),
+                    })
                 })
-            }
+            }),
             Map::Fixed(_) | Map::Structural(_) => {
                 Err(MapAccessError::Immutable)
             }
@@ -185,27 +179,26 @@ impl Map {
                 });
                 Ok(())
             }
-            Map::Fixed(vec) => {
-                key.with_value_container(|key| {
-                    if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == key) {
-                        *v = value.into();
-                        Ok(())
-                    } else {
-                        Err(KeyNotFoundError { key: key.clone() } )
-                    }
-                })
-            }
+            Map::Fixed(vec) => key.with_value_container(|key| {
+                if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == key) {
+                    *v = value.into();
+                    Ok(())
+                } else {
+                    Err(KeyNotFoundError { key: key.clone() })
+                }
+            }),
             Map::Structural(vec) => {
                 if let Some(string) = key.try_as_text() {
                     if let Some((_, v)) =
-                        vec.iter_mut().find(|(k, _)| k == string) {
+                        vec.iter_mut().find(|(k, _)| k == string)
+                    {
                         *v = value.into();
                         Ok(())
                     } else {
-                        Err(KeyNotFoundError { key: key.into() } )
+                        Err(KeyNotFoundError { key: key.into() })
                     }
                 } else {
-                    Err(KeyNotFoundError { key: key.into() } )
+                    Err(KeyNotFoundError { key: key.into() })
                 }
             }
         }

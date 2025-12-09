@@ -14,6 +14,7 @@ use crate::ast::structs::expression::{
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
+use crate::types::definition::TypeDefinition;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
@@ -47,7 +48,6 @@ use precompiled_ast::RichAst;
 use precompiled_ast::VariableShape;
 use scope::NewScopeType;
 use scope_stack::PrecompilerScopeStack;
-use crate::types::definition::TypeDefinition;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,

@@ -106,7 +106,8 @@ mod tests {
             assert_eq!(
                 dif_value.ty,
                 Some(DIFTypeDefinition::Reference(
-                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32)).into()
+                    CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
+                        .into()
                 ))
             );
         } else {

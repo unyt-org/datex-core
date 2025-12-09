@@ -7,10 +7,7 @@ pub fn compile_type(ty: &Type) -> Vec<u8> {
     buffer
 }
 
-pub fn append_type(
-    buffer: &mut Vec<u8>,
-    ty: &Type,
-) {
+pub fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
     // INSTRUCTION
     // &mut (integer + js.undefed)
     // function (x: null) {

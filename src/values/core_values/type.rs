@@ -228,22 +228,26 @@ impl Type {
             TypeDefinition::Reference(reference) => {
                 let type_ref = reference.borrow();
                 if let Some(pointer_address) = &type_ref.pointer_address {
-                    if let Ok(core_lib_id) = CoreLibPointerId::try_from(pointer_address) {
+                    if let Ok(core_lib_id) =
+                        CoreLibPointerId::try_from(pointer_address)
+                    {
                         match core_lib_id {
                             // for integer and decimal variants, return the base type
                             CoreLibPointerId::Integer(Some(_)) => {
-                                get_core_lib_type_reference(CoreLibPointerId::Integer(None))
+                                get_core_lib_type_reference(
+                                    CoreLibPointerId::Integer(None),
+                                )
                             }
                             CoreLibPointerId::Decimal(Some(_)) => {
-                                get_core_lib_type_reference(CoreLibPointerId::Decimal(None))
+                                get_core_lib_type_reference(
+                                    CoreLibPointerId::Decimal(None),
+                                )
                             }
                             // otherwise, reference is already base type
-                            _ => reference.clone()
+                            _ => reference.clone(),
                         }
-                    }
-                    else {
+                    } else {
                         todo!("handle non-core lib type base type");
-
                     }
                 } else {
                     todo!("handle pointer address none");
@@ -297,25 +301,23 @@ impl Type {
             }
         }
     }
-    
+
     /// Checks if an atomic type matches another type
     /// An atomic type can be any type variant besides union or intersection
-    pub fn atomic_matches_type(
-        atomic_type: &Type,
-        other: &Type,
-    ) -> bool {
+    pub fn atomic_matches_type(atomic_type: &Type, other: &Type) -> bool {
         // first check if mutability matches
         if atomic_type.reference_mutability != other.reference_mutability {
             return false;
         }
-        
+
         match &other.type_definition {
             TypeDefinition::Reference(reference) => {
                 // compare base type of atomic_type with the referenced type
-                if let Some(atomic_base_type_reference) = atomic_type.base_type_reference() {
+                if let Some(atomic_base_type_reference) =
+                    atomic_type.base_type_reference()
+                {
                     *atomic_base_type_reference.borrow() == *reference.borrow()
-                }
-                else {
+                } else {
                     false
                 }
             }
@@ -515,7 +517,7 @@ impl TryFrom<&DatexExpressionData> for Type {
 
 #[cfg(test)]
 mod tests {
-    use crate::libs::core::{get_core_lib_type, CoreLibPointerId};
+    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
     use crate::values::{
         core_values::{
             integer::{Integer, typed_integer::TypedInteger},
@@ -567,19 +569,25 @@ mod tests {
     #[test]
     fn type_matches_union_type() {
         // 1 matches (1 | 2 | 3)
-        assert!(Type::structural(Integer::from(1))
-        .matches_type(&Type::union(vec![
-            Type::structural(Integer::from(1)),
-            Type::structural(Integer::from(2)),
-            Type::structural(Integer::from(3)),
-        ])));
+        assert!(
+            Type::structural(Integer::from(1)).matches_type(&Type::union(
+                vec![
+                    Type::structural(Integer::from(1)),
+                    Type::structural(Integer::from(2)),
+                    Type::structural(Integer::from(3)),
+                ]
+            ))
+        );
 
         // 1 matches integer | text
-        assert!(Type::structural(Integer::from(1))
-        .matches_type(&Type::union(vec![
-            get_core_lib_type(CoreLibPointerId::Integer(None)),
-            get_core_lib_type(CoreLibPointerId::Text),
-        ])));
+        assert!(
+            Type::structural(Integer::from(1)).matches_type(&Type::union(
+                vec![
+                    get_core_lib_type(CoreLibPointerId::Integer(None)),
+                    get_core_lib_type(CoreLibPointerId::Text),
+                ]
+            ))
+        );
     }
 
     // TODO #330
