@@ -1,4 +1,4 @@
-use super::crypto::{CryptoError, CryptoTrait, MaybeAsync};
+use super::crypto::{CryptoError, CryptoTrait};
 use crate::stdlib::sync::OnceLock;
 use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
 use crate::stdlib::{future::Future, pin::Pin};
