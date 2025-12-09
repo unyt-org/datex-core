@@ -10,15 +10,15 @@ use crate::serde::deserializer::DatexDeserializer;
 use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
+use crate::types::definition::TypeDefinition;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
 use serde::Deserialize;
-use crate::types::definition::TypeDefinition;
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -53,7 +53,10 @@ pub enum ValueKey<'a> {
 }
 
 impl<'a> ValueKey<'a> {
-    pub fn with_value_container<R>(&self, callback: impl FnOnce(&ValueContainer)->R) -> R {
+    pub fn with_value_container<R>(
+        &self,
+        callback: impl FnOnce(&ValueContainer) -> R,
+    ) -> R {
         match self {
             ValueKey::Value(value_container) => callback(value_container),
             ValueKey::Text(text) => {
@@ -108,7 +111,11 @@ impl<'a> ValueKey<'a> {
     pub fn try_as_text(&self) -> Option<&str> {
         if let ValueKey::Text(text) = self {
             Some(text)
-        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::Text(text), ..})) = self {
+        } else if let ValueKey::Value(ValueContainer::Value(Value {
+            inner: CoreValue::Text(text),
+            ..
+        })) = self
+        {
             Some(&text.0)
         } else {
             None
@@ -118,9 +125,17 @@ impl<'a> ValueKey<'a> {
     pub fn try_as_index(&self) -> Option<i64> {
         if let ValueKey::Index(index) = self {
             Some(*index)
-        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::Integer(index), ..})) = self {
+        } else if let ValueKey::Value(ValueContainer::Value(Value {
+            inner: CoreValue::Integer(index),
+            ..
+        })) = self
+        {
             index.as_i64()
-        } else if let ValueKey::Value(ValueContainer::Value(Value{inner: CoreValue::TypedInteger(index), ..})) = self {
+        } else if let ValueKey::Value(ValueContainer::Value(Value {
+            inner: CoreValue::TypedInteger(index),
+            ..
+        })) = self
+        {
             index.as_i64()
         } else {
             None
@@ -275,12 +290,12 @@ impl ValueContainer {
     /// Returns the actual type that describes the value container (e.g. integer or &&mut integer).
     pub fn actual_container_type(&self) -> Type {
         match self {
-            ValueContainer::Value(value) => Type::new(
-                *value.actual_type.clone(),
-                None,
-            ),
+            ValueContainer::Value(value) => {
+                Type::new(*value.actual_type.clone(), None)
+            }
             ValueContainer::Reference(reference) => {
-                let inner_type = reference.value_container().actual_container_type();
+                let inner_type =
+                    reference.value_container().actual_container_type();
                 Type::new(
                     // when nesting references, we need to keep the reference information
                     if inner_type.is_reference_type() {

@@ -2,6 +2,7 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::libs::core::CoreLibPointerId;
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
+use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_u8, append_u32,
     append_u128,
@@ -22,7 +23,6 @@ use core::prelude::rust_2024::*;
 use datex_core::utils::buffers::{
     append_i32, append_i64, append_i128, append_u16, append_u64,
 };
-use crate::types::definition::TypeDefinition;
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {

@@ -2,6 +2,7 @@ use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::{DIFKey, DIFUpdateData};
+use crate::dif::value::DIFReferenceNotFoundError;
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::RuntimeInternal;
@@ -20,7 +21,6 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::dif::value::DIFReferenceNotFoundError;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -58,13 +58,12 @@ impl DIFInterface for RuntimeInternal {
                         key,
                         value_container,
                     )?,
-                    DIFKey::Index(key) => reference
-                        .try_set_property(
-                            source_id,
-                            update,
-                            *key,
-                            value_container,
-                        )?,
+                    DIFKey::Index(key) => reference.try_set_property(
+                        source_id,
+                        update,
+                        *key,
+                        value_container,
+                    )?,
                     DIFKey::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
                         reference.try_set_property(
@@ -81,46 +80,40 @@ impl DIFInterface for RuntimeInternal {
                 update,
                 value.to_value_container(&self.memory)?,
             )?,
-            DIFUpdateData::Append { value } => {
-                reference.try_append_value(
-                    source_id,
-                    update,
-                    value.to_value_container(&self.memory)?,
-                )?
-            }
-            DIFUpdateData::Clear => {
-                reference.try_clear(source_id)?
-            }
-            DIFUpdateData::Delete { key } => {
-                match key {
-                    DIFKey::Text(key) => reference.try_delete_property(
-                        source_id,
-                        update,
-                        key,
-                    )?,
-                    DIFKey::Index(key) => reference.try_delete_property(
-                        source_id,
-                        update,
-                        *key,
-                    )?,
-                    DIFKey::Value(key) => {
-                        let key = key.to_value_container(&self.memory)?;
-                        reference.try_delete_property(
-                            source_id,
-                            update,
-                            &key,
-                        )?
-                    }
+            DIFUpdateData::Append { value } => reference.try_append_value(
+                source_id,
+                update,
+                value.to_value_container(&self.memory)?,
+            )?,
+            DIFUpdateData::Clear => reference.try_clear(source_id)?,
+            DIFUpdateData::Delete { key } => match key {
+                DIFKey::Text(key) => {
+                    reference.try_delete_property(source_id, update, key)?
+                }
+                DIFKey::Index(key) => {
+                    reference.try_delete_property(source_id, update, *key)?
+                }
+                DIFKey::Value(key) => {
+                    let key = key.to_value_container(&self.memory)?;
+                    reference.try_delete_property(source_id, update, &key)?
                 }
             },
-            DIFUpdateData::ListSplice { start, delete_count, items } => {
+            DIFUpdateData::ListSplice {
+                start,
+                delete_count,
+                items,
+            } => {
                 reference.try_list_splice(
                     source_id,
                     update,
                     *start..(start + delete_count),
-                    items.iter()
+                    items
+                        .iter()
                         .map(|item| item.to_value_container(&self.memory))
-                        .collect::<Result<Vec<ValueContainer>, DIFReferenceNotFoundError>>()?,
+                        .collect::<Result<
+                            Vec<ValueContainer>,
+                            DIFReferenceNotFoundError,
+                        >>()?,
                 )?
             }
         };

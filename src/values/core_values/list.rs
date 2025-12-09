@@ -1,4 +1,5 @@
 use super::super::core_value_trait::CoreValueTrait;
+use crate::references::reference::IndexOutOfBoundsError;
 use crate::stdlib::ops::Index;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
@@ -7,10 +8,9 @@ use crate::values::{
     value_container::{ValueContainer, ValueError},
 };
 use core::fmt::Display;
+use core::ops::Range;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use core::ops::Range;
-use crate::references::reference::IndexOutOfBoundsError;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
@@ -24,9 +24,14 @@ impl List {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn get(&self, index: i64) -> Result<&ValueContainer, IndexOutOfBoundsError> {
+    pub fn get(
+        &self,
+        index: i64,
+    ) -> Result<&ValueContainer, IndexOutOfBoundsError> {
         let index = self.wrap_index(index);
-        self.0.get(index as usize).ok_or(IndexOutOfBoundsError { index })
+        self.0
+            .get(index as usize)
+            .ok_or(IndexOutOfBoundsError { index })
     }
 
     /// Sets the value at the specified index.
@@ -94,7 +99,10 @@ impl List {
     }
 
     #[inline]
-    fn get_valid_index(&self, index: i64) -> Result<usize, IndexOutOfBoundsError> {
+    fn get_valid_index(
+        &self,
+        index: i64,
+    ) -> Result<usize, IndexOutOfBoundsError> {
         let index = self.wrap_index(index);
         if (index as usize) < self.0.len() {
             Ok(index as usize)
@@ -103,7 +111,10 @@ impl List {
         }
     }
 
-    pub fn delete(&mut self, index: i64) -> Result<ValueContainer, IndexOutOfBoundsError> {
+    pub fn delete(
+        &mut self,
+        index: i64,
+    ) -> Result<ValueContainer, IndexOutOfBoundsError> {
         let index = self.get_valid_index(index)?;
         Ok(self.0.remove(index))
     }
