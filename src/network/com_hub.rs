@@ -6,8 +6,11 @@ use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-
-use futures::channel::oneshot::Sender;
+use futures::{
+    pin_mut,
+    stream::StreamExt,
+    channel::oneshot::Sender,
+};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use core::cmp::PartialEq;
@@ -40,10 +43,6 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
 use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
-
-use async_stream::stream;
-use futures::pin_mut;
-use futures::stream::StreamExt;
 
 #[derive(Debug, Clone)]
 pub struct DynamicEndpointProperties {
@@ -1184,63 +1183,60 @@ impl ComHub {
     /// Returns an iterator over all sockets for a given endpoint
     /// The sockets are yielded in the order of their priority, starting with the
     /// highest priority socket (the best socket for sending data to the endpoint)
-    fn iterate_endpoint_sockets<'a>(
+    #[futures_async_stream::stream(item = ComInterfaceSocketUUID)]
+    async fn iterate_endpoint_sockets<'a>(
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
-    ) -> impl StreamExt<Item = ComInterfaceSocketUUID> + 'a {
-        stream! {
-            let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
-            // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
-            let endpoint_sockets =
-                endpoint_sockets_borrow.get(endpoint).cloned();
-            if endpoint_sockets.is_none() {
-                return;
-            }
-            for (socket_uuid, _) in endpoint_sockets.unwrap() {
+    ) {
+        let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
+        // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
+        let endpoint_sockets = endpoint_sockets_borrow.get(endpoint).cloned();
+        if endpoint_sockets.is_none() {
+            return;
+        }
+        for (socket_uuid, _) in endpoint_sockets.unwrap() {
+            {
+                let socket = self.get_socket_by_uuid(&socket_uuid).await;
+                let socket = socket.try_lock().unwrap();
+
+                // check if only_direct is set and the endpoint equals the direct endpoint of the socket
+                if options.only_direct
+                    && socket.direct_endpoint.is_some()
+                    && socket.direct_endpoint.as_ref().unwrap() == endpoint
                 {
-                    let socket = self.get_socket_by_uuid(&socket_uuid).await;
-                    let socket = socket.try_lock().unwrap();
-
-                    // check if only_direct is set and the endpoint equals the direct endpoint of the socket
-                    if options.only_direct
-                        && socket.direct_endpoint.is_some()
-                        && socket.direct_endpoint.as_ref().unwrap()
-                            == endpoint
-                    {
-                        debug!(
-                            "No direct socket found for endpoint {endpoint}. Skipping..."
-                        );
-                        continue;
-                    }
-
-                    // check if the socket is excluded if exclude_socket is set
-                    if options.exclude_sockets.contains(&socket.uuid) {
-                        debug!(
-                            "Socket {} is excluded for endpoint {}. Skipping...",
-                            socket.uuid, endpoint
-                        );
-                        continue;
-                    }
-
-                    // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
-                    // only yield outgoing sockets
-                    // if a non-outgoing socket is found, all following sockets
-                    // will also be non-outgoing
-                    if !socket.can_send() {
-                        info!(
-                            "Socket {} is not outgoing for endpoint {}. Skipping...",
-                            socket.uuid, endpoint
-                        );
-                        return;
-                    }
+                    debug!(
+                        "No direct socket found for endpoint {endpoint}. Skipping..."
+                    );
+                    continue;
                 }
 
-                debug!(
-                    "Found matching socket {socket_uuid} for endpoint {endpoint}"
-                );
-                yield socket_uuid.clone()
+                // check if the socket is excluded if exclude_socket is set
+                if options.exclude_sockets.contains(&socket.uuid) {
+                    debug!(
+                        "Socket {} is excluded for endpoint {}. Skipping...",
+                        socket.uuid, endpoint
+                    );
+                    continue;
+                }
+
+                // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
+                // only yield outgoing sockets
+                // if a non-outgoing socket is found, all following sockets
+                // will also be non-outgoing
+                if !socket.can_send() {
+                    info!(
+                        "Socket {} is not outgoing for endpoint {}. Skipping...",
+                        socket.uuid, endpoint
+                    );
+                    return;
+                }
             }
+
+            debug!(
+                "Found matching socket {socket_uuid} for endpoint {endpoint}"
+            );
+            yield socket_uuid.clone()
         }
     }
 
