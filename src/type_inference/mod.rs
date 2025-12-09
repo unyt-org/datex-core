@@ -2,7 +2,7 @@ use crate::{
     ast::structs::{
         ResolvedVariable,
         expression::{
-            self, ApplyChain, ComparisonOperation, Conditional, CreateRef,
+            ApplyChain, ComparisonOperation, Conditional, CreateRef,
             DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
             List, Map, PropertyAssignment, RemoteExecution, Slot,
             SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
@@ -25,7 +25,6 @@ use crate::{
 };
 
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
-use log::info;
 use crate::{
     ast::structs::{
         expression::{

@@ -1,4 +1,3 @@
-use crate::dif::r#type::DIFTypeContainer;
 use crate::references::reference::mutability_as_int;
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::memory::Memory;

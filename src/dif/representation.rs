@@ -1,7 +1,7 @@
-use crate::dif::r#type::{DIFType, DIFTypeContainer, DIFTypeDefinition};
+use crate::dif::r#type::{DIFType, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
 use crate::libs::core::{
-    CoreLibPointerId, get_core_lib_type, get_core_lib_type_definition,
+    CoreLibPointerId, get_core_lib_type_definition,
 };
 use crate::runtime::memory::Memory;
 use crate::std_random::RandomState;
@@ -23,7 +23,6 @@ use core::fmt;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use indexmap::IndexMap;
-use log::info;
 use ordered_float::OrderedFloat;
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
