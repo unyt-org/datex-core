@@ -5,7 +5,6 @@ use crate::libs::core::get_core_lib_type;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
-use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
@@ -20,7 +19,6 @@ use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::text::Text;
-use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
@@ -359,11 +357,11 @@ impl Type {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
                 // value must match at least one of the union types
-                types.iter().any(|t| Type::value_matches_type(value, &t))
+                types.iter().any(|t| Type::value_matches_type(value, t))
             }
             TypeDefinition::Intersection(types) => {
                 // value must match all of the intersection types
-                types.iter().all(|t| Type::value_matches_type(value, &t))
+                types.iter().all(|t| Type::value_matches_type(value, t))
             }
             TypeDefinition::Structural(structural_type) => {
                 structural_type.value_matches(value)
@@ -389,7 +387,7 @@ impl Type {
             TypeDefinition::Never => false,
             TypeDefinition::Unknown => false,
             TypeDefinition::ImplType(ty, _) => {
-                Type::value_matches_type(value, &ty)
+                Type::value_matches_type(value, ty)
             }
         }
     }

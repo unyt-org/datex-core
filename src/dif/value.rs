@@ -1,8 +1,6 @@
 use crate::dif::DIFConvertible;
 use crate::dif::r#type::DIFTypeDefinition;
-use crate::dif::{
-    representation::DIFValueRepresentation, r#type::DIFTypeContainer,
-};
+use crate::dif::representation::DIFValueRepresentation;
 use crate::libs::core::CoreLibPointerId;
 use crate::stdlib::string::ToString;
 use crate::types::definition::TypeDefinition;
