@@ -7,30 +7,6 @@ use core::result::Result;
 
 use crate::stdlib::{future::Future, pin::Pin};
 
-pub enum MaybeAsync<'a, T> {
-    Syn(Result<T, CryptoError>),
-    Asy(Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>>),
-}
-impl<'a, T> MaybeAsync<'a, T>
-where
-    T: Send + 'a,
-{
-    pub fn asy_resolve(
-        self,
-    ) -> Pin<Box<dyn Future<Output = Result<T, CryptoError>> + 'a>> {
-        match self {
-            MaybeAsync::Syn(res) => Box::pin(async move { res }),
-            MaybeAsync::Asy(fut) => fut,
-        }
-    }
-    pub fn syn_resolve(self) -> Result<T, CryptoError> {
-        match self {
-            MaybeAsync::Syn(res) => res,
-            MaybeAsync::Asy(_) => Err(CryptoError::AsyncError),
-        }
-    }
-}
-
 pub trait CryptoTrait: Send + Sync {
     /// Creates a new UUID.
     fn create_uuid(&self) -> String;
@@ -132,7 +108,6 @@ pub enum CryptoError {
     DecryptionError,
     SigningError,
     VerificationError,
-    AsyncError,
 }
 
 impl Display for CryptoError {
@@ -159,9 +134,6 @@ impl Display for CryptoError {
             }
             CryptoError::VerificationError => {
                 core::write!(f, "CryptoError: Verification failed")
-            }
-            CryptoError::AsyncError => {
-                core::write!(f, "CryptoError: Async code execution failed")
             }
         }
     }
