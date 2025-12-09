@@ -360,7 +360,7 @@ impl ComHub {
     /// Handles a trace block received from another endpoint that
     /// is addressed to this endpoint.
     /// A new trace block is created and sent back to the sender.
-    pub(crate) fn handle_trace_block(
+    pub(crate) async fn handle_trace_block(
         &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
@@ -381,6 +381,7 @@ impl ComHub {
             distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
                 self.get_com_interface_from_socket_uuid(&original_socket)
+                    .await
                     .borrow_mut()
                     .get_properties(),
                 original_socket.clone(),
@@ -401,12 +402,12 @@ impl ComHub {
 
         // send trace back block
         // TODO #380: handle error and resend error and stuff
-        let _ = self.send_own_block(trace_back_block);
+        let _ = self.send_own_block(trace_back_block).await;
 
         Some(())
     }
 
-    pub(crate) fn handle_trace_back_block(
+    pub(crate) async fn handle_trace_back_block(
         &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
@@ -428,6 +429,7 @@ impl ComHub {
                 distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket)
+                        .await
                         .borrow_mut()
                         .get_properties(),
                     original_socket.clone(),
@@ -443,7 +445,7 @@ impl ComHub {
         Some(())
     }
 
-    pub(crate) fn redirect_trace_block(
+    pub(crate) async fn redirect_trace_block(
         &self,
         block: DXBBlock,
         original_socket: ComInterfaceSocketUUID,
@@ -469,6 +471,7 @@ impl ComHub {
                 distance,
                 socket: NetworkTraceHopSocket::new(
                     self.get_com_interface_from_socket_uuid(&original_socket)
+                        .await
                         .borrow_mut()
                         .get_properties(),
                     original_socket.clone(),
@@ -480,7 +483,7 @@ impl ComHub {
         );
 
         // resend trace block
-        self.redirect_block(block, original_socket, forked);
+        self.redirect_block(block, original_socket, forked).await;
 
         Some(())
     }
