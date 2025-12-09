@@ -12,10 +12,11 @@ use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "def", rename_all = "kebab-case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DIFTypeDefinition {
     // {x: integer, y: text}
     Structural(Box<DIFStructuralTypeDefinition>),
@@ -43,6 +44,232 @@ pub enum DIFTypeDefinition {
         return_type: Box<DIFType>,
     },
 }
+
+#[repr(u8)]
+#[derive(Debug, TryFromPrimitive, IntoPrimitive)]
+pub enum DIFTypeDefinitionKind {
+    Structural = 1,
+    Reference = 2,
+    Type = 3,
+    Intersection = 4,
+    Union = 5,
+    ImplType = 6,
+    Unit = 7,
+    Never = 8,
+    Unknown = 9,
+    Function = 10,
+}
+
+impl From<&DIFTypeDefinition> for DIFTypeDefinitionKind {
+    fn from(value: &DIFTypeDefinition) -> Self {
+        match value {
+            DIFTypeDefinition::Structural(_) => DIFTypeDefinitionKind::Structural,
+            DIFTypeDefinition::Reference(_) => DIFTypeDefinitionKind::Reference,
+            DIFTypeDefinition::Type(_) => DIFTypeDefinitionKind::Type,
+            DIFTypeDefinition::Intersection(_) => DIFTypeDefinitionKind::Intersection,
+            DIFTypeDefinition::Union(_) => DIFTypeDefinitionKind::Union,
+            DIFTypeDefinition::ImplType(_, _) => DIFTypeDefinitionKind::ImplType,
+            DIFTypeDefinition::Unit => DIFTypeDefinitionKind::Unit,
+            DIFTypeDefinition::Never => DIFTypeDefinitionKind::Never,
+            DIFTypeDefinition::Unknown => DIFTypeDefinitionKind::Unknown,
+            DIFTypeDefinition::Function { .. } => DIFTypeDefinitionKind::Function,
+        }
+    }
+}
+
+// custom serialize impl, convert to tagged enum, with integers for kind
+impl Serialize for DIFTypeDefinition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // if DIFTypeDefinition::Reference, just serialize the PointerAddress directly as string
+        if let DIFTypeDefinition::Reference(type_ref) = self {
+            return type_ref.serialize(serializer);
+        }
+
+        let kind = DIFTypeDefinitionKind::from(self);
+        let len = match self {
+            DIFTypeDefinition::Unit => 1,
+            DIFTypeDefinition::Never => 1,
+            DIFTypeDefinition::Unknown => 1,
+            _ => 2,
+        };
+        let mut state = serializer.serialize_struct("DIFTypeDefinition", len)?;
+        state.serialize_field("kind", &(kind as u8))?;
+        match self {
+            DIFTypeDefinition::Structural(def) => {
+                state.serialize_field("def", def)?;
+            }
+            DIFTypeDefinition::Type(ty) => {
+                state.serialize_field("def", ty)?;
+            }
+            DIFTypeDefinition::Intersection(types) => {
+                state.serialize_field("def", types)?;
+            }
+            DIFTypeDefinition::Union(types) => {
+                state.serialize_field("def", types)?;
+            }
+            DIFTypeDefinition::ImplType(ty, impls) => {
+                state.serialize_field("def", &(ty, impls))?;
+            }
+            DIFTypeDefinition::Unit => {
+                // no def field
+            }
+            DIFTypeDefinition::Never => {
+                // no def field
+            }
+            DIFTypeDefinition::Unknown => {
+                // no def field
+            }
+            DIFTypeDefinition::Function {
+                parameters,
+                return_type,
+            } => {
+                state.serialize_field(
+                    "def",
+                    &(parameters, return_type),
+                )?;
+            }
+            DIFTypeDefinition::Reference(_) => {
+                // already handled above
+                unreachable!();
+            }
+        }
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for DIFTypeDefinition {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, MapAccess, Visitor};
+        struct DIFTypeDefinitionVisitor;
+
+        impl<'de> Visitor<'de> for DIFTypeDefinitionVisitor {
+            type Value = DIFTypeDefinition;
+
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+                formatter.write_str("struct DIFTypeDefinition")
+            }
+
+            // reference from PointerAddress string representation
+            fn visit_str<E>(self, v: &str) -> Result<DIFTypeDefinition, E>
+            where
+                E: de::Error,
+            {
+                let type_ref: PointerAddress = serde_json::from_str(&format!("\"{}\"", v))
+                    .map_err(de::Error::custom)?;
+                Ok(DIFTypeDefinition::Reference(type_ref))
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<DIFTypeDefinition, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut kind: Option<u8> = None;
+                let mut def: Option<serde_json::Value> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "kind" => {
+                            if kind.is_some() {
+                                return Err(de::Error::duplicate_field("kind"));
+                            }
+                            kind = Some(map.next_value()?);
+                        }
+                        "def" => {
+                            if def.is_some() {
+                                return Err(de::Error::duplicate_field("def"));
+                            }
+                            def = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(de::Error::unknown_field(
+                                &key,
+                                &["kind", "def"],
+                            ));
+                        }
+                    }
+                }
+
+                let kind = kind.ok_or_else(|| de::Error::missing_field("kind"))?;
+                let kind = DIFTypeDefinitionKind::try_from(kind).map_err(|_| {
+                    de::Error::custom(format!("Invalid kind value: {}", kind))
+                })?;
+                match kind {
+                    DIFTypeDefinitionKind::Structural => {
+                        let def: DIFStructuralTypeDefinition = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Structural(Box::new(def)))
+                    }
+                    DIFTypeDefinitionKind::Reference => {
+                        let type_ref: PointerAddress = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Reference(type_ref))
+                    }
+                    DIFTypeDefinitionKind::Type => {
+                        let ty: DIFType = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Type(Box::new(ty)))
+                    }
+                    DIFTypeDefinitionKind::Intersection => {
+                        let types: Vec<DIFType> = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Intersection(types))
+                    }
+                    DIFTypeDefinitionKind::Union => {
+                        let types: Vec<DIFType> = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Union(types))
+                    }
+                    DIFTypeDefinitionKind::ImplType => {
+                        let (ty, impls): (DIFType, Vec<PointerAddress>) =
+                            serde_json::from_value(
+                                def.ok_or_else(|| de::Error::missing_field("def"))?,
+                            )
+                                .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::ImplType(
+                            Box::new(ty),
+                            impls,
+                        ))
+                    }
+                    DIFTypeDefinitionKind::Unit => Ok(DIFTypeDefinition::Unit),
+                    DIFTypeDefinitionKind::Never => Ok(DIFTypeDefinition::Never),
+                    DIFTypeDefinitionKind::Unknown => Ok(DIFTypeDefinition::Unknown),
+                    DIFTypeDefinitionKind::Function => {
+                        let (parameters, return_type): (
+                            Vec<(String, DIFType)>,
+                            Box<DIFType>,
+                        ) = serde_json::from_value(
+                            def.ok_or_else(|| de::Error::missing_field("def"))?,
+                        )
+                            .map_err(de::Error::custom)?;
+                        Ok(DIFTypeDefinition::Function {
+                            parameters,
+                            return_type,
+                        })
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_any(DIFTypeDefinitionVisitor)
+    }
+}
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFStructuralTypeDefinition {
