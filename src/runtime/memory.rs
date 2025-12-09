@@ -7,7 +7,6 @@ use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::types::error::IllegalTypeError;
 use crate::utils::time::Time;
-use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use binrw::io::Cursor;
 use core::cell::RefCell;

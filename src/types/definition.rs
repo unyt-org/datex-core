@@ -17,7 +17,6 @@ use core::prelude::rust_2024::*;
 use datex_core::references::type_reference::TypeReference;
 use crate::references::reference::ReferenceMutability;
 use crate::values::pointer::PointerAddress;
-use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -239,7 +238,7 @@ impl TypeDefinition {
     pub fn reference(
         reference: Rc<RefCell<TypeReference>>,
     ) -> Self {
-        TypeDefinition::Reference(reference.into())
+        TypeDefinition::Reference(reference)
     }
 
     /// Creates a new function type.
