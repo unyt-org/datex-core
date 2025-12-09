@@ -10,6 +10,7 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
+use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::hash::Hash;
@@ -17,7 +18,6 @@ use core::prelude::rust_2024::*;
 use core::unimplemented;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
-use crate::values::core_values::r#type::Type;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

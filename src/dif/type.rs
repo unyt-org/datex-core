@@ -110,12 +110,10 @@ impl DIFTypeDefinition {
                     .map(|t| DIFType::from_type(t, memory))
                     .collect(),
             ),
-            TypeDefinition::ImplType(ty, impls) => {
-                DIFTypeDefinition::ImplType(
-                    Box::new(DIFType::from_type(ty, memory)),
-                    impls.clone(),
-                )
-            }
+            TypeDefinition::ImplType(ty, impls) => DIFTypeDefinition::ImplType(
+                Box::new(DIFType::from_type(ty, memory)),
+                impls.clone(),
+            ),
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
             TypeDefinition::Never => DIFTypeDefinition::Never,
             TypeDefinition::Unknown => DIFTypeDefinition::Unknown,
@@ -155,12 +153,10 @@ impl DIFTypeDefinition {
             DIFTypeDefinition::Type(dif_type) => {
                 TypeDefinition::Type(Box::new(dif_type.to_type(memory)))
             }
-            DIFTypeDefinition::ImplType(ty, impls) => {
-                TypeDefinition::ImplType(
-                    Box::new(ty.to_type(memory)),
-                    impls.clone(),
-                )
-            }
+            DIFTypeDefinition::ImplType(ty, impls) => TypeDefinition::ImplType(
+                Box::new(ty.to_type(memory)),
+                impls.clone(),
+            ),
             DIFTypeDefinition::Unit => TypeDefinition::Unit,
             DIFTypeDefinition::Never => TypeDefinition::Never,
             DIFTypeDefinition::Unknown => TypeDefinition::Unknown,

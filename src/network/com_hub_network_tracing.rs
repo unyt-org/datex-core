@@ -548,7 +548,8 @@ impl ComHub {
                         .borrow()
                         .cast_to_endpoint()
                         .unwrap();
-                    let distance: TypedInteger = obj.get("distance").ok().cloned().try_into().unwrap();
+                    let distance: TypedInteger =
+                        obj.get("distance").ok().cloned().try_into().unwrap();
 
                     let socket = obj.get("socket").unwrap();
                     let (interface_type, interface_name, channel, socket_uuid) =
@@ -568,8 +569,7 @@ impl ComHub {
                                 if let ValueContainer::Value(Value {
                                     inner: CoreValue::Text(name),
                                     ..
-                                }) =
-                                    socket_obj.get("interface_name").ok()?
+                                }) = socket_obj.get("interface_name").ok()?
                                 {
                                     Some(name.clone().0)
                                 } else {

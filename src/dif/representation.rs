@@ -1,8 +1,6 @@
 use crate::dif::r#type::{DIFType, DIFTypeDefinition};
 use crate::dif::value::{DIFReferenceNotFoundError, DIFValueContainer};
-use crate::libs::core::{
-    CoreLibPointerId, get_core_lib_type_definition,
-};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_definition};
 use crate::runtime::memory::Memory;
 use crate::std_random::RandomState;
 use crate::stdlib::boxed::Box;

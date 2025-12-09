@@ -1,13 +1,13 @@
 use crate::dif::{DIFConvertible, value::DIFValueContainer};
 use crate::references::observers::TransceiverId;
+use crate::runtime::memory::Memory;
+use crate::stdlib::borrow::Cow;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
-use core::prelude::rust_2024::*;
-use core::cell::RefCell;
-use crate::stdlib::borrow::Cow;
-use serde::{Deserialize, Serialize};
-use crate::runtime::memory::Memory;
 use crate::values::value_container::ValueKey;
+use core::cell::RefCell;
+use core::prelude::rust_2024::*;
+use serde::{Deserialize, Serialize};
 
 /// Represents a key in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -27,9 +27,9 @@ impl DIFKey {
         match key {
             ValueKey::Text(s) => DIFKey::Text(s.to_string()),
             ValueKey::Index(i) => DIFKey::Index(*i),
-            ValueKey::Value(v) => {
-                DIFKey::Value(DIFValueContainer::from_value_container(v, memory))
-            }
+            ValueKey::Value(v) => DIFKey::Value(
+                DIFValueContainer::from_value_container(v, memory),
+            ),
         }
     }
 }
