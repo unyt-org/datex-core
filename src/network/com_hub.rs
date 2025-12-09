@@ -464,8 +464,7 @@ impl ComHub {
             self.register_socket_endpoint_from_incoming_block(
                 socket_uuid.clone(),
                 block,
-            )
-            .await;
+            );
         }
 
         let receivers = block.receiver_endpoints();
@@ -489,8 +488,7 @@ impl ComHub {
                         self.handle_trace_back_block(
                             block,
                             socket_uuid.clone(),
-                        )
-                        .await;
+                        );
                     }
                     _ => {
                         self.block_handler.handle_incoming_block(block.clone());
@@ -564,12 +562,12 @@ impl ComHub {
 
     /// Registers the socket endpoint from an incoming block
     /// if the endpoint is not already registered for the socket
-    async fn register_socket_endpoint_from_incoming_block(
+    fn register_socket_endpoint_from_incoming_block(
         &self,
         socket_uuid: ComInterfaceSocketUUID,
         block: &DXBBlock,
     ) {
-        let socket = self.get_socket_by_uuid(&socket_uuid).await;
+        let socket = self.get_socket_by_uuid(&socket_uuid);
         let mut socket_ref = socket.try_lock().unwrap();
 
         let distance = block.routing_header.distance;
@@ -692,7 +690,6 @@ impl ComHub {
                     );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
-                    .await
                     .try_lock()
                     .unwrap()
                     .can_send()
@@ -1138,7 +1135,7 @@ impl ComHub {
     /// Returns the socket for a given UUID
     /// The socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) async fn get_socket_by_uuid(
+    pub(crate) fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Arc<Mutex<ComInterfaceSocket>> {
@@ -1171,11 +1168,11 @@ impl ComHub {
     /// Returns the com interface for a given socket UUID
     /// The interface and socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) async fn get_com_interface_from_socket_uuid(
+    pub(crate) fn get_com_interface_from_socket_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
-        let socket = self.get_socket_by_uuid(socket_uuid).await;
+        let socket = self.get_socket_by_uuid(socket_uuid);
         let socket = socket.try_lock().unwrap();
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
@@ -1183,65 +1180,71 @@ impl ComHub {
     /// Returns an iterator over all sockets for a given endpoint
     /// The sockets are yielded in the order of their priority, starting with the
     /// highest priority socket (the best socket for sending data to the endpoint)
-    #[futures_async_stream::stream(item = ComInterfaceSocketUUID)]
-    async fn iterate_endpoint_sockets<'a>(
+    fn iterate_endpoint_sockets<'a>(
         &'a self,
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
-    ) {
-        let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
-        // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
-        let endpoint_sockets = endpoint_sockets_borrow.get(endpoint).cloned();
-        if endpoint_sockets.is_none() {
-            return;
-        }
-        for (socket_uuid, _) in endpoint_sockets.unwrap() {
-            {
-                let socket = self.get_socket_by_uuid(&socket_uuid).await;
-                let socket = socket.try_lock().unwrap();
-
-                // check if only_direct is set and the endpoint equals the direct endpoint of the socket
-                if options.only_direct
-                    && socket.direct_endpoint.is_some()
-                    && socket.direct_endpoint.as_ref().unwrap() == endpoint
-                {
-                    debug!(
-                        "No direct socket found for endpoint {endpoint}. Skipping..."
-                    );
-                    continue;
-                }
-
-                // check if the socket is excluded if exclude_socket is set
-                if options.exclude_sockets.contains(&socket.uuid) {
-                    debug!(
-                        "Socket {} is excluded for endpoint {}. Skipping...",
-                        socket.uuid, endpoint
-                    );
-                    continue;
-                }
-
-                // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
-                // only yield outgoing sockets
-                // if a non-outgoing socket is found, all following sockets
-                // will also be non-outgoing
-                if !socket.can_send() {
-                    info!(
-                        "Socket {} is not outgoing for endpoint {}. Skipping...",
-                        socket.uuid, endpoint
-                    );
+    ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
+        core::iter::from_coroutine(
+            #[coroutine]
+            move || {
+                let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
+                // TODO #183: can we optimize this to avoid cloning the endpoint_sockets vector?
+                let endpoint_sockets =
+                    endpoint_sockets_borrow.get(endpoint).cloned();
+                if endpoint_sockets.is_none() {
                     return;
                 }
-            }
+                for (socket_uuid, _) in endpoint_sockets.unwrap() {
+                    {
+                        let socket = self.get_socket_by_uuid(&socket_uuid);
+                        let socket = socket.try_lock().unwrap();
 
-            debug!(
-                "Found matching socket {socket_uuid} for endpoint {endpoint}"
-            );
-            yield socket_uuid.clone()
-        }
+                        // check if only_direct is set and the endpoint equals the direct endpoint of the socket
+                        if options.only_direct
+                            && socket.direct_endpoint.is_some()
+                            && socket.direct_endpoint.as_ref().unwrap()
+                                == endpoint
+                        {
+                            debug!(
+                                "No direct socket found for endpoint {endpoint}. Skipping..."
+                            );
+                            continue;
+                        }
+
+                        // check if the socket is excluded if exclude_socket is set
+                        if options.exclude_sockets.contains(&socket.uuid) {
+                            debug!(
+                                "Socket {} is excluded for endpoint {}. Skipping...",
+                                socket.uuid, endpoint
+                            );
+                            continue;
+                        }
+
+                        // TODO #184 optimize and separate outgoing/non-outgoing sockets for endpoint
+                        // only yield outgoing sockets
+                        // if a non-outgoing socket is found, all following sockets
+                        // will also be non-outgoing
+                        if !socket.can_send() {
+                            info!(
+                                "Socket {} is not outgoing for endpoint {}. Skipping...",
+                                socket.uuid, endpoint
+                            );
+                            return;
+                        }
+                    }
+
+                    debug!(
+                        "Found matching socket {socket_uuid} for endpoint {endpoint}"
+                    );
+                    yield socket_uuid.clone()
+                }
+            },
+        )
     }
 
     /// Finds the best matching socket over which an endpoint is known to be reachable.
-    async fn find_known_endpoint_socket(
+    fn find_known_endpoint_socket(
         &self,
         endpoint: &Endpoint,
         exclude_socket: &[ComInterfaceSocketUUID],
@@ -1254,14 +1257,12 @@ impl ComHub {
                     exact_instance: false,
                     exclude_sockets: exclude_socket,
                 };
-                let mut stream =
-                    self.iterate_endpoint_sockets(endpoint, options);
-                pin_mut!(stream);
-                if let Some(socket) = stream.next().await {
+                if let Some(socket) =
+                    self.iterate_endpoint_sockets(endpoint, options).next()
+                {
                     return Some(socket);
-                } else {
-                    None
                 }
+                None
             }
 
             // find socket for exact instance
@@ -1272,27 +1273,23 @@ impl ComHub {
                     exact_instance: true,
                     exclude_sockets: exclude_socket,
                 };
-                let mut stream =
-                    self.iterate_endpoint_sockets(endpoint, options);
-                pin_mut!(stream);
-                if let Some(socket) = stream.next().await {
+                if let Some(socket) =
+                    self.iterate_endpoint_sockets(endpoint, options).next()
+                {
                     return Some(socket);
-                } else {
-                    None
                 }
+                None
             }
-
             // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
                 core::todo!("#186 Undescribed by author.")
             }
         }
     }
-
     /// Finds the best socket over which to send a block to an endpoint.
     /// If a known socket is found, it is returned, otherwise the default socket is returned, if it
     /// exists and is not excluded.
-    async fn find_best_endpoint_socket(
+    fn find_best_endpoint_socket(
         &self,
         endpoint: &Endpoint,
         exclude_sockets: &[ComInterfaceSocketUUID],
@@ -1302,15 +1299,13 @@ impl ComHub {
         if endpoint == &self.endpoint
             && let Some(socket) = self
                 .find_known_endpoint_socket(&Endpoint::LOCAL, exclude_sockets)
-                .await
         {
             return Some(socket);
         }
 
         // find best known socket for endpoint
-        let matching_socket = self
-            .find_known_endpoint_socket(endpoint, exclude_sockets)
-            .await;
+        let matching_socket =
+            self.find_known_endpoint_socket(endpoint, exclude_sockets);
 
         // if a matching socket is found, return it
         if matching_socket.is_some() {
@@ -1320,7 +1315,7 @@ impl ComHub {
         else {
             let sockets = self.fallback_sockets.borrow();
             for (socket_uuid, _, _) in sockets.iter() {
-                let socket = self.get_socket_by_uuid(socket_uuid).await;
+                let socket = self.get_socket_by_uuid(socket_uuid);
                 info!(
                     "{}: Find best for {}: {} ({}); excluded:{}",
                     self.endpoint,
@@ -1370,9 +1365,8 @@ impl ComHub {
             // Async evaluate
             let mut results = Vec::with_capacity(prepped.len());
             for (endpoint, exclude) in prepped {
-                let socket = self
-                    .find_best_endpoint_socket(&endpoint, &exclude_sockets)
-                    .await;
+                let socket =
+                    self.find_best_endpoint_socket(&endpoint, &exclude_sockets);
                 results.push((socket, endpoint));
             }
 
@@ -1808,7 +1802,6 @@ impl ComHub {
                             self.get_com_interface_from_socket_uuid(
                                 socket_uuid,
                             )
-                            .await
                             .borrow_mut()
                             .get_properties(),
                             socket_uuid.clone(),
@@ -1822,7 +1815,7 @@ impl ComHub {
             _ => {}
         }
 
-        let socket = self.get_socket_by_uuid(socket_uuid).await;
+        let socket = self.get_socket_by_uuid(socket_uuid);
         let mut socket_ref = socket.try_lock().unwrap();
 
         let is_broadcast = endpoints
@@ -1960,7 +1953,7 @@ impl ComHub {
             self.delete_socket(&socket_uuid);
         }
         for (socket_uuid, distance, endpoint) in registered_sockets {
-            let socket = self.get_socket_by_uuid(&socket_uuid).await;
+            let socket = self.get_socket_by_uuid(&socket_uuid);
             self.register_socket_endpoint(socket, endpoint.clone(), distance)
                 .unwrap_or_else(|e| {
                     error!(
