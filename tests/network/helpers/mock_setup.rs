@@ -271,13 +271,11 @@ pub async fn send_empty_block_and_update(
     to: &[Endpoint],
     com_hub: &Rc<ComHub>,
 ) -> DXBBlock {
-    // send block
-    let block = {
-        let mut block: DXBBlock = DXBBlock::default();
-        block.set_receivers(to);
-        com_hub.send_own_block(block.clone()).await.unwrap();
-        block
-    };
+    let mut block: DXBBlock = DXBBlock::default();
+    block.set_receivers(to);
+    {
+        com_hub.send_own_block(block.clone()).await;
+    }
     com_hub.update_async().await;
     block
 }
