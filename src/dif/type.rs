@@ -14,7 +14,9 @@ use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
+use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
+use serde_value::Value as SerdeValue;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFTypeDefinition {
@@ -160,8 +162,7 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
             where
                 E: de::Error,
             {
-                let type_ref: PointerAddress = serde_json::from_str(&format!("\"{}\"", v))
-                    .map_err(de::Error::custom)?;
+                let type_ref = PointerAddress::deserialize(v.into_deserializer())?;
                 Ok(DIFTypeDefinition::Reference(type_ref))
             }
 
@@ -170,99 +171,56 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                 V: MapAccess<'de>,
             {
                 let mut kind: Option<u8> = None;
-                let mut def: Option<serde_json::Value> = None;
+                let mut def: Option<SerdeValue> = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
-                        "kind" => {
-                            if kind.is_some() {
-                                return Err(de::Error::duplicate_field("kind"));
-                            }
-                            kind = Some(map.next_value()?);
-                        }
-                        "def" => {
-                            if def.is_some() {
-                                return Err(de::Error::duplicate_field("def"));
-                            }
-                            def = Some(map.next_value()?);
-                        }
-                        _ => {
-                            return Err(de::Error::unknown_field(
-                                &key,
-                                &["kind", "def"],
-                            ));
-                        }
+                        "kind" => kind = Some(map.next_value()?),
+                        "def"  => def  = Some(map.next_value()?),
+                        _ => return Err(de::Error::unknown_field(&key, &["kind", "def"])),
                     }
+                }
+
+                macro_rules! parse {
+                    ($t:ty) => {{
+                        let d = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        <$t>::deserialize(d).map_err(de::Error::custom)?
+                    }};
                 }
 
                 let kind = kind.ok_or_else(|| de::Error::missing_field("kind"))?;
                 let kind = DIFTypeDefinitionKind::try_from(kind).map_err(|_| {
                     de::Error::custom(format!("Invalid kind value: {}", kind))
                 })?;
-                match kind {
+                Ok(match kind {
                     DIFTypeDefinitionKind::Structural => {
-                        let def: DIFStructuralTypeDefinition = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Structural(Box::new(def)))
+                        DIFTypeDefinition::Structural(Box::new(parse!(DIFStructuralTypeDefinition)))
                     }
                     DIFTypeDefinitionKind::Reference => {
-                        let type_ref: PointerAddress = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Reference(type_ref))
+                        DIFTypeDefinition::Reference(parse!(PointerAddress))
                     }
                     DIFTypeDefinitionKind::Type => {
-                        let ty: DIFType = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Type(Box::new(ty)))
+                        DIFTypeDefinition::Type(Box::new(parse!(DIFType)))
                     }
                     DIFTypeDefinitionKind::Intersection => {
-                        let types: Vec<DIFType> = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Intersection(types))
+                        DIFTypeDefinition::Intersection(parse!(Vec<DIFType>))
                     }
                     DIFTypeDefinitionKind::Union => {
-                        let types: Vec<DIFType> = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Union(types))
+                        DIFTypeDefinition::Union(parse!(Vec<DIFType>))
                     }
                     DIFTypeDefinitionKind::ImplType => {
-                        let (ty, impls): (DIFType, Vec<PointerAddress>) =
-                            serde_json::from_value(
-                                def.ok_or_else(|| de::Error::missing_field("def"))?,
-                            )
-                                .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::ImplType(
-                            Box::new(ty),
-                            impls,
-                        ))
+                        let (ty, impls): (DIFType, Vec<PointerAddress>) = parse!((DIFType, Vec<PointerAddress>));
+                        DIFTypeDefinition::ImplType(Box::new(ty), impls)
                     }
-                    DIFTypeDefinitionKind::Unit => Ok(DIFTypeDefinition::Unit),
-                    DIFTypeDefinitionKind::Never => Ok(DIFTypeDefinition::Never),
-                    DIFTypeDefinitionKind::Unknown => Ok(DIFTypeDefinition::Unknown),
+                    DIFTypeDefinitionKind::Unit => DIFTypeDefinition::Unit,
+                    DIFTypeDefinitionKind::Never => DIFTypeDefinition::Never,
+                    DIFTypeDefinitionKind::Unknown => DIFTypeDefinition::Unknown,
                     DIFTypeDefinitionKind::Function => {
-                        let (parameters, return_type): (
-                            Vec<(String, DIFType)>,
-                            Box<DIFType>,
-                        ) = serde_json::from_value(
-                            def.ok_or_else(|| de::Error::missing_field("def"))?,
-                        )
-                            .map_err(de::Error::custom)?;
-                        Ok(DIFTypeDefinition::Function {
-                            parameters,
-                            return_type,
-                        })
+                        let (parameters, return_type): (Vec<(String, DIFType)>, Box<DIFType>) =
+                            parse!((Vec<(String, DIFType)>, Box<DIFType>));
+                        DIFTypeDefinition::Function { parameters, return_type }
                     }
-                }
+                })
             }
         }
 

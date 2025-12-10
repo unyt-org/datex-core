@@ -109,6 +109,7 @@ embassy-executor = { version = "0.9.1", optional = true }
 embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 esp-println = { version = "0.16.1", optional = true }
 hashbrown = { version = "0.16.0", features = ["serde"], optional = true }
+serde-value = "0.7.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
