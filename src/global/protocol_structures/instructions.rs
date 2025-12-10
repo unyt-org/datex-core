@@ -10,6 +10,7 @@ use crate::values::core_values::{
 use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
+use crate::global::type_instruction_codes::TypeMutabilityCode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -303,7 +304,7 @@ impl Display for Instruction {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeInstruction {
     ImplType(ImplTypeData),
-    TypeReference(RawPointerAddress),
+    TypeReference(TypeReferenceData),
     LiteralText(TextData),
     LiteralInteger(IntegerData),
     ListStart,
@@ -494,7 +495,22 @@ pub struct ApplyData {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct ImplTypeData {
+    pub metadata: TypeMetadata,
     pub impl_count: u8,
     #[br(count = impl_count)]
     pub impls: Vec<RawPointerAddress>,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeReferenceData {
+    pub metadata: TypeMetadata,
+    pub address: RawPointerAddress,
+}
+
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeMetadata {
+    pub mutability: u8, // TODO - Note: using TypeMutabilityCode here leads to rustc to get stuck?
 }

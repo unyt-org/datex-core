@@ -1,6 +1,6 @@
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, RawPointerAddress};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, RawPointerAddress, TypeReferenceData};
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -604,12 +604,12 @@ fn iterate_type_space_instructions(
                         }
                     }
                     TypeSpaceInstructionCode::TYPE_REFERENCE => {
-                        let address = RawPointerAddress::read(reader);
-                        if let Err(err) = address {
+                        let ref_data = TypeReferenceData::read(reader);
+                        if let Err(err) = ref_data {
                             Err(err.into())
                         } else {
                             Ok(TypeInstruction::TypeReference(
-                                address.unwrap(),
+                                ref_data.unwrap(),
                             ))
                         }
                     }
