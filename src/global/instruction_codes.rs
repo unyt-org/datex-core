@@ -1,9 +1,11 @@
 use core::prelude::rust_2024::*;
 use num_enum::TryFromPrimitive;
 use strum::Display;
+use strum_macros::EnumIter;
 
 #[allow(non_camel_case_types)]
 #[derive(
+    EnumIter,
     Debug,
     Eq,
     PartialEq,
@@ -259,4 +261,20 @@ pub enum InstructionCode {
     REMOTE_EXECUTION, // ::
 
     _SYNC_SILENT, // <==:
+}
+
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+    use super::*;
+
+    #[ignore]
+    #[test]
+    fn test_instruction_code_values() {
+        // print a list of all instruction codes and their values for debugging purposes
+        for code in InstructionCode::iter() {
+            println!("{:?} = {}", code, code as u8);
+        }
+    }
 }
