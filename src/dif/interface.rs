@@ -1,4 +1,3 @@
-use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::DIFUpdateData;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{
@@ -16,6 +15,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use datex_core::dif::reference::DIFReference;
 use datex_core::dif::value::DIFReferenceNotFoundError;
+use crate::dif::r#type::DIFTypeDefinition;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -176,7 +176,7 @@ pub trait DIFInterface {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
+        allowed_type: Option<DIFTypeDefinition>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError>;
 

@@ -1,6 +1,5 @@
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
-use crate::dif::r#type::DIFTypeContainer;
 use crate::dif::update::{DIFKey, DIFUpdateData};
 use crate::dif::value::DIFReferenceNotFoundError;
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
@@ -21,6 +20,7 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use crate::dif::r#type::DIFTypeDefinition;
 use crate::stdlib::vec::Vec;
 
 impl RuntimeInternal {
@@ -133,13 +133,13 @@ impl DIFInterface for RuntimeInternal {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
+        allowed_type: Option<DIFTypeDefinition>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError> {
         let container = value.to_value_container(&self.memory)?;
         let type_container = if let Some(allowed_type) = &allowed_type {
             core::todo!(
-                "FIXME: Implement type_container creation from DIFTypeContainer"
+                "FIXME: Implement type_container creation from DIFTypeDefinition"
             )
         } else {
             None

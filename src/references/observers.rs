@@ -188,7 +188,6 @@ mod tests {
     use crate::{
         dif::{
             representation::DIFValueRepresentation,
-            r#type::DIFTypeContainer,
             value::{DIFValue, DIFValueContainer},
         },
         references::{
