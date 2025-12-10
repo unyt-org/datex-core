@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
 use serde_value::Value as SerdeValue;
+use crate::stdlib::format;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFTypeDefinition {

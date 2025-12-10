@@ -8,6 +8,7 @@ use crate::values::value_container::ValueKey;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use serde::{Deserialize, Serialize};
+use crate::stdlib::vec::Vec;
 
 /// Represents a key in the Datex Interface Format (DIF).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

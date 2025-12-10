@@ -1,4 +1,6 @@
 use crate::values::core_values::r#type::Type;
+use crate::stdlib::vec::Vec;
+
 /// Compiles a given type container to a DXB body
 pub fn compile_type(ty: &Type) -> Vec<u8> {
     let mut buffer = Vec::with_capacity(256);
