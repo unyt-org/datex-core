@@ -16,7 +16,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
-use serde_value::Value as SerdeValue;
 use crate::stdlib::format;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -143,6 +142,18 @@ impl Serialize for DIFTypeDefinition {
     }
 }
 
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+enum DIFTypeDefinitionData {
+    Structural(DIFStructuralTypeDefinition),
+    Reference(PointerAddress),
+    SingleType(DIFType),
+    TypeVec(Vec<DIFType>),
+    ImplType((DIFType, Vec<PointerAddress>)),
+    Function((Vec<(String, DIFType)>, Box<DIFType>)),
+}
+
 impl<'de> Deserialize<'de> for DIFTypeDefinition {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -171,8 +182,9 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
             where
                 V: MapAccess<'de>,
             {
+
                 let mut kind: Option<u8> = None;
-                let mut def: Option<SerdeValue> = None;
+                let mut def: Option<DIFTypeDefinitionData> = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
@@ -181,13 +193,7 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         _ => return Err(de::Error::unknown_field(&key, &["kind", "def"])),
                     }
                 }
-
-                macro_rules! parse {
-                    ($t:ty) => {{
-                        let d = def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        <$t>::deserialize(d).map_err(de::Error::custom)?
-                    }};
-                }
+                
 
                 let kind = kind.ok_or_else(|| de::Error::missing_field("kind"))?;
                 let kind = DIFTypeDefinitionKind::try_from(kind).map_err(|_| {
@@ -195,31 +201,80 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                 })?;
                 Ok(match kind {
                     DIFTypeDefinitionKind::Structural => {
-                        DIFTypeDefinition::Structural(Box::new(parse!(DIFStructuralTypeDefinition)))
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Structural(struct_def) = def {
+                            DIFTypeDefinition::Structural(Box::new(struct_def))
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected StructuralTypeDefinition for kind Structural",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::Reference => {
-                        DIFTypeDefinition::Reference(parse!(PointerAddress))
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Reference(type_ref) = def {
+                            DIFTypeDefinition::Reference(type_ref)
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected PointerAddress for kind Reference",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::Type => {
-                        DIFTypeDefinition::Type(Box::new(parse!(DIFType)))
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::SingleType(ty) = def {
+                            DIFTypeDefinition::Type(Box::new(ty))
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected DIFType for kind Type",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::Intersection => {
-                        DIFTypeDefinition::Intersection(parse!(Vec<DIFType>))
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::TypeVec(types) = def {
+                            DIFTypeDefinition::Intersection(types)
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected Vec<DIFType> for kind Intersection",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::Union => {
-                        DIFTypeDefinition::Union(parse!(Vec<DIFType>))
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::TypeVec(types) = def {
+                            DIFTypeDefinition::Union(types)
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected Vec<DIFType> for kind Union",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::ImplType => {
-                        let (ty, impls): (DIFType, Vec<PointerAddress>) = parse!((DIFType, Vec<PointerAddress>));
-                        DIFTypeDefinition::ImplType(Box::new(ty), impls)
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::ImplType((ty, impls)) = def {
+                            DIFTypeDefinition::ImplType(Box::new(ty), impls)
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected (DIFType, Vec<PointerAddress>) for kind ImplType",
+                            ));
+                        }
                     }
                     DIFTypeDefinitionKind::Unit => DIFTypeDefinition::Unit,
                     DIFTypeDefinitionKind::Never => DIFTypeDefinition::Never,
                     DIFTypeDefinitionKind::Unknown => DIFTypeDefinition::Unknown,
                     DIFTypeDefinitionKind::Function => {
-                        let (parameters, return_type): (Vec<(String, DIFType)>, Box<DIFType>) =
-                            parse!((Vec<(String, DIFType)>, Box<DIFType>));
-                        DIFTypeDefinition::Function { parameters, return_type }
+                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Function((parameters, return_type)) = def {
+                            DIFTypeDefinition::Function {
+                                parameters,
+                                return_type,
+                            }
+                        } else {
+                            return Err(de::Error::custom(
+                                "Expected (Vec<(String, DIFType)>, Box<DIFType>) for kind Function",
+                            ));
+                        }
                     }
                 })
             }
