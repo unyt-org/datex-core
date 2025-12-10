@@ -6,11 +6,7 @@ use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use futures::{
-    pin_mut,
-    stream::StreamExt,
-    channel::oneshot::Sender,
-};
+use futures::channel::oneshot::Sender;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use core::cmp::PartialEq;
@@ -522,8 +518,7 @@ impl ComHub {
                                 ),
                                 socket_uuid.clone(),
                                 is_for_own,
-                            )
-                            .await;
+                            );
                         }
                         _ => {
                             self.redirect_block(
@@ -532,8 +527,7 @@ impl ComHub {
                                 ),
                                 socket_uuid.clone(),
                                 is_for_own,
-                            )
-                            .await;
+                            );
                         }
                     }
                 }
@@ -602,7 +596,7 @@ impl ComHub {
 
     /// Prepares a block and relays it to the given receivers.
     /// The routing distance is incremented by 1.
-    pub(crate) async fn redirect_block(
+    pub(crate) fn redirect_block(
         &self,
         mut block: DXBBlock,
         incoming_socket: ComInterfaceSocketUUID,
@@ -661,7 +655,6 @@ impl ComHub {
                     excluded_sockets.push(original_socket_uuid.clone())
                 }
                 self.send_block(block.clone(), excluded_sockets, forked)
-                    .await
             }
         };
 
@@ -701,7 +694,6 @@ impl ComHub {
                         &unreachable_endpoints,
                         if forked { Some(0) } else { None },
                     )
-                    .await
                 } else {
                     error!(
                         "Tried to send bounce back block, but cannot send back to incoming socket"
@@ -712,17 +704,15 @@ impl ComHub {
             // and try to send it via other remaining sockets that are not on the blacklist for the
             // block receiver
             else {
-                self.send_block(block, vec![], forked).await.unwrap_or_else(
-                    |_| {
-                        error!(
-                            "Failed to send out block to {}",
-                            unreachable_endpoints
-                                .iter()
-                                .map(|e| e.to_string())
-                                .join(",")
-                        );
-                    },
-                );
+                self.send_block(block, vec![], forked).unwrap_or_else(|_| {
+                    error!(
+                        "Failed to send out block to {}",
+                        unreachable_endpoints
+                            .iter()
+                            .map(|e| e.to_string())
+                            .join(",")
+                    );
+                });
             }
         }
     }
@@ -1021,8 +1011,7 @@ impl ComHub {
                 &socket_uuid,
                 &[Endpoint::ANY],
                 None,
-            )
-            .await;
+            );
         }
     }
 
@@ -1340,7 +1329,7 @@ impl ComHub {
 
     /// Returns all receivers to which the block has to be sent, grouped by the
     /// outbound socket uuids
-    async fn get_outbound_receiver_groups(
+    fn get_outbound_receiver_groups(
         &self,
         // TODO #187: do we need the block here for additional information (match conditions),
         // otherwise receivers are enough
@@ -1350,29 +1339,19 @@ impl ComHub {
         let receivers = block.receiver_endpoints();
 
         if !receivers.is_empty() {
-            // Prepare vec with endpoints and corresponding blacklists
-            let mut prepped = Vec::with_capacity(receivers.len());
-            for e in receivers.iter() {
-                // add sockets from endpoint blacklist
-                if let Some(blacklist) =
-                    self.endpoint_sockets_blacklist.borrow().get(e)
-                {
-                    exclude_sockets.extend(blacklist.iter().cloned());
-                }
-                prepped.push((e.clone(), exclude_sockets.clone()));
-            }
-
-            // Async evaluate
-            let mut results = Vec::with_capacity(prepped.len());
-            for (endpoint, exclude) in prepped {
-                let socket =
-                    self.find_best_endpoint_socket(&endpoint, &exclude_sockets);
-                results.push((socket, endpoint));
-            }
-
-            // Group results synchronously
-            let endpoint_sockets = results
-                .into_iter()
+            let endpoint_sockets = receivers
+                .iter()
+                .map(|e| {
+                    // add sockets from endpoint blacklist
+                    if let Some(blacklist) =
+                        self.endpoint_sockets_blacklist.borrow().get(e)
+                    {
+                        exclude_sockets.extend(blacklist.iter().cloned());
+                    }
+                    let socket =
+                        self.find_best_endpoint_socket(e, &exclude_sockets);
+                    (socket, e)
+                })
                 .group_by(|(socket, _)| socket.clone())
                 .into_iter()
                 .map(|(socket, group)| {
@@ -1382,7 +1361,6 @@ impl ComHub {
                     (socket, endpoints)
                 })
                 .collect::<Vec<_>>();
-
             Some(endpoint_sockets)
         } else {
             None
@@ -1520,7 +1498,7 @@ impl ComHub {
         block = self.prepare_own_block(block).await;
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
-        self.send_block(block, vec![], false).await
+        self.send_block(block, vec![], false)
     }
 
     /// Sends a block and wait for a response block.
@@ -1708,15 +1686,14 @@ impl ComHub {
     /// The original_socket parameter is used to prevent sending the block back to the sender.
     /// When this method is called, the block is queued in the send queue.
     /// Returns an Err with a list of unreachable endpoints if the block could not be sent to all endpoints.
-    pub async fn send_block(
+    pub fn send_block(
         &self,
         mut block: DXBBlock,
         exclude_sockets: Vec<ComInterfaceSocketUUID>,
         forked: bool,
     ) -> Result<(), Vec<Endpoint>> {
-        let outbound_receiver_groups = self
-            .get_outbound_receiver_groups(&block, exclude_sockets)
-            .await;
+        let outbound_receiver_groups =
+            self.get_outbound_receiver_groups(&block, exclude_sockets);
 
         if outbound_receiver_groups.is_none() {
             error!("No outbound receiver groups found for block");
@@ -1746,8 +1723,7 @@ impl ComHub {
                     &socket_uuid,
                     &endpoints,
                     fork_count,
-                )
-                .await;
+                );
             } else {
                 error!(
                     "{}: cannot send block, no receiver sockets found for endpoints {:?}",
@@ -1770,7 +1746,7 @@ impl ComHub {
 
     /// Sends a block via a socket to a list of endpoints.
     /// Before the block is sent, it is modified to include the list of endpoints as receivers.
-    async fn send_block_to_endpoints_via_socket(
+    fn send_block_to_endpoints_via_socket(
         &self,
         mut block: DXBBlock,
         socket_uuid: &ComInterfaceSocketUUID,
