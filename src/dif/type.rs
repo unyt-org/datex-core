@@ -373,7 +373,7 @@ impl DIFTypeDefinition {
         }
     }
 
-    fn to_type_definition(&self, memory: &RefCell<Memory>) -> TypeDefinition {
+    pub(crate) fn to_type_definition(&self, memory: &RefCell<Memory>) -> TypeDefinition {
         match self {
             DIFTypeDefinition::Intersection(types) => {
                 TypeDefinition::Intersection(
