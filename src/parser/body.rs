@@ -1,13 +1,6 @@
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::global::protocol_structures::instructions::{
-    ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
-    FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
-    Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress,
-    RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress,
-    TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data,
-    UInt64Data, UInt128Data,
-};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, RawPointerAddress};
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -32,6 +25,7 @@ pub enum DXBParserError {
     InvalidEndpoint(String),
     InvalidBinaryCode(u8),
     FailedToReadInstructionCode,
+    InvalidInstructionCode(u8),
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
     FromUtf8Error(FromUtf8Error),
@@ -66,6 +60,9 @@ impl Display for DXBParserError {
             }
             DXBParserError::FailedToReadInstructionCode => {
                 core::write!(f, "Failed to read instruction code")
+            }
+            DXBParserError::InvalidInstructionCode(code) => {
+                core::write!(f, "Encountered an invalid instruction code: {code}")
             }
             DXBParserError::FmtError(err) => {
                 core::write!(f, "Formatting error: {err}")
@@ -532,7 +529,7 @@ fn get_next_instruction_code(
         .map_err(|err| DXBParserError::FailedToReadInstructionCode)?;
 
     InstructionCode::try_from(instruction_code)
-        .map_err(|_| DXBParserError::FailedToReadInstructionCode)
+        .map_err(|_| DXBParserError::InvalidInstructionCode(instruction_code))
 }
 
 fn iterate_type_space_instructions(
@@ -549,17 +546,18 @@ fn iterate_type_space_instructions(
                     return;
                 }
 
-                let instruction_code = u8::read(reader);
-                if let Err(err) = instruction_code {
+                let instruction_code_u8 = u8::read(reader);
+                if let Err(err) = instruction_code_u8 {
                     yield Err(err.into());
                     return;
                 }
+                let instruction_code_u8 = instruction_code_u8.unwrap();
 
                 let instruction_code = TypeSpaceInstructionCode::try_from(
-                    instruction_code.unwrap(),
+                    instruction_code_u8,
                 );
                 if instruction_code.is_err() {
-                    yield Err(DXBParserError::FailedToReadInstructionCode);
+                    yield Err(DXBParserError::InvalidInstructionCode(instruction_code_u8));
                     return;
                 }
                 let instruction_code = instruction_code.unwrap();
@@ -576,6 +574,24 @@ fn iterate_type_space_instructions(
                         } else {
                             Ok(TypeInstruction::LiteralInteger(
                                 integer_data.unwrap(),
+                            ))
+                        }
+                    }
+                    TypeSpaceInstructionCode::TYPE_WITH_IMPLS => {
+                        let impl_data = ImplTypeData::read(reader);
+                        if let Err(err) = impl_data {
+                            Err(err.into())
+                        } else {
+                            Ok(TypeInstruction::ImplType(impl_data.unwrap()))
+                        }
+                    }
+                    TypeSpaceInstructionCode::TYPE_REFERENCE => {
+                        let address = RawPointerAddress::read(reader);
+                        if let Err(err) = address {
+                            Err(err.into())
+                        } else {
+                            Ok(TypeInstruction::TypeReference(
+                                address.unwrap(),
                             ))
                         }
                     }
