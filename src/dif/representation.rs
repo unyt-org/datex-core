@@ -146,60 +146,63 @@ impl DIFValueRepresentation {
         type_definition: &DIFTypeDefinition,
         memory: &RefCell<Memory>,
     ) -> Result<Value, DIFReferenceNotFoundError> {
-        Ok(match type_definition {
+
+        let val = match type_definition {
             DIFTypeDefinition::Reference(r) => {
                 if let Ok(core_lib_ptr_id) = CoreLibPointerId::try_from(r) {
                     match core_lib_ptr_id {
                         // special mappings:
                         // type map and represented as object -> convert to map
                         CoreLibPointerId::Map
-                            if let DIFValueRepresentation::Object(object) =
-                                self =>
-                        {
-                            let mut core_map: IndexMap<
-                                ValueContainer,
-                                ValueContainer,
-                                RandomState,
-                            > = IndexMap::default();
-                            for (k, v) in object.clone().into_iter() {
-                                core_map.insert(
-                                    Value::from(k).into(),
-                                    v.to_value_container(memory)?,
-                                );
+                        if let DIFValueRepresentation::Object(object) =
+                            self =>
+                            {
+                                let mut core_map: IndexMap<
+                                    ValueContainer,
+                                    ValueContainer,
+                                    RandomState,
+                                > = IndexMap::default();
+                                for (k, v) in object.clone().into_iter() {
+                                    core_map.insert(
+                                        Value::from(k).into(),
+                                        v.to_value_container(memory)?,
+                                    );
+                                }
+                                Some(Value::from(CoreValue::Map(core_map.into())))
                             }
-                            Value::from(CoreValue::Map(core_map.into()))
-                        }
                         // type map and represented as object -> convert to map
                         CoreLibPointerId::Map
-                            if let DIFValueRepresentation::Array(array) =
-                                self =>
-                        {
-                            // assert that array is empty, otherwise this is not a valid DIF representation
-                            if !array.is_empty() {
-                                unreachable!(
-                                    "Invalid DIF value, non-empty array with map type"
-                                )
+                        if let DIFValueRepresentation::Array(array) =
+                            self =>
+                            {
+                                // assert that array is empty, otherwise this is not a valid DIF representation
+                                if !array.is_empty() {
+                                    unreachable!(
+                                        "Invalid DIF value, non-empty array with map type"
+                                    )
+                                }
+                                Some(Value::from(CoreValue::Map(Map::Fixed(vec![]))))
                             }
-                            Value::from(CoreValue::Map(Map::Fixed(vec![])))
-                        }
                         // otherwise, use default mapping
-                        _ => self.to_default_value(memory)?,
+                        _ => None,
                     }
                 } else {
                     core::todo!("#389 Handle non-core library type references")
                 }
             }
-            DIFTypeDefinition::Type(dif_type) => {
-                let val = self.to_default_value(memory)?;
-                let ty = dif_type.to_type_definition(memory);
-                Value {
-                    actual_type: Box::new(ty),
-                    ..val
-                }
-            }
-            e => {
-                core::todo!("Handle type definitions: {:?}", e)
-            }
+            _ => None
+        };
+        let val = match val {
+            Some(v) => v,
+            None => self.to_default_value(memory)?,
+        };
+            
+        let ty = type_definition.to_type_definition(memory);
+        
+        
+        Ok(Value {
+            actual_type: Box::new(ty),
+            ..val
         })
     }
 }
