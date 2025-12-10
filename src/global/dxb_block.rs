@@ -393,7 +393,6 @@ mod tests {
             block.recalculate_struct();
             let block_bytes = block.to_bytes().unwrap();
             let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
-            println!("Block: {:?}", block);
             assert_eq!(block, block3);
         }
     }
