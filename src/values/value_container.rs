@@ -19,6 +19,8 @@ use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
 use serde::Deserialize;
+use crate::stdlib::string::String;
+use crate::stdlib::boxed::Box;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {

@@ -12,6 +12,7 @@ use crate::{
 use core::cell::RefCell;
 use core::ops::FnOnce;
 use core::prelude::rust_2024::*;
+use crate::stdlib::vec::Vec;
 
 pub enum DIFUpdateDataOrMemory<'a> {
     Update(&'a DIFUpdateData),

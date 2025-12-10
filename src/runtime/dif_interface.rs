@@ -21,6 +21,7 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use crate::stdlib::vec::Vec;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
