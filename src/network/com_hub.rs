@@ -738,11 +738,11 @@ impl ComHub {
                                 let crypto = get_global_context().crypto;
                                 let raw_sign = block.signature.as_ref().unwrap();
                                 let (enc_sign, pub_key) = raw_sign.split_at(64);
-                                let hash = crypto.hkdf(pub_key, &[0u8; 16])
+                                let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
                                     .await
                                     .unwrap();
                                 let signature = crypto
-                                    .aes_ctr_encrypt(&hash, &[0u8; 16], enc_sign)
+                                    .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
                                     .await
                                     .unwrap();
 
@@ -752,7 +752,7 @@ impl ComHub {
                                     ]
                                     .concat();
                                 let hashed_signed = crypto
-                                    .hash(&raw_signed)
+                                    .hash_sha256(&raw_signed)
                                     .await
                                     .unwrap();
 
@@ -773,7 +773,7 @@ impl ComHub {
                                     ]
                                     .concat();
                                 let hashed_signed = crypto
-                                    .hash(&raw_signed)
+                                    .hash_sha256(&raw_signed)
                                     .await
                                     .unwrap();
 
@@ -911,8 +911,7 @@ impl ComHub {
 
     /// Updates all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    /// In contrast to the update() function, this function is asynchronous
-    /// and will wait for all background tasks scheduled by the update() function to finish
+    /// This function will wait for all background tasks scheduled by the update() function to finish
     pub async fn update_async(&self) {
         self.update().await;
         self.wait_for_update_async().await;
@@ -1428,7 +1427,7 @@ impl ComHub {
                             ]
                             .concat();
                         let hashed_signed = crypto
-                            .hash(&raw_signed)
+                            .hash_sha256(&raw_signed)
                             .await
                             .unwrap();
 
@@ -1437,7 +1436,7 @@ impl ComHub {
                             .await
                             .unwrap();
                         let hash = crypto
-                            .hkdf(&pub_key, &[0u8; 16])
+                            .hkdf_sha256(&pub_key, &[0u8; 16])
                             .await
                             .unwrap();
                         let enc_sig = crypto
@@ -1459,7 +1458,7 @@ impl ComHub {
                             ]
                             .concat();
                         let hashed_signed = crypto
-                            .hash(&raw_signed)
+                            .hash_sha256(&raw_signed)
                             .await
                             .unwrap();
 

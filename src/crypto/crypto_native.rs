@@ -1,9 +1,7 @@
-use super::crypto::{CryptoError, CryptoTrait};
+use super::crypto::{CryptoError, CryptoResult, CryptoTrait};
 use crate::stdlib::sync::OnceLock;
 use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
-use crate::stdlib::{future::Future, pin::Pin};
 use core::prelude::rust_2024::*;
-use core::result::Result;
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
     derive::Deriver,
@@ -56,59 +54,54 @@ impl CryptoTrait for CryptoNative {
         (0..length).map(|_| rng.r#gen()).collect()
     }
 
-    fn hash<'a>(
+    fn hash_sha256<'a>(
         &'a self,
         to_digest: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, [u8; 32]> {
         Box::pin(async move {
             let hash = sha256(to_digest);
             Ok(hash)
         })
     }
 
-    fn hkdf<'a>(
+    fn hkdf_sha256<'a>(
         &'a self,
         ikm: &'a [u8],
         salt: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, [u8; 32]> {
         Box::pin(async move {
             let info = b"";
             let mut ctx = PkeyCtx::new_id(Id::HKDF)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
-            ctx.derive_init()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
+            ctx.derive_init().map_err(|_| CryptoError::KeyGeneration)?;
             ctx.set_hkdf_mode(HkdfMode::EXTRACT_THEN_EXPAND)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             ctx.set_hkdf_md(Md::sha256())
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             ctx.set_hkdf_salt(salt)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             ctx.set_hkdf_key(ikm)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             ctx.add_hkdf_info(info)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             let mut okm = [0u8; 32_usize];
             ctx.derive(Some(&mut okm))
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             Ok(okm)
         })
     }
     // EdDSA keygen
-    fn gen_ed25519<'a>(
-        &'a self,
-    ) -> Pin<
-        Box<dyn Future<Output = Result<(Vec<u8>, Vec<u8>), CryptoError>> + 'a>,
-    > {
+    fn gen_ed25519<'a>(&'a self) -> CryptoResult<'a, (Vec<u8>, Vec<u8>)> {
         Box::pin(async move {
             let key = PKey::generate_ed25519()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
 
             let public_key: Vec<u8> = key
                 .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             let private_key: Vec<u8> = key
                 .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             Ok((public_key, private_key))
         })
     }
@@ -118,15 +111,15 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         pri_key: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 64], CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, [u8; 64]> {
         Box::pin(async move {
             let sig_key = PKey::private_key_from_pkcs8(pri_key)
-                .map_err(|_| CryptoError::KeyImportError)?;
+                .map_err(|_| CryptoError::KeyImport)?;
             let mut signer = Signer::new_without_digest(&sig_key)
-                .map_err(|_| CryptoError::SigningError)?;
+                .map_err(|_| CryptoError::Signing)?;
             let signature = signer
                 .sign_oneshot_to_vec(data)
-                .map_err(|_| CryptoError::SigningError)?;
+                .map_err(|_| CryptoError::Signing)?;
             let signature: [u8; 64] =
                 signature.try_into().expect("Invalid signature length");
             Ok(signature)
@@ -139,15 +132,15 @@ impl CryptoTrait for CryptoNative {
         pub_key: &'a [u8],
         sig: &'a [u8],
         data: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<bool, CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, bool> {
         Box::pin(async move {
             let public_key = PKey::public_key_from_der(pub_key)
-                .map_err(|_| CryptoError::KeyImportError)?;
+                .map_err(|_| CryptoError::KeyImport)?;
             let mut verifier = Verifier::new_without_digest(&public_key)
-                .map_err(|_| CryptoError::KeyImportError)?;
+                .map_err(|_| CryptoError::KeyImport)?;
             let verification = verifier
                 .verify_oneshot(sig, data)
-                .map_err(|_| CryptoError::VerificationError)?;
+                .map_err(|_| CryptoError::Verification)?;
             Ok(verification)
         })
     }
@@ -158,16 +151,16 @@ impl CryptoTrait for CryptoNative {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         plaintext: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, Vec<u8>> {
         Box::pin(async move {
             let cipher = Cipher::aes_256_ctr();
             let mut enc = Crypter::new(cipher, Mode::Encrypt, key, Some(iv))
-                .map_err(|_| CryptoError::EncryptionError)?;
+                .map_err(|_| CryptoError::Encryption)?;
 
             let mut out = vec![0u8; plaintext.len()];
             let count = enc
                 .update(plaintext, &mut out)
-                .map_err(|_| CryptoError::EncryptionError)?;
+                .map_err(|_| CryptoError::Encryption)?;
             out.truncate(count);
             Ok(out)
         })
@@ -178,7 +171,7 @@ impl CryptoTrait for CryptoNative {
         key: &'a [u8; 32],
         iv: &'a [u8; 16],
         ciphertext: &'a [u8],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, Vec<u8>> {
         self.aes_ctr_encrypt(key, iv, ciphertext)
     }
 
@@ -187,11 +180,11 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         kek_bytes: &'a [u8; 32],
         rb: &'a [u8; 32],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 40], CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, [u8; 40]> {
         Box::pin(async move {
             // Key encryption key
             let kek = AesKey::new_encrypt(kek_bytes)
-                .map_err(|_| CryptoError::EncryptionError)?;
+                .map_err(|_| CryptoError::Encryption)?;
 
             // Key wrap
             let mut wrapped = [0u8; 40];
@@ -205,11 +198,11 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         kek_bytes: &'a [u8; 32],
         cipher: &'a [u8; 40],
-    ) -> Pin<Box<dyn Future<Output = Result<[u8; 32], CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, [u8; 32]> {
         Box::pin(async move {
             // Key encryption key
             let kek = AesKey::new_decrypt(kek_bytes)
-                .map_err(|_| CryptoError::DecryptionError)?;
+                .map_err(|_| CryptoError::Decryption)?;
 
             // Unwrap key
             let mut unwrapped: [u8; 32] = [0u8; 32];
@@ -219,26 +212,20 @@ impl CryptoTrait for CryptoNative {
     }
 
     // Generate encryption keypair
-    fn gen_x25519<'a>(
-        &'a self,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<([u8; 44], [u8; 48]), CryptoError>> + 'a,
-        >,
-    > {
+    fn gen_x25519<'a>(&'a self) -> CryptoResult<'a, ([u8; 44], [u8; 48])> {
         Box::pin(async move {
             let key = PKey::generate_x25519()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             let public_key: [u8; 44] = key
                 .public_key_to_der()
-                .map_err(|_| CryptoError::KeyGenerationError)?
+                .map_err(|_| CryptoError::KeyGeneration)?
                 .try_into()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             let private_key: [u8; 48] = key
                 .private_key_to_pkcs8()
-                .map_err(|_| CryptoError::KeyGenerationError)?
+                .map_err(|_| CryptoError::KeyGeneration)?
                 .try_into()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             Ok((public_key, private_key))
         })
     }
@@ -248,21 +235,21 @@ impl CryptoTrait for CryptoNative {
         &'a self,
         pri_key: &'a [u8; 48],
         peer_pub: &'a [u8; 44],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, CryptoError>> + 'a>> {
+    ) -> CryptoResult<'a, Vec<u8>> {
         Box::pin(async move {
             let peer_pub = PKey::public_key_from_der(peer_pub)
-                .map_err(|_| CryptoError::KeyImportError)?;
+                .map_err(|_| CryptoError::KeyImport)?;
             let my_priv = PKey::private_key_from_pkcs8(pri_key)
-                .map_err(|_| CryptoError::KeyImportError)?;
+                .map_err(|_| CryptoError::KeyImport)?;
 
             let mut deriver = Deriver::new(&my_priv)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             deriver
                 .set_peer(&peer_pub)
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             let derived = deriver
                 .derive_to_vec()
-                .map_err(|_| CryptoError::KeyGenerationError)?;
+                .map_err(|_| CryptoError::KeyGeneration)?;
             Ok(derived)
         })
     }
@@ -274,9 +261,9 @@ mod tests {
     static CRYPTO: CryptoNative = CryptoNative {};
 
     #[tokio::test]
-    pub async fn hash_derivation() {
+    pub async fn hash_func() {
         let ikm = Vec::from([0u8; 32]);
-        let hash = CRYPTO.hash(&ikm).await.unwrap();
+        let hash = CRYPTO.hash_sha256(&ikm).await.unwrap();
         assert_eq!(
             hash,
             [
@@ -288,12 +275,12 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn hash_key_derivation() {
+    pub async fn hash_key_derivation_func() {
         let mut ikm = Vec::from([0u8; 32]);
         let salt = Vec::from([0u8; 16]);
-        let hash_a = CRYPTO.hkdf(&ikm, &salt).await.unwrap();
+        let hash_a = CRYPTO.hkdf_sha256(&ikm, &salt).await.unwrap();
         ikm[0] = 1u8;
-        let hash_b = CRYPTO.hkdf(&ikm, &salt).await.unwrap();
+        let hash_b = CRYPTO.hkdf_sha256(&ikm, &salt).await.unwrap();
         assert_ne!(hash_a, hash_b);
         assert_ne!(hash_a.to_vec(), ikm);
         assert_eq!(
@@ -308,18 +295,51 @@ mod tests {
 
     // Signatures
     #[tokio::test]
-    pub async fn asy_dsa_ed2519() {
-        let data = b"Some message to sign".to_vec();
+    pub async fn dsa_ed2519() {
+        // Checks gen_ed25519, sig_ed25519, ver_ed25519 against itself
+        let data = b"Some message to  sign".to_vec();
+        let other_data = b"Some message to sign".to_vec();
 
+        // Generate key and signature
         let (pub_key, pri_key) = CRYPTO.gen_ed25519().await.unwrap();
-        let sig = CRYPTO.sig_ed25519(&pri_key, &data).await.unwrap();
-        let ver = CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap();
+        assert_eq!(pub_key.len(), 44_usize);
+        assert_eq!(pri_key.len(), 48_usize);
 
-        assert!(ver)
+        let sig = CRYPTO.sig_ed25519(&pri_key, &data).await.unwrap();
+        assert_eq!(sig.len(), 64_usize);
+
+        // Verify key, signature and data
+        let ver = CRYPTO.ver_ed25519(&pub_key, &sig, &data).await.unwrap();
+        assert!(ver);
+
+        // Falsify other data
+        let ver = CRYPTO
+            .ver_ed25519(&pub_key, &sig, &other_data)
+            .await
+            .unwrap();
+        assert!(!ver);
+
+        // Falsify other key
+        let (other_pub_key, other_pri_key) =
+            CRYPTO.gen_ed25519().await.unwrap();
+        let ver = CRYPTO
+            .ver_ed25519(&other_pub_key, &sig, &data)
+            .await
+            .unwrap();
+        assert!(!ver);
+
+        // Falsify other signature
+        let other_sig =
+            CRYPTO.sig_ed25519(&other_pri_key, &data).await.unwrap();
+        let ver = CRYPTO
+            .ver_ed25519(&pub_key, &other_sig, &data)
+            .await
+            .unwrap();
+        assert!(!ver);
     }
 
     #[tokio::test]
-    pub async fn asy_aes_ctr() {
+    pub async fn aes_ctr() {
         let key = [0u8; 32];
         let iv = [0u8; 16];
 
@@ -334,7 +354,7 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn asy_key_wrap() {
+    pub async fn key_wrap() {
         let kek_bytes = [1u8; 32];
         let sym_key: [u8; 32] =
             CRYPTO.random_bytes(32_usize).try_into().unwrap();
@@ -346,7 +366,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn asy_key_gen_x25519() {
+    async fn key_gen_x25519() {
         let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
         let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
 
