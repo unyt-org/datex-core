@@ -14,7 +14,7 @@ pub fn compile_type(ty: &Type) -> Vec<u8> {
     buffer
 }
 
-fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
+pub fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
 
     // append instruction code
     let instruction_code = TypeSpaceInstructionCode::from(&ty.type_definition);

@@ -13,6 +13,7 @@ use core::fmt;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use log::info;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
@@ -128,6 +129,23 @@ fn get_text_data(
 pub fn iterate_instructions<'a>(
     dxb_body: &'a [u8],
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
+
+    // debug log bytes
+    info!(
+        "DXB Body Bytes: {}",
+        dxb_body
+            .chunks(16)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .map(|byte| format!("{:02X}", byte))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
+
     core::iter::from_coroutine(
         #[coroutine]
         move || {

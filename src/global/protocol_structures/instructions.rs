@@ -451,20 +451,18 @@ pub struct RawInternalPointerAddress {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub enum RawPointerAddress {
-    #[br(magic = 0x01u8)] // InstructionCode::GET_REF
+    // TODO: must always match enum variant values
+    #[br(magic = 120u8)] // InstructionCode::GET_REF
     Full {
-        code: u8,
         address: RawFullPointerAddress,
     },
-    #[br(magic = 0x02u8)] // InstructionCode::GET_LOCAL_REF
-    Local {
-        code: u8,
-        address: RawLocalPointerAddress,
-    },
-    #[br(magic = 0x03u8)] // InstructionCode::GET_INTERNAL_REF
+    #[br(magic = 121u8)] // InstructionCode::GET_INTERNAL_REF
     Internal {
-        code: u8,
         address: RawInternalPointerAddress,
+    },
+    #[br(magic = 122u8)] // InstructionCode::GET_LOCAL_REF
+    Local {
+        address: RawLocalPointerAddress,
     },
 }
 
