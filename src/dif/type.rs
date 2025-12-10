@@ -410,20 +410,99 @@ impl DIFTypeDefinition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DIFType {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "mut")]
-    #[serde(default)]
-    #[serde(with = "mutability_option_as_int")]
     pub mutability: Option<ReferenceMutability>,
-
-    #[serde(flatten)]
     pub type_definition: DIFTypeDefinition,
 }
 impl DIFConvertible for DIFType {}
+
+
+/// DIFType serializes as normal struct - for Reference type_definition without name or mutability, the pointer
+/// address is directly serialized as string
+/// (same for deserialization)
+impl Serialize for DIFType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if self.name.is_none() && self.mutability.is_none() && let DIFTypeDefinition::Reference(_) = self.type_definition {
+            return self.type_definition.serialize(serializer);
+        }
+
+        let field_count = 1
+            + if self.name.is_some() { 1 } else { 0 }
+            + if self.mutability.is_some() { 1 } else { 0 };
+        let mut state = serializer.serialize_struct("DIFType", field_count)?;
+        if let Some(name) = &self.name {
+            state.serialize_field("name", name)?;
+        }
+        if let Some(mutability) = &self.mutability {
+            state.serialize_field("mut", mutability)?;
+        }
+        state.serialize_field("def", &self.type_definition)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for DIFType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, MapAccess, Visitor};
+        struct DIFTypeVisitor;
+
+        impl<'de> Visitor<'de> for DIFTypeVisitor {
+            type Value = DIFType;
+
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+                formatter.write_str("struct DIFType")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<DIFType, E>
+            where
+                E: de::Error,
+            {
+                let type_def = DIFTypeDefinition::deserialize(v.into_deserializer())?;
+                Ok(DIFType {
+                    name: None,
+                    mutability: None,
+                    type_definition: type_def,
+                })
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<DIFType, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut name: Option<String> = None;
+                let mut mutability: Option<ReferenceMutability> = None;
+                let mut type_definition: Option<DIFTypeDefinition> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "name" => name = Some(map.next_value()?),
+                        "mut" => mutability = Some(map.next_value()?),
+                        "def" => type_definition = Some(map.next_value()?),
+                        _ => return Err(de::Error::unknown_field(&key, &["name", "mut", "def"])),
+                    }
+                }
+
+                let type_definition = type_definition.ok_or_else(|| de::Error::missing_field("def"))?;
+
+                Ok(DIFType {
+                    name,
+                    mutability,
+                    type_definition,
+                })
+            }
+        }
+
+        deserializer.deserialize_any(DIFTypeVisitor)
+    }
+}
 
 impl DIFType {
     pub(crate) fn from_type(ty: &Type, memory: &RefCell<Memory>) -> Self {
