@@ -85,7 +85,7 @@ impl From<&TypeDefinition> for TypeSpaceInstructionCode {
     }
 }
 
-
+#[derive(Debug, Clone, PartialEq)]
 pub enum TypeMutabilityCode {
     MutableReference,
     ImmutableReference,
