@@ -67,7 +67,7 @@ jobs:
                   files: target/nextest/ci/report.xml
     test-embedded:
         runs-on: macos-latest
-        name: Test
+        name: Test no-std/embedded build
         concurrency:
             group: ${{ github.workflow }}-${{ github.ref }}-test-embedded
             cancel-in-progress: true
