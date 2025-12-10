@@ -411,15 +411,6 @@ impl DIFTypeDefinition {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DIFTypeContainer {
-    Type(DIFType),
-    Reference(PointerAddress),
-}
-
-impl DIFConvertible for DIFTypeContainer {}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFType {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -435,10 +426,6 @@ pub struct DIFType {
 impl DIFConvertible for DIFType {}
 
 impl DIFType {
-    pub fn as_container(self) -> DIFTypeContainer {
-        DIFTypeContainer::Type(self)
-    }
-
     pub(crate) fn from_type(ty: &Type, memory: &RefCell<Memory>) -> Self {
         DIFType {
             name: None,

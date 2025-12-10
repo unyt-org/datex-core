@@ -35,7 +35,6 @@ mod tests {
     use crate::{
         dif::{
             representation::DIFValueRepresentation,
-            r#type::{DIFType, DIFTypeContainer},
             value::DIFValue,
         },
         libs::core::CoreLibPointerId,
