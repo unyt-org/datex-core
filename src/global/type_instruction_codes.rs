@@ -1,6 +1,8 @@
 use core::prelude::rust_2024::*;
 use num_enum::TryFromPrimitive;
 use strum::Display;
+use datex_core::references::reference::ReferenceMutability;
+use crate::types::definition::TypeDefinition;
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -16,7 +18,17 @@ use strum::Display;
 #[repr(u8)]
 pub enum TypeSpaceInstructionCode {
     TYPE_REFERENCE,
-
+    TYPE_WITH_IMPLS,
+    TYPE_UNIT,
+    TYPE_UNKNOWN,
+    TYPE_NEVER,
+    TYPE_STRUCTURAL,
+    TYPE_INTERSECTION,
+    TYPE_UNION,
+    TYPE_FUNCTION,
+    TYPE_COLLECTION,
+    TYPE_TYPE,
+    
     TYPE_LIST_START,
     TYPE_SCOPE_END,
 
@@ -52,4 +64,40 @@ pub enum TypeSpaceInstructionCode {
     STD_TYPE_ASSERTION,
     STD_TYPE_TASK,
     STD_TYPE_ITERATOR,
+}
+
+
+impl From<&TypeDefinition> for TypeSpaceInstructionCode {
+    fn from(value: &TypeDefinition) -> Self {
+        match value {
+            TypeDefinition::ImplType(_, _) => TypeSpaceInstructionCode::TYPE_WITH_IMPLS,
+            TypeDefinition::Reference(_) => TypeSpaceInstructionCode::TYPE_REFERENCE,
+            TypeDefinition::Unit => TypeSpaceInstructionCode::TYPE_UNIT,
+            TypeDefinition::Unknown => TypeSpaceInstructionCode::TYPE_UNKNOWN,
+            TypeDefinition::Never => TypeSpaceInstructionCode::TYPE_NEVER,
+            TypeDefinition::Structural(_) => TypeSpaceInstructionCode::TYPE_STRUCTURAL,
+            TypeDefinition::Intersection(_) => TypeSpaceInstructionCode::TYPE_INTERSECTION,
+            TypeDefinition::Union(_) => TypeSpaceInstructionCode::TYPE_UNION,
+            TypeDefinition::Function {..} => TypeSpaceInstructionCode::TYPE_FUNCTION,
+            TypeDefinition::Collection(_) => TypeSpaceInstructionCode::TYPE_COLLECTION,
+            TypeDefinition::Type(_) => unreachable!(), // TODO: nested types
+        }
+    }
+}
+
+
+pub enum TypeMutabilityCode {
+    MutableReference,
+    ImmutableReference,
+    Value
+}
+
+impl From<&Option<ReferenceMutability>> for TypeMutabilityCode {
+    fn from(value: &Option<ReferenceMutability>) -> Self {
+        match value {
+            Some(ReferenceMutability::Mutable) => TypeMutabilityCode::MutableReference,
+            Some(ReferenceMutability::Immutable) => TypeMutabilityCode::ImmutableReference,
+            None => TypeMutabilityCode::Value,
+        }
+    }
 }

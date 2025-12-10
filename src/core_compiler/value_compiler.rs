@@ -154,7 +154,7 @@ pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
     append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
     append_get_ref(
         buffer,
-        PointerAddress::from(CoreLibPointerId::from(integer)),
+        &PointerAddress::from(CoreLibPointerId::from(integer)),
     );
     append_encoded_integer(buffer, &integer.to_smallest_fitting());
 }
@@ -269,7 +269,7 @@ pub fn append_typed_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
     append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
     append_get_ref(
         buffer,
-        PointerAddress::from(CoreLibPointerId::from(decimal)),
+        &PointerAddress::from(CoreLibPointerId::from(decimal)),
     );
     append_encoded_decimal(buffer, decimal);
 }
@@ -283,19 +283,19 @@ pub fn append_float_as_i32(buffer: &mut Vec<u8>, int: i32) {
     append_i32(buffer, int);
 }
 
-pub fn append_get_ref(buffer: &mut Vec<u8>, address: PointerAddress) {
+pub fn append_get_ref(buffer: &mut Vec<u8>, address: &PointerAddress) {
     match address {
         PointerAddress::Internal(id) => {
             append_instruction_code(buffer, InstructionCode::GET_INTERNAL_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
         PointerAddress::Local(id) => {
             append_instruction_code(buffer, InstructionCode::GET_LOCAL_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
         PointerAddress::Remote(id) => {
             append_instruction_code(buffer, InstructionCode::GET_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
     }
 }

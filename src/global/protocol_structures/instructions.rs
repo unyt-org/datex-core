@@ -302,6 +302,8 @@ impl Display for Instruction {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeInstruction {
+    ImplType(ImplTypeData),
+    TypeReference(RawPointerAddress),
     LiteralText(TextData),
     LiteralInteger(IntegerData),
     ListStart,
@@ -320,6 +322,13 @@ impl Display for TypeInstruction {
             }
             TypeInstruction::ListStart => core::write!(f, "LIST_START"),
             TypeInstruction::ScopeEnd => core::write!(f, "SCOPE_END"),
+            TypeInstruction::TypeReference(address) => core::write!(
+                f,
+                "TYPE_REFERENCE",
+            ),
+            TypeInstruction::ImplType(data) => {
+                core::write!(f, "IMPL_TYPE ({} impls)", data.impl_count)
+            }
         }
     }
 }
@@ -441,6 +450,26 @@ pub struct RawInternalPointerAddress {
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub enum RawPointerAddress {
+    #[br(magic = 0x01u8)] // InstructionCode::GET_REF
+    Full {
+        code: u8,
+        address: RawFullPointerAddress,
+    },
+    #[br(magic = 0x02u8)] // InstructionCode::GET_LOCAL_REF
+    Local {
+        code: u8,
+        address: RawLocalPointerAddress,
+    },
+    #[br(magic = 0x03u8)] // InstructionCode::GET_INTERNAL_REF
+    Internal {
+        code: u8,
+        address: RawInternalPointerAddress,
+    },
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct GetOrCreateRefData {
     pub address: RawFullPointerAddress,
     pub create_block_size: u64,
@@ -461,4 +490,13 @@ pub struct ExecutionBlockData {
 #[brw(little)]
 pub struct ApplyData {
     pub arg_count: u16,
+}
+
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ImplTypeData {
+    pub impl_count: u8,
+    #[br(count = impl_count)]
+    pub impls: Vec<RawPointerAddress>,
 }

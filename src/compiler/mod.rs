@@ -789,7 +789,7 @@ fn compile_expression(
 
         DatexExpressionData::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
-            append_get_ref(&mut compilation_context.buffer, address)
+            append_get_ref(&mut compilation_context.buffer, &address)
         }
 
         // assignment
@@ -995,7 +995,7 @@ fn compile_expression(
                 }
                 "core" => append_get_ref(
                     &mut compilation_context.buffer,
-                    PointerAddress::from(CoreLibPointerId::Core),
+                    &PointerAddress::from(CoreLibPointerId::Core),
                 ),
                 _ => {
                     // invalid slot name
@@ -1006,7 +1006,7 @@ fn compile_expression(
 
         // pointer address
         DatexExpressionData::PointerAddress(address) => {
-            append_get_ref(&mut compilation_context.buffer, address);
+            append_get_ref(&mut compilation_context.buffer, &address);
         }
 
         // refs
