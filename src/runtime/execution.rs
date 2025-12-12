@@ -1282,7 +1282,6 @@ fn handle_value(
 
     // cast to active type if exists
     if let Some(active_type) = active_type {
-        info!("casting, {:#?} to {:#?}", value_container, scope_container.active_type);
         match &mut value_container {
             ValueContainer::Value(value) => {
                 // FIXME: only using type definition here, refactor and/or add checks
