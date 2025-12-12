@@ -15,6 +15,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::info;
 use datex_core::global::protocol_structures::instructions::RawLocalPointerAddress;
+use crate::stdlib::format;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
     let size = buffers::read_u32(dxb_body, index);
