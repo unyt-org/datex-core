@@ -1398,7 +1398,7 @@ impl ComHub {
         self.update_sockets().await;
 
         // update sockets block collectors
-        self.collect_incoming_data();
+        self.collect_incoming_data().await;
 
         // receive blocks from all sockets
         self.receive_incoming_blocks().await;
@@ -1940,11 +1940,11 @@ impl ComHub {
 
     /// Collects incoming data slices from all sockets. The sockets will call their
     /// BlockCollector to collect the data into blocks.
-    fn collect_incoming_data(&self) {
+    async fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         for (socket, _) in self.sockets.borrow().values() {
             let mut socket_ref = socket.try_lock().unwrap();
-            socket_ref.collect_incoming_data();
+            socket_ref.collect_incoming_data().await;
         }
     }
 

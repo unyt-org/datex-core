@@ -57,8 +57,8 @@ impl ComInterfaceSocket {
         self.block_collector.get_block_queue()
     }
 
-    pub fn collect_incoming_data(&mut self) {
-        self.block_collector.update();
+    pub async fn collect_incoming_data(&mut self) {
+        self.block_collector.update().await;
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {

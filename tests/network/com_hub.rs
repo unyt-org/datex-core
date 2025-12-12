@@ -123,6 +123,7 @@ pub async fn test_send() {
         let mockup_interface_out = mockup_interface_out.borrow();
         let block_bytes =
             DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+                .await
                 .unwrap();
 
         assert!(mockup_interface_out.last_block().is_some());
@@ -182,6 +183,7 @@ pub async fn send_block_to_multiple_endpoints() {
         let mockup_interface_out = mockup_interface_out.borrow();
         let block_bytes =
             DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+                .await
                 .unwrap();
 
         assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);

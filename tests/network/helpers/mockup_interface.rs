@@ -290,7 +290,7 @@ impl ComInterface for MockupInterface {
         // FIXME #219 this should be inside the async body, why is it not working?
         Pin::from(Box::new(async move {
             let is_hello = {
-                match DXBBlock::from_bytes(block) {
+                match DXBBlock::from_bytes(block).await {
                     Ok(block) => {
                         block.block_header.flags_and_timestamp.block_type()
                             == BlockType::Hello

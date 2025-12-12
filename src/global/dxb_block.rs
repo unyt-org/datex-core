@@ -211,7 +211,7 @@ impl DXBBlock {
         Ok(routing_header.block_size)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {
+    pub async fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {
         let mut reader = Cursor::new(bytes);
         let routing_header = RoutingHeader::read(&mut reader)?;
 
@@ -254,6 +254,82 @@ impl DXBBlock {
 
         let mut body = Vec::new();
         reader.read_to_end(&mut body)?;
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "native_crypto")] {
+                /*
+                use crate::runtime::global_context::{GlobalContext, set_global_context, get_global_context};
+                set_global_context(GlobalContext::native());
+                let crypto = get_global_context().crypto;
+                */
+                use crate::crypto::crypto_native::CryptoNative;
+                use crate::crypto::crypto::CryptoTrait;
+                let crypto = CryptoNative {};
+
+                let ver: Option<bool> = match routing_header.flags.signature_type() {
+                    SignatureType::Encrypted => {
+                        let raw_sign = signature.as_ref().unwrap();
+                        let (enc_sign, pub_key) = raw_sign.split_at(64);
+                        let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
+                            .await
+                            .unwrap();
+                        let signature = crypto
+                            .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
+                            .await
+                            .unwrap();
+
+                        let raw_signed = [
+                            pub_key,
+                            &body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .unwrap();
+
+                        let ver = crypto
+                            .ver_ed25519(pub_key, &signature, &hashed_signed)
+                            .await
+                            .unwrap();
+                        Some(ver)
+                    }
+                    SignatureType::Unencrypted => {
+                        let raw_sign = signature.as_ref().unwrap();
+                        let (signature, pub_key) = raw_sign.split_at(64);
+
+                        let raw_signed = [
+                            pub_key,
+                            &body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .unwrap();
+
+                        let ver = crypto
+                            .ver_ed25519(pub_key, signature, &hashed_signed)
+                            .await
+                            .unwrap();
+                        Some(ver)
+                    }
+                    SignatureType::None => {
+                        None
+                    }
+                };
+                if ver.is_some() {
+                    if !ver.unwrap() {
+                        return Err(
+                            binrw::Error::Custom {
+                                pos: 0u64,
+                                err: Box::new("Something is off with the signature.")
+                            });
+                    }
+                }
+            }
+            else {}
+        }
 
         Ok(DXBBlock {
             routing_header,
@@ -354,6 +430,8 @@ mod tests {
     use core::str::FromStr;
 
     use crate::{
+        crypto::crypto::CryptoTrait,
+        crypto::crypto_native::CryptoNative,
         global::{
             dxb_block::DXBBlock,
             protocol_structures::{
@@ -364,8 +442,8 @@ mod tests {
         values::core_values::endpoint::Endpoint,
     };
 
-    #[test]
-    pub fn test_recalculate() {
+    #[tokio::test]
+    pub async fn test_recalculate() {
         let mut routing_header = RoutingHeader::default()
             .with_sender(Endpoint::from_str("@test").unwrap())
             .to_owned();
@@ -384,7 +462,8 @@ mod tests {
         {
             // invalid block size
             let block_bytes = block.to_bytes().unwrap();
-            let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            let block2: DXBBlock =
+                DXBBlock::from_bytes(&block_bytes).await.unwrap();
             assert_ne!(block, block2);
         }
 
@@ -392,13 +471,16 @@ mod tests {
             // valid block size
             block.recalculate_struct();
             let block_bytes = block.to_bytes().unwrap();
-            let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            let block3: DXBBlock =
+                DXBBlock::from_bytes(&block_bytes).await.unwrap();
             assert_eq!(block, block3);
         }
     }
 
-    #[test]
-    pub fn signature_to_and_from_bytes() {
+    #[tokio::test]
+    pub async fn signature_to_and_from_bytes() {
+        let crypto = CryptoNative {};
+        // setup block
         let mut routing_header = RoutingHeader::default()
             .with_sender(Endpoint::from_str("@test").unwrap())
             .to_owned();
@@ -411,15 +493,38 @@ mod tests {
             routing_header,
             ..DXBBlock::default()
         };
+
+        // setup correct signature
         block
             .routing_header
             .flags
             .set_signature_type(SignatureType::Unencrypted);
-        block.signature = Some(vec![0u8; 108]);
+
+        let (pub_key, pri_key) = crypto.gen_ed25519().await.unwrap();
+        let raw_signed = [pub_key.clone(), block.body.clone()].concat();
+        let hashed_signed = crypto.hash_sha256(&raw_signed).await.unwrap();
+
+        let signature =
+            crypto.sig_ed25519(&pri_key, &hashed_signed).await.unwrap();
+        // 64 + 44 = 108
+        block.signature = Some([signature.to_vec(), pub_key.clone()].concat());
 
         let block_bytes = block.to_bytes().unwrap();
-        let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+        let block2: DXBBlock =
+            DXBBlock::from_bytes(&block_bytes).await.unwrap();
         assert_eq!(block, block2);
         assert_eq!(block.signature, block2.signature);
+
+        // setup faulty signature
+        let mut other_sig = signature.clone();
+        other_sig[42] = 42u8;
+        block.signature = Some([other_sig.to_vec(), pub_key].concat());
+        let block_bytes2 = block.to_bytes().unwrap();
+        let block3 = DXBBlock::from_bytes(&block_bytes2).await;
+        assert!(block3.is_err());
+        assert_eq!(
+            block3.unwrap_err().to_string(),
+            "Something is off with the signature. at 0x0"
+        )
     }
 }
