@@ -452,7 +452,6 @@ pub struct RawInternalPointerAddress {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub enum RawPointerAddress {
-    // TODO: must always match enum variant values
     #[br(magic = 120u8)] // InstructionCode::GET_REF
     Full {
         address: RawFullPointerAddress,

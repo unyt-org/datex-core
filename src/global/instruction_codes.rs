@@ -165,9 +165,10 @@ pub enum InstructionCode {
     INIT_LABEL,   // $x := ...
     LABEL_ACTION, // $x += ...
 
-    GET_REF,          // $x
-    GET_INTERNAL_REF, // $y, containing globally unique internal id
-    GET_LOCAL_REF, // $x, containing only the id, origin id is inferred from sender
+    // Note: fix to sync with RawPointerAddress
+    GET_REF = 120u8,          // $x
+    GET_INTERNAL_REF = 121u8, // $y, containing globally unique internal id
+    GET_LOCAL_REF = 122u8, // $x, containing only the id, origin id is inferred from sender
     GET_OR_INIT_REF, // $aa := ...
     POINTER_ACTION, // $aa += ...
     CREATE_REF,    // &()
