@@ -59,6 +59,48 @@ use num_enum::TryFromPrimitive;
 use datex_core::global::protocol_structures::instructions::RawPointerAddress;
 use crate::types::definition::TypeDefinition;
 
+macro_rules! next_iter {
+    ($iterator:ident) => {
+        match $iterator.next() {
+            Some(instruction) => instruction,
+            None => break,
+        }
+    };
+}
+
+
+macro_rules! intercept_steps {
+    (
+        $iterator:expr,
+        $( $pattern:pat => $body:expr ),+ $(,)?
+    ) => {
+        for step in $iterator {
+            match step {
+                $(
+                    $pattern => $body,
+                )+
+                step => yield step,
+            }
+        }
+    };
+}
+
+macro_rules! intercept_all_steps {
+    (
+        $iterator:expr,
+        $( $pattern:pat => $body:expr ),+ $(,)?
+    ) => {
+        for step in $iterator {
+            match step {
+                $(
+                    $pattern => $body,
+                )+
+            }
+        }
+    };
+}
+
+
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
     pub verbose: bool,
@@ -652,24 +694,26 @@ pub fn execute_loop(
             // get initial value from instruction
             let mut result_value = None;
 
-            for output in get_result_value_from_instruction(
-                context.clone(),
-                instruction,
-                interrupt_provider.clone(),
-            ) {
-                match yield_unwrap!(output) {
-                    ExecutionStep::InternalReturn(result) => {
-                        result_value = result;
-                    }
-                    ExecutionStep::InternalTypeReturn(result) => {
-                        result_value = Some(ValueContainer::from(result));
-                    }
-                    step => {
-                        *interrupt_provider.borrow_mut() =
-                            Some(interrupt!(interrupt_provider, step));
-                    }
+            intercept_all_steps!(
+                get_result_value_from_instruction(
+                    context.clone(),
+                    instruction,
+                    interrupt_provider.clone(),
+                ),
+                Ok(ExecutionStep::InternalReturn(result)) => {
+                    result_value = result;
+                },
+                Ok(ExecutionStep::InternalTypeReturn(result)) => {
+                    context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
+                    // result_value = Some(ValueContainer::from(result));
+                },
+                step => {
+                    let step = yield_unwrap!(step);
+                    *interrupt_provider.borrow_mut() =
+                        Some(interrupt!(interrupt_provider, step));
                 }
-            }
+            );
+
 
             // 1. if value is Some, handle it
             // 2. while pop_next_scope is true: pop current scope and repeat
@@ -707,7 +751,7 @@ pub fn execute_loop(
             // }
 
             // removes the current active value from the scope stack
-            let res = match context.borrow_mut().scope_stack.pop_active_value()
+            let res = match context.borrow_mut().scope_stack.take_active_value()
             {
                 None => ExecutionStep::Return(None),
                 Some(val) => ExecutionStep::Return(Some(val)),
@@ -882,7 +926,7 @@ fn get_result_value_from_instruction(
                 buffer.extend_from_slice(&block.body);
 
                 let maybe_receivers =
-                    context.borrow_mut().scope_stack.pop_active_value();
+                    context.borrow_mut().scope_stack.take_active_value();
 
                 if let Some(receivers) = maybe_receivers {
                     interrupt_with_result!(
@@ -899,7 +943,7 @@ fn get_result_value_from_instruction(
             }
 
             Instruction::CloseAndStore => {
-                let _ = context.borrow_mut().scope_stack.pop_active_value();
+                let _ = context.borrow_mut().scope_stack.take_active_value();
                 None
             }
 
@@ -1127,29 +1171,6 @@ fn get_result_value_from_instruction(
     }
 }
 
-macro_rules! next_iter {
-    ($iterator:ident) => {
-        match $iterator.next() {
-            Some(instruction) => instruction,
-            None => break,
-        }
-    };
-}
-
-
-macro_rules! capture_step {
-    ($iterator:expr, $pattern:pat => $body:expr) => {
-        for step in $iterator {
-            match step {
-                $pattern => $body,
-                step => {
-                    yield step;
-                }
-            }
-        }
-    };
-}
-
 fn get_type_from_instructions(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instructions: Vec<TypeInstruction>,
@@ -1164,7 +1185,7 @@ fn get_type_from_instructions(
                 interrupt_provider.clone(),
                 instruction,
             );
-            capture_step!(
+            intercept_steps!(
                 inner_iterator,
                 Ok(ExecutionStep::NextTypeInstruction) => {
                     let next_instruction = next_iter!(iterator);
@@ -1204,7 +1225,7 @@ fn resolve_type_from_type_instruction(
                     ExecutionStep::NextTypeInstruction
                 );
                 let inner_iterator = resolve_type_from_type_instruction(interrupt_provider, next);
-                capture_step!(
+                intercept_steps!(
                     inner_iterator,
                     Ok(ExecutionStep::InternalTypeReturn(base_type)) => {
                         yield Ok(ExecutionStep::InternalTypeReturn(
@@ -1254,13 +1275,21 @@ fn resolve_type_from_type_instruction(
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(
     context: &mut RuntimeExecutionContext,
-    value_container: ValueContainer,
+    mut value_container: ValueContainer,
 ) -> Result<(), ExecutionError> {
+    let active_type = context.scope_stack.take_active_type();
     let scope_container = context.scope_stack.get_current_scope_mut();
 
-    // cast to active type
-    if let Some(active_value) = &scope_container.active_value {
-        // info!("casting, {:#?} to {:#?}", value_container, active_value);
+    // cast to active type if exists
+    if let Some(active_type) = active_type {
+        info!("casting, {:#?} to {:#?}", value_container, scope_container.active_type);
+        match &mut value_container {
+            ValueContainer::Value(value) => {
+                // FIXME: only using type definition here, refactor and/or add checks
+                value.actual_type = Box::new(active_type.type_definition);
+            }
+            _ => panic!("Expected ValueContainer::Value for type casting"),
+        }
     }
 
     let result_value = match &mut scope_container.scope {
