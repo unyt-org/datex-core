@@ -1,4 +1,5 @@
 use core::prelude::rust_2024::*;
+use binrw::{BinRead, BinWrite};
 use num_enum::TryFromPrimitive;
 use strum::Display;
 use datex_core::references::reference::ReferenceMutability;
@@ -85,7 +86,8 @@ impl From<&TypeDefinition> for TypeSpaceInstructionCode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little, repr(u8))]
 pub enum TypeMutabilityCode {
     MutableReference,
     ImmutableReference,
@@ -98,6 +100,16 @@ impl From<&Option<ReferenceMutability>> for TypeMutabilityCode {
             Some(ReferenceMutability::Mutable) => TypeMutabilityCode::MutableReference,
             Some(ReferenceMutability::Immutable) => TypeMutabilityCode::ImmutableReference,
             None => TypeMutabilityCode::Value,
+        }
+    }
+}
+
+impl From<TypeMutabilityCode> for Option<ReferenceMutability> {
+    fn from(value: TypeMutabilityCode) -> Self {
+        match value {
+            TypeMutabilityCode::MutableReference => Some(ReferenceMutability::Mutable),
+            TypeMutabilityCode::ImmutableReference => Some(ReferenceMutability::Immutable),
+            TypeMutabilityCode::Value => None,
         }
     }
 }

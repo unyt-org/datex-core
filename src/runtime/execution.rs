@@ -20,7 +20,7 @@ use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::network::com_hub::ResponseError;
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
-use crate::references::reference::Reference;
+use crate::references::reference::{Reference, ReferenceMutability};
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution_context::RemoteExecutionContext;
@@ -56,6 +56,8 @@ use core::writeln;
 use itertools::Itertools;
 use log::info;
 use num_enum::TryFromPrimitive;
+use datex_core::global::protocol_structures::instructions::RawPointerAddress;
+use crate::types::definition::TypeDefinition;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -455,6 +457,7 @@ pub enum ExecutionError {
     ReferenceNotFound,
     DerefOfNonReference,
     InvalidTypeCast,
+    ExpectedTypeValue,
     AssignmentError(AssignmentError),
     ReferenceFromValueContainerError(ReferenceCreationError),
 }
@@ -557,6 +560,9 @@ impl Display for ExecutionError {
             ExecutionError::InvalidTypeCast => {
                 core::write!(f, "Invalid type cast")
             }
+            ExecutionError::ExpectedTypeValue => {
+                core::write!(f, "Expected a type value")
+            }
         }
     }
 }
@@ -564,7 +570,7 @@ impl Display for ExecutionError {
 #[derive(Debug)]
 pub enum ExecutionStep {
     InternalReturn(Option<ValueContainer>),
-    InternalTypeReturn(Option<Type>),
+    InternalTypeReturn(Type),
     Return(Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
@@ -572,11 +578,13 @@ pub enum ExecutionStep {
     GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
+    NextTypeInstruction,
 }
 
 #[derive(Debug)]
 pub enum InterruptProvider {
     Result(Option<ValueContainer>),
+    NextTypeInstruction(TypeInstruction),
 }
 
 #[macro_export]
@@ -594,6 +602,19 @@ macro_rules! interrupt_with_result {
         let res = $input.take().unwrap();
         match res {
             InterruptProvider::Result(value) => value,
+            _ => unreachable!(),
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! interrupt_with_next_type_instruction {
+    ($input:expr, $arg:expr) => {{
+        yield Ok($arg);
+        let res = $input.take().unwrap();
+        match res {
+            InterruptProvider::NextTypeInstruction(value) => value,
+            _ => unreachable!(),
         }
     }};
 }
@@ -641,7 +662,7 @@ pub fn execute_loop(
                         result_value = result;
                     }
                     ExecutionStep::InternalTypeReturn(result) => {
-                        result_value = result.map(ValueContainer::from);
+                        result_value = Some(ValueContainer::from(result));
                     }
                     step => {
                         *interrupt_provider.borrow_mut() =
@@ -1079,7 +1100,7 @@ fn get_result_value_from_instruction(
 
             Instruction::TypeInstructions(instructions) => {
                 for output in
-                    iterate_type_instructions(interrupt_provider, instructions)
+                    get_type_from_instructions(interrupt_provider, instructions)
                 {
                     // TODO #403: handle type here
                     yield output;
@@ -1090,7 +1111,7 @@ fn get_result_value_from_instruction(
             // type(...)
             Instruction::TypeExpression(instructions) => {
                 for output in
-                    iterate_type_instructions(interrupt_provider, instructions)
+                    get_type_from_instructions(interrupt_provider, instructions)
                 {
                     yield output;
                 }
@@ -1106,30 +1127,129 @@ fn get_result_value_from_instruction(
     }
 }
 
-fn iterate_type_instructions(
+macro_rules! next_iter {
+    ($iterator:ident) => {
+        match $iterator.next() {
+            Some(instruction) => instruction,
+            None => break,
+        }
+    };
+}
+
+
+macro_rules! capture_step {
+    ($iterator:expr, $pattern:pat => $body:expr) => {
+        for step in $iterator {
+            match step {
+                $pattern => $body,
+                step => {
+                    yield step;
+                }
+            }
+        }
+    };
+}
+
+fn get_type_from_instructions(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instructions: Vec<TypeInstruction>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+
     gen move {
-        for instruction in instructions {
-            match instruction {
-                // TODO #404: Implement type instructions iteration
-                TypeInstruction::ListStart => {
-                    interrupt_with_result!(
-                        interrupt_provider,
-                        ExecutionStep::Pause
+
+        let mut iterator = instructions.into_iter();
+
+        while let Some(instruction) = iterator.next() {
+            let inner_iterator = resolve_type_from_type_instruction(
+                interrupt_provider.clone(),
+                instruction,
+            );
+            capture_step!(
+                inner_iterator,
+                Ok(ExecutionStep::NextTypeInstruction) => {
+                    let next_instruction = next_iter!(iterator);
+                    interrupt_provider.borrow_mut().replace(
+                        InterruptProvider::NextTypeInstruction(
+                            next_instruction,
+                        ),
                     );
                 }
-                TypeInstruction::LiteralInteger(integer) => {
-                    yield Ok(ExecutionStep::InternalTypeReturn(Some(
-                        Type::structural(integer.0),
-                    )));
-                }
-                _ => core::todo!("#405 Undescribed by author."),
-            }
+            )
         }
     }
 }
+
+fn resolve_type_from_type_instruction(
+    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    instruction: TypeInstruction,
+) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
+    Box::new(gen move {
+        match instruction {
+            // TODO #404: Implement type instructions iteration
+            TypeInstruction::ListStart => {
+                interrupt_with_result!(
+                    interrupt_provider,
+                    ExecutionStep::Pause
+                );
+            }
+            TypeInstruction::LiteralInteger(integer) => {
+                yield Ok(ExecutionStep::InternalTypeReturn(
+                    Type::structural(integer.0),
+                ));
+            }
+            TypeInstruction::ImplType(impl_type_data) => {
+                let mutability: Option<ReferenceMutability> = impl_type_data.metadata.mutability.into();
+                let next = interrupt_with_next_type_instruction!(
+                    interrupt_provider,
+                    ExecutionStep::NextTypeInstruction
+                );
+                let inner_iterator = resolve_type_from_type_instruction(interrupt_provider, next);
+                capture_step!(
+                    inner_iterator,
+                    Ok(ExecutionStep::InternalTypeReturn(base_type)) => {
+                        yield Ok(ExecutionStep::InternalTypeReturn(
+                            Type::new(TypeDefinition::ImplType(Box::new(base_type), impl_type_data.impls.iter().map(PointerAddress::from).collect()), mutability.clone()))
+                        );
+                    }
+                );
+            }
+            TypeInstruction::TypeReference(type_ref) => {
+                let metadata = type_ref.metadata;
+                let val = interrupt_with_result!(
+                        interrupt_provider,
+                        match type_ref.address {
+                            RawPointerAddress::Local(address) => {
+                                ExecutionStep::ResolveLocalPointer(address)
+                            }
+                            RawPointerAddress::Internal(address) => {
+                                ExecutionStep::ResolveInternalPointer(address)
+                            }
+                            RawPointerAddress::Full(address) => {
+                                ExecutionStep::ResolvePointer(address)
+                            }
+                        }
+                    );
+
+                match val {
+                    // simple Type value
+                    Some(ValueContainer::Value(Value {inner: CoreValue::Type(ty), ..})) => {
+                        yield Ok(ExecutionStep::InternalTypeReturn(ty));
+                    }
+                    // Type Reference
+                    Some(ValueContainer::Reference(Reference::TypeReference(type_ref))) => {
+                        yield Ok(ExecutionStep::InternalTypeReturn(Type::new(TypeDefinition::Reference(type_ref), metadata.mutability.into())));
+                    }
+                    _ => {
+                        return yield Err(ExecutionError::ExpectedTypeValue);
+                    }
+                }
+
+            }
+            _ => core::todo!("#405 Undescribed by author."),
+        }
+    })
+}
+
 
 /// Takes a produced value and handles it according to the current scope
 fn handle_value(

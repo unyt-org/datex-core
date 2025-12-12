@@ -275,7 +275,7 @@ mod tests {
     fn test_instruction_code_values() {
         // print a list of all instruction codes and their values for debugging purposes
         for code in InstructionCode::iter() {
-            println!("{:?} = {}", code, code as u8);
+            println!("{:?} = {:2X}", code, code as u8);
         }
     }
 }

@@ -64,7 +64,7 @@ impl Display for DXBParserError {
                 core::write!(f, "Failed to read instruction code")
             }
             DXBParserError::InvalidInstructionCode(code) => {
-                core::write!(f, "Encountered an invalid instruction code: {code}")
+                core::write!(f, "Encountered an invalid instruction code: {:2X}", code)
             }
             DXBParserError::FmtError(err) => {
                 core::write!(f, "Formatting error: {err}")
@@ -558,7 +558,11 @@ fn iterate_type_space_instructions(
     core::iter::from_coroutine(
         #[coroutine]
         move || {
+
+            let mut next_iterations = 1;
+
             loop {
+                next_iterations -= 1;
                 // if cursor is at the end, break
 
                 if reader.position() as usize >= len {
@@ -601,6 +605,7 @@ fn iterate_type_space_instructions(
                         if let Err(err) = impl_data {
                             Err(err.into())
                         } else {
+                            next_iterations += 1;
                             Ok(TypeInstruction::ImplType(impl_data.unwrap()))
                         }
                     }
@@ -615,6 +620,10 @@ fn iterate_type_space_instructions(
                         }
                     }
                     _ => core::todo!("#426 Undescribed by author."),
+                };
+
+                if next_iterations == 0 {
+                    break;
                 }
             }
         },
