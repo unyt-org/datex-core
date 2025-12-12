@@ -134,7 +134,9 @@ impl Memory {
         raw_address: RawFullPointerAddress,
     ) -> PointerAddress {
         if raw_address.endpoint == self.local_endpoint {
-            PointerAddress::Local(raw_address.id)
+            // TODO: check if it makes sense to take the last 5 bytes only here
+            let last_bytes = &raw_address.id[raw_address.id.len() - 5..];
+            PointerAddress::Local(last_bytes.try_into().unwrap())
         } else {
             // combine raw_address.endpoint and raw_address.id to [u8; 26]
             let writer = Cursor::new(Vec::new());

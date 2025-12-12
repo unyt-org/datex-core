@@ -434,7 +434,7 @@ pub struct SlotAddress(pub u32);
 #[brw(little)]
 pub struct RawFullPointerAddress {
     pub endpoint: Endpoint,
-    pub id: [u8; 5],
+    pub id: [u8; 26],
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
@@ -453,17 +453,11 @@ pub struct RawInternalPointerAddress {
 #[brw(little)]
 pub enum RawPointerAddress {
     #[br(magic = 120u8)] // InstructionCode::GET_REF
-    Full {
-        address: RawFullPointerAddress,
-    },
+    Full(RawFullPointerAddress),
     #[br(magic = 121u8)] // InstructionCode::GET_INTERNAL_REF
-    Internal {
-        address: RawInternalPointerAddress,
-    },
+    Internal(RawInternalPointerAddress),
     #[br(magic = 122u8)] // InstructionCode::GET_LOCAL_REF
-    Local {
-        address: RawLocalPointerAddress,
-    },
+    Local(RawLocalPointerAddress),
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
@@ -511,5 +505,5 @@ pub struct TypeReferenceData {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct TypeMetadata {
-    pub mutability: u8, // TODO - Note: using TypeMutabilityCode here leads to rustc to get stuck?
+    pub mutability: TypeMutabilityCode, // TODO - Note: using TypeMutabilityCode here leads to rustc to get stuck?
 }

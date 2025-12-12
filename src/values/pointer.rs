@@ -4,6 +4,7 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use serde::{Deserialize, Serialize};
+use crate::global::protocol_structures::instructions::RawPointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
@@ -47,6 +48,22 @@ impl TryFrom<&str> for PointerAddress {
                 Ok(PointerAddress::Internal(arr))
             }
             _ => Err("PointerAddress must be 5, 26 or 3 bytes long"),
+        }
+    }
+}
+
+impl From<&RawPointerAddress> for PointerAddress {
+    fn from(raw: &RawPointerAddress) -> Self {
+        match raw {
+            RawPointerAddress::Local(bytes) => {
+                PointerAddress::Local(bytes.id)
+            }
+            RawPointerAddress::Internal(bytes) => {
+                PointerAddress::Internal(bytes.id)
+            }
+            RawPointerAddress::Full(bytes) => {
+                PointerAddress::Remote(bytes.id)
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
+use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -33,6 +34,7 @@ pub struct Type {
     pub base_type: Option<Rc<RefCell<TypeReference>>>,
     pub reference_mutability: Option<ReferenceMutability>,
 }
+
 
 // x: &User; Type {reference: }
 
@@ -196,6 +198,20 @@ impl Type {
     ) -> Self {
         Type {
             type_definition: TypeDefinition::function(parameters, return_type),
+            base_type: None,
+            reference_mutability: None,
+        }
+    }
+
+    pub fn impl_type(
+        base_type: impl Into<Type>,
+        impl_types: Vec<PointerAddress>,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::impl_type(
+                base_type,
+                impl_types,
+            ),
             base_type: None,
             reference_mutability: None,
         }
