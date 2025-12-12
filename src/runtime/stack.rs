@@ -7,6 +7,7 @@ use crate::runtime::execution::InvalidProgramError;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
+use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
@@ -15,6 +16,7 @@ use core::writeln;
 #[derive(Debug, Clone, Default)]
 pub struct ScopeContainer {
     pub active_value: Option<ValueContainer>,
+    pub active_type: Option<Type>,
     pub scope: Scope,
 }
 
@@ -56,6 +58,7 @@ impl ScopeContainer {
     pub fn new(scope: Scope) -> Self {
         ScopeContainer {
             active_value: None,
+            active_type: None,
             scope,
         }
     }
@@ -115,10 +118,16 @@ impl ScopeStack {
         Ok(scope.active_value.take())
     }
 
-    /// Pops the active value from the current scope, without popping the scope itself.
-    pub fn pop_active_value(&mut self) -> Option<ValueContainer> {
+    /// Takes the active value from the current scope, without popping the scope.
+    pub fn take_active_value(&mut self) -> Option<ValueContainer> {
         let scope = self.get_current_scope_mut();
         scope.active_value.take()
+    }
+    
+    /// Takes the active type from the current scope, without popping the scope.
+    pub fn take_active_type(&mut self) -> Option<Type> {
+        let scope = self.get_current_scope_mut();
+        scope.active_type.take()
     }
 
     /// Adds a new scope to the stack.
@@ -134,6 +143,7 @@ impl ScopeStack {
     ) {
         self.stack.push(ScopeContainer {
             active_value: Some(active_value),
+            active_type: None,
             scope,
         });
     }
