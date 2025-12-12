@@ -288,24 +288,27 @@ impl ComInterface for MockupInterface {
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // FIXME #219 this should be inside the async body, why is it not working?
-        let is_hello = {
-            match DXBBlock::from_bytes(block) {
-                Ok(block) => {
-                    block.block_header.flags_and_timestamp.block_type()
-                        == BlockType::Hello
+        Pin::from(Box::new(async move {
+            let is_hello = {
+                match DXBBlock::from_bytes(block) {
+                    Ok(block) => {
+                        block.block_header.flags_and_timestamp.block_type()
+                            == BlockType::Hello
+                    }
+                    _ => false,
                 }
-                _ => false,
+            };
+            if !is_hello {
+                self.outgoing_queue.push((socket_uuid, block.to_vec()));
             }
-        };
-        if !is_hello {
-            self.outgoing_queue.push((socket_uuid, block.to_vec()));
-        }
-        if let Some(sender) = &self.sender {
-            if sender.send(block.to_vec()).is_err() {
-                return Pin::from(Box::new(async move { false }));
+            let mut result: bool = true;
+            if let Some(sender) = &self.sender {
+                if sender.send(block.to_vec()).is_err() {
+                    result = false;
+                }
             }
-        }
-        Pin::from(Box::new(async move { true }))
+            result
+        }))
     }
 
     fn init_properties(&self) -> InterfaceProperties {
