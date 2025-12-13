@@ -16,7 +16,7 @@ pub use execution_input::ExecutionOptions;
 pub use execution_input::ExecutionInput;
 pub use errors::*;
 pub use memory_dump::*;
-use crate::runtime::execution::execution_loop::{execute_loop, ExecutionStep, InterruptProvider};
+use crate::runtime::execution::execution_loop::{execute_loop, ExecutionStep, ExternalExecutionStep, InterruptProvider};
 
 mod stack;
 pub mod macros;
@@ -37,15 +37,15 @@ pub fn execute_dxb_sync(
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Result(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(address) => {
+            ExternalExecutionStep::Result(result) => return Ok(result),
+            ExternalExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
-            ExecutionStep::ResolveLocalPointer(address) => {
+            ExternalExecutionStep::ResolveLocalPointer(address) => {
                 // TODO #401: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
@@ -53,13 +53,13 @@ pub fn execute_dxb_sync(
                         address,
                     )?));
             }
-            ExecutionStep::ResolveInternalPointer(address) => {
+            ExternalExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
-            ExecutionStep::GetSlotValue(slot) => {
+            ExternalExecutionStep::GetInternalSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
@@ -82,15 +82,15 @@ pub async fn execute_dxb(
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Result(result) => return Ok(result),
-            ExecutionStep::ResolvePointer(address) => {
+            ExternalExecutionStep::Result(result) => return Ok(result),
+            ExternalExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
-            ExecutionStep::ResolveLocalPointer(address) => {
+            ExternalExecutionStep::ResolveLocalPointer(address) => {
                 // TODO #402: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
@@ -98,13 +98,13 @@ pub async fn execute_dxb(
                         address,
                     )?));
             }
-            ExecutionStep::ResolveInternalPointer(address) => {
+            ExternalExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
-            ExecutionStep::RemoteExecution(receivers, body) => {
+            ExternalExecutionStep::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
                     // TODO #230: support advanced receivers
@@ -127,7 +127,7 @@ pub async fn execute_dxb(
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
-            ExecutionStep::GetSlotValue(slot) => {
+            ExternalExecutionStep::GetInternalSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
