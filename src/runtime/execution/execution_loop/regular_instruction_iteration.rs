@@ -2,7 +2,6 @@ use core::cell::RefCell;
 use datex_core::global::protocol_structures::instructions::RegularInstruction;
 use datex_core::runtime::execution::macros::interrupt_with_value;
 use datex_core::values::core_value::CoreValue;
-use datex_core::values::value_container::ValueError;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, BitwiseUnaryOperator, ComparisonOperator, ReferenceUnaryOperator, UnaryOperator};
@@ -10,19 +9,16 @@ use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, F
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::execution_loop::{ExecutionStep, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::runtime::execution::context::ExecutionContext;
 use crate::runtime::execution::execution_loop::operations::{handle_assignment_operation, handle_binary_operation, handle_unary_operation};
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::execution_loop::type_instruction_iteration::get_next_type;
-use crate::runtime::execution::macros::{intercept_step, interrupt_with_maybe_value, yield_unwrap};
-use crate::runtime::execution::stack::Scope;
+use crate::runtime::execution::macros::{intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap};
 use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::list::List;
-use crate::values::core_values::map::Map;
+use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
@@ -34,7 +30,9 @@ macro_rules! interrupt_with_next_regular_instruction {
         let res = $input.take().unwrap();
         match res {
             InterruptProvider::NextRegularInstruction(value) => value,
-            _ => return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedRegularInstruction));
+            _ => {
+                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedRegularInstruction))
+            }
         }
     }};
 }
@@ -105,7 +103,6 @@ macro_rules! get_next_key_value_pair {
 pub(crate) fn next_regular_instruction_iteration(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: RegularInstruction,
-    state: Rc<RefCell<RuntimeExecutionState>>,
 ) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
     Box::new(gen move {
         yield Ok(ExecutionStep::ValueReturn(match instruction {
@@ -198,7 +195,7 @@ pub(crate) fn next_regular_instruction_iteration(
                     &lhs,
                     &rhs,
                 );
-                Ok(yield_unwrap!(res))
+                yield_unwrap!(res)
             }
 
             // unary operations
@@ -208,10 +205,12 @@ pub(crate) fn next_regular_instruction_iteration(
             | RegularInstruction::UnaryMinus
             | RegularInstruction::BitwiseNot => {
                 let value = get_next_value!(interrupt_provider);
-                Ok(yield_unwrap!(handle_unary_operation(
-                    UnaryOperator::from(instruction),
-                    value,
-                )))
+                Some(
+                    yield_unwrap!(handle_unary_operation(
+                        UnaryOperator::from(instruction),
+                        value,
+                    ))
+                )
             }
 
             RegularInstruction::RemoteExecution(exec_block_data) => {
@@ -224,17 +223,23 @@ pub(crate) fn next_regular_instruction_iteration(
                     buffer.push(InstructionCode::ALLOCATE_SLOT as u8);
                     append_u32(&mut buffer, addr as u32);
 
-                    if let Some(vc) = yield_unwrap!(
-                        state.borrow().get_slot_value(local_slot).map_err(
-                            |_| ExecutionError::SlotNotAllocated(local_slot),
-                        )
-                    ) {
-                        buffer.extend_from_slice(&compile_value_container(&vc));
-                    } else {
-                        return yield Err(ExecutionError::SlotNotInitialized(
-                            local_slot,
-                        ));
-                    }
+                    let slot_value = interrupt_with_value!(
+                        interrupt_provider,
+                        ExecutionStep::GetSlotValue(local_slot)
+                    );
+                    buffer.extend_from_slice(&compile_value_container(&slot_value));
+
+                    // if let Some(vc) = yield_unwrap!(
+                    //     state.borrow().get_slot_value(local_slot).map_err(
+                    //         |_| ExecutionError::SlotNotAllocated(local_slot),
+                    //     )
+                    // ) {
+                    //     buffer.extend_from_slice(&compile_value_container(&vc));
+                    // } else {
+                    //     return yield Err(ExecutionError::SlotNotInitialized(
+                    //         local_slot,
+                    //     ));
+                    // }
                 }
                 buffer.extend_from_slice(&exec_block_data.body);
 
@@ -290,54 +295,42 @@ pub(crate) fn next_regular_instruction_iteration(
 
             RegularInstruction::KeyValueShortText(ShortTextData(key)) => {
                 return yield Ok(ExecutionStep::KeyValuePairReturn((
-                    key.into(),
+                    OwnedMapKey::Text(key),
                     get_next_value!(interrupt_provider),
                 )));
             }
 
             RegularInstruction::KeyValueDynamic => {
                 return yield Ok(ExecutionStep::KeyValuePairReturn((
-                    get_next_value!(interrupt_provider).into(),
+                    OwnedMapKey::Value(get_next_value!(interrupt_provider)),
                     get_next_value!(interrupt_provider),
                 )));
             }
 
             // slots
             RegularInstruction::AllocateSlot(SlotAddress(address)) => {
-                let mut context = state.borrow_mut();
-                context.allocate_slot(address, None);
-                context
-                    .scope_stack
-                    .create_scope(Scope::SlotAssignment { address });
-                None
+                let value = get_next_value!(interrupt_provider);
+                interrupt!(
+                    interrupt_provider,
+                    ExecutionStep::AllocateSlot(address, value.clone())
+                );
+                Some(value)
             }
             RegularInstruction::GetSlot(SlotAddress(address)) => {
-                // if address is >= 0xffffff00, resolve internal slot
-                if address >= 0xffffff00 {
-                    interrupt_with_maybe_value!(
+                Some(
+                    interrupt_with_value!(
                         interrupt_provider,
-                        ExecutionStep::GetInternalSlot(address)
+                        ExecutionStep::GetSlotValue(address)
                     )
-                }
-                // else handle normal slot
-                else {
-                    let res = state.borrow_mut().get_slot_value(address);
-                    // get value from slot
-                    let slot_value = yield_unwrap!(res);
-                    if slot_value.is_none() {
-                        return yield Err(ExecutionError::SlotNotInitialized(
-                            address,
-                        ));
-                    }
-                    slot_value
-                }
+                )
             }
             RegularInstruction::SetSlot(SlotAddress(address)) => {
-                state
-                    .borrow_mut()
-                    .scope_stack
-                    .create_scope(Scope::SlotAssignment { address });
-                None
+                let value = get_next_value!(interrupt_provider);
+                interrupt!(
+                    interrupt_provider,
+                    ExecutionStep::SetSlotValue(address, value.clone())
+                );
+                Some(value)
             }
 
             RegularInstruction::AssignToReference(operator) => {
@@ -347,12 +340,14 @@ pub(crate) fn next_regular_instruction_iteration(
                 // assignment value must be a reference
                 if let Some(reference) = reference.maybe_reference() {
                     let lhs = reference.value_container();
-                    let res = handle_assignment_operation(
-                        operator,
-                        lhs,
-                        value_container,
-                    )?;
-                    reference.set_value_container(res)?;
+                    let res = yield_unwrap!(
+                        handle_assignment_operation(
+                            operator,
+                            lhs,
+                            value_container,
+                        )
+                    );
+                    yield_unwrap!(reference.set_value_container(res));
                     Some(lhs)
                 } else {
                     return yield Err(ExecutionError::DerefOfNonReference);
@@ -395,7 +390,7 @@ pub(crate) fn next_regular_instruction_iteration(
             | RegularInstruction::SubtractAssign(SlotAddress(address)) => {
                 let slot_value = interrupt_with_value!(
                     interrupt_provider,
-                    ExecutionStep::GetInternalSlot(address)
+                    ExecutionStep::GetSlotValue(address)
                 );
                 let value = get_next_value!(interrupt_provider);
 
@@ -405,17 +400,19 @@ pub(crate) fn next_regular_instruction_iteration(
                     value,
                 ));
                 // set slot value
-                let res = state
-                    .borrow_mut()
-                    .set_slot_value(address, new_val.clone());
+                interrupt!(
+                    interrupt_provider,
+                    ExecutionStep::SetSlotValue(address, new_val.clone())
+                );
                 // return assigned value
                 Some(new_val)
             }
 
             RegularInstruction::DropSlot(SlotAddress(address)) => {
-                // remove slot from slots
-                let res = state.borrow_mut().drop_slot(address);
-                yield_unwrap!(res);
+                interrupt!(
+                    interrupt_provider,
+                    ExecutionStep::DropSlot(address)
+                );
                 None
             }
 
@@ -431,7 +428,7 @@ pub(crate) fn next_regular_instruction_iteration(
                 }
                 Some(value_container)
             }
-            
+
             // type(...)
             RegularInstruction::TypeExpression => {
                 let ty = get_next_type!(interrupt_provider);

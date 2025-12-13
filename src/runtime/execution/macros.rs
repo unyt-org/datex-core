@@ -37,22 +37,13 @@ macro_rules! intercept_step {
     (
         $iterator:expr,
         $( $pattern:pat => $body:expr ),+ $(,)?
-    ) => {
-        // for step in $iterator {
-        //     match step {
-        //         $(
-        //             $pattern => {break $body},
-        //         )+
-        //         step => yield step,
-        //     }
-        // }
-        
+    ) => {        
         loop {
             let step = $iterator.next();
             if let Some(step) = step  {
                 match step {
                     $(
-                        Some($pattern) => break Some($body),
+                        $pattern => break Some($body),
                     )+
                     step => yield step,
                 }
@@ -116,7 +107,7 @@ macro_rules! interrupt_with_value {
         if let Some(value) = maybe_value {
             value
         } else {
-            unreachable!(),
+            unreachable!();
         }
     }};
 }
