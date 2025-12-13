@@ -4,39 +4,13 @@ use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeIn
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::{ExecutionStep, ExternalExecutionStep, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::runtime::execution::macros::{intercept_step, intercept_steps, interrupt_with_maybe_value, next_iter};
+use crate::runtime::execution::macros::{intercept_step, interrupt_with_maybe_value, next_iter};
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-
-#[deprecated]
-pub fn get_type_from_instructions(
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
-    mut iterator: impl Iterator<Item = TypeInstruction>,
-) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
-    gen move {
-        while let Some(instruction) = iterator.next() {
-            let inner_iterator = next_type_instruction_iteration(
-                interrupt_provider.clone(),
-                instruction,
-            );
-            intercept_steps!(
-                inner_iterator,
-                Ok(ExecutionStep::GetNextTypeInstruction) => {
-                    let next_instruction = next_iter!(iterator);
-                    interrupt_provider.borrow_mut().replace(
-                        InterruptProvider::NextTypeInstruction(
-                            next_instruction,
-                        ),
-                    );
-                }
-            )
-        }
-    }
-}
 
 /// Yield an interrupt and get the next type instruction,
 /// expecting the next input to be a NextTypeInstruction variant
@@ -60,14 +34,15 @@ macro_rules! get_next_type {
     ($interrupt_provider:expr) => {{
         use crate::runtime::execution::execution_loop::type_instruction_iteration::next_type_instruction_iteration;
         use crate::runtime::execution::execution_loop::type_instruction_iteration::interrupt_with_next_type_instruction;
+        use crate::runtime::execution::macros::intercept_step;
+
         use crate::runtime::execution::execution_loop::ExecutionStep;
         use crate::runtime::execution::errors::ExecutionError;
         use crate::runtime::execution::errors::InvalidProgramError;
-        use crate::runtime::execution::execution_loop::ExecutionStep::GetNextTypeInstruction;
 
         let next = interrupt_with_next_type_instruction!(
             $interrupt_provider,
-            GetNextTypeInstruction
+            ExecutionStep::GetNextTypeInstruction
         );
         let mut inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
         let maybe_type = intercept_step!(

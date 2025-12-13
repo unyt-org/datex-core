@@ -16,7 +16,7 @@ use crate::parser::body;
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::execution_loop::type_instruction_iteration::{get_type_from_instructions, next_type_instruction_iteration};
+use crate::runtime::execution::execution_loop::type_instruction_iteration::{next_type_instruction_iteration};
 use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
 use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
