@@ -4,6 +4,7 @@ use crate::stdlib::sync::atomic::{AtomicU64, Ordering};
 use core::prelude::rust_2024::*;
 use openssl::{
     aes::{AesKey, unwrap_key, wrap_key},
+    base64,
     derive::Deriver,
     md::Md,
     pkey::{Id, PKey},
@@ -30,6 +31,36 @@ fn generate_pseudo_uuid() -> String {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CryptoNative;
+
+impl CryptoNative {
+    fn hash_make_base64<'a>(
+        &'a self,
+        hash: &'a [u8; 32],
+    ) -> Result<String, CryptoError> {
+        let fingerprint = base64::encode_block(hash);
+        if fingerprint.len() != 44 {
+            Err(CryptoError::Encryption)
+        } else {
+            Ok(fingerprint)
+        }
+    }
+
+    fn hash_from_base64<'a>(
+        &'a self,
+        fp: &'a str,
+    ) -> Result<[u8; 32], CryptoError> {
+        if fp.len() != 44_usize {
+            Err(CryptoError::Decryption)
+        } else {
+            let base = base64::decode_block(fp)
+                .map_err(|_| CryptoError::Decryption)?;
+            let array: [u8; 32] =
+                base.try_into().map_err(|_| CryptoError::Decryption)?;
+            Ok(array)
+        }
+    }
+}
+
 impl CryptoTrait for CryptoNative {
     fn create_uuid(&self) -> String {
         // use pseudo-random UUID for testing
@@ -52,6 +83,32 @@ impl CryptoTrait for CryptoNative {
     fn random_bytes(&self, length: usize) -> Vec<u8> {
         let mut rng = rand::thread_rng();
         (0..length).map(|_| rng.r#gen()).collect()
+    }
+
+    fn hash_make_hex<'a>(
+        &'a self,
+        hash: &'a [u8; 32],
+    ) -> Result<String, CryptoError> {
+        let fingerprint = hex::encode(hash);
+        if fingerprint.len() != 64 {
+            Err(CryptoError::Encryption)
+        } else {
+            Ok(fingerprint)
+        }
+    }
+
+    fn hash_from_hex<'a>(
+        &'a self,
+        fp: &'a str,
+    ) -> Result<[u8; 32], CryptoError> {
+        if fp.len() != 64_usize {
+            Err(CryptoError::Decryption)
+        } else {
+            let base = hex::decode(fp).map_err(|_| CryptoError::Decryption)?;
+            let array: [u8; 32] =
+                base.try_into().map_err(|_| CryptoError::Decryption)?;
+            Ok(array)
+        }
     }
 
     fn hash_sha256<'a>(
@@ -441,5 +498,61 @@ mod tests {
             assert_ne!(data, cipher);
             assert_eq!(plain, data);
         }
+    }
+
+    #[tokio::test]
+    pub async fn base64_fingerprint() {
+        let random_bytes = CRYPTO.random_bytes(32_usize);
+        let hash = CRYPTO.hash_sha256(&random_bytes).await.unwrap();
+
+        let base64_string = CRYPTO.hash_make_base64(&hash).unwrap();
+        let hash_from_base64 = CRYPTO.hash_from_base64(&base64_string).unwrap();
+        assert_eq!(hash, hash_from_base64);
+
+        let mut some_base64 = [0u8; 32];
+        some_base64[0] = 16u8;
+        some_base64[31] = 255u8;
+        assert_eq!(
+            String::from("EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8="),
+            CRYPTO.hash_make_base64(&some_base64).unwrap()
+        );
+
+        assert!(
+            CRYPTO
+                .hash_from_base64(&String::from(
+                    "0EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8="
+                ))
+                .is_err()
+        );
+        assert!(
+            CRYPTO
+                .hash_from_base64(&String::from(
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8="
+                ))
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    pub async fn hex_fingerprint() {
+        let random_bytes = CRYPTO.random_bytes(32_usize);
+        let hash = CRYPTO.hash_sha256(&random_bytes).await.unwrap();
+
+        let hex_string = CRYPTO.hash_make_hex(&hash).unwrap();
+        let hash_from_hex = CRYPTO.hash_from_hex(&hex_string).unwrap();
+        assert_eq!(hash, hash_from_hex);
+
+        let mut some_hex = [0u8; 32];
+        some_hex[0] = 16u8;
+        some_hex[31] = 255u8;
+        assert_eq!(
+            String::from(
+                "10000000000000000000000000000000000000000000000000000000000000ff"
+            ),
+            CRYPTO.hash_make_hex(&some_hex).unwrap()
+        );
+
+        assert!(CRYPTO.hash_from_hex(&String::from("10000000000000000000000000000000000000000000000000000000000000ff0")).is_err());
+        assert!(CRYPTO.hash_from_hex(&String::from("10000000000000000000000000000000000000000000000000000000000000f")).is_err());
     }
 }

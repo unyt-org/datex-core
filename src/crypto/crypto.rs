@@ -15,6 +15,17 @@ pub trait CryptoTrait: Send + Sync {
     /// Generates cryptographically secure random bytes of the specified length.
     fn random_bytes(&self, length: usize) -> Vec<u8>;
 
+    /// Returns representation of 32bytes (64 character string)
+    fn hash_make_hex<'a>(
+        &'a self,
+        hash: &'a [u8; 32],
+    ) -> Result<String, CryptoError>;
+    /// Expexts a 64 character string hex representation of 32 bytes and returns them
+    fn hash_from_hex<'a>(
+        &'a self,
+        fp: &'a str,
+    ) -> Result<[u8; 32], CryptoError>;
+
     /// Sha256 hash
     fn hash_sha256<'a>(
         &'a self,
