@@ -4,18 +4,6 @@ use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
 use crate::references::reference::{Reference};
 use crate::runtime::RuntimeInternal;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::string::ToString;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
-use crate::traits::apply::Apply;
-use crate::traits::identity::Identity;
-use crate::traits::structural_eq::StructuralEq;
-use crate::traits::value_eq::ValueEq;
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::decimal::Decimal;
-use crate::values::core_values::integer::Integer;
-use crate::values::core_values::list::List;
-use crate::values::core_values::map::Map;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::{ValueContainer};
 use core::cell::RefCell;
@@ -233,6 +221,18 @@ mod tests {
     use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use log::{debug, info};
     use crate::runtime::execution::execution_input::ExecutionOptions;
+    use crate::stdlib::string::ToString;
+    use crate::stdlib::vec;
+    use crate::stdlib::vec::Vec;
+    use crate::traits::apply::Apply;
+    use crate::traits::identity::Identity;
+    use crate::traits::structural_eq::StructuralEq;
+    use crate::traits::value_eq::ValueEq;
+    use crate::values::core_value::CoreValue;
+    use crate::values::core_values::decimal::Decimal;
+    use crate::values::core_values::integer::Integer;
+    use crate::values::core_values::list::List;
+    use crate::values::core_values::map::Map;
 
     fn execute_datex_script_debug(
         datex_script: &str,
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn invalid_scope_close() {
         let result = execute_dxb_debug(&[
-            InstructionCode::SCOPE_START.into(),
+            InstructionCode::STATEMENTS.into(),
             InstructionCode::SCOPE_END.into(),
             InstructionCode::SCOPE_END.into(),
         ]);

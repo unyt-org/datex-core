@@ -534,7 +534,7 @@ fn compile_expression(
         }
         DatexExpressionData::List(list) => {
             compilation_context
-                .append_instruction_code(InstructionCode::LIST_START);
+                .append_instruction_code(InstructionCode::LIST);
             for item in list.items {
                 scope = compile_expression(
                     compilation_context,
@@ -549,7 +549,7 @@ fn compile_expression(
         DatexExpressionData::Map(map) => {
             // TODO #434: Handle string keyed maps (structs)
             compilation_context
-                .append_instruction_code(InstructionCode::MAP_START);
+                .append_instruction_code(InstructionCode::MAP);
             for (key, value) in map.entries {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -591,7 +591,7 @@ fn compile_expression(
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context() {
                     compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_START);
+                        .append_instruction_code(InstructionCode::STATEMENTS);
                     scope.push()
                 } else {
                     scope
@@ -1501,7 +1501,7 @@ pub mod tests {
         // const x = mut 42;
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::LIST_START.into(),
+            InstructionCode::LIST.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -1517,7 +1517,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::SCOPE_END.into(),
@@ -1534,7 +1534,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1551,7 +1551,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
@@ -1572,7 +1572,7 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 1,
@@ -1597,10 +1597,10 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::LIST_START.into(),
+                InstructionCode::LIST.into(),
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
@@ -1620,7 +1620,7 @@ pub mod tests {
         let datex_script = "{\"key\": 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1640,7 +1640,7 @@ pub mod tests {
         let datex_script = "{(10): 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::INT_8.into(),
             10,
@@ -1659,7 +1659,7 @@ pub mod tests {
         let datex_script = format!("{{\"{long_key}\": 42}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::TEXT.into(),
         ];
@@ -1680,7 +1680,7 @@ pub mod tests {
         let datex_script = "{(1 + 2): 42}";
         let result = compile_and_log(datex_script);
         let expected = [
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
@@ -1701,7 +1701,7 @@ pub mod tests {
         let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1734,7 +1734,7 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::MAP.into(),
             InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
@@ -1809,7 +1809,7 @@ pub mod tests {
                 42,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
-                InstructionCode::SCOPE_START.into(),
+                InstructionCode::STATEMENTS.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
@@ -1867,7 +1867,7 @@ pub mod tests {
                 41,
                 InstructionCode::SCOPE_END.into(),
                 InstructionCode::CLOSE_AND_STORE.into(),
-                InstructionCode::SCOPE_START.into(),
+                InstructionCode::STATEMENTS.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 2,
                 0,

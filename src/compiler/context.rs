@@ -182,7 +182,7 @@ impl CompilationContext {
         if options.len() == 1 {
             self.insert_value_container(&options[0]);
         } else {
-            self.append_instruction_code(InstructionCode::SCOPE_START);
+            self.append_instruction_code(InstructionCode::STATEMENTS);
             self.append_instruction_code(InstructionCode::UNION);
             // insert first value
             self.insert_value_container(&options[0]);

@@ -29,9 +29,8 @@ pub enum TypeInstructionCode {
     TYPE_FUNCTION,
     TYPE_COLLECTION,
     TYPE_TYPE,
-    
-    TYPE_LIST_START,
-    TYPE_SCOPE_END,
+
+    TYPE_LIST,
 
     TYPE_LITERAL_INTEGER,
     TYPE_LITERAL_TEXT,

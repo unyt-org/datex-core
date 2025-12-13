@@ -15,7 +15,7 @@ pub struct RuntimeExecutionState {
     // if set to true, the execution loop will pop the current scope before continuing with the next instruction
     pub(crate) pop_next_scope: bool,
     /// Used to track the next instructions to be executed, distinguishing between regular and type instructions.
-    pub(crate) next_instructions_stack: NextInstructionsStack,
+    pub(crate) next_instructions_stack: Rc<RefCell<NextInstructionsStack>>,
     runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 

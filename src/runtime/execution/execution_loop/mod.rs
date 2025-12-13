@@ -1,19 +1,21 @@
 pub mod state;
 mod type_instruction_iteration;
+mod regular_instruction_iteration;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use log::info;
+use datex_core::runtime::execution::execution_loop::regular_instruction_iteration::next_regular_instruction_iteration;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, BitwiseUnaryOperator, ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator, UnaryOperator};
 use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction, Instruction};
 use crate::parser::body;
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::execution_loop::type_instruction_iteration::get_type_from_instructions;
+use crate::runtime::execution::execution_loop::type_instruction_iteration::{get_type_from_instructions, next_type_instruction_iteration};
 use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_next_type_instruction, interrupt_with_result, next_iter, yield_unwrap};
 use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
@@ -44,16 +46,18 @@ pub enum ExecutionStep {
     GetInternalSlot(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Pause,
-    NextTypeInstruction,
+    GetNextInstruction,
 }
 
 #[derive(Debug)]
 pub enum InterruptProvider {
     Result(Option<ValueContainer>),
+    NextRegularInstruction(RegularInstruction),
     NextTypeInstruction(TypeInstruction),
 }
 
-
+/// Main execution loop that drives the execution of the DXB body
+/// The interrupt_provider is used to provide synchronous or asynchronous I/O operations
 pub fn execute_loop(
     input: ExecutionInput,
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
@@ -62,12 +66,68 @@ pub fn execute_loop(
         let dxb_body = input.dxb_body;
         let end_execution = input.end_execution;
         let context = input.context;
-        let next_instructions_stack = &mut context.clone().borrow_mut().next_instructions_stack;
+        let next_instructions_stack = context.borrow_mut().next_instructions_stack.clone();
 
-        let instruction_iterator = body::iterate_instructions(dxb_body, next_instructions_stack);
+        let mut instruction_iterator = body::iterate_instructions(dxb_body, next_instructions_stack);
+
+        while let Some(instruction) = instruction_iterator.next() {
+            let instruction = yield_unwrap!(instruction);
+            if input.options.verbose {
+                info!("[Exec]: {instruction}");
+            }
+
+            match instruction {
+                Instruction::RegularInstruction(regular_instruction) => {
+                    let inner_iterator = next_regular_instruction_iteration(
+                        interrupt_provider.clone(),
+                        regular_instruction,
+                    );
+                    intercept_steps!(
+                        inner_iterator,
+                        // feed new type instructions as long as they are requested
+                        Ok(ExecutionStep::GetNextInstruction) => {
+                            match yield_unwrap!(next_iter!(instruction_iterator)) {
+                                Instruction::RegularInstruction(next_instruction) => {
+                                    interrupt_provider.borrow_mut().replace(
+                                        InterruptProvider::NextRegularInstruction(
+                                            next_instruction,
+                                        ),
+                                    );
+                                }
+                                _ => unreachable!()
+                            }
+                        }
+                    )
+                }
+                Instruction::TypeInstruction(type_instruction) => {
+                    let inner_iterator = next_type_instruction_iteration(
+                        interrupt_provider.clone(),
+                        type_instruction,
+                    );
+                    intercept_steps!(
+                        inner_iterator,
+                        // feed new type instructions as long as they are requested
+                        Ok(ExecutionStep::GetNextInstruction) => {
+                            match yield_unwrap!(next_iter!(instruction_iterator)) {
+                                Instruction::TypeInstruction(next_instruction) => {
+                                    interrupt_provider.borrow_mut().replace(
+                                        InterruptProvider::NextTypeInstruction(
+                                            next_instruction,
+                                        ),
+                                    );
+                                }
+                                _ => unreachable!()
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+
+        //////////////////////////////////////////////////////////////// OLD ////////////////////////////////////////////////////////
 
         for instruction in instruction_iterator {
-            // TODO #100: use ? operator instead of yield_unwrap once supported in gen blocks
             let instruction = yield_unwrap!(instruction);
             if input.options.verbose {
                 info!("[Exec]: {instruction}");
@@ -338,7 +398,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            RegularInstruction::ScopeStart => {
+            RegularInstruction::Statements => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -346,7 +406,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            RegularInstruction::ListStart => {
+            RegularInstruction::List => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -357,7 +417,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            RegularInstruction::MapStart => {
+            RegularInstruction::Map => {
                 context
                     .borrow_mut()
                     .scope_stack

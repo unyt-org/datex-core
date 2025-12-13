@@ -85,14 +85,34 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             append_text(buffer, &val.0);
         }
         CoreValue::List(val) => {
-            append_instruction_code(buffer, InstructionCode::LIST_START);
+            // if list size < 256, use SHORT_LIST
+            match val.len() {
+                0..=255 => {
+                    append_instruction_code(buffer, InstructionCode::SHORT_LIST);
+                    append_u8(buffer, val.len() as u8);
+                }
+                _ => {
+                    append_instruction_code(buffer, InstructionCode::LIST);
+                    append_u32(buffer, val.len());
+                }
+            }
+            
             for item in val {
                 append_value_container(buffer, item);
             }
-            append_instruction_code(buffer, InstructionCode::SCOPE_END);
         }
         CoreValue::Map(val) => {
-            append_instruction_code(buffer, InstructionCode::MAP_START);
+            // if map size < 256, use SHORT_MAP
+            match val.size() {
+                0..=255 => {
+                    append_instruction_code(buffer, InstructionCode::SHORT_MAP);
+                    append_u8(buffer, val.size() as u8);
+                }
+                _ => {
+                    append_instruction_code(buffer, InstructionCode::MAP);
+                    append_u32(buffer, val.size() as u32); // FIXME: casting from usize to u32 here
+                }
+            }
             for (key, value) in val {
                 append_key_value_pair(
                     buffer,
@@ -100,7 +120,6 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
                     value,
                 );
             }
-            append_instruction_code(buffer, InstructionCode::SCOPE_END);
         }
     }
 }

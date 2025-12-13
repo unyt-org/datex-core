@@ -88,6 +88,7 @@ pub(crate) use interrupt_with_next_type_instruction;
 
 /// Unwrap a Result expression, yielding an error if it is an Err variant
 /// This is similar to the `?` operator but works within generator functions
+/// TODO: use "?" operator instead of yield_unwrap once supported in gen blocks
 macro_rules! yield_unwrap {
     ($e:expr) => {{
         let res = $e;

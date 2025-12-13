@@ -581,7 +581,7 @@ fn decompile_loop(
                 core::write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            RegularInstruction::ListStart => {
+            RegularInstruction::List => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
@@ -596,7 +596,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            RegularInstruction::MapStart => {
+            RegularInstruction::Map => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
@@ -611,7 +611,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            RegularInstruction::ScopeStart => {
+            RegularInstruction::Statements => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
