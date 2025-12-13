@@ -2,7 +2,7 @@ use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeInstruction};
 use crate::references::reference::{Reference, ReferenceMutability};
-use crate::runtime::execution::execution_loop::{ExecutionStep, InterruptProvider};
+use crate::runtime::execution::execution_loop::{ExecutionStep, ExternalExecutionStep, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::runtime::execution::macros::{intercept_step, intercept_steps, interrupt_with_maybe_value, next_iter};
 use crate::types::definition::TypeDefinition;
@@ -25,7 +25,7 @@ pub fn get_type_from_instructions(
             );
             intercept_steps!(
                 inner_iterator,
-                Ok(ExecutionStep::GetNextInstruction) => {
+                Ok(ExecutionStep::GetNextTypeInstruction) => {
                     let next_instruction = next_iter!(iterator);
                     interrupt_provider.borrow_mut().replace(
                         InterruptProvider::NextTypeInstruction(
@@ -63,10 +63,11 @@ macro_rules! get_next_type {
         use crate::runtime::execution::execution_loop::ExecutionStep;
         use crate::runtime::execution::errors::ExecutionError;
         use crate::runtime::execution::errors::InvalidProgramError;
+        use crate::runtime::execution::execution_loop::ExecutionStep::GetNextTypeInstruction;
 
         let next = interrupt_with_next_type_instruction!(
             $interrupt_provider,
-            crate::runtime::execution::execution_loop::ExecutionStep::GetNextInstruction
+            GetNextTypeInstruction
         );
         let mut inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
         let maybe_type = intercept_step!(
@@ -94,7 +95,7 @@ pub(crate) fn next_type_instruction_iteration(
             TypeInstruction::List(list_data) => {
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::Pause
+                    ExecutionStep::External(ExternalExecutionStep::Pause)
                 );
                 todo!()
             }
@@ -118,13 +119,13 @@ pub(crate) fn next_type_instruction_iteration(
                         interrupt_provider,
                         match type_ref.address {
                             RawPointerAddress::Local(address) => {
-                                ExecutionStep::ResolveLocalPointer(address)
+                                ExecutionStep::External(ExternalExecutionStep::ResolveLocalPointer(address))
                             }
                             RawPointerAddress::Internal(address) => {
-                                ExecutionStep::ResolveInternalPointer(address)
+                                ExecutionStep::External(ExternalExecutionStep::ResolveInternalPointer(address))
                             }
                             RawPointerAddress::Full(address) => {
-                                ExecutionStep::ResolvePointer(address)
+                                ExecutionStep::External(ExternalExecutionStep::ResolvePointer(address))
                             }
                         }
                     );
