@@ -3,17 +3,13 @@ use crate::parser::next_instructions_stack::NextInstructionsStack;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::ExecutionError;
-use crate::runtime::execution::stack::ScopeStack;
 use crate::runtime::RuntimeInternal;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone, Default)]
 pub struct RuntimeExecutionState {
     index: usize,
-    pub(crate) scope_stack: ScopeStack,
     pub(crate) slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
-    // if set to true, the execution loop will pop the current scope before continuing with the next instruction
-    pub(crate) pop_next_scope: bool,
     /// Used to track the next instructions to be executed, distinguishing between regular and type instructions.
     pub(crate) next_instructions_stack: Rc<RefCell<NextInstructionsStack>>,
     runtime_internal: Option<Rc<RuntimeInternal>>,
