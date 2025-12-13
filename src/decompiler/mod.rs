@@ -1162,8 +1162,8 @@ fn handle_before_operand(
                 write_operator(state, output, "/")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (RegularInstruction::RemoteExecution, false) => {
-                write_operator(state, output, "::")?;
+            (RegularInstruction::RemoteExecution(_), false) => {
+                write_operator(state, output, "todo ::")?;
                 state.get_current_scope().close_scope_after_term = false;
             }
             (RegularInstruction::UnaryMinus, false) => {

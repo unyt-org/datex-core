@@ -45,12 +45,30 @@ pub enum ExecutionStep {
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
-    GetInternalSlot(u32),
+    AllocateSlot(u32, ValueContainer),
+    GetSlotValue(u32),
+    SetSlotValue(u32, ValueContainer),
+    DropSlot(u32),
+    GetInternalSlotValue(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Apply(ValueContainer, Vec<ValueContainer>),
     Pause,
     GetNextInstruction,
 }
+
+// TODO ExecutionStep::External
+#[derive(Debug)]
+pub enum ExternalExecutionStep {
+    Result(Option<ValueContainer>),
+    ResolvePointer(RawFullPointerAddress),
+    ResolveLocalPointer(RawLocalPointerAddress),
+    ResolveInternalPointer(RawInternalPointerAddress),
+    GetInternalSlotValue(u32),
+    RemoteExecution(ValueContainer, Vec<u8>),
+    Apply(ValueContainer, Vec<ValueContainer>),
+    Pause,
+}
+
 
 #[derive(Debug)]
 pub enum InterruptProvider {
@@ -84,7 +102,6 @@ pub fn execute_loop(
                     let inner_iterator = next_regular_instruction_iteration(
                         interrupt_provider.clone(),
                         regular_instruction,
-                        state
                     );
                     intercept_steps!(
                         inner_iterator,
@@ -100,7 +117,28 @@ pub fn execute_loop(
                                 }
                                 _ => unreachable!()
                             }
-                        }
+                        },
+                        // Ok(ExecutionStep::GetSlotValue(address)) => {
+                        //     // if address is >= 0xffffff00, resolve internal slot
+                        //     if address >= 0xffffff00 {
+                        //         interrupt_with_maybe_value!(
+                        //             interrupt_provider,
+                        //             ExecutionStep::GetSlotValue(address)
+                        //         )
+                        //     }
+                        //     // else handle normal slot
+                        //     else {
+                        //         let res = state.borrow_mut().get_slot_value(address);
+                        //         // get value from slot
+                        //         let slot_value = yield_unwrap!(res);
+                        //         if slot_value.is_none() {
+                        //             return yield Err(ExecutionError::SlotNotInitialized(
+                        //                 address,
+                        //             ));
+                        //         }
+                        //         slot_value
+                        //     }
+                        // }
                     )
                 }
                 Instruction::TypeInstruction(type_instruction) => {
@@ -131,61 +169,61 @@ pub fn execute_loop(
 
         //////////////////////////////////////////////////////////////// OLD ////////////////////////////////////////////////////////
 
-        for instruction in instruction_iterator {
-            let instruction = yield_unwrap!(instruction);
-            if input.options.verbose {
-                info!("[Exec]: {instruction}");
-            }
-
-            // get initial value from instruction
-            let mut result_value = None;
-
-            // TODO:
-            // handle_steps!(
-            //     get_result_value_from_instruction(
-            //         context.clone(),
-            //         instruction,
-            //         interrupt_provider.clone(),
-            //     ),
-            //     Ok(ExecutionStep::InternalReturn(result)) => {
-            //         result_value = result;
-            //     },
-            //     Ok(ExecutionStep::InternalTypeReturn(result)) => {
-            //         context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
-            //         // result_value = Some(ValueContainer::from(result));
-            //     },
-            //     step => {
-            //         let step = yield_unwrap!(step);
-            //         *interrupt_provider.borrow_mut() =
-            //             Some(interrupt!(interrupt_provider, step));
-            //     }
-            // );
-
-
-            // 1. if value is Some, handle it
-            // 2. while pop_next_scope is true: pop current scope and repeat
-            loop {
-                let mut context_mut = state.borrow_mut();
-                context_mut.pop_next_scope = false;
-                if let Some(value) = result_value {
-                    let res = handle_value(&mut context_mut, value);
-                    drop(context_mut);
-                    yield_unwrap!(res);
-                } else {
-                    drop(context_mut);
-                }
-
-                let mut context_mut = state.borrow_mut();
-
-                if context_mut.pop_next_scope {
-                    let res = context_mut.scope_stack.pop();
-                    drop(context_mut);
-                    result_value = yield_unwrap!(res);
-                } else {
-                    break;
-                }
-            }
-        }
+        // for instruction in instruction_iterator {
+        //     let instruction = yield_unwrap!(instruction);
+        //     if input.options.verbose {
+        //         info!("[Exec]: {instruction}");
+        //     }
+        //
+        //     // get initial value from instruction
+        //     let mut result_value = None;
+        //
+        //     // TODO:
+        //     // handle_steps!(
+        //     //     get_result_value_from_instruction(
+        //     //         context.clone(),
+        //     //         instruction,
+        //     //         interrupt_provider.clone(),
+        //     //     ),
+        //     //     Ok(ExecutionStep::InternalReturn(result)) => {
+        //     //         result_value = result;
+        //     //     },
+        //     //     Ok(ExecutionStep::InternalTypeReturn(result)) => {
+        //     //         context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
+        //     //         // result_value = Some(ValueContainer::from(result));
+        //     //     },
+        //     //     step => {
+        //     //         let step = yield_unwrap!(step);
+        //     //         *interrupt_provider.borrow_mut() =
+        //     //             Some(interrupt!(interrupt_provider, step));
+        //     //     }
+        //     // );
+        //
+        //
+        //     // 1. if value is Some, handle it
+        //     // 2. while pop_next_scope is true: pop current scope and repeat
+        //     loop {
+        //         let mut context_mut = state.borrow_mut();
+        //         context_mut.pop_next_scope = false;
+        //         if let Some(value) = result_value {
+        //             let res = handle_value(&mut context_mut, value);
+        //             drop(context_mut);
+        //             yield_unwrap!(res);
+        //         } else {
+        //             drop(context_mut);
+        //         }
+        //
+        //         let mut context_mut = state.borrow_mut();
+        //
+        //         if context_mut.pop_next_scope {
+        //             let res = context_mut.scope_stack.pop();
+        //             drop(context_mut);
+        //             result_value = yield_unwrap!(res);
+        //         } else {
+        //             break;
+        //         }
+        //     }
+        // }
 
         if end_execution {
             // cleanup...
@@ -210,220 +248,6 @@ pub fn execute_loop(
     }
 }
 
-/// Takes a produced value and handles it according to the current scope
-fn handle_value(
-    context: &mut RuntimeExecutionState,
-    mut value_container: ValueContainer,
-) -> Result<(), ExecutionError> {
-    let active_type = context.scope_stack.take_active_type();
-    let scope_container = context.scope_stack.get_current_scope_mut();
-
-    // cast to active type if exists
-    if let Some(active_type) = active_type {
-        match &mut value_container {
-            ValueContainer::Value(value) => {
-                // FIXME: only using type definition here, refactor and/or add checks
-                value.actual_type = Box::new(active_type.type_definition);
-            }
-            _ => panic!("Expected ValueContainer::Value for type casting"),
-        }
-    }
-
-    let result_value = match &mut scope_container.scope {
-        Scope::KeyValuePair => {
-            let key = &scope_container.active_value;
-            match key {
-                // set key as active_value for key-value pair (for dynamic keys)
-                None => Some(value_container),
-
-                // set value for key-value pair
-                Some(_) => {
-                    let key = context.scope_stack.pop()?.unwrap();
-                    match context.scope_stack.get_active_value_mut() {
-                        Some(collector) => {
-                            // handle active value collector
-                            handle_key_value_pair(
-                                collector,
-                                &key,
-                                value_container,
-                            )?;
-                        }
-                        None => unreachable!(
-                            "Expected active value for key-value pair, but got None"
-                        ),
-                    }
-                    None
-                }
-            }
-        }
-
-        Scope::SlotAssignment { address } => {
-            // set value for slot
-            let address = *address;
-            context.set_slot_value(address, value_container.clone())?;
-            Some(value_container)
-        }
-
-        Scope::Deref => {
-            // set value for slot
-            if let ValueContainer::Reference(reference) = value_container {
-                Some(reference.value_container())
-            } else {
-                return Err(ExecutionError::DerefOfNonReference);
-            }
-        }
-
-        Scope::AssignToReference {
-            operator,
-            reference,
-        } => {
-            if (reference.is_none()) {
-                // set value for slot
-                if let ValueContainer::Reference(new_reference) =
-                    value_container
-                {
-                    reference.replace(new_reference);
-                    None
-                } else {
-                    return Err(ExecutionError::DerefOfNonReference);
-                }
-            } else {
-                let operator = *operator;
-                let reference = reference.as_ref().unwrap();
-                let lhs = reference.value_container();
-                let res = handle_assignment_operation(
-                    lhs,
-                    value_container,
-                    operator,
-                )?;
-                reference.set_value_container(res)?;
-                Some(ValueContainer::Reference(reference.clone()))
-            }
-        }
-
-        Scope::Apply { args, arg_count } => {
-            // collect callee as active value if not set yet and we have args to collect
-            if scope_container.active_value.is_none() {
-                // directly apply if no args to collect
-                if *arg_count == 0 {
-                    context.pop_next_scope = true;
-                    handle_apply(&value_container, args)?
-                }
-                // set callee as active value
-                else {
-                    Some(value_container)
-                }
-            } else {
-                let callee = scope_container.active_value.as_ref().unwrap();
-                // callee already exists, collect args
-                args.push(value_container);
-
-                // all args collected, apply function
-                if args.len() == *arg_count as usize {
-                    context.pop_next_scope = true;
-                    handle_apply(callee, args)?
-                } else {
-                    Some(callee.clone())
-                }
-            }
-        }
-
-        Scope::AssignmentOperation { operator, address } => {
-            let operator = *operator;
-            let address = *address;
-            let lhs = if let Ok(Some(val)) = context.get_slot_value(address) {
-                val
-            } else {
-                return Err(ExecutionError::SlotNotInitialized(address));
-            };
-            let res =
-                handle_assignment_operation(lhs, value_container, operator)?;
-            context.set_slot_value(address, res.clone())?;
-            Some(res)
-        }
-
-        Scope::UnaryOperation { operator } => {
-            let operator = *operator;
-            context.pop_next_scope = true;
-            let result = handle_unary_operation(operator, value_container);
-            if let Ok(val) = result {
-                Some(val)
-            } else {
-                // handle error
-                return Err(result.unwrap_err());
-            }
-        }
-
-        Scope::BinaryOperation { operator } => {
-            let active_value = &scope_container.active_value;
-            match active_value {
-                Some(active_value_container) => {
-                    let res = handle_binary_operation(
-                        active_value_container,
-                        value_container,
-                        *operator,
-                    );
-                    if let Ok(val) = res {
-                        // set val as active value
-                        context.pop_next_scope = true;
-                        Some(val)
-                    } else {
-                        // handle error
-                        return Err(res.unwrap_err());
-                    }
-                }
-                None => Some(value_container),
-            }
-        }
-
-        Scope::ComparisonOperation { operator } => {
-            let active_value = &scope_container.active_value;
-            match active_value {
-                Some(active_value_container) => {
-                    let res = handle_comparison_operation(
-                        active_value_container,
-                        value_container,
-                        *operator,
-                    );
-                    if let Ok(val) = res {
-                        // set val as active value
-                        context.pop_next_scope = true;
-                        Some(val)
-                    } else {
-                        // handle error
-                        return Err(res.unwrap_err());
-                    }
-                }
-                None => Some(value_container),
-            }
-        }
-
-        Scope::Collection => {
-            let active_value = &mut scope_container.active_value;
-            match active_value {
-                Some(active_value_container) => {
-                    // handle active value collector
-                    handle_collector(active_value_container, value_container);
-                    None
-                }
-                None => {
-                    unreachable!(
-                        "Expected active value for collection scope, but got None"
-                    );
-                }
-            }
-        }
-
-        _ => Some(value_container),
-    };
-
-    if let Some(result_value) = result_value {
-        context.scope_stack.set_active_value_container(result_value);
-    }
-
-    Ok(())
-}
-
 fn handle_apply(
     callee: &ValueContainer,
     args: &[ValueContainer],
@@ -435,53 +259,4 @@ fn handle_apply(
     } else {
         callee.apply(args)?
     })
-}
-
-fn handle_collector(collector: &mut ValueContainer, value: ValueContainer) {
-    match collector {
-        ValueContainer::Value(Value {
-                                  inner: CoreValue::List(list),
-                                  ..
-                              }) => {
-            // append value to list
-            list.push(value);
-        }
-        ValueContainer::Value(Value {
-                                  inner: CoreValue::Map(map),
-                                  ..
-                              }) => {
-            // TODO #406: Implement map collector for optimized structural maps
-            core::panic!("append {:?}", value);
-        }
-        _ => {
-            unreachable!("Unsupported collector for collection scope");
-        }
-    }
-}
-
-fn handle_key_value_pair(
-    active_container: &mut ValueContainer,
-    key: &ValueContainer,
-    value: ValueContainer,
-) -> Result<(), ExecutionError> {
-    // insert key value pair into active map
-    match active_container {
-        // Map
-        ValueContainer::Value(Value {
-                                  inner: CoreValue::Map(map),
-                                  ..
-                              }) => {
-            // make sure key is a string
-            map.try_set(key, value)
-                .expect("Failed to set key-value pair in map");
-        }
-        _ => {
-            unreachable!(
-                "Expected active value that can collect key value pairs, but got: {}",
-                active_container
-            );
-        }
-    }
-
-    Ok(())
 }

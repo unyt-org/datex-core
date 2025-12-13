@@ -52,19 +52,26 @@ macro_rules! interrupt_with_next_type_instruction {
         }
     }};
 }
+pub(crate) use interrupt_with_next_type_instruction;
 
 /// Drives the type instruction iteration to get the next Type value
 /// Returns the resolved Type or aborts with an ExecutionError if no type could be resolved (should not happen in valid program)
 macro_rules! get_next_type {
     ($interrupt_provider:expr) => {{
+        use crate::runtime::execution::execution_loop::type_instruction_iteration::next_type_instruction_iteration;
+        use crate::runtime::execution::execution_loop::type_instruction_iteration::interrupt_with_next_type_instruction;
+        use crate::runtime::execution::execution_loop::ExecutionStep;
+        use crate::runtime::execution::errors::ExecutionError;
+        use crate::runtime::execution::errors::InvalidProgramError;
+
         let next = interrupt_with_next_type_instruction!(
             $interrupt_provider,
             crate::runtime::execution::execution_loop::ExecutionStep::GetNextInstruction
         );
-        let inner_iterator = crate::runtime::execution::execution_loop::type_instruction_iteration::next_type_instruction_iteration($interrupt_provider, next);
+        let mut inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
         let maybe_type = intercept_step!(
             inner_iterator,
-            Ok(crate::runtime::execution::execution_loop::ExecutionStep::TypeReturn(base_type)) => {
+            Ok(ExecutionStep::TypeReturn(base_type)) => {
                 base_type
             }
         );

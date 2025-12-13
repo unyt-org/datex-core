@@ -59,7 +59,7 @@ pub fn execute_dxb_sync(
                         get_internal_pointer_value(address)?,
                     ));
             }
-            ExecutionStep::GetInternalSlot(slot) => {
+            ExecutionStep::GetSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
@@ -127,7 +127,7 @@ pub async fn execute_dxb(
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
-            ExecutionStep::GetInternalSlot(slot) => {
+            ExecutionStep::GetSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
