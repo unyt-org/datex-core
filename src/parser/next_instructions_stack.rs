@@ -3,8 +3,8 @@ use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone)]
 pub enum NextScopeInstruction {
-    Regular(u64),
-    Type(u64),
+    Regular(u32),
+    Type(u32),
 }
 
 pub enum NextInstructionType {
@@ -25,10 +25,15 @@ impl Default for NextInstructionsStack {
 impl NextInstructionsStack {
 
     /// Indicate that the next `count` instructions are regular instructions.
-    pub fn push_next_regular(&mut self, count: u64) {
+    pub fn push_next_regular(&mut self, count: u32) {
         match self.0.last_mut() {
             Some(NextScopeInstruction::Regular(existing_count)) => {
-                *existing_count += count as u64;
+                // if existing count + count overflows, push a new entry instead
+                if let Some(new_count) = existing_count.checked_add(count) {
+                    *existing_count = new_count;
+                } else {
+                    self.0.push(NextScopeInstruction::Regular(count));
+                }
             }
             _ => {
                 self.0.push(NextScopeInstruction::Regular(count));
@@ -36,10 +41,15 @@ impl NextInstructionsStack {
         }
     }
 
-    pub fn push_next_type(&mut self, count: u64) {
+    pub fn push_next_type(&mut self, count: u32) {
         match self.0.last_mut() {
             Some(NextScopeInstruction::Type(existing_count)) => {
-                *existing_count += count as u64;
+                // if existing count + count overflows, push a new entry instead
+                if let Some(new_count) = existing_count.checked_add(count) {
+                    *existing_count = new_count;
+                } else {
+                    self.0.push(NextScopeInstruction::Type(count));
+                }
             }
             _ => {
                 self.0.push(NextScopeInstruction::Type(count));

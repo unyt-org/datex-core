@@ -20,8 +20,7 @@ pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
     CLOSE_AND_STORE, // ; TODO: do we need close_and_store at all, or is scope_end enough?
-    SCOPE_START,     // (
-    SCOPE_END,       // )
+    STATEMENTS,      // statements block
     CACHE_POINT,     // cache dxb from this point on
     CACHE_RESET,     // reset dxb scope cache
 
@@ -239,9 +238,10 @@ pub enum InstructionCode {
     TIME, // ~2022-10-10~
 
     // lists and maps 0xe0 - 0xef
-    LIST_START,   // (1,2,3)
-    MAP_START,    // (a:1, b:2)
-    STRUCT_START, // {a:1, b:2} - optimized structural map, field names are inferred from struct type
+    LIST,   // (1,2,3)
+    SHORT_LIST, // (1,2,3) - optimized short list with up to 255 elements
+    MAP,    // (a:1, b:2)
+    SHORT_MAP, // {a:1, b:2} - optimized short map with up to 255 elements
 
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key

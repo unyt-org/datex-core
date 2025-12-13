@@ -12,19 +12,20 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
+#[deprecated]
 pub fn get_type_from_instructions(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     mut iterator: impl Iterator<Item = TypeInstruction>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
     gen move {
         while let Some(instruction) = iterator.next() {
-            let inner_iterator = resolve_type_from_type_instruction(
+            let inner_iterator = next_type_instruction_iteration(
                 interrupt_provider.clone(),
                 instruction,
             );
             intercept_steps!(
                 inner_iterator,
-                Ok(ExecutionStep::NextTypeInstruction) => {
+                Ok(ExecutionStep::GetNextInstruction) => {
                     let next_instruction = next_iter!(iterator);
                     interrupt_provider.borrow_mut().replace(
                         InterruptProvider::NextTypeInstruction(
@@ -38,13 +39,14 @@ pub fn get_type_from_instructions(
 }
 
 
-fn resolve_type_from_type_instruction(
+pub(crate) fn next_type_instruction_iteration(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: TypeInstruction,
 ) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
     Box::new(gen move {
         match instruction {
-            TypeInstruction::ListStart => {
+            TypeInstruction::List(list_data) => {
+                // TODO:
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::Pause
@@ -59,9 +61,9 @@ fn resolve_type_from_type_instruction(
                 let mutability: Option<ReferenceMutability> = impl_type_data.metadata.mutability.into();
                 let next = interrupt_with_next_type_instruction!(
                     interrupt_provider,
-                    ExecutionStep::NextTypeInstruction
+                    ExecutionStep::GetNextInstruction
                 );
-                let inner_iterator = resolve_type_from_type_instruction(interrupt_provider, next);
+                let inner_iterator = next_type_instruction_iteration(interrupt_provider, next);
                 intercept_steps!(
                     inner_iterator,
                     Ok(ExecutionStep::InternalTypeReturn(base_type)) => {

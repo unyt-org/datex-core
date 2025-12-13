@@ -14,7 +14,7 @@ use crate::global::type_instruction_codes::TypeMutabilityCode;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     // regular instruction
-    Regular(RegularInstruction),
+    RegularInstruction(RegularInstruction),
     // Type instruction that yields a type
     TypeInstruction(TypeInstruction),
 }
@@ -22,7 +22,7 @@ pub enum Instruction {
 impl Display for Instruction {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Instruction::Regular(instr) => core::write!(f, "{}", instr),
+            Instruction::RegularInstruction(instr) => core::write!(f, "{}", instr),
             Instruction::TypeInstruction(instr) => {
                 core::write!(f, "TYPE_INSTRUCTION {}", instr)
             }
@@ -32,7 +32,7 @@ impl Display for Instruction {
 
 impl From<RegularInstruction> for Instruction {
     fn from(instruction: RegularInstruction) -> Self {
-        Instruction::Regular(instruction)
+        Instruction::RegularInstruction(instruction)
     }
 }
 
@@ -77,11 +77,13 @@ pub enum RegularInstruction {
     True,
     False,
     Null,
-    ScopeStart,
-    ListStart,
-    MapStart,
-    StructStart,
-    ScopeEnd,
+    Statements(StatementsData),
+    ShortStatements(ShortStatementsData),
+    List(ListData),
+    ShortList(ShortListData),
+    Map(MapData),
+    ShortMap(ShortMapData),
+
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
     CloseAndStore,
@@ -195,11 +197,24 @@ impl Display for RegularInstruction {
             RegularInstruction::True => core::write!(f, "TRUE"),
             RegularInstruction::False => core::write!(f, "FALSE"),
             RegularInstruction::Null => core::write!(f, "NULL"),
-            RegularInstruction::ScopeStart => core::write!(f, "SCOPE_START"),
-            RegularInstruction::ListStart => core::write!(f, "LIST_START"),
-            RegularInstruction::MapStart => core::write!(f, "MAP_START"),
-            RegularInstruction::StructStart => core::write!(f, "STRUCT_START"),
-            RegularInstruction::ScopeEnd => core::write!(f, "SCOPE_END"),
+            RegularInstruction::Statements(data) => {
+                core::write!(f, "STATEMENTS {}", data.statements_count)
+            }
+            RegularInstruction::ShortStatements(data) => {
+                core::write!(f, "SHORT_STATEMENTS {}", data.statements_count)
+            }
+            RegularInstruction::List(data) => {
+                core::write!(f, "LIST {}", data.element_count)
+            }
+            RegularInstruction::ShortList(data) => {
+                core::write!(f, "SHORT_LIST {}", data.element_count)
+            }
+            RegularInstruction::Map(data) => {
+                core::write!(f, "MAP {}", data.element_count)
+            }
+            RegularInstruction::ShortMap(data) => {
+                core::write!(f, "SHORT_MAP {}", data.element_count)
+            }
             RegularInstruction::KeyValueDynamic => {
                 core::write!(f, "KEY_VALUE_DYNAMIC")
             }
@@ -316,8 +331,7 @@ pub enum TypeInstruction {
     TypeReference(TypeReferenceData),
     LiteralText(TextData),
     LiteralInteger(IntegerData),
-    ListStart,
-    ScopeEnd,
+    List(ListData),
     // TODO: add more type instructions
 }
 
@@ -330,8 +344,9 @@ impl Display for TypeInstruction {
             TypeInstruction::LiteralInteger(data) => {
                 core::write!(f, "LITERAL_INTEGER {}", data.0)
             }
-            TypeInstruction::ListStart => core::write!(f, "LIST_START"),
-            TypeInstruction::ScopeEnd => core::write!(f, "SCOPE_END"),
+            TypeInstruction::List(data) => {
+                core::write!(f, "LIST {}", data.element_count)
+            }
             TypeInstruction::TypeReference(address) => core::write!(
                 f,
                 "TYPE_REFERENCE",
@@ -431,6 +446,42 @@ pub struct TextData(pub String);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub struct ShortListData {
+    pub element_count: u8,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct StatementsData {
+    pub statements_count: u32,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ShortStatementsData {
+    pub statements_count: u8,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ListData {
+    pub element_count: u32,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ShortMapData {
+    pub element_count: u8,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct MapData {
+    pub element_count: u32,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct InstructionCloseAndStore {
     pub instruction: Int8Data,
 }
@@ -514,5 +565,5 @@ pub struct TypeReferenceData {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct TypeMetadata {
-    pub mutability: TypeMutabilityCode, // TODO - Note: using TypeMutabilityCode here leads to rustc to get stuck?
+    pub mutability: TypeMutabilityCode,
 }
