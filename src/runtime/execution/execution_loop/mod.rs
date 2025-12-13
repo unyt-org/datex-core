@@ -1,6 +1,6 @@
 pub mod state;
-mod type_instruction_iteration;
-mod regular_instruction_iteration;
+pub mod type_instruction_iteration;
+pub  mod regular_instruction_iteration;
 mod operations;
 
 use core::cell::RefCell;
@@ -17,7 +17,7 @@ use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::execution_loop::type_instruction_iteration::{get_type_from_instructions, next_type_instruction_iteration};
-use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_result, next_iter, yield_unwrap};
+use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
 use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
@@ -30,7 +30,7 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::list::List;
-use crate::values::core_values::map::Map;
+use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -40,8 +40,8 @@ use crate::values::value_container::ValueContainer;
 pub enum ExecutionStep {
     ValueReturn(Option<ValueContainer>),
     TypeReturn(Type),
-    InstructionBlockReturn(),
-    _Return(Option<ValueContainer>),
+    KeyValuePairReturn((OwnedMapKey, ValueContainer)),
+    Result(Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
@@ -54,7 +54,7 @@ pub enum ExecutionStep {
 
 #[derive(Debug)]
 pub enum InterruptProvider {
-    Result(Option<ValueContainer>),
+    ResolvedValue(Option<ValueContainer>),
     NextRegularInstruction(RegularInstruction),
     NextTypeInstruction(TypeInstruction),
 }
@@ -68,8 +68,8 @@ pub fn execute_loop(
     gen move {
         let dxb_body = input.dxb_body;
         let end_execution = input.end_execution;
-        let context = input.context;
-        let next_instructions_stack = context.borrow_mut().next_instructions_stack.clone();
+        let state = input.state;
+        let next_instructions_stack = state.borrow_mut().next_instructions_stack.clone();
 
         let mut instruction_iterator = body::iterate_instructions(dxb_body, next_instructions_stack);
 
@@ -84,6 +84,7 @@ pub fn execute_loop(
                     let inner_iterator = next_regular_instruction_iteration(
                         interrupt_provider.clone(),
                         regular_instruction,
+                        state
                     );
                     intercept_steps!(
                         inner_iterator,
@@ -164,7 +165,7 @@ pub fn execute_loop(
             // 1. if value is Some, handle it
             // 2. while pop_next_scope is true: pop current scope and repeat
             loop {
-                let mut context_mut = context.borrow_mut();
+                let mut context_mut = state.borrow_mut();
                 context_mut.pop_next_scope = false;
                 if let Some(value) = result_value {
                     let res = handle_value(&mut context_mut, value);
@@ -174,7 +175,7 @@ pub fn execute_loop(
                     drop(context_mut);
                 }
 
-                let mut context_mut = context.borrow_mut();
+                let mut context_mut = state.borrow_mut();
 
                 if context_mut.pop_next_scope {
                     let res = context_mut.scope_stack.pop();
@@ -197,10 +198,10 @@ pub fn execute_loop(
             // }
 
             // removes the current active value from the scope stack
-            let res = match context.borrow_mut().scope_stack.take_active_value()
+            let res = match state.borrow_mut().scope_stack.take_active_value()
             {
-                None => ExecutionStep::_Return(None),
-                Some(val) => ExecutionStep::_Return(Some(val)),
+                None => ExecutionStep::Result(None),
+                Some(val) => ExecutionStep::Result(Some(val)),
             };
             yield Ok(res);
         } else {

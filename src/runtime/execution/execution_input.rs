@@ -17,7 +17,7 @@ pub struct ExecutionInput<'a> {
     /// The execution should be ended after this run, no further executions will be done for this context.
     pub end_execution: bool,
     /// The runtime execution context that can persist across executions.
-    pub context: Rc<RefCell<RuntimeExecutionState>>,
+    pub state: Rc<RefCell<RuntimeExecutionState>>,
 }
 
 impl Default for ExecutionInput<'_> {
@@ -25,7 +25,7 @@ impl Default for ExecutionInput<'_> {
         Self {
             options: ExecutionOptions::default(),
             dxb_body: &[],
-            context: Rc::new(RefCell::new(RuntimeExecutionState::default())),
+            state: Rc::new(RefCell::new(RuntimeExecutionState::default())),
             end_execution: true,
         }
     }
@@ -39,7 +39,7 @@ impl<'a> ExecutionInput<'a> {
         Self {
             options,
             dxb_body,
-            context: Rc::new(RefCell::new(RuntimeExecutionState::default())),
+            state: Rc::new(RefCell::new(RuntimeExecutionState::default())),
             end_execution: true,
         }
     }

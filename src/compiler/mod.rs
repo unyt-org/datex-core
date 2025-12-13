@@ -966,13 +966,6 @@ fn compile_expression(
             // insert remote execution code
             compilation_context
                 .append_instruction_code(InstructionCode::REMOTE_EXECUTION);
-            // insert compiled caller expression
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*caller, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
 
             // compile remote execution block
             let mut execution_block_ctx =
@@ -988,9 +981,9 @@ fn compile_expression(
                 .ok_or_else(|| CompilerError::ScopePopError)?;
 
             let external_slots = execution_block_ctx.external_slots();
-            // start block
-            compilation_context
-                .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
+            
+            
+            // --- start block
             // set block size (len of compilation_context.buffer)
             append_u32(
                 &mut compilation_context.buffer,
@@ -1009,6 +1002,15 @@ fn compile_expression(
             compilation_context
                 .buffer
                 .extend_from_slice(&execution_block_ctx.buffer);
+            // --- end block
+
+            // insert compiled caller expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*caller, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         // named slot
@@ -2132,11 +2134,7 @@ pub mod tests {
             res,
             vec![
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
-                42,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (2 bytes)
                 2,
                 0,
@@ -2150,6 +2148,10 @@ pub mod tests {
                 // literal value 43
                 InstructionCode::INT_8.into(),
                 43,
+                // --- end of block
+                // caller (literal value 42 for test)
+                InstructionCode::INT_8.into(),
+                42,
             ]
         );
     }
@@ -2163,11 +2165,7 @@ pub mod tests {
             res,
             vec![
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
-                42,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2184,6 +2182,10 @@ pub mod tests {
                 1,
                 InstructionCode::INT_8.into(),
                 2,
+                // --- end of block
+                // caller (literal value 42 for test)
+                InstructionCode::INT_8.into(),
+                42,
             ]
         );
     }
@@ -2209,11 +2211,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2236,6 +2234,10 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }
@@ -2278,11 +2280,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2315,6 +2313,10 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }
@@ -2347,11 +2349,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 69,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (11 bytes)
                 11,
                 0,
@@ -2386,6 +2384,10 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }
@@ -2418,11 +2420,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 69,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (20 bytes)
                 20,
                 0,
@@ -2464,6 +2462,10 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }
@@ -2489,11 +2491,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 1
                 // block size (21 bytes)
                 21,
                 0,
@@ -2511,11 +2509,7 @@ pub mod tests {
                 0,
                 // nested remote execution
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 2 for test)
-                InstructionCode::INT_8.into(),
-                2,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 2
                 // block size (5 bytes)
                 5,
                 0,
@@ -2537,6 +2531,14 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block 2
+                // caller (literal value 2 for test)
+                InstructionCode::INT_8.into(),
+                2,
+                // -- end of block 1
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }
@@ -2562,11 +2564,7 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 1
                 // block size (21 bytes)
                 24,
                 0,
@@ -2584,14 +2582,7 @@ pub mod tests {
                 0,
                 // nested remote execution
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 2 for test)
-                InstructionCode::GET_SLOT.into(),
-                0,
-                0,
-                0,
-                0,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 2
                 // block size (5 bytes)
                 5,
                 0,
@@ -2613,6 +2604,17 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block 2
+                // caller (literal value 2 for test)
+                InstructionCode::GET_SLOT.into(),
+                0,
+                0,
+                0,
+                0,
+                // --- end of block 1
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
             ]
         );
     }

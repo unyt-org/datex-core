@@ -259,6 +259,7 @@ impl Display for MapKey<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum OwnedMapKey {
     Text(String),
     Value(ValueContainer),
@@ -269,6 +270,15 @@ impl From<OwnedMapKey> for ValueContainer {
         match key {
             OwnedMapKey::Text(text) => ValueContainer::Value(Value::from(text)),
             OwnedMapKey::Value(value) => value,
+        }
+    }
+}
+
+impl From<OwnedMapKey> for ValueKey<'_> {
+    fn from(key: OwnedMapKey) -> Self {
+        match key {
+            OwnedMapKey::Text(text) => ValueKey::from(text),
+            OwnedMapKey::Value(value) => ValueKey::from(value),
         }
     }
 }
