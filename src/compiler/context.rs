@@ -164,33 +164,7 @@ impl CompilationContext {
         }
         append_u32(&mut self.buffer, 0); // placeholder for the slot address
     }
-
-    // TODO #440: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
-    // pub fn insert_union(&self, union: &Union) {
-    //     // insert values as nested UNION binary operations
-
-    //     self.append_binary_code(InstructionCode::UNION);
-    //     // insert first value
-    //     self.insert_value_container(&union.options[0]);
-
-    //     // insert rest of values recursively
-    //     self.insert_union_options(union.options[1..].to_vec());
-    // }
-
-    fn insert_union_options(&mut self, options: Vec<ValueContainer>) {
-        // directly insert value if only one option left
-        if options.len() == 1 {
-            self.insert_value_container(&options[0]);
-        } else {
-            self.append_instruction_code(InstructionCode::STATEMENTS);
-            self.append_instruction_code(InstructionCode::UNION);
-            // insert first value
-            self.insert_value_container(&options[0]);
-            // insert rest of values recursively
-            self.insert_union_options(options[1..].to_vec());
-            self.append_instruction_code(InstructionCode::SCOPE_END);
-        }
-    }
+    
     pub fn set_u32_at_index(&mut self, u32: u32, index: usize) {
         self.buffer[index..index + CompilationContext::INT_32_BYTES as usize]
             .copy_from_slice(&u32.to_le_bytes());

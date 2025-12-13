@@ -19,8 +19,8 @@ use strum_macros::EnumIter;
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
-    CLOSE_AND_STORE, // ; TODO: do we need close_and_store at all, or is scope_end enough?
     STATEMENTS,      // statements block
+    SHORT_STATEMENTS, // optimized statements block with up to 255 instructions
     CACHE_POINT,     // cache dxb from this point on
     CACHE_RESET,     // reset dxb scope cache
 
@@ -218,7 +218,6 @@ pub enum InstructionCode {
     NULL,
     VOID,
     BUFFER,
-    EXECUTION_BLOCK,
     QUANTITY,
 
     SHORT_TEXT, // string with max. 255 characters

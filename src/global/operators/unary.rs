@@ -1,6 +1,7 @@
 use crate::global::instruction_codes::InstructionCode;
 use core::fmt::{Display, Formatter};
 use core::prelude::rust_2024::*;
+use crate::global::protocol_structures::instructions::RegularInstruction;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
@@ -20,6 +21,35 @@ impl From<&UnaryOperator> for InstructionCode {
         }
     }
 }
+
+impl From<&RegularInstruction> for UnaryOperator {
+    fn from(instruction: &RegularInstruction) -> Self {
+        match instruction {
+            RegularInstruction::UnaryPlus => {
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus)
+            }
+            RegularInstruction::UnaryMinus => {
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus)
+            }
+            RegularInstruction::BitwiseNot => {
+                UnaryOperator::Bitwise(BitwiseUnaryOperator::Not)
+            }
+            _ => {
+                core::todo!(
+                    "Unary operator for instruction {:?} not implemented",
+                    instruction
+                );
+            }
+        }
+    }
+}
+
+impl From<RegularInstruction> for UnaryOperator {
+    fn from(instruction: RegularInstruction) -> Self {
+        UnaryOperator::from(&instruction)
+    }
+}
+
 
 impl Display for UnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
@@ -93,13 +123,13 @@ impl Display for ArithmeticUnaryOperator {
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BitwiseUnaryOperator {
-    Negation, // ~
+    Not, // ~
 }
 
 impl From<&BitwiseUnaryOperator> for InstructionCode {
     fn from(op: &BitwiseUnaryOperator) -> Self {
         match op {
-            BitwiseUnaryOperator::Negation => InstructionCode::BITWISE_NOT,
+            BitwiseUnaryOperator::Not => InstructionCode::BITWISE_NOT,
         }
     }
 }
@@ -107,7 +137,7 @@ impl From<&BitwiseUnaryOperator> for InstructionCode {
 impl Display for BitwiseUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            BitwiseUnaryOperator::Negation => core::write!(f, "~"),
+            BitwiseUnaryOperator::Not => core::write!(f, "~"),
         }
     }
 }

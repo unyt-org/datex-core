@@ -96,7 +96,7 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
                     append_u32(buffer, val.len());
                 }
             }
-            
+
             for item in val {
                 append_value_container(buffer, item);
             }

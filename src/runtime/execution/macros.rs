@@ -10,7 +10,7 @@ macro_rules! next_iter {
 }
 pub(crate) use next_iter;
 
-/// Intercept specific steps in an iterator
+/// Intercept specific steps in an iterator and perform actions
 /// Non-handled steps are yielded back to the caller
 macro_rules! intercept_steps {
     (
@@ -28,6 +28,42 @@ macro_rules! intercept_steps {
     };
 }
 pub(crate) use intercept_steps;
+
+
+/// Intercept a specific step in an iterator.
+/// Non-handled steps are yielded back to the caller.
+/// The result of the matched body is returned if the step is encountered before the iterator ends.
+macro_rules! intercept_step {
+    (
+        $iterator:expr,
+        $( $pattern:pat => $body:expr ),+ $(,)?
+    ) => {
+        // for step in $iterator {
+        //     match step {
+        //         $(
+        //             $pattern => {break $body},
+        //         )+
+        //         step => yield step,
+        //     }
+        // }
+        
+        loop {
+            let step = $iterator.next();
+            if let Some(step) = step  {
+                match step {
+                    $(
+                        Some($pattern) => break Some($body),
+                    )+
+                    step => yield step,
+                }
+            }
+            else {
+                break None;
+            }
+        }
+    };
+}
+pub(crate) use intercept_step;
 
 /// Intercept specific steps in an iterator
 /// All steps must be handled within the macro
@@ -72,19 +108,6 @@ macro_rules! interrupt_with_result {
 }
 pub(crate) use interrupt_with_result;
 
-/// Yield an interrupt and get the next type instruction,
-/// expecting the next input to be a NextTypeInstruction variant
-macro_rules! interrupt_with_next_type_instruction {
-    ($input:expr, $arg:expr) => {{
-        yield Ok($arg);
-        let res = $input.take().unwrap();
-        match res {
-            InterruptProvider::NextTypeInstruction(value) => value,
-            _ => unreachable!(),
-        }
-    }};
-}
-pub(crate) use interrupt_with_next_type_instruction;
 
 /// Unwrap a Result expression, yielding an error if it is an Err variant
 /// This is similar to the `?` operator but works within generator functions

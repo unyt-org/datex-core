@@ -37,7 +37,7 @@ pub fn execute_dxb_sync(
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Return(result) => return Ok(result),
+            ExecutionStep::_Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(get_pointer_value(
@@ -82,7 +82,7 @@ pub async fn execute_dxb(
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::Return(result) => return Ok(result),
+            ExecutionStep::_Return(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::Result(get_pointer_value(
@@ -222,11 +222,7 @@ mod tests {
     use log::{debug, info};
     use crate::runtime::execution::execution_input::ExecutionOptions;
     use crate::stdlib::string::ToString;
-    use crate::stdlib::vec;
     use crate::stdlib::vec::Vec;
-    use crate::traits::apply::Apply;
-    use crate::traits::identity::Identity;
-    use crate::traits::structural_eq::StructuralEq;
     use crate::traits::value_eq::ValueEq;
     use crate::values::core_value::CoreValue;
     use crate::values::core_values::decimal::Decimal;
@@ -354,21 +350,6 @@ mod tests {
     fn nested_scope() {
         let result = execute_datex_script_debug_with_result("1 + (2 + 3)");
         assert_eq!(result, Integer::from(6i8).into());
-    }
-
-    #[test]
-    fn invalid_scope_close() {
-        let result = execute_dxb_debug(&[
-            InstructionCode::STATEMENTS.into(),
-            InstructionCode::SCOPE_END.into(),
-            InstructionCode::SCOPE_END.into(),
-        ]);
-        assert!(core::matches!(
-            result,
-            Err(ExecutionError::InvalidProgram(
-                InvalidProgramError::InvalidScopeClose
-            ))
-        ));
     }
 
     #[test]

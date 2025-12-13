@@ -12,6 +12,8 @@ pub enum InvalidProgramError {
     // any unterminated sequence, e.g. missing key in key-value pair
     UnterminatedSequence,
     MissingRemoteExecutionReceiver,
+    ExpectedTypeValue,
+    ExpectedValue
 }
 
 impl Display for InvalidProgramError {
@@ -28,6 +30,12 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::MissingRemoteExecutionReceiver => {
                 core::write!(f, "Missing remote execution receiver")
+            }
+            InvalidProgramError::ExpectedTypeValue => {
+                core::write!(f, "Expected a type value")
+            }
+            InvalidProgramError::ExpectedValue => {
+                core::write!(f, "Expected a value")
             }
         }
     }
