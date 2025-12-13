@@ -261,7 +261,7 @@ mod tests {
     static CRYPTO: CryptoNative = CryptoNative {};
 
     #[tokio::test]
-    pub async fn hash_func() {
+    pub async fn hash_sha256() {
         let ikm = Vec::from([0u8; 32]);
         let hash = CRYPTO.hash_sha256(&ikm).await.unwrap();
         assert_eq!(
@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn hash_key_derivation_func() {
+    pub async fn hash_sha256_key_derivation() {
         let mut ikm = Vec::from([0u8; 32]);
         let salt = Vec::from([0u8; 16]);
         let hash_a = CRYPTO.hkdf_sha256(&ikm, &salt).await.unwrap();
@@ -295,7 +295,7 @@ mod tests {
 
     // Signatures
     #[tokio::test]
-    pub async fn dsa_ed2519() {
+    pub async fn dsa_ed25519() {
         // Checks gen_ed25519, sig_ed25519, ver_ed25519 against itself
         let data = b"Some message to  sign".to_vec();
         let other_data = b"Some message to sign".to_vec();
@@ -366,7 +366,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn key_gen_x25519() {
+    async fn dh_x25519() {
         let (ser_pub, ser_pri) = CRYPTO.gen_x25519().await.unwrap();
         let (cli_pub, cli_pri) = CRYPTO.gen_x25519().await.unwrap();
 
