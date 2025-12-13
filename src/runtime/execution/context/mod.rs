@@ -126,7 +126,7 @@ impl ExecutionContext {
         local_execution_context.borrow_mut().reset_index();
         Ok(ExecutionInput {
             // FIXME #108: no clone here
-            context: (*local_execution_context).clone(),
+            state: (*local_execution_context).clone(),
             options: (*execution_options).clone(),
             dxb_body: dxb,
             end_execution,

@@ -1,6 +1,6 @@
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, InstructionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData};
 use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -197,7 +197,7 @@ pub fn iterate_instructions<'a>(
                             }
 
                             InstructionCode::REMOTE_EXECUTION => {
-                                let data = ExecutionBlockData::read(&mut reader);
+                                let data = InstructionBlockData::read(&mut reader);
                                 next_instructions_stack.borrow_mut().push_next_regular(1); // receivers
                                 RegularInstruction::RemoteExecution(yield_unwrap!(data))
                             },
@@ -388,12 +388,11 @@ pub fn iterate_instructions<'a>(
                             InstructionCode::TYPED_VALUE => {
                                 next_instructions_stack.borrow_mut().push_next_regular(1);
                                 next_instructions_stack.borrow_mut().push_next_type(1);
-                                continue;
+                                RegularInstruction::TypedValue
                             }
                             InstructionCode::TYPE_EXPRESSION => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
                                 next_instructions_stack.borrow_mut().push_next_type(1);
-                                continue;
+                                RegularInstruction::TypeExpression
                             }
 
                             _ => return yield Err(DXBParserError::InvalidBinaryCode(

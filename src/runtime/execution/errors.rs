@@ -7,24 +7,18 @@ use crate::values::value_container::ValueError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
-    InvalidScopeClose,
-    InvalidKeyValuePair,
     // any unterminated sequence, e.g. missing key in key-value pair
     UnterminatedSequence,
     MissingRemoteExecutionReceiver,
     ExpectedTypeValue,
-    ExpectedValue
+    ExpectedValue,
+    ExpectedRegularInstruction,
+    ExpectedTypeInstruction,
 }
 
 impl Display for InvalidProgramError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            InvalidProgramError::InvalidScopeClose => {
-                core::write!(f, "Invalid scope close")
-            }
-            InvalidProgramError::InvalidKeyValuePair => {
-                core::write!(f, "Invalid key-value pair")
-            }
             InvalidProgramError::UnterminatedSequence => {
                 core::write!(f, "Unterminated sequence")
             }
@@ -36,6 +30,12 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::ExpectedValue => {
                 core::write!(f, "Expected a value")
+            }
+            InvalidProgramError::ExpectedRegularInstruction => {
+                core::write!(f, "Expected a regular instruction")
+            }
+            InvalidProgramError::ExpectedTypeInstruction => {
+                core::write!(f, "Expected a type instruction")
             }
         }
     }

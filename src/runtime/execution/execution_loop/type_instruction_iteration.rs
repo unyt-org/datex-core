@@ -4,7 +4,7 @@ use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeIn
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::{ExecutionStep, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::runtime::execution::macros::{intercept_step, intercept_steps, interrupt_with_result, next_iter};
+use crate::runtime::execution::macros::{intercept_step, intercept_steps, interrupt_with_maybe_value, next_iter};
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
@@ -46,7 +46,9 @@ macro_rules! interrupt_with_next_type_instruction {
         let res = $input.take().unwrap();
         match res {
             InterruptProvider::NextTypeInstruction(value) => value,
-            _ => unreachable!(),
+            _ => {
+                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedTypeInstruction))
+            }
         }
     }};
 }
@@ -59,10 +61,10 @@ macro_rules! get_next_type {
             $interrupt_provider,
             crate::runtime::execution::execution_loop::ExecutionStep::GetNextInstruction
         );
-        let inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
+        let inner_iterator = crate::runtime::execution::execution_loop::type_instruction_iteration::next_type_instruction_iteration($interrupt_provider, next);
         let maybe_type = intercept_step!(
             inner_iterator,
-            Ok(crate::runtime::execution::execution_loop::ExecutionStep::InternalTypeReturn(base_type)) => {
+            Ok(crate::runtime::execution::execution_loop::ExecutionStep::TypeReturn(base_type)) => {
                 base_type
             }
         );
@@ -74,6 +76,7 @@ macro_rules! get_next_type {
         }
     }};
 }
+pub(crate) use get_next_type;
 
 pub(crate) fn next_type_instruction_iteration(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
@@ -82,7 +85,7 @@ pub(crate) fn next_type_instruction_iteration(
     Box::new(gen move {
         yield Ok(ExecutionStep::TypeReturn(match instruction {
             TypeInstruction::List(list_data) => {
-                interrupt_with_result!(
+                interrupt_with_maybe_value!(
                     interrupt_provider,
                     ExecutionStep::Pause
                 );
@@ -104,7 +107,7 @@ pub(crate) fn next_type_instruction_iteration(
             }
             TypeInstruction::TypeReference(type_ref) => {
                 let metadata = type_ref.metadata;
-                let val = interrupt_with_result!(
+                let val = interrupt_with_maybe_value!(
                         interrupt_provider,
                         match type_ref.address {
                             RawPointerAddress::Local(address) => {

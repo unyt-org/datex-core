@@ -24,7 +24,7 @@ mod execution_input;
 mod errors;
 mod memory_dump;
 pub mod context;
-mod execution_loop;
+pub mod execution_loop;
 
 
 
@@ -33,14 +33,14 @@ pub fn execute_dxb_sync(
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
     let runtime_internal =
-        input.context.borrow_mut().runtime_internal().clone();
+        input.state.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::_Return(result) => return Ok(result),
+            ExecutionStep::Result(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_pointer_value(
+                    Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
@@ -48,20 +48,20 @@ pub fn execute_dxb_sync(
             ExecutionStep::ResolveLocalPointer(address) => {
                 // TODO #401: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_local_pointer_value(
+                    Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(
+                    Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(
+                    Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
                         slot,
                     )?));
@@ -78,14 +78,14 @@ pub async fn execute_dxb(
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
     let runtime_internal =
-        input.context.borrow_mut().runtime_internal().clone();
+        input.state.borrow_mut().runtime_internal().clone();
 
     for output in execute_loop(input, interrupt_provider.clone()) {
         match output? {
-            ExecutionStep::_Return(result) => return Ok(result),
+            ExecutionStep::Result(result) => return Ok(result),
             ExecutionStep::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_pointer_value(
+                    Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
@@ -93,14 +93,14 @@ pub async fn execute_dxb(
             ExecutionStep::ResolveLocalPointer(address) => {
                 // TODO #402: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_local_pointer_value(
+                    Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
             ExecutionStep::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(
+                    Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
@@ -122,14 +122,14 @@ pub async fn execute_dxb(
                     )
                         .await?;
                     *interrupt_provider.borrow_mut() =
-                        Some(InterruptProvider::Result(res));
+                        Some(InterruptProvider::ResolvedValue(res));
                 } else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
             ExecutionStep::GetInternalSlot(slot) => {
                 *interrupt_provider.borrow_mut() =
-                    Some(InterruptProvider::Result(get_internal_slot_value(
+                    Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
                         slot,
                     )?));

@@ -69,7 +69,7 @@ pub enum RegularInstruction {
     DecimalAsInt32(FloatAsInt32Data),
     Decimal(DecimalData),
 
-    RemoteExecution(ExecutionBlockData),
+    RemoteExecution(InstructionBlockData),
 
     ShortText(ShortTextData),
     Text(TextData),
@@ -135,6 +135,9 @@ pub enum RegularInstruction {
 
     AssignToReference(AssignmentOperator),
     Deref,
+
+    TypedValue,
+    TypeExpression,
 }
 
 impl Display for RegularInstruction {
@@ -293,15 +296,14 @@ impl Display for RegularInstruction {
                     data.create_block_size
                 )
             }
-            RegularInstruction::ExecutionBlock(block) => {
+            RegularInstruction::RemoteExecution(block) => {
                 core::write!(
                     f,
-                    "EXECUTION_BLOCK (length: {}, injected_slot_count: {})",
+                    "REMOTE_EXECUTION (length: {}, injected_slot_count: {})",
                     block.length,
                     block.injected_slot_count
                 )
             }
-            RegularInstruction::RemoteExecution => core::write!(f, "REMOTE_EXECUTION"),
             RegularInstruction::AddAssign(address) => {
                 core::write!(f, "ADD_ASSIGN {}", address.0)
             }
@@ -317,6 +319,8 @@ impl Display for RegularInstruction {
             RegularInstruction::UnaryMinus => core::write!(f, "-"),
             RegularInstruction::UnaryPlus => core::write!(f, "+"),
             RegularInstruction::BitwiseNot => core::write!(f, "BITWISE_NOT"),
+            RegularInstruction::TypedValue => core::write!(f, "TYPED_VALUE"),
+            RegularInstruction::TypeExpression => core::write!(f, "TYPE_EXPRESSION"),
         }
     }
 }
@@ -527,7 +531,7 @@ pub struct GetOrCreateRefData {
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
-pub struct ExecutionBlockData {
+pub struct InstructionBlockData {
     pub length: u32,
     pub injected_slot_count: u32,
     #[br(count = injected_slot_count)]

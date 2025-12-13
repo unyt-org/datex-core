@@ -94,19 +94,33 @@ macro_rules! interrupt {
 }
 pub(crate) use interrupt;
 
-/// Yield an interrupt and get the next result value,
-/// expecting the next input to be a Result variant
-macro_rules! interrupt_with_result {
+/// Yield an interrupt and get the next resolved value or None
+/// expecting the next input to be a ResolvedValue variant
+macro_rules! interrupt_with_maybe_value {
     ($input:expr, $arg:expr) => {{
         yield Ok($arg);
         let res = $input.take().unwrap();
         match res {
-            InterruptProvider::Result(value) => value,
+            crate::runtime::execution::execution_loop::InterruptProvider::ResolvedValue(value) => value,
             _ => unreachable!(),
         }
     }};
 }
-pub(crate) use interrupt_with_result;
+pub(crate) use interrupt_with_maybe_value;
+
+/// Yield an interrupt and get the next resolved value
+/// expecting the next input to be a ResolvedValue variant with Some value
+macro_rules! interrupt_with_value {
+    ($input:expr, $arg:expr) => {{
+        let maybe_value = interrupt_with_maybe_value!($input, $arg);
+        if let Some(value) = maybe_value {
+            value
+        } else {
+            unreachable!(),
+        }
+    }};
+}
+pub(crate) use interrupt_with_value;
 
 
 /// Unwrap a Result expression, yielding an error if it is an Err variant
