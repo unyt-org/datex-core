@@ -174,14 +174,58 @@ impl Default for InterfacePriority {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
+    InterfaceOpenFailed,
     InterfaceCloseFailed,
-    InterfaceNotConnected,
-    InterfaceDoesNotExist,
     InterfaceAlreadyExists,
+    InterfaceDoesNotExist,
+    InterfaceNotConnected,
     InterfaceTypeDoesNotExist,
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
-    InterfaceOpenError,
+    SignatureError,
+}
+
+impl Display for ComHubError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ComHubError::InterfaceError(_msg) => {
+                core::write!(f, "ComHubError: ComInterfaceError")
+            }
+            ComHubError::InterfaceCloseFailed => {
+                core::write!(f, "ComHubError: Failed to close interface")
+            }
+            ComHubError::InterfaceNotConnected => {
+                core::write!(f, "ComHubError: Interface not connected")
+            }
+            ComHubError::InterfaceDoesNotExist => {
+                core::write!(f, "ComHubError: Interface does not exit")
+            }
+            ComHubError::InterfaceAlreadyExists => {
+                core::write!(f, "ComHubError: Interface already exists")
+            }
+            ComHubError::InterfaceTypeDoesNotExist => {
+                core::write!(f, "ComHubError: Type of interface does not exist")
+            }
+            ComHubError::InvalidInterfaceDirectionForFallbackInterface => {
+                core::write!(
+                    f,
+                    "ComHubError: Invalid direction for fallback interface"
+                )
+            }
+            ComHubError::NoResponse => {
+                core::write!(f, "ComHubError: No response")
+            }
+            ComHubError::InterfaceOpenFailed => {
+                core::write!(f, "ComHubError: Failed to open interface")
+            }
+            ComHubError::SignatureError => {
+                core::write!(f, "ComHubError: CryptoError")
+            }
+            _ => {
+                core::write!(f, "ComHubError: Some mysterious comhub error")
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -357,7 +401,7 @@ impl ComHub {
             // and wait for it to be connected
             // FIXME #240: borrow_mut across await point
             if !(interface.borrow_mut().handle_open().await) {
-                return Err(ComHubError::InterfaceOpenError);
+                return Err(ComHubError::InterfaceOpenFailed);
             }
         }
         self.add_interface(interface.clone(), priority)
@@ -441,9 +485,16 @@ impl ComHub {
         info!("{} received block: {}", self.endpoint, block);
 
         // ignore invalid blocks (e.g. invalid signature)
-        if !self.validate_block(block).await {
-            warn!("Block validation failed. Dropping block...");
-            return;
+        match self.validate_block(block).await {
+            Ok(true) => { /* Ignored */ }
+            Ok(false) => {
+                warn!("Block validation failed. Dropping block...");
+                return;
+            }
+            Err(e) => {
+                warn!("Error in block validation {e}. Dropping block...");
+                return;
+            }
         }
 
         for interceptor in self.incoming_block_interceptors.borrow().iter() {
@@ -719,7 +770,10 @@ impl ComHub {
 
     /// Validates a block including it's signature if set
     /// TODO #378 @Norbert
-    pub async fn validate_block(&self, block: &DXBBlock) -> bool {
+    pub async fn validate_block(
+        &self,
+        block: &DXBBlock,
+    ) -> Result<bool, ComHubError> {
         // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
@@ -736,15 +790,17 @@ impl ComHub {
                         match block.routing_header.flags.signature_type() {
                             SignatureType::Encrypted => {
                                 let crypto = get_global_context().crypto;
-                                let raw_sign = block.signature.as_ref().unwrap();
+                                let raw_sign = block.signature
+                                    .as_ref()
+                                    .ok_or(ComHubError::SignatureError)?;
                                 let (enc_sign, pub_key) = raw_sign.split_at(64);
                                 let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
                                     .await
-                                    .unwrap();
+                                    .map_err(|_| ComHubError::SignatureError)?;
                                 let signature = crypto
                                     .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
                                     .await
-                                    .unwrap();
+                                    .map_err(|_| ComHubError::SignatureError)?;
 
                                 let raw_signed = [
                                     pub_key,
@@ -754,17 +810,19 @@ impl ComHub {
                                 let hashed_signed = crypto
                                     .hash_sha256(&raw_signed)
                                     .await
-                                    .unwrap();
+                                    .map_err(|_| ComHubError::SignatureError)?;
 
                                 let ver = crypto
                                     .ver_ed25519(pub_key, &signature, &hashed_signed)
                                     .await
-                                    .unwrap();
-                                return ver;
+                                    .map_err(|_| ComHubError::SignatureError)?;
+                                return Ok(ver);
                             },
                             SignatureType::Unencrypted => {
                                 let crypto = get_global_context().crypto;
-                                let raw_sign = block.signature.as_ref().unwrap();
+                                let raw_sign = block.signature
+                                    .as_ref()
+                                    .ok_or(ComHubError::SignatureError)?;
                                 let (signature, pub_key) = raw_sign.split_at(64);
 
                                 let raw_signed = [
@@ -775,13 +833,13 @@ impl ComHub {
                                 let hashed_signed = crypto
                                     .hash_sha256(&raw_signed)
                                     .await
-                                    .unwrap();
+                                    .map_err(|_| ComHubError::SignatureError)?;
 
                                 let ver = crypto
                                     .ver_ed25519(pub_key, signature, &hashed_signed)
                                     .await
-                                    .unwrap();
-                                return ver;
+                                    .map_err(|_| ComHubError::SignatureError)?;
+                                return Ok(ver);
                             },
                             SignatureType::None => {
                                 unreachable!("If (is_signed == true) => !None");
@@ -789,7 +847,7 @@ impl ComHub {
                         }
                     }
                     else {
-                        true
+                        Ok(true)
                     }
                 }
             }
@@ -808,12 +866,12 @@ impl ComHub {
                     }
                 };
                 match is_trusted {
-                    true => true,
+                    true => Ok(true),
                     false => {
                         warn!(
                             "Block received by {endpoint} is not signed. Dropping block..."
                         );
-                        false
+                        Ok(false)
                     }
                 }
             }
@@ -1002,7 +1060,7 @@ impl ComHub {
                 .set_signature_type(SignatureType::Unencrypted);
             // TODO #182 include fingerprint of the own public key into body
 
-            let block = self.prepare_own_block(block).await;
+            let block = self.prepare_own_block(block).await.unwrap();
 
             drop(socket_ref);
             self.send_block_to_endpoints_via_socket(
@@ -1410,7 +1468,10 @@ impl ComHub {
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     /// TODO #379 @Norbert
-    pub async fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
+    pub async fn prepare_own_block(
+        &self,
+        mut block: DXBBlock,
+    ) -> Result<DXBBlock, ComHubError> {
         // TODO #188 signature & encryption
         cfg_if::cfg_if! {
             if #[cfg(feature = "native_crypto")] {
@@ -1418,8 +1479,9 @@ impl ComHub {
                 match block.routing_header.flags.signature_type() {
                     SignatureType::Encrypted => {
                         let crypto = get_global_context().crypto;
-                        let (pub_key, pri_key) =
-                            crypto.gen_ed25519().await.unwrap();
+                        let (pub_key, pri_key) = crypto.gen_ed25519()
+                                .await
+                                .map_err(|_| ComHubError::SignatureError)?;
 
                         let raw_signed = [
                             pub_key.clone(),
@@ -1429,28 +1491,29 @@ impl ComHub {
                         let hashed_signed = crypto
                             .hash_sha256(&raw_signed)
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
 
                         let signature = crypto
                             .sig_ed25519(&pri_key, &hashed_signed)
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
                         let hash = crypto
                             .hkdf_sha256(&pub_key, &[0u8; 16])
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
                         let enc_sig = crypto
                             .aes_ctr_encrypt(&hash, &[0u8; 16], &signature)
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
                         // 64 + 44 = 108
                         block.signature =
                             Some([enc_sig.to_vec(), pub_key].concat());
                     }
                     SignatureType::Unencrypted => {
                         let crypto = get_global_context().crypto;
-                        let (pub_key, pri_key) =
-                            crypto.gen_ed25519().await.unwrap();
+                        let (pub_key, pri_key) = crypto.gen_ed25519()
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
 
                         let raw_signed = [
                             pub_key.clone(),
@@ -1460,12 +1523,12 @@ impl ComHub {
                         let hashed_signed = crypto
                             .hash_sha256(&raw_signed)
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
 
                         let signature = crypto
                             .sig_ed25519(&pri_key, &hashed_signed)
                             .await
-                            .unwrap();
+                            .map_err(|_| ComHubError::SignatureError)?;
                         // 64 + 44 = 108
                         block.signature =
                             Some([signature.to_vec(), pub_key].concat());
@@ -1486,7 +1549,7 @@ impl ComHub {
 
         // set distance to 1
         block.routing_header.distance = 1;
-        block
+        Ok(block)
     }
 
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
@@ -1494,7 +1557,7 @@ impl ComHub {
         &self,
         mut block: DXBBlock,
     ) -> Result<(), Vec<Endpoint>> {
-        block = self.prepare_own_block(block).await;
+        block = self.prepare_own_block(block).await.unwrap();
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
         self.send_block(block, vec![], false)
