@@ -270,7 +270,7 @@ impl DXBBlock {
                     SignatureType::Encrypted => {
                         let raw_sign = signature
                             .as_ref()
-                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new("Missing Signature") })?;
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new(HeaderParsingError::InvalidBlock) })?;
                         let (enc_sign, pub_key) = raw_sign.split_at(64);
                         let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
                             .await
@@ -306,7 +306,7 @@ impl DXBBlock {
                     SignatureType::Unencrypted => {
                         let raw_sign = signature
                             .as_ref()
-                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new("Missing Signature") })?;
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new(HeaderParsingError::InvalidBlock) })?;
                         let (signature, pub_key) = raw_sign.split_at(64);
 
                         let raw_signed = [
@@ -526,7 +526,11 @@ mod tests {
 
         // setup faulty signature
         let mut other_sig = signature.clone();
-        other_sig[42] = 42u8;
+        if other_sig[42] != 42u8 {
+            other_sig[42] = 42u8;
+        } else {
+            other_sig[42] = 43u8;
+        }
         block.signature = Some([other_sig.to_vec(), pub_key].concat());
         let block_bytes2 = block.to_bytes().unwrap();
         let block3 = DXBBlock::from_bytes(&block_bytes2).await;

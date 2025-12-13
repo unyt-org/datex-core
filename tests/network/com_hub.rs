@@ -338,7 +338,7 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
         block.recalculate_struct();
 
         block.routing_header.flags.set_signature_type(SignatureType::Unencrypted);
-        block = com_hub.prepare_own_block(block).await;
+        block = com_hub.prepare_own_block(block).await.unwrap();
 
         let block_bytes = block.to_bytes().unwrap();
         {
@@ -353,7 +353,7 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
         assert_eq!(block.signature, last_block.signature);
 
-        assert!(com_hub.validate_block(&last_block).await);
+        assert!(com_hub.validate_block(&last_block).await.unwrap());
     }
 }
 
@@ -379,7 +379,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
         block.recalculate_struct();
 
         block.routing_header.flags.set_signature_type(SignatureType::Encrypted);
-        block = com_hub.prepare_own_block(block).await;
+        block = com_hub.prepare_own_block(block).await.unwrap();
 
         let block_bytes = block.to_bytes().unwrap();
         {
@@ -394,7 +394,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
         assert_eq!(block.signature, last_block.signature);
 
-        assert!(com_hub.validate_block(&last_block).await);
+        assert!(com_hub.validate_block(&last_block).await.unwrap());
     }
 }
 
