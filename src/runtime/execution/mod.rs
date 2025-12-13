@@ -18,7 +18,6 @@ pub use errors::*;
 pub use memory_dump::*;
 use crate::runtime::execution::execution_loop::{execute_loop, ExecutionStep, ExternalExecutionStep, InterruptProvider};
 
-mod stack;
 pub mod macros;
 mod execution_input;
 mod errors;

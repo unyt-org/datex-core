@@ -18,7 +18,6 @@ use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramEr
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::execution_loop::type_instruction_iteration::{next_type_instruction_iteration};
 use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
-use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;

@@ -274,11 +274,11 @@ impl From<OwnedMapKey> for ValueContainer {
     }
 }
 
-impl From<OwnedMapKey> for ValueKey<'_> {
-    fn from(key: OwnedMapKey) -> Self {
+impl<'a> From<&'a OwnedMapKey> for ValueKey<'a> {
+    fn from(key: &'a OwnedMapKey) -> Self {
         match key {
-            OwnedMapKey::Text(text) => ValueKey::from(text),
-            OwnedMapKey::Value(value) => ValueKey::from(value),
+            OwnedMapKey::Text(text) => ValueKey::Text(&text),
+            OwnedMapKey::Value(value) => ValueKey::Value(&value),
         }
     }
 }

@@ -306,7 +306,7 @@ pub(crate) fn next_regular_instruction_iteration(
                 for _ in 0..map_data.element_count {
                     let (key, value) =
                         get_next_key_value_pair!(interrupt_provider.clone());
-                    map.set(key, value);
+                    map.set(&key, value);
                 }
                 Some(map.into())
             }
