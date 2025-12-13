@@ -1,4 +1,5 @@
 pub mod state;
+mod type_instruction_iteration;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
@@ -7,12 +8,13 @@ use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, BitwiseUnaryOperator, ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator, UnaryOperator};
 use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction};
 use crate::parser::body;
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::macros::{intercept_all_steps, intercept_steps, interrupt, interrupt_with_next_type_instruction, interrupt_with_result, next_iter, yield_unwrap};
+use crate::runtime::execution::execution_loop::type_instruction_iteration::get_type_from_instructions;
+use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_next_type_instruction, interrupt_with_result, next_iter, yield_unwrap};
 use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
 use crate::traits::identity::Identity;
@@ -60,8 +62,9 @@ pub fn execute_loop(
         let dxb_body = input.dxb_body;
         let end_execution = input.end_execution;
         let context = input.context;
+        let next_instructions_stack = &mut context.clone().borrow_mut().next_instructions_stack;
 
-        let instruction_iterator = body::iterate_instructions(dxb_body);
+        let instruction_iterator = body::iterate_instructions(dxb_body, next_instructions_stack);
 
         for instruction in instruction_iterator {
             // TODO #100: use ? operator instead of yield_unwrap once supported in gen blocks
@@ -73,25 +76,26 @@ pub fn execute_loop(
             // get initial value from instruction
             let mut result_value = None;
 
-            intercept_all_steps!(
-                get_result_value_from_instruction(
-                    context.clone(),
-                    instruction,
-                    interrupt_provider.clone(),
-                ),
-                Ok(ExecutionStep::InternalReturn(result)) => {
-                    result_value = result;
-                },
-                Ok(ExecutionStep::InternalTypeReturn(result)) => {
-                    context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
-                    // result_value = Some(ValueContainer::from(result));
-                },
-                step => {
-                    let step = yield_unwrap!(step);
-                    *interrupt_provider.borrow_mut() =
-                        Some(interrupt!(interrupt_provider, step));
-                }
-            );
+            // TODO:
+            // handle_steps!(
+            //     get_result_value_from_instruction(
+            //         context.clone(),
+            //         instruction,
+            //         interrupt_provider.clone(),
+            //     ),
+            //     Ok(ExecutionStep::InternalReturn(result)) => {
+            //         result_value = result;
+            //     },
+            //     Ok(ExecutionStep::InternalTypeReturn(result)) => {
+            //         context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
+            //         // result_value = Some(ValueContainer::from(result));
+            //     },
+            //     step => {
+            //         let step = yield_unwrap!(step);
+            //         *interrupt_provider.borrow_mut() =
+            //             Some(interrupt!(interrupt_provider, step));
+            //     }
+            // );
 
 
             // 1. if value is Some, handle it
@@ -145,86 +149,86 @@ pub fn execute_loop(
 #[inline]
 fn get_result_value_from_instruction(
     context: Rc<RefCell<RuntimeExecutionState>>,
-    instruction: Instruction,
+    instruction: RegularInstruction,
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
 ) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
     gen move {
         yield Ok(ExecutionStep::InternalReturn(match instruction {
             // boolean
-            Instruction::True => Some(true.into()),
-            Instruction::False => Some(false.into()),
+            RegularInstruction::True => Some(true.into()),
+            RegularInstruction::False => Some(false.into()),
 
             // integers
-            Instruction::Int8(integer) => Some(Integer::from(integer.0).into()),
-            Instruction::Int16(integer) => {
+            RegularInstruction::Int8(integer) => Some(Integer::from(integer.0).into()),
+            RegularInstruction::Int16(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::Int32(integer) => {
+            RegularInstruction::Int32(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::Int64(integer) => {
+            RegularInstruction::Int64(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::Int128(integer) => {
+            RegularInstruction::Int128(integer) => {
                 Some(Integer::from(integer.0).into())
             }
 
             // unsigned integers
-            Instruction::UInt8(integer) => {
+            RegularInstruction::UInt8(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::UInt16(integer) => {
+            RegularInstruction::UInt16(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::UInt32(integer) => {
+            RegularInstruction::UInt32(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::UInt64(integer) => {
+            RegularInstruction::UInt64(integer) => {
                 Some(Integer::from(integer.0).into())
             }
-            Instruction::UInt128(integer) => {
+            RegularInstruction::UInt128(integer) => {
                 Some(Integer::from(integer.0).into())
             }
 
             // big integers
-            Instruction::BigInteger(IntegerData(integer)) => {
+            RegularInstruction::BigInteger(IntegerData(integer)) => {
                 Some(integer.into())
             }
 
             // specific floats
-            Instruction::DecimalF32(Float32Data(f32)) => {
+            RegularInstruction::DecimalF32(Float32Data(f32)) => {
                 Some(TypedDecimal::from(f32).into())
             }
-            Instruction::DecimalF64(Float64Data(f64)) => {
+            RegularInstruction::DecimalF64(Float64Data(f64)) => {
                 Some(TypedDecimal::from(f64).into())
             }
 
             // default decimals (big decimals)
-            Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
+            RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 Some(Decimal::from(i16 as f32).into())
             }
-            Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
+            RegularInstruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 Some(Decimal::from(i32 as f32).into())
             }
-            Instruction::Decimal(DecimalData(big_decimal)) => {
+            RegularInstruction::Decimal(DecimalData(big_decimal)) => {
                 Some(big_decimal.into())
             }
 
             // endpoint
-            Instruction::Endpoint(endpoint) => Some(endpoint.into()),
+            RegularInstruction::Endpoint(endpoint) => Some(endpoint.into()),
 
             // null
-            Instruction::Null => Some(Value::null().into()),
+            RegularInstruction::Null => Some(Value::null().into()),
 
             // text
-            Instruction::ShortText(ShortTextData(text)) => Some(text.into()),
-            Instruction::Text(TextData(text)) => Some(text.into()),
+            RegularInstruction::ShortText(ShortTextData(text)) => Some(text.into()),
+            RegularInstruction::Text(TextData(text)) => Some(text.into()),
 
             // binary operations
-            Instruction::Add
-            | Instruction::Subtract
-            | Instruction::Multiply
-            | Instruction::Divide => {
+            RegularInstruction::Add
+            | RegularInstruction::Subtract
+            | RegularInstruction::Multiply
+            | RegularInstruction::Divide => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::BinaryOperation {
                         operator: BinaryOperator::from(instruction),
@@ -234,7 +238,7 @@ fn get_result_value_from_instruction(
             }
 
             // unary operations
-            Instruction::UnaryPlus => {
+            RegularInstruction::UnaryPlus => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::Arithmetic(
@@ -244,7 +248,7 @@ fn get_result_value_from_instruction(
                 );
                 None
             }
-            Instruction::UnaryMinus => {
+            RegularInstruction::UnaryMinus => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::Arithmetic(
@@ -254,7 +258,7 @@ fn get_result_value_from_instruction(
                 );
                 None
             }
-            Instruction::BitwiseNot => {
+            RegularInstruction::BitwiseNot => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::Bitwise(
@@ -266,12 +270,12 @@ fn get_result_value_from_instruction(
             }
 
             // equality operations
-            Instruction::Is
-            | Instruction::Matches
-            | Instruction::StructuralEqual
-            | Instruction::Equal
-            | Instruction::NotStructuralEqual
-            | Instruction::NotEqual => {
+            RegularInstruction::Is
+            | RegularInstruction::Matches
+            | RegularInstruction::StructuralEqual
+            | RegularInstruction::Equal
+            | RegularInstruction::NotStructuralEqual
+            | RegularInstruction::NotEqual => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::ComparisonOperation {
                         operator: ComparisonOperator::from(instruction),
@@ -280,7 +284,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ExecutionBlock(block) => {
+            RegularInstruction::ExecutionBlock(block) => {
                 // build dxb
 
                 let mut buffer = Vec::with_capacity(256);
@@ -321,12 +325,12 @@ fn get_result_value_from_instruction(
                 }
             }
 
-            Instruction::CloseAndStore => {
+            RegularInstruction::CloseAndStore => {
                 let _ = context.borrow_mut().scope_stack.take_active_value();
                 None
             }
 
-            Instruction::Apply(ApplyData { arg_count }) => {
+            RegularInstruction::Apply(ApplyData { arg_count }) => {
                 context.borrow_mut().scope_stack.create_scope(Scope::Apply {
                     arg_count,
                     args: vec![],
@@ -334,7 +338,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ScopeStart => {
+            RegularInstruction::ScopeStart => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -342,7 +346,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ListStart => {
+            RegularInstruction::ListStart => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -353,7 +357,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::MapStart => {
+            RegularInstruction::MapStart => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -364,7 +368,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::KeyValueShortText(ShortTextData(key)) => {
+            RegularInstruction::KeyValueShortText(ShortTextData(key)) => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -375,7 +379,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::KeyValueDynamic => {
+            RegularInstruction::KeyValueDynamic => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -383,13 +387,13 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::ScopeEnd => {
+            RegularInstruction::ScopeEnd => {
                 // pop scope and return value
                 yield_unwrap!(context.borrow_mut().scope_stack.pop())
             }
 
             // slots
-            Instruction::AllocateSlot(SlotAddress(address)) => {
+            RegularInstruction::AllocateSlot(SlotAddress(address)) => {
                 let mut context = context.borrow_mut();
                 context.allocate_slot(address, None);
                 context
@@ -397,7 +401,7 @@ fn get_result_value_from_instruction(
                     .create_scope(Scope::SlotAssignment { address });
                 None
             }
-            Instruction::GetSlot(SlotAddress(address)) => {
+            RegularInstruction::GetSlot(SlotAddress(address)) => {
                 // if address is >= 0xffffff00, resolve internal slot
                 if address >= 0xffffff00 {
                     interrupt_with_result!(
@@ -418,7 +422,7 @@ fn get_result_value_from_instruction(
                     slot_value
                 }
             }
-            Instruction::SetSlot(SlotAddress(address)) => {
+            RegularInstruction::SetSlot(SlotAddress(address)) => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -426,7 +430,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::AssignToReference(operator) => {
+            RegularInstruction::AssignToReference(operator) => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignToReference {
                         reference: None,
@@ -436,33 +440,33 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::Deref => {
+            RegularInstruction::Deref => {
                 context.borrow_mut().scope_stack.create_scope(Scope::Deref);
                 None
             }
 
-            Instruction::GetRef(address) => {
+            RegularInstruction::GetRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::ResolvePointer(address)
                 )
             }
 
-            Instruction::GetLocalRef(address) => {
+            RegularInstruction::GetLocalRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::ResolveLocalPointer(address)
                 )
             }
 
-            Instruction::GetInternalRef(address) => {
+            RegularInstruction::GetInternalRef(address) => {
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::ResolveInternalPointer(address)
                 )
             }
 
-            Instruction::AddAssign(SlotAddress(address)) => {
+            RegularInstruction::AddAssign(SlotAddress(address)) => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignmentOperation {
                         address,
@@ -472,7 +476,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::SubtractAssign(SlotAddress(address)) => {
+            RegularInstruction::SubtractAssign(SlotAddress(address)) => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::AssignmentOperation {
                         address,
@@ -483,7 +487,7 @@ fn get_result_value_from_instruction(
             }
 
             // refs
-            Instruction::CreateRef => {
+            RegularInstruction::CreateRef => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::Reference(
@@ -494,7 +498,7 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::CreateRefMut => {
+            RegularInstruction::CreateRefMut => {
                 context.borrow_mut().scope_stack.create_scope(
                     Scope::UnaryOperation {
                         operator: UnaryOperator::Reference(
@@ -506,7 +510,7 @@ fn get_result_value_from_instruction(
             }
 
             // remote execution
-            Instruction::RemoteExecution => {
+            RegularInstruction::RemoteExecution => {
                 context
                     .borrow_mut()
                     .scope_stack
@@ -514,32 +518,33 @@ fn get_result_value_from_instruction(
                 None
             }
 
-            Instruction::DropSlot(SlotAddress(address)) => {
+            RegularInstruction::DropSlot(SlotAddress(address)) => {
                 // remove slot from slots
                 let res = context.borrow_mut().drop_slot(address);
                 yield_unwrap!(res);
                 None
             }
 
-            Instruction::TypeInstructions(instructions) => {
-                for output in
-                    get_type_from_instructions(interrupt_provider, instructions)
-                {
-                    // TODO #403: handle type here
-                    yield output;
-                }
-                return;
-            }
-
-            // type(...)
-            Instruction::TypeExpression(instructions) => {
-                for output in
-                    get_type_from_instructions(interrupt_provider, instructions)
-                {
-                    yield output;
-                }
-                return;
-            }
+            // TODO
+            // RegularInstruction::TypeInstructions(instructions) => {
+            //     for output in
+            //         get_type_from_instructions(interrupt_provider, instructions)
+            //     {
+            //         // TODO #403: handle type here
+            //         yield output;
+            //     }
+            //     return;
+            // }
+            //
+            // // type(...)
+            // RegularInstruction::TypeExpression(instructions) => {
+            //     for output in
+            //         get_type_from_instructions(interrupt_provider, instructions)
+            //     {
+            //         yield output;
+            //     }
+            //     return;
+            // }
 
             i => {
                 return yield Err(ExecutionError::NotImplemented(
@@ -548,106 +553,6 @@ fn get_result_value_from_instruction(
             }
         }))
     }
-}
-
-fn get_type_from_instructions(
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
-    instructions: Vec<TypeInstruction>,
-) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
-
-    gen move {
-
-        let mut iterator = instructions.into_iter();
-
-        while let Some(instruction) = iterator.next() {
-            let inner_iterator = resolve_type_from_type_instruction(
-                interrupt_provider.clone(),
-                instruction,
-            );
-            intercept_steps!(
-                inner_iterator,
-                Ok(ExecutionStep::NextTypeInstruction) => {
-                    let next_instruction = next_iter!(iterator);
-                    interrupt_provider.borrow_mut().replace(
-                        InterruptProvider::NextTypeInstruction(
-                            next_instruction,
-                        ),
-                    );
-                }
-            )
-        }
-    }
-}
-
-fn resolve_type_from_type_instruction(
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
-    instruction: TypeInstruction,
-) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
-    Box::new(gen move {
-        match instruction {
-            // TODO #404: Implement type instructions iteration
-            TypeInstruction::ListStart => {
-                interrupt_with_result!(
-                    interrupt_provider,
-                    ExecutionStep::Pause
-                );
-            }
-            TypeInstruction::LiteralInteger(integer) => {
-                yield Ok(ExecutionStep::InternalTypeReturn(
-                    Type::structural(integer.0),
-                ));
-            }
-            TypeInstruction::ImplType(impl_type_data) => {
-                let mutability: Option<ReferenceMutability> = impl_type_data.metadata.mutability.into();
-                let next = interrupt_with_next_type_instruction!(
-                    interrupt_provider,
-                    ExecutionStep::NextTypeInstruction
-                );
-                let inner_iterator = resolve_type_from_type_instruction(interrupt_provider, next);
-                intercept_steps!(
-                    inner_iterator,
-                    Ok(ExecutionStep::InternalTypeReturn(base_type)) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(
-                            Type::new(TypeDefinition::ImplType(Box::new(base_type), impl_type_data.impls.iter().map(PointerAddress::from).collect()), mutability.clone()))
-                        );
-                    }
-                );
-            }
-            TypeInstruction::TypeReference(type_ref) => {
-                let metadata = type_ref.metadata;
-                let val = interrupt_with_result!(
-                        interrupt_provider,
-                        match type_ref.address {
-                            RawPointerAddress::Local(address) => {
-                                ExecutionStep::ResolveLocalPointer(address)
-                            }
-                            RawPointerAddress::Internal(address) => {
-                                ExecutionStep::ResolveInternalPointer(address)
-                            }
-                            RawPointerAddress::Full(address) => {
-                                ExecutionStep::ResolvePointer(address)
-                            }
-                        }
-                    );
-
-                match val {
-                    // simple Type value
-                    Some(ValueContainer::Value(Value {inner: CoreValue::Type(ty), ..})) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(ty));
-                    }
-                    // Type Reference
-                    Some(ValueContainer::Reference(Reference::TypeReference(type_ref))) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(Type::new(TypeDefinition::Reference(type_ref), metadata.mutability.into())));
-                    }
-                    _ => {
-                        return yield Err(ExecutionError::ExpectedTypeValue);
-                    }
-                }
-
-            }
-            _ => core::todo!("#405 Undescribed by author."),
-        }
-    })
 }
 
 

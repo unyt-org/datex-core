@@ -1,4 +1,3 @@
-use crate::collections::HashMap;
 use crate::global::protocol_structures::instructions::*;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::{get_core_lib_type_reference, CoreLibPointerId};
@@ -25,7 +24,6 @@ use core::result::Result;
 use core::unreachable;
 use num_enum::TryFromPrimitive;
 use datex_core::runtime::execution::context::RemoteExecutionContext;
-use stack::{ScopeStack};
 pub use execution_input::ExecutionOptions;
 pub use execution_input::ExecutionInput;
 pub use errors::*;
@@ -33,7 +31,7 @@ pub use memory_dump::*;
 use crate::runtime::execution::execution_loop::{execute_loop, ExecutionStep, InterruptProvider};
 
 mod stack;
-mod macros;
+pub mod macros;
 mod execution_input;
 mod errors;
 mod memory_dump;

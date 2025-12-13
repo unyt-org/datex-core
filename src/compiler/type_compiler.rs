@@ -4,7 +4,7 @@ use crate::compiler::error::CompilerError;
 use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 use crate::compiler::scope::CompilationScope;
 use crate::core_compiler::value_compiler::append_big_integer;
-use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::rc::Rc;
 use crate::utils::buffers::append_u8;
 use crate::values::core_values::integer::Integer;
@@ -14,7 +14,7 @@ use core::cell::RefCell;
 impl CompilationContext {
     pub fn append_type_instruction_code(
         &mut self,
-        code: TypeSpaceInstructionCode,
+        code: TypeInstructionCode,
     ) {
         append_u8(&mut self.buffer, code as u8);
     }
@@ -23,7 +23,7 @@ impl CompilationContext {
 
     pub fn insert_type_literal_integer(&mut self, integer: &Integer) {
         self.append_type_instruction_code(
-            TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
+            TypeInstructionCode::TYPE_LITERAL_INTEGER,
         );
         append_big_integer(&mut self.buffer, integer);
     }

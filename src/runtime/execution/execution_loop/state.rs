@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use crate::parser::next_instructions_stack::NextInstructionsStack;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::ExecutionError;
@@ -13,6 +14,8 @@ pub struct RuntimeExecutionState {
     pub(crate) slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
     // if set to true, the execution loop will pop the current scope before continuing with the next instruction
     pub(crate) pop_next_scope: bool,
+    /// Used to track the next instructions to be executed, distinguishing between regular and type instructions.
+    pub(crate) next_instructions_stack: NextInstructionsStack,
     runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 

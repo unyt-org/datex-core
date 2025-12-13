@@ -1110,7 +1110,7 @@ pub mod tests {
     use core::cell::RefCell;
 
     use crate::ast::parse;
-    use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+    use crate::global::type_instruction_codes::TypeInstructionCode;
     use crate::libs::core::CoreLibPointerId;
     use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
@@ -2684,7 +2684,7 @@ pub mod tests {
             res,
             vec![
                 InstructionCode::TYPE_EXPRESSION.into(),
-                TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER.into(),
+                TypeInstructionCode::TYPE_LITERAL_INTEGER.into(),
                 // slot index as u32
                 2,
                 1,

@@ -1,6 +1,5 @@
 use crate::global::operators::AssignmentOperator;
 use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::integer::Integer;
@@ -14,6 +13,37 @@ use crate::global::type_instruction_codes::TypeMutabilityCode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
+    // regular instruction
+    Regular(RegularInstruction),
+    // Type instruction that yields a type
+    TypeInstruction(TypeInstruction),
+}
+
+impl Display for Instruction {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Instruction::Regular(instr) => core::write!(f, "{}", instr),
+            Instruction::TypeInstruction(instr) => {
+                core::write!(f, "TYPE_INSTRUCTION {}", instr)
+            }
+        }
+    }
+}
+
+impl From<RegularInstruction> for Instruction {
+    fn from(instruction: RegularInstruction) -> Self {
+        Instruction::Regular(instruction)
+    }
+}
+
+impl From<TypeInstruction> for Instruction {
+    fn from(instruction: TypeInstruction) -> Self {
+        Instruction::TypeInstruction(instruction)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RegularInstruction {
     // signed integers
     Int8(Int8Data),
     Int16(Int16Data),
@@ -105,115 +135,112 @@ pub enum Instruction {
 
     AssignToReference(AssignmentOperator),
     Deref,
-
-    TypeInstructions(Vec<TypeInstruction>),
-    TypeExpression(Vec<TypeInstruction>),
 }
 
-impl Display for Instruction {
+impl Display for RegularInstruction {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Instruction::Int8(data) => core::write!(f, "INT_8 {}", data.0),
-            Instruction::Int16(data) => core::write!(f, "INT_16 {}", data.0),
-            Instruction::Int32(data) => core::write!(f, "INT_32 {}", data.0),
-            Instruction::Int64(data) => core::write!(f, "INT_64 {}", data.0),
-            Instruction::Int128(data) => core::write!(f, "INT_128 {}", data.0),
+            RegularInstruction::Int8(data) => core::write!(f, "INT_8 {}", data.0),
+            RegularInstruction::Int16(data) => core::write!(f, "INT_16 {}", data.0),
+            RegularInstruction::Int32(data) => core::write!(f, "INT_32 {}", data.0),
+            RegularInstruction::Int64(data) => core::write!(f, "INT_64 {}", data.0),
+            RegularInstruction::Int128(data) => core::write!(f, "INT_128 {}", data.0),
 
-            Instruction::UInt8(data) => core::write!(f, "UINT_8 {}", data.0),
-            Instruction::UInt16(data) => core::write!(f, "UINT_16 {}", data.0),
-            Instruction::UInt32(data) => core::write!(f, "UINT_32 {}", data.0),
-            Instruction::UInt64(data) => core::write!(f, "UINT_64 {}", data.0),
-            Instruction::UInt128(data) => {
+            RegularInstruction::UInt8(data) => core::write!(f, "UINT_8 {}", data.0),
+            RegularInstruction::UInt16(data) => core::write!(f, "UINT_16 {}", data.0),
+            RegularInstruction::UInt32(data) => core::write!(f, "UINT_32 {}", data.0),
+            RegularInstruction::UInt64(data) => core::write!(f, "UINT_64 {}", data.0),
+            RegularInstruction::UInt128(data) => {
                 core::write!(f, "UINT_128 {}", data.0)
             }
 
-            Instruction::Apply(count) => {
+            RegularInstruction::Apply(count) => {
                 core::write!(f, "APPLY {}", count.arg_count)
             }
 
-            Instruction::BigInteger(data) => {
+            RegularInstruction::BigInteger(data) => {
                 core::write!(f, "BIG_INTEGER {}", data.0)
             }
-            Instruction::Endpoint(data) => {
+            RegularInstruction::Endpoint(data) => {
                 core::write!(f, "ENDPOINT {data}")
             }
 
-            Instruction::DecimalAsInt16(data) => {
+            RegularInstruction::DecimalAsInt16(data) => {
                 core::write!(f, "DECIMAL_AS_INT_16 {}", data.0)
             }
-            Instruction::DecimalAsInt32(data) => {
+            RegularInstruction::DecimalAsInt32(data) => {
                 core::write!(f, "DECIMAL_AS_INT_32 {}", data.0)
             }
-            Instruction::DecimalF32(data) => {
+            RegularInstruction::DecimalF32(data) => {
                 core::write!(
                     f,
                     "DECIMAL_F32 {}",
                     decimal_to_string(data.0, false)
                 )
             }
-            Instruction::DecimalF64(data) => {
+            RegularInstruction::DecimalF64(data) => {
                 core::write!(
                     f,
                     "DECIMAL_F64 {}",
                     decimal_to_string(data.0, false)
                 )
             }
-            Instruction::Decimal(data) => {
+            RegularInstruction::Decimal(data) => {
                 core::write!(f, "DECIMAL_BIG {}", data.0)
             }
-            Instruction::ShortText(data) => {
+            RegularInstruction::ShortText(data) => {
                 core::write!(f, "SHORT_TEXT {}", data.0)
             }
-            Instruction::Text(data) => core::write!(f, "TEXT {}", data.0),
-            Instruction::True => core::write!(f, "TRUE"),
-            Instruction::False => core::write!(f, "FALSE"),
-            Instruction::Null => core::write!(f, "NULL"),
-            Instruction::ScopeStart => core::write!(f, "SCOPE_START"),
-            Instruction::ListStart => core::write!(f, "LIST_START"),
-            Instruction::MapStart => core::write!(f, "MAP_START"),
-            Instruction::StructStart => core::write!(f, "STRUCT_START"),
-            Instruction::ScopeEnd => core::write!(f, "SCOPE_END"),
-            Instruction::KeyValueDynamic => {
+            RegularInstruction::Text(data) => core::write!(f, "TEXT {}", data.0),
+            RegularInstruction::True => core::write!(f, "TRUE"),
+            RegularInstruction::False => core::write!(f, "FALSE"),
+            RegularInstruction::Null => core::write!(f, "NULL"),
+            RegularInstruction::ScopeStart => core::write!(f, "SCOPE_START"),
+            RegularInstruction::ListStart => core::write!(f, "LIST_START"),
+            RegularInstruction::MapStart => core::write!(f, "MAP_START"),
+            RegularInstruction::StructStart => core::write!(f, "STRUCT_START"),
+            RegularInstruction::ScopeEnd => core::write!(f, "SCOPE_END"),
+            RegularInstruction::KeyValueDynamic => {
                 core::write!(f, "KEY_VALUE_DYNAMIC")
             }
-            Instruction::KeyValueShortText(data) => {
+            RegularInstruction::KeyValueShortText(data) => {
                 core::write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
-            Instruction::CloseAndStore => core::write!(f, "CLOSE_AND_STORE"),
+            RegularInstruction::CloseAndStore => core::write!(f, "CLOSE_AND_STORE"),
 
             // operations
-            Instruction::Add => core::write!(f, "ADD"),
-            Instruction::Subtract => core::write!(f, "SUBTRACT"),
-            Instruction::Multiply => core::write!(f, "MULTIPLY"),
-            Instruction::Divide => core::write!(f, "DIVIDE"),
+            RegularInstruction::Add => core::write!(f, "ADD"),
+            RegularInstruction::Subtract => core::write!(f, "SUBTRACT"),
+            RegularInstruction::Multiply => core::write!(f, "MULTIPLY"),
+            RegularInstruction::Divide => core::write!(f, "DIVIDE"),
 
             // equality checks
-            Instruction::StructuralEqual => core::write!(f, "STRUCTURAL_EQUAL"),
-            Instruction::Equal => core::write!(f, "EQUAL"),
-            Instruction::NotStructuralEqual => {
+            RegularInstruction::StructuralEqual => core::write!(f, "STRUCTURAL_EQUAL"),
+            RegularInstruction::Equal => core::write!(f, "EQUAL"),
+            RegularInstruction::NotStructuralEqual => {
                 core::write!(f, "NOT_STRUCTURAL_EQUAL")
             }
-            Instruction::NotEqual => core::write!(f, "NOT_EQUAL"),
-            Instruction::Is => core::write!(f, "IS"),
-            Instruction::Matches => core::write!(f, "MATCHES"),
+            RegularInstruction::NotEqual => core::write!(f, "NOT_EQUAL"),
+            RegularInstruction::Is => core::write!(f, "IS"),
+            RegularInstruction::Matches => core::write!(f, "MATCHES"),
 
-            Instruction::AllocateSlot(address) => {
+            RegularInstruction::AllocateSlot(address) => {
                 core::write!(f, "ALLOCATE_SLOT {}", address.0)
             }
-            Instruction::GetSlot(address) => {
+            RegularInstruction::GetSlot(address) => {
                 core::write!(f, "GET_SLOT {}", address.0)
             }
-            Instruction::DropSlot(address) => {
+            RegularInstruction::DropSlot(address) => {
                 core::write!(f, "DROP_SLOT {}", address.0)
             }
-            Instruction::SetSlot(address) => {
+            RegularInstruction::SetSlot(address) => {
                 core::write!(f, "SET_SLOT {}", address.0)
             }
-            Instruction::AssignToReference(operator) => {
+            RegularInstruction::AssignToReference(operator) => {
                 core::write!(f, "ASSIGN_REFERENCE ({})", operator)
             }
-            Instruction::Deref => core::write!(f, "DEREF"),
-            Instruction::GetRef(address) => {
+            RegularInstruction::Deref => core::write!(f, "DEREF"),
+            RegularInstruction::GetRef(address) => {
                 core::write!(
                     f,
                     "GET_REF [{}:{}]",
@@ -221,23 +248,23 @@ impl Display for Instruction {
                     hex::encode(address.id)
                 )
             }
-            Instruction::GetLocalRef(address) => {
+            RegularInstruction::GetLocalRef(address) => {
                 core::write!(
                     f,
                     "GET_LOCAL_REF [origin_id: {}]",
                     hex::encode(address.id)
                 )
             }
-            Instruction::GetInternalRef(address) => {
+            RegularInstruction::GetInternalRef(address) => {
                 core::write!(
                     f,
                     "GET_INTERNAL_REF [internal_id: {}]",
                     hex::encode(address.id)
                 )
             }
-            Instruction::CreateRef => core::write!(f, "CREATE_REF"),
-            Instruction::CreateRefMut => core::write!(f, "CREATE_REF_MUT"),
-            Instruction::GetOrCreateRef(data) => {
+            RegularInstruction::CreateRef => core::write!(f, "CREATE_REF"),
+            RegularInstruction::CreateRefMut => core::write!(f, "CREATE_REF_MUT"),
+            RegularInstruction::GetOrCreateRef(data) => {
                 core::write!(
                     f,
                     "GET_OR_CREATE_REF [{}:{}, block_size: {}]",
@@ -246,7 +273,7 @@ impl Display for Instruction {
                     data.create_block_size
                 )
             }
-            Instruction::GetOrCreateRefMut(data) => {
+            RegularInstruction::GetOrCreateRefMut(data) => {
                 core::write!(
                     f,
                     "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]",
@@ -255,7 +282,7 @@ impl Display for Instruction {
                     data.create_block_size
                 )
             }
-            Instruction::ExecutionBlock(block) => {
+            RegularInstruction::ExecutionBlock(block) => {
                 core::write!(
                     f,
                     "EXECUTION_BLOCK (length: {}, injected_slot_count: {})",
@@ -263,40 +290,22 @@ impl Display for Instruction {
                     block.injected_slot_count
                 )
             }
-            Instruction::RemoteExecution => core::write!(f, "REMOTE_EXECUTION"),
-            Instruction::AddAssign(address) => {
+            RegularInstruction::RemoteExecution => core::write!(f, "REMOTE_EXECUTION"),
+            RegularInstruction::AddAssign(address) => {
                 core::write!(f, "ADD_ASSIGN {}", address.0)
             }
-            Instruction::SubtractAssign(address) => {
+            RegularInstruction::SubtractAssign(address) => {
                 core::write!(f, "SUBTRACT_ASSIGN {}", address.0)
             }
-            Instruction::MultiplyAssign(address) => {
+            RegularInstruction::MultiplyAssign(address) => {
                 core::write!(f, "MULTIPLY_ASSIGN {}", address.0)
             }
-            Instruction::DivideAssign(address) => {
+            RegularInstruction::DivideAssign(address) => {
                 core::write!(f, "DIVIDE_ASSIGN {}", address.0)
             }
-            Instruction::TypeInstructions(instr) => {
-                let instr_strings: Vec<String> =
-                    instr.iter().map(|i| i.to_string()).collect();
-                core::write!(
-                    f,
-                    "TYPE_INSTRUCTIONS [{}]",
-                    instr_strings.join(", ")
-                )
-            }
-            Instruction::TypeExpression(instr) => {
-                let instr_strings: Vec<String> =
-                    instr.iter().map(|i| i.to_string()).collect();
-                core::write!(
-                    f,
-                    "TYPE_EXPRESSION [{}]",
-                    instr_strings.join(", ")
-                )
-            }
-            Instruction::UnaryMinus => core::write!(f, "-"),
-            Instruction::UnaryPlus => core::write!(f, "+"),
-            Instruction::BitwiseNot => core::write!(f, "BITWISE_NOT"),
+            RegularInstruction::UnaryMinus => core::write!(f, "-"),
+            RegularInstruction::UnaryPlus => core::write!(f, "+"),
+            RegularInstruction::BitwiseNot => core::write!(f, "BITWISE_NOT"),
         }
     }
 }
