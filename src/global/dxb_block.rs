@@ -266,17 +266,19 @@ impl DXBBlock {
                 use crate::crypto::crypto::CryptoTrait;
                 let crypto = CryptoNative {};
 
-                let ver: Option<bool> = match routing_header.flags.signature_type() {
+                match routing_header.flags.signature_type() {
                     SignatureType::Encrypted => {
-                        let raw_sign = signature.as_ref().unwrap();
+                        let raw_sign = signature
+                            .as_ref()
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new("Missing Signature") })?;
                         let (enc_sign, pub_key) = raw_sign.split_at(64);
                         let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
                             .await
-                            .unwrap();
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
                         let signature = crypto
                             .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
                             .await
-                            .unwrap();
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
 
                         let raw_signed = [
                             pub_key,
@@ -286,16 +288,25 @@ impl DXBBlock {
                         let hashed_signed = crypto
                             .hash_sha256(&raw_signed)
                             .await
-                            .unwrap();
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
 
                         let ver = crypto
                             .ver_ed25519(pub_key, &signature, &hashed_signed)
                             .await
-                            .unwrap();
-                        Some(ver)
-                    }
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        if !ver {
+                            return Err(
+                                binrw::Error::Custom {
+                                    pos: 0u64,
+                                    err: Box::new("Something is off with the signature.")
+                                });
+                        }
+                    },
                     SignatureType::Unencrypted => {
-                        let raw_sign = signature.as_ref().unwrap();
+                        let raw_sign = signature
+                            .as_ref()
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new("Missing Signature") })?;
                         let (signature, pub_key) = raw_sign.split_at(64);
 
                         let raw_signed = [
@@ -306,29 +317,27 @@ impl DXBBlock {
                         let hashed_signed = crypto
                             .hash_sha256(&raw_signed)
                             .await
-                            .unwrap();
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
 
                         let ver = crypto
                             .ver_ed25519(pub_key, signature, &hashed_signed)
                             .await
-                            .unwrap();
-                        Some(ver)
-                    }
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        if !ver {
+                            return Err(
+                                binrw::Error::Custom {
+                                    pos: 0u64,
+                                    err: Box::new("Something is off with the signature.")
+                                });
+                        }
+                    },
                     SignatureType::None => {
-                        None
-                    }
+                        /* Ignored */
+                    },
                 };
-                if ver.is_some() {
-                    if !ver.unwrap() {
-                        return Err(
-                            binrw::Error::Custom {
-                                pos: 0u64,
-                                err: Box::new("Something is off with the signature.")
-                            });
-                    }
-                }
             }
-            else {}
+            else {/* Add other crypto implementations */}
         }
 
         Ok(DXBBlock {
