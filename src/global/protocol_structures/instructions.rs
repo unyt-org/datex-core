@@ -454,6 +454,8 @@ pub struct ShortListData {
 #[brw(little)]
 pub struct StatementsData {
     pub statements_count: u32,
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
     pub terminated: bool,
 }
 
@@ -461,6 +463,8 @@ pub struct StatementsData {
 #[brw(little)]
 pub struct ShortStatementsData {
     pub statements_count: u8,
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
     pub terminated: bool,
 }
 
