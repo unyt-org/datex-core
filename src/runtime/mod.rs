@@ -11,7 +11,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
 use crate::runtime::execution::ExecutionError;
-use crate::runtime::execution_context::{
+use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
 use crate::serde::error::SerializationError;
@@ -35,16 +35,14 @@ use core::slice;
 use core::unreachable;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use futures::channel::oneshot::Sender;
-use global_context::{GlobalContext, set_global_context};
+use global_context::{set_global_context, GlobalContext};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 pub mod dif_interface;
 pub mod execution;
-pub mod execution_context;
 pub mod global_context;
 pub mod memory;
-mod stack;
 mod update_loop;
 
 use self::memory::Memory;
