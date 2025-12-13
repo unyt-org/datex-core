@@ -1,7 +1,7 @@
+mod operations;
+pub mod regular_instruction_iteration;
 pub mod state;
 pub mod type_instruction_iteration;
-pub  mod regular_instruction_iteration;
-mod operations;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
@@ -20,11 +20,9 @@ use crate::runtime::execution::execution_loop::type_instruction_iteration::{get_
 use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
 use crate::runtime::execution::stack::Scope;
 use crate::traits::apply::Apply;
-use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
-use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -41,19 +39,13 @@ pub enum ExecutionStep {
     ValueReturn(Option<ValueContainer>),
     TypeReturn(Type),
     KeyValuePairReturn((OwnedMapKey, ValueContainer)),
-    Result(Option<ValueContainer>),
-    ResolvePointer(RawFullPointerAddress),
-    ResolveLocalPointer(RawLocalPointerAddress),
-    ResolveInternalPointer(RawInternalPointerAddress),
     AllocateSlot(u32, ValueContainer),
     GetSlotValue(u32),
     SetSlotValue(u32, ValueContainer),
     DropSlot(u32),
-    GetInternalSlotValue(u32),
-    RemoteExecution(ValueContainer, Vec<u8>),
-    Apply(ValueContainer, Vec<ValueContainer>),
-    Pause,
-    GetNextInstruction,
+    GetNextRegularInstruction,
+    GetNextTypeInstruction,
+    External(ExternalExecutionStep)
 }
 
 // TODO ExecutionStep::External
@@ -69,7 +61,6 @@ pub enum ExternalExecutionStep {
     Pause,
 }
 
-
 #[derive(Debug)]
 pub enum InterruptProvider {
     ResolvedValue(Option<ValueContainer>),
@@ -82,90 +73,73 @@ pub enum InterruptProvider {
 pub fn execute_loop(
     input: ExecutionInput,
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
-) -> impl Iterator<Item = Result<ExecutionStep, ExecutionError>> {
+) -> impl Iterator<Item = Result<ExternalExecutionStep, ExecutionError>> {
     gen move {
         let dxb_body = input.dxb_body;
         let end_execution = input.end_execution;
         let state = input.state;
-        let next_instructions_stack = state.borrow_mut().next_instructions_stack.clone();
+        let next_instructions_stack =
+            state.borrow_mut().next_instructions_stack.clone();
 
-        let mut instruction_iterator = body::iterate_instructions(dxb_body, next_instructions_stack);
+        let mut instruction_iterator =
+            body::iterate_instructions(dxb_body, next_instructions_stack);
 
-        while let Some(instruction) = instruction_iterator.next() {
-            let instruction = yield_unwrap!(instruction);
-            if input.options.verbose {
-                info!("[Exec]: {instruction}");
-            }
 
-            match instruction {
-                Instruction::RegularInstruction(regular_instruction) => {
-                    let inner_iterator = next_regular_instruction_iteration(
-                        interrupt_provider.clone(),
-                        regular_instruction,
-                    );
-                    intercept_steps!(
-                        inner_iterator,
-                        // feed new type instructions as long as they are requested
-                        Ok(ExecutionStep::GetNextInstruction) => {
-                            match yield_unwrap!(next_iter!(instruction_iterator)) {
-                                Instruction::RegularInstruction(next_instruction) => {
-                                    interrupt_provider.borrow_mut().replace(
-                                        InterruptProvider::NextRegularInstruction(
-                                            next_instruction,
-                                        ),
-                                    );
-                                }
-                                _ => unreachable!()
+        let first_instruction = yield_unwrap!(next_iter!(instruction_iterator));
+
+        if let Instruction::RegularInstruction(first_instruction) = first_instruction {
+            let mut inner_iterator = next_regular_instruction_iteration(
+                interrupt_provider.clone(),
+                first_instruction,
+            );
+            while let Some(step) = inner_iterator.next() {
+                let step = yield_unwrap!(step);
+                match step {
+                    // yield external steps directly
+                    ExecutionStep::External(external_step) => {
+                        yield Ok(external_step);
+                    }
+                    // final outer value return
+                    ExecutionStep::ValueReturn(value) => {
+                        return yield Ok(ExternalExecutionStep::Result(value))
+                    }
+                    // feed new instructions as long as they are requested
+                    ExecutionStep::GetNextRegularInstruction => {
+                        match yield_unwrap!(next_iter!(instruction_iterator)) {
+                            Instruction::RegularInstruction(next_instruction) => {
+                                interrupt_provider.borrow_mut().replace(
+                                    InterruptProvider::NextRegularInstruction(
+                                        next_instruction,
+                                    ),
+                                );
                             }
-                        },
-                        // Ok(ExecutionStep::GetSlotValue(address)) => {
-                        //     // if address is >= 0xffffff00, resolve internal slot
-                        //     if address >= 0xffffff00 {
-                        //         interrupt_with_maybe_value!(
-                        //             interrupt_provider,
-                        //             ExecutionStep::GetSlotValue(address)
-                        //         )
-                        //     }
-                        //     // else handle normal slot
-                        //     else {
-                        //         let res = state.borrow_mut().get_slot_value(address);
-                        //         // get value from slot
-                        //         let slot_value = yield_unwrap!(res);
-                        //         if slot_value.is_none() {
-                        //             return yield Err(ExecutionError::SlotNotInitialized(
-                        //                 address,
-                        //             ));
-                        //         }
-                        //         slot_value
-                        //     }
-                        // }
-                    )
-                }
-                Instruction::TypeInstruction(type_instruction) => {
-                    let inner_iterator = next_type_instruction_iteration(
-                        interrupt_provider.clone(),
-                        type_instruction,
-                    );
-                    intercept_steps!(
-                        inner_iterator,
-                        // feed new type instructions as long as they are requested
-                        Ok(ExecutionStep::GetNextInstruction) => {
-                            match yield_unwrap!(next_iter!(instruction_iterator)) {
-                                Instruction::TypeInstruction(next_instruction) => {
-                                    interrupt_provider.borrow_mut().replace(
-                                        InterruptProvider::NextTypeInstruction(
-                                            next_instruction,
-                                        ),
-                                    );
-                                }
-                                _ => unreachable!()
-                            }
+                            _ => unreachable!()
                         }
-                    )
+                    }
+                    ExecutionStep::GetNextTypeInstruction => {
+                        match yield_unwrap!(next_iter!(instruction_iterator)) {
+                            Instruction::TypeInstruction(next_instruction) => {
+                                interrupt_provider.borrow_mut().replace(
+                                    InterruptProvider::NextTypeInstruction(
+                                        next_instruction,
+                                    ),
+                                );
+                            }
+                            _ => unreachable!()
+                        }
+                    }
+                    _ => todo!(),
                 }
             }
+        } else {
+            // the first instruction must always be a regular instruction
+            return yield Err(ExecutionError::InvalidProgram(
+                InvalidProgramError::ExpectedRegularInstruction,
+            ));
         }
 
+        // if execution exited without value return, return None
+        yield Ok(ExternalExecutionStep::Result(None))
 
         //////////////////////////////////////////////////////////////// OLD ////////////////////////////////////////////////////////
 
@@ -225,26 +199,21 @@ pub fn execute_loop(
         //     }
         // }
 
-        if end_execution {
-            // cleanup...
-            // TODO #101: check for other unclosed stacks
-            // if we have an active key here, this is invalid and leads to an error
-            // if context.scope_stack.get_active_key().is_some() {
-            //     return Err(ExecutionError::InvalidProgram(
-            //         InvalidProgramError::UnterminatedSequence,
-            //     ));
-            // }
-
-            // removes the current active value from the scope stack
-            let res = match state.borrow_mut().scope_stack.take_active_value()
-            {
-                None => ExecutionStep::Result(None),
-                Some(val) => ExecutionStep::Result(Some(val)),
-            };
-            yield Ok(res);
-        } else {
-            yield Ok(ExecutionStep::Pause);
-        }
+        // if end_execution {
+        //     // cleanup...
+        //     // TODO #101: check for other unclosed stacks
+        //     // if we have an active key here, this is invalid and leads to an error
+        //     // if context.scope_stack.get_active_key().is_some() {
+        //     //     return Err(ExecutionError::InvalidProgram(
+        //     //         InvalidProgramError::UnterminatedSequence,
+        //     //     ));
+        //     // }
+        //
+        //     // removes the current active value from the scope stack
+        //     yield Ok(ExecutionStep::External(ExternalExecutionStep::Result(state.borrow_mut().scope_stack.take_active_value())));
+        // } else {
+        //     yield Ok(ExecutionStep::External(ExternalExecutionStep::Pause));
+        // }
     }
 }
 
