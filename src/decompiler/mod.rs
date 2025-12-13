@@ -19,7 +19,7 @@ use crate::global::protocol_structures::instructions::UInt64Data;
 use crate::global::protocol_structures::instructions::UInt128Data;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
+    RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
     TextData,
 };
 use crate::parser::body;
@@ -242,7 +242,7 @@ struct ScopeState {
     /// true if this is the outer scope (default scope)
     is_outer_scope: bool,
     // TODO #225: use BinaryOperator instead of Instruction
-    active_operator: Option<(Instruction, bool)>,
+    active_operator: Option<(RegularInstruction, bool)>,
     scope_type: (ScopeType, bool),
     /// skip inserted comma for next item (already inserted before key)
     skip_comma_for_next_item: bool,
@@ -343,7 +343,7 @@ fn decompile_loop(
         let instruction = instruction?;
 
         match instruction {
-            Instruction::Int8(Int8Data(i8)) => {
+            RegularInstruction::Int8(Int8Data(i8)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -353,7 +353,7 @@ fn decompile_loop(
                 core::write!(output, "{i8}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Int16(Int16Data(i16)) => {
+            RegularInstruction::Int16(Int16Data(i16)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -363,7 +363,7 @@ fn decompile_loop(
                 core::write!(output, "{i16}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Int32(Int32Data(i32)) => {
+            RegularInstruction::Int32(Int32Data(i32)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -373,7 +373,7 @@ fn decompile_loop(
                 core::write!(output, "{i32}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Int64(Int64Data(i64)) => {
+            RegularInstruction::Int64(Int64Data(i64)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -383,7 +383,7 @@ fn decompile_loop(
                 core::write!(output, "{i64}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Int128(Int128Data(i128)) => {
+            RegularInstruction::Int128(Int128Data(i128)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -393,7 +393,7 @@ fn decompile_loop(
                 core::write!(output, "{i128}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::UInt8(UInt8Data(u8)) => {
+            RegularInstruction::UInt8(UInt8Data(u8)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -403,7 +403,7 @@ fn decompile_loop(
                 core::write!(output, "{u8}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::UInt16(UInt16Data(u16)) => {
+            RegularInstruction::UInt16(UInt16Data(u16)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -413,7 +413,7 @@ fn decompile_loop(
                 core::write!(output, "{u16}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::UInt32(UInt32Data(u32)) => {
+            RegularInstruction::UInt32(UInt32Data(u32)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -423,7 +423,7 @@ fn decompile_loop(
                 core::write!(output, "{u32}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::UInt64(UInt64Data(u64)) => {
+            RegularInstruction::UInt64(UInt64Data(u64)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -433,7 +433,7 @@ fn decompile_loop(
                 core::write!(output, "{u64}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::UInt128(UInt128Data(u128)) => {
+            RegularInstruction::UInt128(UInt128Data(u128)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -443,7 +443,7 @@ fn decompile_loop(
                 core::write!(output, "{u128}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::BigInteger(IntegerData(big_int)) => {
+            RegularInstruction::BigInteger(IntegerData(big_int)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -453,7 +453,7 @@ fn decompile_loop(
                 core::write!(output, "{big_int}n")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::DecimalF32(Float32Data(f32)) => {
+            RegularInstruction::DecimalF32(Float32Data(f32)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -467,7 +467,7 @@ fn decompile_loop(
                 )?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::DecimalF64(Float64Data(f64)) => {
+            RegularInstruction::DecimalF64(Float64Data(f64)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -481,7 +481,7 @@ fn decompile_loop(
                 )?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
+            RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -495,7 +495,7 @@ fn decompile_loop(
                 )?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
+            RegularInstruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -509,7 +509,7 @@ fn decompile_loop(
                 )?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Decimal(DecimalData(big_decimal)) => {
+            RegularInstruction::Decimal(DecimalData(big_decimal)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -519,7 +519,7 @@ fn decompile_loop(
                 core::write!(output, "{big_decimal}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::ShortText(ShortTextData(text)) => {
+            RegularInstruction::ShortText(ShortTextData(text)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -530,7 +530,7 @@ fn decompile_loop(
                 core::write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
-            Instruction::Text(TextData(text)) => {
+            RegularInstruction::Text(TextData(text)) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -541,7 +541,7 @@ fn decompile_loop(
                 core::write!(output, "\"{text}\"")?;
                 handle_after_term(state, &mut output, true)?;
             }
-            Instruction::True => {
+            RegularInstruction::True => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -551,7 +551,7 @@ fn decompile_loop(
                 core::write!(output, "true")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::False => {
+            RegularInstruction::False => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -561,7 +561,7 @@ fn decompile_loop(
                 core::write!(output, "false")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Null => {
+            RegularInstruction::Null => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -571,7 +571,7 @@ fn decompile_loop(
                 core::write!(output, "null")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::Endpoint(endpoint) => {
+            RegularInstruction::Endpoint(endpoint) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -581,7 +581,7 @@ fn decompile_loop(
                 core::write!(output, "{endpoint}")?;
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::ListStart => {
+            RegularInstruction::ListStart => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
@@ -596,7 +596,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            Instruction::MapStart => {
+            RegularInstruction::MapStart => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
@@ -611,7 +611,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            Instruction::ScopeStart => {
+            RegularInstruction::ScopeStart => {
                 indentation_levels += 1;
                 handle_before_term(
                     state,
@@ -626,7 +626,7 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
             }
-            Instruction::ScopeEnd => {
+            RegularInstruction::ScopeEnd => {
                 let current_scope_is_collection = core::matches!(
                     state.get_current_scope().scope_type.0,
                     ScopeType::List | ScopeType::Map
@@ -637,7 +637,7 @@ fn decompile_loop(
                     indentation_levels = indentation_levels.saturating_sub(1);
                 }
             }
-            Instruction::KeyValueShortText(text_data) => {
+            RegularInstruction::KeyValueShortText(text_data) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -653,7 +653,7 @@ fn decompile_loop(
                     state.options.formatting,
                 )?;
             }
-            Instruction::KeyValueDynamic => {
+            RegularInstruction::KeyValueDynamic => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -663,7 +663,7 @@ fn decompile_loop(
                 state.get_current_scope().skip_comma_for_next_item = true;
                 state.get_current_scope().next_item_is_key = true;
             }
-            Instruction::CloseAndStore => match state.options.formatting {
+            RegularInstruction::CloseAndStore => match state.options.formatting {
                 Formatting::Multiline { .. } => {
                     core::write!(output, ";\r\n")?;
                 }
@@ -673,10 +673,10 @@ fn decompile_loop(
             },
 
             // operations
-            Instruction::Add
-            | Instruction::Subtract
-            | Instruction::Multiply
-            | Instruction::Divide => {
+            RegularInstruction::Add
+            | RegularInstruction::Subtract
+            | RegularInstruction::Multiply
+            | RegularInstruction::Divide => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -688,9 +688,9 @@ fn decompile_loop(
                     Some((instruction, true));
             }
 
-            Instruction::UnaryMinus
-            | Instruction::UnaryPlus
-            | Instruction::BitwiseNot => {
+            RegularInstruction::UnaryMinus
+            | RegularInstruction::UnaryPlus
+            | RegularInstruction::BitwiseNot => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -703,7 +703,7 @@ fn decompile_loop(
             }
 
             // slots
-            Instruction::AllocateSlot(address) => {
+            RegularInstruction::AllocateSlot(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -721,7 +721,7 @@ fn decompile_loop(
                 }
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::GetSlot(address) => {
+            RegularInstruction::GetSlot(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -738,7 +738,7 @@ fn decompile_loop(
                 }
                 handle_after_term(state, &mut output, false)?;
             }
-            Instruction::DropSlot(address) => {
+            RegularInstruction::DropSlot(address) => {
                 // if resolve_slots is enabled, write the slot as variable
                 if state.options.resolve_slots {
                     // TODO #97: generate variable name for slot
@@ -748,7 +748,7 @@ fn decompile_loop(
                     core::write!(output, "#drop {}", address.0)?;
                 }
             }
-            Instruction::SetSlot(address) => {
+            RegularInstruction::SetSlot(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -766,7 +766,7 @@ fn decompile_loop(
                 }
             }
 
-            Instruction::GetRef(address) => {
+            RegularInstruction::GetRef(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -788,7 +788,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, false)?;
             }
 
-            Instruction::GetInternalRef(address) => {
+            RegularInstruction::GetInternalRef(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -804,7 +804,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, false)?;
             }
 
-            Instruction::GetLocalRef(address) => {
+            RegularInstruction::GetLocalRef(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -820,7 +820,7 @@ fn decompile_loop(
                 handle_after_term(state, &mut output, false)?;
             }
 
-            Instruction::AddAssign(address) => {
+            RegularInstruction::AddAssign(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -837,7 +837,7 @@ fn decompile_loop(
                 }
             }
 
-            Instruction::SubtractAssign(address) => {
+            RegularInstruction::SubtractAssign(address) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -854,7 +854,7 @@ fn decompile_loop(
                 }
             }
 
-            Instruction::CreateRef => {
+            RegularInstruction::CreateRef => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -865,7 +865,7 @@ fn decompile_loop(
                 core::write!(output, "&")?;
             }
 
-            Instruction::CreateRefMut => {
+            RegularInstruction::CreateRefMut => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -876,7 +876,7 @@ fn decompile_loop(
                 core::write!(output, "&mut ")?;
             }
 
-            Instruction::RemoteExecution => {
+            RegularInstruction::RemoteExecution => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -887,7 +887,7 @@ fn decompile_loop(
                     Some((instruction, true));
             }
 
-            Instruction::ExecutionBlock(data) => {
+            RegularInstruction::ExecutionBlock(data) => {
                 handle_before_term(
                     state,
                     &mut output,
@@ -1145,35 +1145,35 @@ fn handle_before_operand(
                 state.get_current_scope().active_operator =
                     Some((operator.0.clone(), false));
             }
-            (Instruction::Add, false) => {
+            (RegularInstruction::Add, false) => {
                 write_operator(state, output, "+")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::Subtract, false) => {
+            (RegularInstruction::Subtract, false) => {
                 write_operator(state, output, "-")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::Multiply, false) => {
+            (RegularInstruction::Multiply, false) => {
                 write_operator(state, output, "*")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::Divide, false) => {
+            (RegularInstruction::Divide, false) => {
                 write_operator(state, output, "/")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::RemoteExecution, false) => {
+            (RegularInstruction::RemoteExecution, false) => {
                 write_operator(state, output, "::")?;
                 state.get_current_scope().close_scope_after_term = false;
             }
-            (Instruction::UnaryMinus, false) => {
+            (RegularInstruction::UnaryMinus, false) => {
                 core::write!(output, "-")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::UnaryPlus, false) => {
+            (RegularInstruction::UnaryPlus, false) => {
                 core::write!(output, "+")?;
                 state.get_current_scope().close_scope_after_term = true;
             }
-            (Instruction::BitwiseNot, false) => {
+            (RegularInstruction::BitwiseNot, false) => {
                 core::write!(output, "~")?;
                 state.get_current_scope().close_scope_after_term = true;
             }

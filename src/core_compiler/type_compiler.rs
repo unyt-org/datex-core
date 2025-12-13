@@ -1,4 +1,4 @@
-use datex_core::global::type_instruction_codes::TypeSpaceInstructionCode;
+use datex_core::global::type_instruction_codes::TypeInstructionCode;
 use datex_core::types::definition::TypeDefinition;
 use crate::core_compiler::value_compiler::append_get_ref;
 use crate::global::type_instruction_codes::TypeMutabilityCode;
@@ -17,7 +17,7 @@ pub fn compile_type(ty: &Type) -> Vec<u8> {
 pub fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
 
     // append instruction code
-    let instruction_code = TypeSpaceInstructionCode::from(&ty.type_definition);
+    let instruction_code = TypeInstructionCode::from(&ty.type_definition);
     append_type_space_instruction_code(buffer, instruction_code);
 
     // append mutability
@@ -54,7 +54,7 @@ fn append_type_definition(buffer: &mut Vec<u8>, type_definition: &TypeDefinition
 }
 
 
-pub fn append_type_space_instruction_code(buffer: &mut Vec<u8>, code: TypeSpaceInstructionCode) {
+pub fn append_type_space_instruction_code(buffer: &mut Vec<u8>, code: TypeInstructionCode) {
     append_u8(buffer, code as u8);
 }
 

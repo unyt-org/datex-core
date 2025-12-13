@@ -31,7 +31,7 @@ pub(crate) use intercept_steps;
 
 /// Intercept specific steps in an iterator
 /// All steps must be handled within the macro
-macro_rules! intercept_all_steps {
+macro_rules! handle_steps {
     (
         $iterator:expr,
         $( $pattern:pat => $body:expr ),+ $(,)?
@@ -45,7 +45,7 @@ macro_rules! intercept_all_steps {
         }
     };
 }
-pub(crate) use intercept_all_steps;
+pub(crate) use handle_steps;
 
 
 

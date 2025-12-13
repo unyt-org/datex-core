@@ -1,5 +1,5 @@
 use crate::global::instruction_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::Instruction;
+use crate::global::protocol_structures::instructions::RegularInstruction;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 
@@ -64,17 +64,17 @@ impl From<ComparisonOperator> for InstructionCode {
         InstructionCode::from(&op)
     }
 }
-impl From<&Instruction> for ComparisonOperator {
-    fn from(instruction: &Instruction) -> Self {
+impl From<&RegularInstruction> for ComparisonOperator {
+    fn from(instruction: &RegularInstruction) -> Self {
         match instruction {
-            Instruction::StructuralEqual => ComparisonOperator::StructuralEqual,
-            Instruction::Equal => ComparisonOperator::Equal,
-            Instruction::NotStructuralEqual => {
+            RegularInstruction::StructuralEqual => ComparisonOperator::StructuralEqual,
+            RegularInstruction::Equal => ComparisonOperator::Equal,
+            RegularInstruction::NotStructuralEqual => {
                 ComparisonOperator::NotStructuralEqual
             }
-            Instruction::NotEqual => ComparisonOperator::NotEqual,
-            Instruction::Is => ComparisonOperator::Is,
-            Instruction::Matches => ComparisonOperator::Matches,
+            RegularInstruction::NotEqual => ComparisonOperator::NotEqual,
+            RegularInstruction::Is => ComparisonOperator::Is,
+            RegularInstruction::Matches => ComparisonOperator::Matches,
             _ => {
                 core::todo!(
                     "Comparison operator for instruction {:?} not implemented",
@@ -85,8 +85,8 @@ impl From<&Instruction> for ComparisonOperator {
     }
 }
 
-impl From<Instruction> for ComparisonOperator {
-    fn from(instruction: Instruction) -> Self {
+impl From<RegularInstruction> for ComparisonOperator {
+    fn from(instruction: RegularInstruction) -> Self {
         ComparisonOperator::from(&instruction)
     }
 }

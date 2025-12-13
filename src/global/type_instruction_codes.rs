@@ -17,7 +17,7 @@ use crate::types::definition::TypeDefinition;
     num_enum::IntoPrimitive,
 )]
 #[repr(u8)]
-pub enum TypeSpaceInstructionCode {
+pub enum TypeInstructionCode {
     TYPE_REFERENCE,
     TYPE_WITH_IMPLS,
     TYPE_UNIT,
@@ -68,19 +68,19 @@ pub enum TypeSpaceInstructionCode {
 }
 
 
-impl From<&TypeDefinition> for TypeSpaceInstructionCode {
+impl From<&TypeDefinition> for TypeInstructionCode {
     fn from(value: &TypeDefinition) -> Self {
         match value {
-            TypeDefinition::ImplType(_, _) => TypeSpaceInstructionCode::TYPE_WITH_IMPLS,
-            TypeDefinition::Reference(_) => TypeSpaceInstructionCode::TYPE_REFERENCE,
-            TypeDefinition::Unit => TypeSpaceInstructionCode::TYPE_UNIT,
-            TypeDefinition::Unknown => TypeSpaceInstructionCode::TYPE_UNKNOWN,
-            TypeDefinition::Never => TypeSpaceInstructionCode::TYPE_NEVER,
-            TypeDefinition::Structural(_) => TypeSpaceInstructionCode::TYPE_STRUCTURAL,
-            TypeDefinition::Intersection(_) => TypeSpaceInstructionCode::TYPE_INTERSECTION,
-            TypeDefinition::Union(_) => TypeSpaceInstructionCode::TYPE_UNION,
-            TypeDefinition::Function {..} => TypeSpaceInstructionCode::TYPE_FUNCTION,
-            TypeDefinition::Collection(_) => TypeSpaceInstructionCode::TYPE_COLLECTION,
+            TypeDefinition::ImplType(_, _) => TypeInstructionCode::TYPE_WITH_IMPLS,
+            TypeDefinition::Reference(_) => TypeInstructionCode::TYPE_REFERENCE,
+            TypeDefinition::Unit => TypeInstructionCode::TYPE_UNIT,
+            TypeDefinition::Unknown => TypeInstructionCode::TYPE_UNKNOWN,
+            TypeDefinition::Never => TypeInstructionCode::TYPE_NEVER,
+            TypeDefinition::Structural(_) => TypeInstructionCode::TYPE_STRUCTURAL,
+            TypeDefinition::Intersection(_) => TypeInstructionCode::TYPE_INTERSECTION,
+            TypeDefinition::Union(_) => TypeInstructionCode::TYPE_UNION,
+            TypeDefinition::Function {..} => TypeInstructionCode::TYPE_FUNCTION,
+            TypeDefinition::Collection(_) => TypeInstructionCode::TYPE_COLLECTION,
             TypeDefinition::Type(_) => unreachable!(), // TODO: nested types
         }
     }
