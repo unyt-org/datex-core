@@ -76,7 +76,6 @@ pub fn execute_loop(
 ) -> impl Iterator<Item = Result<ExternalExecutionStep, ExecutionError>> {
     gen move {
         let dxb_body = input.dxb_body;
-        let end_execution = input.end_execution;
         let state = input.state;
         let next_instructions_stack =
             state.borrow_mut().next_instructions_stack.clone();
@@ -85,9 +84,9 @@ pub fn execute_loop(
             body::iterate_instructions(dxb_body, next_instructions_stack);
 
 
-        let first_instruction = yield_unwrap!(next_iter!(instruction_iterator));
+        let first_instruction = instruction_iterator.next();
 
-        if let Instruction::RegularInstruction(first_instruction) = first_instruction {
+        if let Some(Ok(Instruction::RegularInstruction(first_instruction))) = first_instruction {
             let mut inner_iterator = next_regular_instruction_iteration(
                 interrupt_provider.clone(),
                 first_instruction,
@@ -140,83 +139,10 @@ pub fn execute_loop(
 
         // if execution exited without value return, return None
         yield Ok(ExternalExecutionStep::Result(None))
-
-        //////////////////////////////////////////////////////////////// OLD ////////////////////////////////////////////////////////
-
-        // for instruction in instruction_iterator {
-        //     let instruction = yield_unwrap!(instruction);
-        //     if input.options.verbose {
-        //         info!("[Exec]: {instruction}");
-        //     }
-        //
-        //     // get initial value from instruction
-        //     let mut result_value = None;
-        //
-        //     // TODO:
-        //     // handle_steps!(
-        //     //     get_result_value_from_instruction(
-        //     //         context.clone(),
-        //     //         instruction,
-        //     //         interrupt_provider.clone(),
-        //     //     ),
-        //     //     Ok(ExecutionStep::InternalReturn(result)) => {
-        //     //         result_value = result;
-        //     //     },
-        //     //     Ok(ExecutionStep::InternalTypeReturn(result)) => {
-        //     //         context.borrow_mut().scope_stack.get_current_scope_mut().active_type = Some(result);
-        //     //         // result_value = Some(ValueContainer::from(result));
-        //     //     },
-        //     //     step => {
-        //     //         let step = yield_unwrap!(step);
-        //     //         *interrupt_provider.borrow_mut() =
-        //     //             Some(interrupt!(interrupt_provider, step));
-        //     //     }
-        //     // );
-        //
-        //
-        //     // 1. if value is Some, handle it
-        //     // 2. while pop_next_scope is true: pop current scope and repeat
-        //     loop {
-        //         let mut context_mut = state.borrow_mut();
-        //         context_mut.pop_next_scope = false;
-        //         if let Some(value) = result_value {
-        //             let res = handle_value(&mut context_mut, value);
-        //             drop(context_mut);
-        //             yield_unwrap!(res);
-        //         } else {
-        //             drop(context_mut);
-        //         }
-        //
-        //         let mut context_mut = state.borrow_mut();
-        //
-        //         if context_mut.pop_next_scope {
-        //             let res = context_mut.scope_stack.pop();
-        //             drop(context_mut);
-        //             result_value = yield_unwrap!(res);
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        // }
-
-        // if end_execution {
-        //     // cleanup...
-        //     // TODO #101: check for other unclosed stacks
-        //     // if we have an active key here, this is invalid and leads to an error
-        //     // if context.scope_stack.get_active_key().is_some() {
-        //     //     return Err(ExecutionError::InvalidProgram(
-        //     //         InvalidProgramError::UnterminatedSequence,
-        //     //     ));
-        //     // }
-        //
-        //     // removes the current active value from the scope stack
-        //     yield Ok(ExecutionStep::External(ExternalExecutionStep::Result(state.borrow_mut().scope_stack.take_active_value())));
-        // } else {
-        //     yield Ok(ExecutionStep::External(ExternalExecutionStep::Pause));
-        // }
     }
 }
 
+// TODO
 fn handle_apply(
     callee: &ValueContainer,
     args: &[ValueContainer],
