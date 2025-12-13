@@ -3,8 +3,8 @@ use crate::stdlib::rc::Rc;
 use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeInstruction};
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::{ExecutionStep, InterruptProvider};
-use crate::runtime::execution::ExecutionError;
-use crate::runtime::execution::macros::{intercept_steps, interrupt_with_next_type_instruction, interrupt_with_result, next_iter};
+use crate::runtime::execution::{ExecutionError, InvalidProgramError};
+use crate::runtime::execution::macros::{intercept_step, intercept_steps, interrupt_with_result, next_iter};
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
@@ -38,40 +38,69 @@ pub fn get_type_from_instructions(
     }
 }
 
+/// Yield an interrupt and get the next type instruction,
+/// expecting the next input to be a NextTypeInstruction variant
+macro_rules! interrupt_with_next_type_instruction {
+    ($input:expr, $arg:expr) => {{
+        yield Ok($arg);
+        let res = $input.take().unwrap();
+        match res {
+            InterruptProvider::NextTypeInstruction(value) => value,
+            _ => unreachable!(),
+        }
+    }};
+}
+
+/// Drives the type instruction iteration to get the next Type value
+/// Returns the resolved Type or aborts with an ExecutionError if no type could be resolved (should not happen in valid program)
+macro_rules! get_next_type {
+    ($interrupt_provider:expr) => {{
+        let next = interrupt_with_next_type_instruction!(
+            $interrupt_provider,
+            crate::runtime::execution::execution_loop::ExecutionStep::GetNextInstruction
+        );
+        let inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
+        let maybe_type = intercept_step!(
+            inner_iterator,
+            Ok(crate::runtime::execution::execution_loop::ExecutionStep::InternalTypeReturn(base_type)) => {
+                base_type
+            }
+        );
+        match maybe_type {
+            Some(ty) => ty,
+            None => {
+                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedTypeValue));
+            }
+        }
+    }};
+}
 
 pub(crate) fn next_type_instruction_iteration(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: TypeInstruction,
 ) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
     Box::new(gen move {
-        match instruction {
+        yield Ok(ExecutionStep::TypeReturn(match instruction {
             TypeInstruction::List(list_data) => {
-                // TODO:
                 interrupt_with_result!(
                     interrupt_provider,
                     ExecutionStep::Pause
                 );
+                todo!()
             }
             TypeInstruction::LiteralInteger(integer) => {
-                yield Ok(ExecutionStep::InternalTypeReturn(
-                    Type::structural(integer.0),
-                ));
+                Type::structural(integer.0)
             }
             TypeInstruction::ImplType(impl_type_data) => {
                 let mutability: Option<ReferenceMutability> = impl_type_data.metadata.mutability.into();
-                let next = interrupt_with_next_type_instruction!(
-                    interrupt_provider,
-                    ExecutionStep::GetNextInstruction
-                );
-                let inner_iterator = next_type_instruction_iteration(interrupt_provider, next);
-                intercept_steps!(
-                    inner_iterator,
-                    Ok(ExecutionStep::InternalTypeReturn(base_type)) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(
-                            Type::new(TypeDefinition::ImplType(Box::new(base_type), impl_type_data.impls.iter().map(PointerAddress::from).collect()), mutability.clone()))
-                        );
-                    }
-                );
+                let base_type = get_next_type!(interrupt_provider);
+                Type::new(
+                    TypeDefinition::ImplType(
+                        Box::new(base_type),
+                        impl_type_data.impls.iter().map(PointerAddress::from).collect()
+                    ),
+                    mutability.clone()
+                )
             }
             TypeInstruction::TypeReference(type_ref) => {
                 let metadata = type_ref.metadata;
@@ -93,11 +122,11 @@ pub(crate) fn next_type_instruction_iteration(
                 match val {
                     // simple Type value
                     Some(ValueContainer::Value(Value {inner: CoreValue::Type(ty), ..})) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(ty));
+                        ty
                     }
                     // Type Reference
                     Some(ValueContainer::Reference(Reference::TypeReference(type_ref))) => {
-                        yield Ok(ExecutionStep::InternalTypeReturn(Type::new(TypeDefinition::Reference(type_ref), metadata.mutability.into())));
+                        Type::new(TypeDefinition::Reference(type_ref), metadata.mutability.into())
                     }
                     _ => {
                         return yield Err(ExecutionError::ExpectedTypeValue);
@@ -106,6 +135,6 @@ pub(crate) fn next_type_instruction_iteration(
 
             }
             _ => core::todo!("#405 Undescribed by author."),
-        }
+        }))
     })
 }

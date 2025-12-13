@@ -54,7 +54,8 @@ pub fn decompile_body(
         variables: HashMap::new(),
     };
 
-    decompile_loop(&mut initial_state)
+    todo!()
+    //decompile_loop(&mut initial_state)
 }
 
 /// Decompiles a single DATEX value into a human-readable string representation.
@@ -329,598 +330,598 @@ impl DecompilerState<'_> {
     }
 }
 
-#[deprecated]
-fn decompile_loop(
-    state: &mut DecompilerState,
-) -> Result<String, DXBParserError> {
-    let mut output = String::new();
-    let mut indentation_levels = 0;
-    let formatting = state.options.formatting;
-
-    let instruction_iterator = body::iterate_instructions(state.dxb_body);
-
-    for instruction in instruction_iterator {
-        let instruction = instruction?;
-
-        match instruction {
-            RegularInstruction::Int8(Int8Data(i8)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{i8}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Int16(Int16Data(i16)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{i16}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Int32(Int32Data(i32)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{i32}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Int64(Int64Data(i64)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{i64}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Int128(Int128Data(i128)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{i128}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::UInt8(UInt8Data(u8)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{u8}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::UInt16(UInt16Data(u16)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{u16}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::UInt32(UInt32Data(u32)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{u32}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::UInt64(UInt64Data(u64)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{u64}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::UInt128(UInt128Data(u128)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{u128}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::BigInteger(IntegerData(big_int)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{big_int}n")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::DecimalF32(Float32Data(f32)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(
-                    output,
-                    "{}",
-                    decimal_to_string(f32, state.options.json_compat)
-                )?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::DecimalF64(Float64Data(f64)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(
-                    output,
-                    "{}",
-                    decimal_to_string(f64, state.options.json_compat)
-                )?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(
-                    output,
-                    "{}",
-                    decimal_to_string(i16 as f32, state.options.json_compat)
-                )?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(
-                    output,
-                    "{}",
-                    decimal_to_string(i32 as f32, state.options.json_compat)
-                )?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Decimal(DecimalData(big_decimal)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{big_decimal}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::ShortText(ShortTextData(text)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                let text = escape_text(&text);
-                core::write!(output, "\"{text}\"")?;
-                handle_after_term(state, &mut output, true)?;
-            }
-            RegularInstruction::Text(TextData(text)) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                let text = escape_text(&text);
-                core::write!(output, "\"{text}\"")?;
-                handle_after_term(state, &mut output, true)?;
-            }
-            RegularInstruction::True => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                core::write!(output, "true")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::False => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                core::write!(output, "false")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Null => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                core::write!(output, "null")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::Endpoint(endpoint) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                core::write!(output, "{endpoint}")?;
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::List => {
-                indentation_levels += 1;
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::List);
-                state.get_current_scope().write_start(
-                    &mut output,
-                    &formatting,
-                    indentation_levels,
-                )?;
-            }
-            RegularInstruction::Map => {
-                indentation_levels += 1;
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Map);
-                state.get_current_scope().write_start(
-                    &mut output,
-                    &formatting,
-                    indentation_levels,
-                )?;
-            }
-            RegularInstruction::Statements => {
-                indentation_levels += 1;
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Default);
-                state.get_current_scope().write_start(
-                    &mut output,
-                    &formatting,
-                    indentation_levels,
-                )?;
-            }
-            RegularInstruction::ScopeEnd => {
-                let current_scope_is_collection = core::matches!(
-                    state.get_current_scope().scope_type.0,
-                    ScopeType::List | ScopeType::Map
-                );
-                handle_scope_close(state, &mut output, indentation_levels)?;
-                handle_after_term(state, &mut output, true)?;
-                if current_scope_is_collection {
-                    indentation_levels = indentation_levels.saturating_sub(1);
-                }
-            }
-            RegularInstruction::KeyValueShortText(text_data) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                // prevent redundant comma for value
-                state.get_current_scope().skip_comma_for_next_item = true;
-                write_text_key(
-                    state,
-                    &text_data.0,
-                    &mut output,
-                    state.options.formatting,
-                )?;
-            }
-            RegularInstruction::KeyValueDynamic => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.get_current_scope().skip_comma_for_next_item = true;
-                state.get_current_scope().next_item_is_key = true;
-            }
-            RegularInstruction::CloseAndStore => match state.options.formatting {
-                Formatting::Multiline { .. } => {
-                    core::write!(output, ";\r\n")?;
-                }
-                Formatting::Compact => {
-                    core::write!(output, ";")?;
-                }
-            },
-
-            // operations
-            RegularInstruction::Add
-            | RegularInstruction::Subtract
-            | RegularInstruction::Multiply
-            | RegularInstruction::Divide => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Transparent);
-                state.get_current_scope().active_operator =
-                    Some((instruction, true));
-            }
-
-            RegularInstruction::UnaryMinus
-            | RegularInstruction::UnaryPlus
-            | RegularInstruction::BitwiseNot => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::Transparent);
-                state.get_current_scope().active_operator =
-                    Some((instruction, false));
-            }
-
-            // slots
-            RegularInstruction::AllocateSlot(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::SlotAssignment);
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    // TODO #95: generate variable name for slot
-                    core::write!(output, "#{} := ", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#{} := ", address.0)?;
-                }
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::GetSlot(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    // TODO #96: get variable name for slot
-                    core::write!(output, "#{}", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#{}", address.0)?;
-                }
-                handle_after_term(state, &mut output, false)?;
-            }
-            RegularInstruction::DropSlot(address) => {
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    // TODO #97: generate variable name for slot
-                    core::write!(output, "#drop {}", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#drop {}", address.0)?;
-                }
-            }
-            RegularInstruction::SetSlot(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::SlotAssignment);
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    // TODO #98: generate variable name for slot
-                    core::write!(output, "#{} = ", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#{} = ", address.0)?;
-                }
-            }
-
-            RegularInstruction::GetRef(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                let endpoint_hex = address
-                    .endpoint
-                    .to_binary()
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
-                let address_hex = address
-                    .id
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
-                core::write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
-                handle_after_term(state, &mut output, false)?;
-            }
-
-            RegularInstruction::GetInternalRef(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                let address_hex = address
-                    .id
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
-                core::write!(output, "$<internal:{}>", address_hex)?;
-                handle_after_term(state, &mut output, false)?;
-            }
-
-            RegularInstruction::GetLocalRef(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                let address_hex = address
-                    .id
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
-                core::write!(output, "$<origin:{}>", address_hex)?;
-                handle_after_term(state, &mut output, false)?;
-            }
-
-            RegularInstruction::AddAssign(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::SlotAssignment);
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    core::write!(output, "#{} += ", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#{} += ", address.0)?;
-                }
-            }
-
-            RegularInstruction::SubtractAssign(address) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.new_scope(ScopeType::SlotAssignment);
-                // if resolve_slots is enabled, write the slot as variable
-                if state.options.resolve_slots {
-                    core::write!(output, "#{} -= ", address.0)?;
-                } else {
-                    // otherwise just write the slot address
-                    core::write!(output, "#{} -= ", address.0)?;
-                }
-            }
-
-            RegularInstruction::CreateRef => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.get_current_scope().skip_comma_for_next_item = true;
-                core::write!(output, "&")?;
-            }
-
-            RegularInstruction::CreateRefMut => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.get_current_scope().skip_comma_for_next_item = true;
-                core::write!(output, "&mut ")?;
-            }
-
-            RegularInstruction::RemoteExecution => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    false,
-                    indentation_levels,
-                )?;
-                state.get_current_scope().active_operator =
-                    Some((instruction, true));
-            }
-
-            RegularInstruction::ExecutionBlock(data) => {
-                handle_before_term(
-                    state,
-                    &mut output,
-                    true,
-                    indentation_levels,
-                )?;
-                // decompile data.body
-                let decompiled_body =
-                    decompile_body(&data.body, state.options.clone())?;
-                let slot_mapping = data
-                    .injected_slots
-                    .iter()
-                    .enumerate()
-                    .map(|(k, v)| format!("#{v} => #{k}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                // write the decompiled body
-                core::write!(output, "[{slot_mapping}]({decompiled_body})")?;
-            }
-
-            _ => {
-                core::write!(output, "[[{instruction}]]")?;
-            }
-        }
-    }
-
-    // add syntax highlighting
-    if state.options.colorized {
-        output = apply_syntax_highlighting(output)?;
-    }
-
-    Ok(output)
-}
+// #[deprecated]
+// fn decompile_loop(
+//     state: &mut DecompilerState,
+// ) -> Result<String, DXBParserError> {
+//     let mut output = String::new();
+//     let mut indentation_levels = 0;
+//     let formatting = state.options.formatting;
+// 
+//     let instruction_iterator = body::iterate_instructions(state.dxb_body);
+// 
+//     for instruction in instruction_iterator {
+//         let instruction = instruction?;
+// 
+//         match instruction {
+//             RegularInstruction::Int8(Int8Data(i8)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{i8}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Int16(Int16Data(i16)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{i16}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Int32(Int32Data(i32)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{i32}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Int64(Int64Data(i64)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{i64}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Int128(Int128Data(i128)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{i128}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::UInt8(UInt8Data(u8)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{u8}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::UInt16(UInt16Data(u16)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{u16}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::UInt32(UInt32Data(u32)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{u32}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::UInt64(UInt64Data(u64)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{u64}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::UInt128(UInt128Data(u128)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{u128}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::BigInteger(IntegerData(big_int)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{big_int}n")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::DecimalF32(Float32Data(f32)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(
+//                     output,
+//                     "{}",
+//                     decimal_to_string(f32, state.options.json_compat)
+//                 )?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::DecimalF64(Float64Data(f64)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(
+//                     output,
+//                     "{}",
+//                     decimal_to_string(f64, state.options.json_compat)
+//                 )?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(
+//                     output,
+//                     "{}",
+//                     decimal_to_string(i16 as f32, state.options.json_compat)
+//                 )?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(
+//                     output,
+//                     "{}",
+//                     decimal_to_string(i32 as f32, state.options.json_compat)
+//                 )?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Decimal(DecimalData(big_decimal)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{big_decimal}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::ShortText(ShortTextData(text)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 let text = escape_text(&text);
+//                 core::write!(output, "\"{text}\"")?;
+//                 handle_after_term(state, &mut output, true)?;
+//             }
+//             RegularInstruction::Text(TextData(text)) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 let text = escape_text(&text);
+//                 core::write!(output, "\"{text}\"")?;
+//                 handle_after_term(state, &mut output, true)?;
+//             }
+//             RegularInstruction::True => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "true")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::False => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "false")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Null => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "null")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::Endpoint(endpoint) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 core::write!(output, "{endpoint}")?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::List => {
+//                 indentation_levels += 1;
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::List);
+//                 state.get_current_scope().write_start(
+//                     &mut output,
+//                     &formatting,
+//                     indentation_levels,
+//                 )?;
+//             }
+//             RegularInstruction::Map => {
+//                 indentation_levels += 1;
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::Map);
+//                 state.get_current_scope().write_start(
+//                     &mut output,
+//                     &formatting,
+//                     indentation_levels,
+//                 )?;
+//             }
+//             RegularInstruction::Statements => {
+//                 indentation_levels += 1;
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::Default);
+//                 state.get_current_scope().write_start(
+//                     &mut output,
+//                     &formatting,
+//                     indentation_levels,
+//                 )?;
+//             }
+//             RegularInstruction::ScopeEnd => {
+//                 let current_scope_is_collection = core::matches!(
+//                     state.get_current_scope().scope_type.0,
+//                     ScopeType::List | ScopeType::Map
+//                 );
+//                 handle_scope_close(state, &mut output, indentation_levels)?;
+//                 handle_after_term(state, &mut output, true)?;
+//                 if current_scope_is_collection {
+//                     indentation_levels = indentation_levels.saturating_sub(1);
+//                 }
+//             }
+//             RegularInstruction::KeyValueShortText(text_data) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 // prevent redundant comma for value
+//                 state.get_current_scope().skip_comma_for_next_item = true;
+//                 write_text_key(
+//                     state,
+//                     &text_data.0,
+//                     &mut output,
+//                     state.options.formatting,
+//                 )?;
+//             }
+//             RegularInstruction::KeyValueDynamic => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.get_current_scope().skip_comma_for_next_item = true;
+//                 state.get_current_scope().next_item_is_key = true;
+//             }
+//             RegularInstruction::CloseAndStore => match state.options.formatting {
+//                 Formatting::Multiline { .. } => {
+//                     core::write!(output, ";\r\n")?;
+//                 }
+//                 Formatting::Compact => {
+//                     core::write!(output, ";")?;
+//                 }
+//             },
+// 
+//             // operations
+//             RegularInstruction::Add
+//             | RegularInstruction::Subtract
+//             | RegularInstruction::Multiply
+//             | RegularInstruction::Divide => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::Transparent);
+//                 state.get_current_scope().active_operator =
+//                     Some((instruction, true));
+//             }
+// 
+//             RegularInstruction::UnaryMinus
+//             | RegularInstruction::UnaryPlus
+//             | RegularInstruction::BitwiseNot => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::Transparent);
+//                 state.get_current_scope().active_operator =
+//                     Some((instruction, false));
+//             }
+// 
+//             // slots
+//             RegularInstruction::AllocateSlot(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::SlotAssignment);
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     // TODO #95: generate variable name for slot
+//                     core::write!(output, "#{} := ", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#{} := ", address.0)?;
+//                 }
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::GetSlot(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     // TODO #96: get variable name for slot
+//                     core::write!(output, "#{}", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#{}", address.0)?;
+//                 }
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+//             RegularInstruction::DropSlot(address) => {
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     // TODO #97: generate variable name for slot
+//                     core::write!(output, "#drop {}", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#drop {}", address.0)?;
+//                 }
+//             }
+//             RegularInstruction::SetSlot(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::SlotAssignment);
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     // TODO #98: generate variable name for slot
+//                     core::write!(output, "#{} = ", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#{} = ", address.0)?;
+//                 }
+//             }
+// 
+//             RegularInstruction::GetRef(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 let endpoint_hex = address
+//                     .endpoint
+//                     .to_binary()
+//                     .iter()
+//                     .map(|b| format!("{:02x}", b))
+//                     .collect::<String>();
+//                 let address_hex = address
+//                     .id
+//                     .iter()
+//                     .map(|b| format!("{:02x}", b))
+//                     .collect::<String>();
+//                 core::write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+// 
+//             RegularInstruction::GetInternalRef(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 let address_hex = address
+//                     .id
+//                     .iter()
+//                     .map(|b| format!("{:02x}", b))
+//                     .collect::<String>();
+//                 core::write!(output, "$<internal:{}>", address_hex)?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+// 
+//             RegularInstruction::GetLocalRef(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 let address_hex = address
+//                     .id
+//                     .iter()
+//                     .map(|b| format!("{:02x}", b))
+//                     .collect::<String>();
+//                 core::write!(output, "$<origin:{}>", address_hex)?;
+//                 handle_after_term(state, &mut output, false)?;
+//             }
+// 
+//             RegularInstruction::AddAssign(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::SlotAssignment);
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     core::write!(output, "#{} += ", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#{} += ", address.0)?;
+//                 }
+//             }
+// 
+//             RegularInstruction::SubtractAssign(address) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.new_scope(ScopeType::SlotAssignment);
+//                 // if resolve_slots is enabled, write the slot as variable
+//                 if state.options.resolve_slots {
+//                     core::write!(output, "#{} -= ", address.0)?;
+//                 } else {
+//                     // otherwise just write the slot address
+//                     core::write!(output, "#{} -= ", address.0)?;
+//                 }
+//             }
+// 
+//             RegularInstruction::CreateRef => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.get_current_scope().skip_comma_for_next_item = true;
+//                 core::write!(output, "&")?;
+//             }
+// 
+//             RegularInstruction::CreateRefMut => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.get_current_scope().skip_comma_for_next_item = true;
+//                 core::write!(output, "&mut ")?;
+//             }
+// 
+//             RegularInstruction::RemoteExecution => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     false,
+//                     indentation_levels,
+//                 )?;
+//                 state.get_current_scope().active_operator =
+//                     Some((instruction, true));
+//             }
+// 
+//             RegularInstruction::ExecutionBlock(data) => {
+//                 handle_before_term(
+//                     state,
+//                     &mut output,
+//                     true,
+//                     indentation_levels,
+//                 )?;
+//                 // decompile data.body
+//                 let decompiled_body =
+//                     decompile_body(&data.body, state.options.clone())?;
+//                 let slot_mapping = data
+//                     .injected_slots
+//                     .iter()
+//                     .enumerate()
+//                     .map(|(k, v)| format!("#{v} => #{k}"))
+//                     .collect::<Vec<_>>()
+//                     .join(", ");
+//                 // write the decompiled body
+//                 core::write!(output, "[{slot_mapping}]({decompiled_body})")?;
+//             }
+// 
+//             _ => {
+//                 core::write!(output, "[[{instruction}]]")?;
+//             }
+//         }
+//     }
+// 
+//     // add syntax highlighting
+//     if state.options.colorized {
+//         output = apply_syntax_highlighting(output)?;
+//     }
+// 
+//     Ok(output)
+// }
 
 #[cfg(not(feature = "syntax_highlighting_legacy"))]
 pub fn apply_syntax_highlighting(

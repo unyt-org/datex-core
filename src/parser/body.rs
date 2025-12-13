@@ -197,13 +197,10 @@ pub fn iterate_instructions<'a>(
                             }
 
                             InstructionCode::REMOTE_EXECUTION => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2); // endpoint + execution block
-                                RegularInstruction::RemoteExecution
-                            },
-                            InstructionCode::EXECUTION_BLOCK => {
                                 let data = ExecutionBlockData::read(&mut reader);
-                                RegularInstruction::ExecutionBlock(yield_unwrap!(data))
-                            }
+                                next_instructions_stack.borrow_mut().push_next_regular(1); // receivers
+                                RegularInstruction::RemoteExecution(yield_unwrap!(data))
+                            },
 
                             InstructionCode::SHORT_TEXT => {
                                 let raw_data = ShortTextDataRaw::read(&mut reader);
@@ -294,7 +291,6 @@ pub fn iterate_instructions<'a>(
                                 next_instructions_stack.borrow_mut().push_next_regular(2);
                                 RegularInstruction::KeyValueDynamic
                             },
-                            InstructionCode::CLOSE_AND_STORE => RegularInstruction::CloseAndStore,
 
                             // operations
                             InstructionCode::ADD => RegularInstruction::Add,

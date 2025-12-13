@@ -69,8 +69,7 @@ pub enum RegularInstruction {
     DecimalAsInt32(FloatAsInt32Data),
     Decimal(DecimalData),
 
-    ExecutionBlock(ExecutionBlockData),
-    RemoteExecution,
+    RemoteExecution(ExecutionBlockData),
 
     ShortText(ShortTextData),
     Text(TextData),
@@ -86,7 +85,6 @@ pub enum RegularInstruction {
 
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
-    CloseAndStore,
 
     // binary operator
     Add,
@@ -221,8 +219,6 @@ impl Display for RegularInstruction {
             RegularInstruction::KeyValueShortText(data) => {
                 core::write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
             }
-            RegularInstruction::CloseAndStore => core::write!(f, "CLOSE_AND_STORE"),
-
             // operations
             RegularInstruction::Add => core::write!(f, "ADD"),
             RegularInstruction::Subtract => core::write!(f, "SUBTRACT"),
@@ -454,12 +450,14 @@ pub struct ShortListData {
 #[brw(little)]
 pub struct StatementsData {
     pub statements_count: u32,
+    pub terminated: bool,
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct ShortStatementsData {
     pub statements_count: u8,
+    pub terminated: bool,
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]

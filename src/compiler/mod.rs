@@ -49,6 +49,7 @@ use log::info;
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
+use crate::utils::buffers::append_u8;
 
 pub mod context;
 pub mod error;
@@ -533,8 +534,24 @@ fn compile_expression(
             );
         }
         DatexExpressionData::List(list) => {
-            compilation_context
-                .append_instruction_code(InstructionCode::LIST);
+            match list.items.len() {
+                0..=255 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SHORT_LIST);
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        list.items.len() as u8,
+                    );
+                }
+                _ => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::LIST);
+                    append_u32(
+                        &mut compilation_context.buffer,
+                        list.items.len() as u32, // FIXME: conversion from usize to u32
+                    );
+                }
+            }
             for item in list.items {
                 scope = compile_expression(
                     compilation_context,
@@ -543,11 +560,27 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpressionData::Map(map) => {
             // TODO #434: Handle string keyed maps (structs)
+            match map.entries.len() {
+                0..=255 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SHORT_MAP);
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        map.entries.len() as u8,
+                    );
+                }
+                _ => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::MAP);
+                    append_u32(
+                        &mut compilation_context.buffer,
+                        map.entries.len() as u32, // FIXME: conversion from usize to u32
+                    );
+                }
+            }
             compilation_context
                 .append_instruction_code(InstructionCode::MAP);
             for (key, value) in map.entries {
@@ -559,8 +592,6 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpressionData::Placeholder => {
             append_value_container(
@@ -590,13 +621,37 @@ fn compile_expression(
             } else {
                 // if not outer context, new scope
                 let mut child_scope = if !meta.is_outer_context() {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::STATEMENTS);
                     scope.push()
                 } else {
                     scope
                 };
                 let len = statements.len();
+
+                match len {
+                    0..=255 => {
+                        compilation_context
+                            .append_instruction_code(InstructionCode::SHORT_STATEMENTS);
+                        append_u8(
+                            &mut compilation_context.buffer,
+                            len as u8,
+                        );
+                    }
+                    _ => {
+                        compilation_context
+                            .append_instruction_code(InstructionCode::STATEMENTS);
+                        append_u32(
+                            &mut compilation_context.buffer,
+                            len as u32, // FIXME: conversion from usize to u32
+                        );
+                    }
+                }
+
+                // append termination flag
+                append_u8(
+                    &mut compilation_context.buffer,
+                    if is_terminated { 1 } else { 0 },
+                );
+
                 for (i, statement) in statements.into_iter().enumerate() {
                     child_scope = compile_expression(
                         compilation_context,
@@ -604,12 +659,6 @@ fn compile_expression(
                         CompileMetadata::default(),
                         child_scope,
                     )?;
-                    // if not last statement or is terminated, append close and store
-                    if i < len - 1 || is_terminated {
-                        compilation_context.append_instruction_code(
-                            InstructionCode::CLOSE_AND_STORE,
-                        );
-                    }
                 }
                 if !meta.is_outer_context() {
                     let scope_data = child_scope
@@ -625,8 +674,6 @@ fn compile_expression(
                         compilation_context
                             .insert_virtual_slot_address(slot_address);
                     }
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_END);
                 } else {
                     scope = child_scope;
                 }
@@ -741,9 +788,6 @@ fn compile_expression(
             // create new variable depending on the model
             let variable = match variable_model {
                 VariableModel::VariableReference => {
-                    // scope end
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_END);
                     // allocate an additional slot with a reference to the variable
                     let virtual_slot_addr_for_var =
                         scope.get_next_virtual_slot();
@@ -782,9 +826,6 @@ fn compile_expression(
             };
 
             scope.register_variable_slot(variable);
-
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpressionData::GetReference(address) => {
@@ -859,9 +900,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-            // close assignment scope
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpressionData::DerefAssignment(DerefAssignment {
@@ -892,11 +930,6 @@ fn compile_expression(
                 scope,
             )?;
 
-            for _ in 0..deref_count - 1 {
-                compilation_context
-                    .append_instruction_code(InstructionCode::SCOPE_END);
-            }
-
             // compile assigned expression
             scope = compile_expression(
                 compilation_context,
@@ -904,10 +937,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-
-            // close assignment scope
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -1050,8 +1079,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         e => {
@@ -1181,12 +1208,14 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                1,
+                1, // terminated
                 InstructionCode::MULTIPLY.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),
                 rhs,
-                InstructionCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -1215,7 +1244,9 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                // val a = 42;
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
@@ -1224,8 +1255,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // val b = 69;
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
@@ -1235,8 +1264,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // a is b
                 InstructionCode::IS.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1335,12 +1362,14 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                1,
+                1, // terminated
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 lhs,
                 InstructionCode::INT_8.into(),
                 rhs,
-                InstructionCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -1501,8 +1530,8 @@ pub mod tests {
         // const x = mut 42;
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::LIST.into(),
-            InstructionCode::SCOPE_END.into(),
+            InstructionCode::SHORT_LIST.into(),
+            0, // length
         ];
         assert_eq!(result, expected);
     }
@@ -1517,10 +1546,10 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                1, // length
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1534,14 +1563,14 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
 
@@ -1551,14 +1580,14 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
                 InstructionCode::INT_8.into(),
                 1,
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1572,7 +1601,8 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                2, // length
                 InstructionCode::ADD.into(),
                 InstructionCode::INT_8.into(),
                 1,
@@ -1583,7 +1613,6 @@ pub mod tests {
                 3,
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1597,18 +1626,18 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
                 InstructionCode::INT_8.into(),
                 1,
-                InstructionCode::LIST.into(),
+                InstructionCode::SHORT_LIST.into(),
+                2, // length
                 InstructionCode::INT_8.into(),
                 2,
                 InstructionCode::INT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::INT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1620,7 +1649,8 @@ pub mod tests {
         let datex_script = "{\"key\": 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1628,7 +1658,6 @@ pub mod tests {
             b'y',
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1640,13 +1669,13 @@ pub mod tests {
         let datex_script = "{(10): 42}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::INT_8.into(),
             10,
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1659,7 +1688,8 @@ pub mod tests {
         let datex_script = format!("{{\"{long_key}\": 42}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            InstructionCode::MAP.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::TEXT.into(),
         ];
@@ -1668,7 +1698,6 @@ pub mod tests {
         expected.extend(vec![
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ]);
         assert_eq!(result, expected);
     }
@@ -1680,7 +1709,8 @@ pub mod tests {
         let datex_script = "{(1 + 2): 42}";
         let result = compile_and_log(datex_script);
         let expected = [
-            InstructionCode::MAP.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
             InstructionCode::INT_8.into(),
@@ -1689,7 +1719,6 @@ pub mod tests {
             2,
             InstructionCode::INT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1701,7 +1730,8 @@ pub mod tests {
         let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP.into(),
+            InstructionCode::SHORT_MAP.into(),
+            3, // length
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
@@ -1722,7 +1752,6 @@ pub mod tests {
             2,
             InstructionCode::INT_8.into(),
             44,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1734,8 +1763,8 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::MAP.into(),
-            InstructionCode::SCOPE_END.into(),
+            InstructionCode::SHORT_MAP.into(),
+            0, // length
         ];
         assert_eq!(result, expected);
     }
@@ -1756,7 +1785,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1769,6 +1797,9 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1777,8 +1808,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
@@ -1800,6 +1829,9 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
@@ -1807,8 +1839,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::STATEMENTS.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
@@ -1817,8 +1847,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
                 0,
@@ -1829,8 +1857,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1849,6 +1875,9 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                4,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
@@ -1856,8 +1885,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
@@ -1865,9 +1892,9 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 41,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
-                InstructionCode::STATEMENTS.into(),
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 2,
                 0,
@@ -1875,14 +1902,11 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 2,
                 0,
                 0,
                 0,
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
                 0,
@@ -1893,8 +1917,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1922,7 +1944,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1935,6 +1956,9 @@ pub mod tests {
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1944,8 +1968,6 @@ pub mod tests {
                 InstructionCode::CREATE_REF_MUT.into(),
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2175,6 +2197,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2183,8 +2208,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2228,6 +2251,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2236,7 +2262,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2252,8 +2277,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2282,7 +2305,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // TODO #238: this is not the correct slot assignment for VariableReference model
                 // set x to 43
                 InstructionCode::SET_SLOT.into(),
@@ -2293,8 +2315,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
             ]
         );
     }
@@ -2307,6 +2327,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2315,8 +2338,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2325,8 +2346,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2379,6 +2398,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2387,8 +2409,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2397,8 +2417,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2420,6 +2438,9 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 // allocate slot for x
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2429,8 +2450,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 5,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // expression: x + y
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -2458,6 +2477,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2466,8 +2488,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2530,6 +2550,9 @@ pub mod tests {
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2538,8 +2561,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // caller (literal value 1 for test)
                 InstructionCode::INT_8.into(),
@@ -2670,7 +2691,6 @@ pub mod tests {
                 InstructionCode::INT_8.into(),
                 // integer as u8
                 10,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }

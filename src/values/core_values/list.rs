@@ -18,6 +18,9 @@ impl List {
     pub fn new<T: Into<ValueContainer>>(values: Vec<T>) -> Self {
         List(values.into_iter().map(Into::into).collect())
     }
+    pub fn with_capacity(capacity: u32) -> Self {
+        List(Vec::with_capacity(capacity as usize))
+    }
     pub fn len(&self) -> u32 {
         self.0.len() as u32
     }
