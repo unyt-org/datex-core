@@ -103,6 +103,7 @@ pub(crate) use interrupt_with_maybe_value;
 /// expecting the next input to be a ResolvedValue variant with Some value
 macro_rules! interrupt_with_value {
     ($input:expr, $arg:expr) => {{
+        use crate::runtime::execution::macros::interrupt_with_maybe_value;
         let maybe_value = interrupt_with_maybe_value!($input, $arg);
         if let Some(value) = maybe_value {
             value

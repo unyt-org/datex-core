@@ -55,12 +55,12 @@ macro_rules! get_next_maybe_value {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!(
             $interrupt_provider,
-            crate::runtime::execution::execution_loop::ExecutionStep::GetNextRegularInstruction
+            ExecutionStep::GetNextRegularInstruction
         );
         let mut inner_iterator = next_regular_instruction_iteration($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
-            Ok(crate::runtime::execution::execution_loop::ExecutionStep::ValueReturn(value)) => {
+            Ok(ExecutionStep::ValueReturn(value)) => {
                 value
             }
         );
@@ -95,12 +95,12 @@ macro_rules! get_next_key_value_pair {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!(
             $interrupt_provider,
-            crate::runtime::execution::execution_loop::ExecutionStep::GetNextRegularInstruction
+            ExecutionStep::GetNextRegularInstruction
         );
         let mut inner_iterator = next_regular_instruction_iteration($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
-            Ok(crate::runtime::execution::execution_loop::ExecutionStep::KeyValuePairReturn(value)) => {
+            Ok(ExecutionStep::KeyValuePairReturn(value)) => {
                 value
             }
         );
