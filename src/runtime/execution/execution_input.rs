@@ -12,7 +12,7 @@ pub struct ExecutionOptions {
 }
 
 /// Input required to execute a DXB program.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExecutionInput<'a> {
     /// Options for execution.
     pub options: ExecutionOptions,
@@ -21,17 +21,6 @@ pub struct ExecutionInput<'a> {
     /// For persisting execution state across multiple executions (e.g., for REPL scenarios).
     pub loop_state: Option<ExecutionLoopState>,
     pub runtime: Option<Rc<RuntimeInternal>>,
-}
-
-impl Default for ExecutionInput<'_> {
-    fn default() -> Self {
-        Self {
-            options: ExecutionOptions::default(),
-            dxb_body: &[],
-            loop_state: None,
-            runtime: None,
-        }
-    }
 }
 
 impl<'a> ExecutionInput<'a> {

@@ -34,6 +34,15 @@ impl From<&RegularInstruction> for UnaryOperator {
             RegularInstruction::BitwiseNot => {
                 UnaryOperator::Bitwise(BitwiseUnaryOperator::Not)
             }
+            RegularInstruction::CreateRef => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::CreateRef)
+            }
+            RegularInstruction::CreateRefMut => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::CreateRefMut)
+            }
+            RegularInstruction::Deref => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::Deref)
+            }
             _ => {
                 core::todo!(
                     "Unary operator for instruction {:?} not implemented",

@@ -1,6 +1,6 @@
 use core::fmt::Display;
 use itertools::Itertools;
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
+use crate::runtime::execution::execution_loop::state::{RuntimeExecutionSlots, RuntimeExecutionState};
 use crate::values::value_container::ValueContainer;
 
 pub struct MemoryDump {
@@ -29,14 +29,12 @@ impl Display for MemoryDump {
     }
 }
 
-impl RuntimeExecutionState {
+impl RuntimeExecutionSlots {
     /// Returns a memory dump of the current slots and their values.
     pub fn memory_dump(&self) -> MemoryDump {
         MemoryDump {
             slots: self
                 .slots
-                .slots
-                .borrow()
                 .iter()
                 .map(|(k, v)| (*k, v.clone()))
                 .sorted_by_key(|(k, _)| *k)

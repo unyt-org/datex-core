@@ -19,8 +19,7 @@ use crate::parser::body::{iterate_instructions, DXBParserError};
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::execution_loop::type_instruction_execution::{execute_type_instruction};
-use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
+use crate::runtime::execution::macros::{next_iter, yield_unwrap};
 use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
@@ -78,8 +77,7 @@ pub fn execution_loop(
 ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
 
-        let mut instruction_iterator =
-            iterate_instructions(dxb_body, state.next_instructions_stack);
+        let mut instruction_iterator = iterate_instructions(dxb_body);
         let mut slots = state.slots;
 
         let first_instruction = instruction_iterator.next();
@@ -90,8 +88,9 @@ pub fn execution_loop(
                 interrupt_provider.clone(),
                 first_instruction,
             );
-            for step in inner_iterator {
+            'main: for step in inner_iterator {
                 let step = yield_unwrap!(step);
+                info!("Execution loop step: {:?}", step);
                 match step {
                     // yield external steps directly to be handled by the caller
                     ExecutionInterrupt::External(external_step) => {
@@ -104,7 +103,7 @@ pub fn execution_loop(
                     // feed new instructions to execution as long as they are requested
                     ExecutionInterrupt::GetNextRegularInstruction => {
                         loop {
-                            match next_iter!(instruction_iterator) {
+                            match next_iter!(instruction_iterator, 'main) {
                                 // feed next regular instruction
                                 Ok(Instruction::RegularInstruction(next_instruction)) => {
                                     interrupt_provider.borrow_mut().replace(
@@ -139,7 +138,7 @@ pub fn execution_loop(
                     }
                     ExecutionInterrupt::GetNextTypeInstruction => {
                         loop {
-                            match next_iter!(instruction_iterator) {
+                            match next_iter!(instruction_iterator, 'main) {
                                 // feed next type instruction
                                 Ok(Instruction::TypeInstruction(next_instruction)) => {
                                     interrupt_provider.borrow_mut().replace(
@@ -151,7 +150,7 @@ pub fn execution_loop(
                                 // instruction is not a type instruction - invalid program
                                 Ok(_) => {
                                     yield Err(ExecutionError::InvalidProgram(
-                                        InvalidProgramError::ExpectedTypeValue,
+                                        InvalidProgramError::ExpectedTypeInstruction,
                                     ));
                                 }
                                 // instruction iterator ran out of instructions - must wait for more
@@ -173,10 +172,19 @@ pub fn execution_loop(
                         }
                     }
                     ExecutionInterrupt::GetSlotValue(address) => {
-                        let val = yield_unwrap!(slots.get_slot_value(address));
-                        interrupt_provider
-                            .borrow_mut()
-                            .replace(InterruptProvider::ResolvedValue(val));
+                        // if address is >= 0xffffff00, resolve internal slot
+                        if address >= 0xffffff00 {
+                            yield Ok(ExternalExecutionInterrupt::GetInternalSlotValue(
+                                address,
+                            ));
+                        }
+                        // else handle normal slot
+                        else {
+                            let val = yield_unwrap!(slots.get_slot_value(address));
+                            interrupt_provider
+                                .borrow_mut()
+                                .replace(InterruptProvider::ResolvedValue(val));
+                        }
                     }
                     ExecutionInterrupt::SetSlotValue(address, value) => {
                         yield_unwrap!(slots.set_slot_value(address, value));

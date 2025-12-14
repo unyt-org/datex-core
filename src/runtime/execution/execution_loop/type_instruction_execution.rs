@@ -4,7 +4,7 @@ use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeIn
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::runtime::execution::macros::{intercept_step, interrupt_with_maybe_value, next_iter};
+use crate::runtime::execution::macros::{interrupt_with_maybe_value, interrupt_with_value};
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
@@ -15,16 +15,16 @@ use crate::values::value_container::ValueContainer;
 /// Yield an interrupt and get the next type instruction,
 /// expecting the next input to be a NextTypeInstruction variant
 macro_rules! interrupt_with_next_type_instruction {
-    ($input:expr, $arg:expr) => {{
-        yield Ok($arg);
-        let res = $input.take().unwrap();
+    ($input:expr) => {{
+        use crate::runtime::execution::execution_loop::ExecutionInterrupt;
+        use crate::runtime::execution::macros::interrupt;
+
+        let res = interrupt!($input, ExecutionInterrupt::GetNextTypeInstruction).unwrap();
         match res {
             InterruptProvider::NextTypeInstruction(value) => value,
-            _ => {
-                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedTypeInstruction))
-            }
+            _ => unreachable!(), // must be ensured by execution loop
         }
-    }};
+    }}
 }
 pub(crate) use interrupt_with_next_type_instruction;
 
@@ -40,10 +40,7 @@ macro_rules! get_next_type {
         use crate::runtime::execution::errors::ExecutionError;
         use crate::runtime::execution::errors::InvalidProgramError;
 
-        let next = interrupt_with_next_type_instruction!(
-            $interrupt_provider,
-            ExecutionInterrupt::GetNextTypeInstruction
-        );
+        let next = interrupt_with_next_type_instruction!($interrupt_provider);
         let mut inner_iterator = execute_type_instruction($interrupt_provider, next);
         let maybe_type = intercept_step!(
             inner_iterator,
@@ -114,7 +111,6 @@ pub(crate) fn execute_type_instruction(
                         return yield Err(ExecutionError::ExpectedTypeValue);
                     }
                 }
-
             }
             _ => core::todo!("#405 Undescribed by author."),
         }))

@@ -1,6 +1,6 @@
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, InstructionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, InstructionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData, ShortStatementsData};
 use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -13,6 +13,7 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::cell::RefCell;
+use log::info;
 use crate::stdlib::rc::Rc;
 use datex_core::global::protocol_structures::instructions::{RawLocalPointerAddress, StatementsData};
 use datex_core::parser::next_instructions_stack::NextInstructionsStack;
@@ -85,12 +86,14 @@ impl Display for DXBParserError {
 // TODO: we must ensure while an execution for a block runs, no other executions run using the same next_instructions_stack - maybe also find a solution without Rc<RefCell>
 pub fn iterate_instructions(
     dxb_body_ref: Rc<RefCell<Vec<u8>>>,
-    mut next_instructions_stack: NextInstructionsStack
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> {
 
     core::iter::from_coroutine(
         #[coroutine]
         move || {
+            // create a stack to track next instructions
+            let mut next_instructions_stack = NextInstructionsStack::default();
+
             // get reader for dxb_body
             let mut dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
             let mut len = dxb_body.len();
@@ -115,7 +118,7 @@ pub fn iterate_instructions(
                 let next_instruction_type = next_instructions_stack.pop();
 
                 // parse instruction based on its type
-                yield Ok(match next_instruction_type {
+                let instruction = (match next_instruction_type {
 
                     NextInstructionType::End => return, // end of instructions
 
@@ -244,6 +247,15 @@ pub fn iterate_instructions(
                                 next_instructions_stack.push_next_regular(statements_data.statements_count);
                                 RegularInstruction::Statements(statements_data)
                             }
+                            InstructionCode::SHORT_STATEMENTS => {
+                                let statements_data = yield_unwrap!(ShortStatementsData::read(&mut reader));
+                                next_instructions_stack.push_next_regular(statements_data.statements_count as u32);
+                                // convert ShortStatementsData to StatementsData for simplicity
+                                RegularInstruction::ShortStatements(StatementsData {
+                                    statements_count: statements_data.statements_count as u32,
+                                    terminated: statements_data.terminated
+                                })
+                            }
 
                             InstructionCode::APPLY_ZERO => RegularInstruction::Apply(ApplyData { arg_count: 0 }),
                             InstructionCode::APPLY_SINGLE => {
@@ -262,6 +274,7 @@ pub fn iterate_instructions(
                                 RegularInstruction::Deref
                             },
                             InstructionCode::ASSIGN_TO_REF => {
+                                next_instructions_stack.push_next_regular(2);
                                 let operator = yield_unwrap!(get_next_regular_instruction_code(&mut reader));
                                 let operator = yield_unwrap!(
                                     AssignmentOperator::try_from(operator)
@@ -287,14 +300,35 @@ pub fn iterate_instructions(
                             },
 
                             // operations
-                            InstructionCode::ADD => RegularInstruction::Add,
-                            InstructionCode::SUBTRACT => RegularInstruction::Subtract,
-                            InstructionCode::MULTIPLY => RegularInstruction::Multiply,
-                            InstructionCode::DIVIDE => RegularInstruction::Divide,
+                            InstructionCode::ADD => {
+                                next_instructions_stack.push_next_regular(2);
+                                RegularInstruction::Add
+                            },
+                            InstructionCode::SUBTRACT => {
+                                next_instructions_stack.push_next_regular(2);
+                                RegularInstruction::Subtract
+                            },
+                            InstructionCode::MULTIPLY => {
+                                next_instructions_stack.push_next_regular(2);
+                                RegularInstruction::Multiply
+                            },
+                            InstructionCode::DIVIDE => {
+                                next_instructions_stack.push_next_regular(2);
+                                RegularInstruction::Divide
+                            },
 
-                            InstructionCode::UNARY_MINUS => RegularInstruction::UnaryMinus,
-                            InstructionCode::UNARY_PLUS => RegularInstruction::UnaryPlus,
-                            InstructionCode::BITWISE_NOT => RegularInstruction::BitwiseNot,
+                            InstructionCode::UNARY_MINUS => {
+                                next_instructions_stack.push_next_regular(1);
+                                RegularInstruction::UnaryMinus
+                            },
+                            InstructionCode::UNARY_PLUS => {
+                                next_instructions_stack.push_next_regular(1);
+                                RegularInstruction::UnaryPlus
+                            },
+                            InstructionCode::BITWISE_NOT => {
+                                next_instructions_stack.push_next_regular(1);
+                                RegularInstruction::BitwiseNot
+                            },
 
                             // equality
                             InstructionCode::STRUCTURAL_EQUAL => {
@@ -333,6 +367,7 @@ pub fn iterate_instructions(
 
                             // slots
                             InstructionCode::ALLOCATE_SLOT => {
+                                next_instructions_stack.push_next_regular(1);
                                 let address = SlotAddress::read(&mut reader);
                                 RegularInstruction::AllocateSlot(yield_unwrap!(address))
                             }
@@ -351,19 +386,16 @@ pub fn iterate_instructions(
                             }
 
                             InstructionCode::GET_REF => {
-                                next_instructions_stack.push_next_regular(1);
                                 let address = RawFullPointerAddress::read(&mut reader);
                                 RegularInstruction::GetRef(yield_unwrap!(address))
                             }
 
                             InstructionCode::GET_LOCAL_REF => {
-                                next_instructions_stack.push_next_regular(1);
                                 let address = RawLocalPointerAddress::read(&mut reader);
                                 RegularInstruction::GetLocalRef(yield_unwrap!(address))
                             }
 
                             InstructionCode::GET_INTERNAL_REF => {
-                                next_instructions_stack.push_next_regular(1);
                                 let address =
                                     RawInternalPointerAddress::read(&mut reader);
                                 RegularInstruction::GetInternalRef(yield_unwrap!(address))
@@ -416,10 +448,16 @@ pub fn iterate_instructions(
                                 let ref_data = TypeReferenceData::read(&mut reader);
                                 TypeInstruction::TypeReference(yield_unwrap!(ref_data))
                             }
-                            _ => core::todo!("#426 Undescribed by author."),
+                            _ => return yield Err(DXBParserError::InvalidBinaryCode(
+                                instruction_code as u8,
+                            )),
                         }
                     }.into()
                 });
+
+                info!("=> {:?}", instruction);
+
+                yield Ok(instruction);
             }
         },
     )
@@ -443,4 +481,125 @@ fn get_next_type_instruction_code(
 
     TypeInstructionCode::try_from(instruction_code)
         .map_err(|_| DXBParserError::InvalidInstructionCode(instruction_code))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn iterate_dxb(data: Vec<u8>) -> impl Iterator<Item=Result<Instruction, DXBParserError>> {
+        iterate_instructions(Rc::new(RefCell::new(data)))
+    }
+
+    #[test]
+    fn invalid_instruction_code() {
+        let data = vec![0xFF]; // Invalid instruction code
+        let mut iterator = iterate_dxb(data);
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Err(DXBParserError::InvalidInstructionCode(0xFF))));
+    }
+
+    #[test]
+    fn empty_expect_more_instructions() {
+        let data = vec![]; // Empty data
+        let mut iterator = iterate_dxb(data);
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Err(DXBParserError::ExpectingMoreInstructions)));
+    }
+
+    #[test]
+    fn valid_uint8_instruction() {
+        let data = vec![InstructionCode::UINT_8 as u8, 42];
+        let mut iterator = iterate_dxb(data);
+        let result = iterator.next().unwrap();
+        match result {
+            Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(value))) => {
+                assert_eq!(value.0, 42);
+            }
+            _ => panic!("Expected UINT_8 instruction"),
+        }
+        // Ensure no more instructions
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn valid_short_text_instruction() {
+        let text = "Hello";
+        let text_bytes = text.as_bytes();
+        let mut data = vec![InstructionCode::SHORT_TEXT as u8, text_bytes.len() as u8];
+        data.extend_from_slice(text_bytes);
+        let mut iterator = iterate_dxb(data);
+        let result = iterator.next().unwrap();
+        match result {
+            Ok(Instruction::RegularInstruction(RegularInstruction::ShortText(value))) => {
+                assert_eq!(value.0, "Hello");
+            }
+            _ => panic!("Expected SHORT_TEXT instruction"),
+        }
+        // Ensure no more instructions
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn valid_add_instruction() {
+        let data = vec![
+            InstructionCode::ADD as u8,
+            // first operand (UINT_8)
+            InstructionCode::UINT_8 as u8,
+            10,
+            // second operand (UINT_8)
+            InstructionCode::UINT_8 as u8,
+            20,
+        ];
+        let mut iterator = iterate_dxb(data);
+        // first instruction should be ADD
+        assert!(matches!(iterator.next().unwrap(), Ok(Instruction::RegularInstruction(RegularInstruction::Add))));
+        // next instruction should be first UINT_8
+        assert!(matches!(iterator.next().unwrap(), Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(UInt8Data(10))))));
+        // next instruction should be second UINT_8
+        assert!(matches!(iterator.next().unwrap(), Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(UInt8Data(20))))));
+        // ensure no more instructions
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn error_for_partial_instruction() {
+        let data = vec![InstructionCode::UINT_16 as u8, 0x34]; // Incomplete UINT_16 data
+        let mut iterator = iterate_dxb(data);
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Err(DXBParserError::BinRwError(_))));
+    }
+
+    #[test]
+    fn expect_more_instructions_after_partial() {
+        let data = vec![InstructionCode::LIST as u8, 0x02, 0x00, 0x00, 0x00]; // LIST with 2 elements but no elements provided
+        let data_ref = Rc::new(RefCell::new(data));
+        let mut iterator = iterate_instructions(data_ref.clone());
+        // first instruction should be LIST
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::List(_)))));
+        // next instruction should error expecting more instructions
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Err(DXBParserError::ExpectingMoreInstructions)));
+
+        // now provide more data for the two elements
+        let new_data = vec![
+            InstructionCode::UINT_8 as u8,  // first element
+            10,
+            InstructionCode::UINT_8 as u8,  // second element
+            20,
+        ];
+
+        *data_ref.borrow_mut() = new_data;
+
+        // next instruction should be first UINT_8
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(_)))));
+        // next instruction should be second UINT_8
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(_)))));
+        // ensure no more instructions
+        assert!(iterator.next().is_none());
+    }
 }

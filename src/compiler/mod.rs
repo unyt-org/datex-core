@@ -581,8 +581,6 @@ fn compile_expression(
                     );
                 }
             }
-            compilation_context
-                .append_instruction_code(InstructionCode::MAP);
             for (key, value) in map.entries {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -783,7 +781,6 @@ fn compile_expression(
                     kind,
                     compilation_context.is_end_of_source_text,
                 );
-            info!("variable model for {name}: {variable_model:?}");
 
             // create new variable depending on the model
             let variable = match variable_model {
@@ -1129,16 +1126,14 @@ fn compile_key_value_entry(
 #[cfg(test)]
 pub mod tests {
     use super::{
-        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
+        CompilationContext, CompileOptions, StaticValueOrDXB,
         compile_ast, compile_script, compile_script_or_return_static_value,
         compile_template, parse_datex_script_to_rich_ast_simple_error,
     };
     use crate::stdlib::assert_matches::assert_matches;
     use crate::stdlib::io::Read;
     use crate::stdlib::vec;
-    use core::cell::RefCell;
 
-    use crate::ast::parse;
     use crate::global::type_instruction_codes::TypeInstructionCode;
     use crate::libs::core::CoreLibPointerId;
     use crate::values::core_values::integer::Integer;
@@ -1841,7 +1836,9 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 42,
-                InstructionCode::STATEMENTS.into(),
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
@@ -2255,7 +2252,7 @@ pub mod tests {
             vec![
                 InstructionCode::SHORT_STATEMENTS.into(),
                 3,
-                0, // not terminated
+                1, // terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -2303,6 +2300,10 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::INT_8.into(),
+                1,
                 // TODO #238: this is not the correct slot assignment for VariableReference model
                 // set x to 43
                 InstructionCode::SET_SLOT.into(),
@@ -2313,10 +2314,6 @@ pub mod tests {
                 0,
                 InstructionCode::INT_8.into(),
                 43,
-                // --- end of block
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
             ]
         );
     }
@@ -2421,8 +2418,8 @@ pub mod tests {
                 69,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block
-                // block size (20 bytes)
-                20,
+                // block size (21 bytes)
+                21,
                 0,
                 0,
                 0,
@@ -2492,8 +2489,8 @@ pub mod tests {
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block 1
-                // block size (21 bytes)
-                21,
+                // block size (20 bytes)
+                20,
                 0,
                 0,
                 0,
@@ -2565,8 +2562,8 @@ pub mod tests {
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block 1
-                // block size (21 bytes)
-                24,
+                // block size (23 bytes)
+                23,
                 0,
                 0,
                 0,

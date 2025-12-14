@@ -1,5 +1,5 @@
 use crate::global::instruction_codes::InstructionCode;
-use crate::libs::core::CoreLibPointerId;
+use crate::libs::core::{get_core_lib_type_definition, CoreLibPointerId};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
@@ -172,11 +172,7 @@ pub fn append_endpoint(buffer: &mut Vec<u8>, endpoint: &Endpoint) {
 
 /// Appends a typed integer with explicit type casts
 pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
-    append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(
-        buffer,
-        &PointerAddress::from(CoreLibPointerId::from(integer)),
-    );
+    append_type_cast(buffer, &get_core_lib_type_definition(CoreLibPointerId::from(integer)));
     append_encoded_integer(buffer, &integer.to_smallest_fitting());
 }
 
@@ -287,11 +283,7 @@ pub fn append_big_integer(buffer: &mut Vec<u8>, integer: &Integer) {
 }
 
 pub fn append_typed_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
-    append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(
-        buffer,
-        &PointerAddress::from(CoreLibPointerId::from(decimal)),
-    );
+    append_type_cast(buffer, &get_core_lib_type_definition(CoreLibPointerId::from(decimal)));
     append_encoded_decimal(buffer, decimal);
 }
 
