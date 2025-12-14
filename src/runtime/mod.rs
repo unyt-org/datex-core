@@ -199,7 +199,7 @@ impl RuntimeInternal {
                     RuntimeInternal::execute_remote(self_rc, context, dxb).await
                 }
                 ExecutionContext::Local(_) => {
-                    execution_context.execute_dxb(&dxb, end_execution).await
+                    execution_context.execute_dxb(&dxb).await
                 }
             }
         })
@@ -218,20 +218,21 @@ impl RuntimeInternal {
                 Err(ExecutionError::RequiresAsyncExecution)
             }
             ExecutionContext::Local(_) => {
-                execution_context.execute_dxb_sync(dxb, end_execution)
+                execution_context.execute_dxb_sync(dxb)
             }
         }
     }
 
     /// Returns the existing execution context for the given context_id,
     /// or creates a new one if it doesn't exist.
-    fn get_execution_context(
+    /// To reuse the context later, the caller must store it back in the map after use.
+    fn take_execution_context(
         self_rc: Rc<RuntimeInternal>,
         context_id: &IncomingEndpointContextSectionId,
     ) -> ExecutionContext {
         let mut execution_contexts = self_rc.execution_contexts.borrow_mut();
         // get execution context by context_id or create a new one if it doesn't exist
-        let execution_context = execution_contexts.get(context_id).cloned();
+        let execution_context = execution_contexts.remove(context_id);
         if let Some(context) = execution_context {
             context
         } else {
@@ -239,8 +240,6 @@ impl RuntimeInternal {
                 self_rc.clone(),
                 false,
             );
-            // insert the new context into the map
-            execution_contexts.insert(context_id.clone(), new_context.clone());
             new_context
         }
     }
@@ -294,9 +293,10 @@ impl RuntimeInternal {
         Endpoint,
         OutgoingContextId,
     ) {
-        let mut context = Self::get_execution_context(
+        let section_context_id = incoming_section.get_section_context_id().clone();
+        let mut context = Self::take_execution_context(
             self_rc.clone(),
-            incoming_section.get_section_context_id(),
+            &section_context_id,
         );
         info!(
             "Executing incoming section with index: {}",
@@ -336,6 +336,11 @@ impl RuntimeInternal {
         let last_block = last_block.unwrap();
         let sender_endpoint = last_block.get_sender().clone();
         let context_id = last_block.block_header.context_id;
+
+        // insert the context back into the map for future use
+        // TODO: is this needed or can we drop the context after execution here?
+        self_rc.execution_contexts.borrow_mut().insert(section_context_id, context);
+        
         (Ok(result), sender_endpoint, context_id)
     }
 

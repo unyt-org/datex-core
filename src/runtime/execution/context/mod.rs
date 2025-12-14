@@ -15,7 +15,7 @@ mod local;
 /// An execution context holds the persistent state for executing multiple scripts sequentially within the same context.
 /// This can be either a local context, which is used for executing scripts in the same process, or a remote context,
 /// which is used for executing scripts on a remote endpoint.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ExecutionContext {
     Local(LocalExecutionContext),
     Remote(RemoteExecutionContext),
@@ -102,45 +102,49 @@ impl ExecutionContext {
     fn get_local_execution_input<'a>(
         &'a mut self,
         dxb: &'a [u8],
-        end_execution: bool,
     ) -> Result<ExecutionInput<'a>, ExecutionError> {
-        let (local_execution_context, execution_options, verbose) = match &self
-        {
-            ExecutionContext::Local(LocalExecutionContext {
-                                        runtime_execution_state: local_execution_context,
-                                        execution_options,
-                                        verbose,
-                                        ..
-                                    }) => (local_execution_context, execution_options, *verbose),
-            // remote execution is not supported directly in execution context
-            ExecutionContext::Remote(_) => {
-                core::panic!("Remote execution requires a Runtime");
-            }
+        let (input, verbose) = {
+            let (runtime, loop_state, execution_options, verbose) = match self
+            {
+                ExecutionContext::Local(LocalExecutionContext {
+                                            runtime,
+                                            loop_state,
+                                            execution_options,
+                                            verbose,
+                                            ..
+                                        }) => (runtime, loop_state, execution_options, *verbose),
+                // remote execution is not supported directly in execution context
+                ExecutionContext::Remote(_) => {
+                    core::panic!("Remote execution requires a Runtime");
+                }
+            };
+
+            (
+                ExecutionInput {
+                    runtime: runtime.clone(),
+                    loop_state: loop_state.take(),
+                    options: (*execution_options).clone(),
+                    dxb_body: dxb,
+                }, 
+                verbose
+            )
         };
 
         // show DXB and decompiled code if verbose is enabled
         if verbose {
             self.print_dxb_debug(dxb)?;
         }
-
-        local_execution_context.borrow_mut().reset_index();
-        Ok(ExecutionInput {
-            // FIXME #108: no clone here
-            state: (*local_execution_context).clone(),
-            options: (*execution_options).clone(),
-            dxb_body: dxb,
-            end_execution,
-        })
+        
+        Ok(input)        
     }
 
     /// Executes DXB in a local execution context.
     pub fn execute_dxb_sync(
         &mut self,
         dxb: &[u8],
-        end_execution: bool,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         let execution_input =
-            self.get_local_execution_input(dxb, end_execution)?;
+            self.get_local_execution_input(dxb)?;
         execute_dxb_sync(execution_input)
     }
 
@@ -152,19 +156,18 @@ impl ExecutionContext {
         inserted_values: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let dxb = self.compile(script, inserted_values)?;
-        self.execute_dxb_sync(&dxb, true)
+        self.execute_dxb_sync(&dxb)
             .map_err(ScriptExecutionError::from)
     }
 
     pub async fn execute_dxb(
         &mut self,
         dxb: &[u8],
-        end_execution: bool,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ExecutionContext::Local { .. } => {
                 let execution_input =
-                    self.get_local_execution_input(dxb, end_execution)?;
+                    self.get_local_execution_input(dxb)?;
                 execute_dxb(execution_input).await
             }
             // remote execution is not supported directly in execution context
@@ -181,7 +184,7 @@ impl ExecutionContext {
         inserted_values: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let dxb = self.compile(script, inserted_values)?;
-        self.execute_dxb(&dxb, true)
+        self.execute_dxb(&dxb)
             .await
             .map_err(ScriptExecutionError::from)
     }
@@ -190,7 +193,8 @@ impl ExecutionContext {
     pub fn memory_dump(&self) -> Option<MemoryDump> {
         match self {
             ExecutionContext::Local(local_context) => {
-                Some(local_context.memory_dump())
+                todo!()
+                // Some(local_context.memory_dump())
             }
             // TODO #397: also support remote memory dump if possible
             ExecutionContext::Remote(_) => None,

@@ -16,9 +16,10 @@ use datex_core::values::value_container::ValueContainer;
 fn compile_and_execute(input: ValueContainer) -> ValueContainer {
     let (dxb, _) = compile!("?", input.clone()).unwrap();
 
-    execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
+    execute_dxb_sync(ExecutionInput::new(
         &dxb,
         ExecutionOptions { verbose: true },
+        None
     ))
     .unwrap()
     .unwrap()

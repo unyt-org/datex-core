@@ -58,6 +58,7 @@ pub enum ExecutionError {
     DerefOfNonReference,
     InvalidTypeCast,
     ExpectedTypeValue,
+    AwaitingMoreInstructions,
     AssignmentError(AssignmentError),
     ReferenceFromValueContainerError(ReferenceCreationError),
 }
@@ -162,6 +163,9 @@ impl Display for ExecutionError {
             }
             ExecutionError::ExpectedTypeValue => {
                 core::write!(f, "Expected a type value")
+            }
+            ExecutionError::AwaitingMoreInstructions => {
+                core::write!(f, "Awaiting more instructions to continue execution")
             }
         }
     }

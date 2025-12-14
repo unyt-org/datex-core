@@ -499,9 +499,10 @@ impl Serializer for &mut DatexSerializer {
         } else if name == "datex::value" {
             // unsafe cast value to ValueContainer
             let bytes = unsafe { &*(value as *const T as *const Vec<u8>) };
-            Ok(execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
+            Ok(execute_dxb_sync(ExecutionInput::new(
                 bytes,
                 ExecutionOptions::default(),
+                None
             ))
             .unwrap()
             .unwrap())

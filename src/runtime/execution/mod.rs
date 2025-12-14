@@ -16,7 +16,7 @@ pub use execution_input::ExecutionOptions;
 pub use execution_input::ExecutionInput;
 pub use errors::*;
 pub use memory_dump::*;
-use crate::runtime::execution::execution_loop::{execute_loop, ExecutionStep, ExternalExecutionStep, InterruptProvider};
+use crate::runtime::execution::execution_loop::{ExternalExecutionInterrupt, InterruptProvider};
 
 pub mod macros;
 mod execution_input;
@@ -31,20 +31,20 @@ pub fn execute_dxb_sync(
     input: ExecutionInput,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal =
-        input.state.borrow_mut().runtime_internal().clone();
 
-    for output in execute_loop(input, interrupt_provider.clone()) {
+    let runtime_internal = input.runtime.clone();
+
+    for output in input.execution_loop(interrupt_provider.clone()) {
         match output? {
-            ExternalExecutionStep::Result(result) => return Ok(result),
-            ExternalExecutionStep::ResolvePointer(address) => {
+            ExternalExecutionInterrupt::Result(result) => return Ok(result),
+            ExternalExecutionInterrupt::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
-            ExternalExecutionStep::ResolveLocalPointer(address) => {
+            ExternalExecutionInterrupt::ResolveLocalPointer(address) => {
                 // TODO #401: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
@@ -52,13 +52,13 @@ pub fn execute_dxb_sync(
                         address,
                     )?));
             }
-            ExternalExecutionStep::ResolveInternalPointer(address) => {
+            ExternalExecutionInterrupt::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
-            ExternalExecutionStep::GetInternalSlotValue(slot) => {
+            ExternalExecutionInterrupt::GetInternalSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
@@ -76,20 +76,19 @@ pub async fn execute_dxb(
     input: ExecutionInput<'_>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {
     let interrupt_provider = Rc::new(RefCell::new(None));
-    let runtime_internal =
-        input.state.borrow_mut().runtime_internal().clone();
+    let runtime_internal = input.runtime.clone();
 
-    for output in execute_loop(input, interrupt_provider.clone()) {
+    for output in input.execution_loop(interrupt_provider.clone()) {
         match output? {
-            ExternalExecutionStep::Result(result) => return Ok(result),
-            ExternalExecutionStep::ResolvePointer(address) => {
+            ExternalExecutionInterrupt::Result(result) => return Ok(result),
+            ExternalExecutionInterrupt::ResolvePointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_pointer_value(
                         &runtime_internal,
                         address,
                     )?));
             }
-            ExternalExecutionStep::ResolveLocalPointer(address) => {
+            ExternalExecutionInterrupt::ResolveLocalPointer(address) => {
                 // TODO #402: in the future, local pointer addresses should be relative to the block sender, not the local runtime
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_local_pointer_value(
@@ -97,13 +96,13 @@ pub async fn execute_dxb(
                         address,
                     )?));
             }
-            ExternalExecutionStep::ResolveInternalPointer(address) => {
+            ExternalExecutionInterrupt::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
                         get_internal_pointer_value(address)?,
                     ));
             }
-            ExternalExecutionStep::RemoteExecution(receivers, body) => {
+            ExternalExecutionInterrupt::RemoteExecution(receivers, body) => {
                 if let Some(runtime) = &runtime_internal {
                     // assert that receivers is a single endpoint
                     // TODO #230: support advanced receivers
@@ -126,7 +125,7 @@ pub async fn execute_dxb(
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
-            ExternalExecutionStep::GetInternalSlotValue(slot) => {
+            ExternalExecutionInterrupt::GetInternalSlotValue(slot) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(get_internal_slot_value(
                         &runtime_internal,
@@ -234,9 +233,10 @@ mod tests {
     ) -> Option<ValueContainer> {
         let (dxb, _) =
             compile_script(datex_script, CompileOptions::default()).unwrap();
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             &dxb,
             ExecutionOptions { verbose: true },
+            None
         );
         execute_dxb_sync(context).unwrap_or_else(|err| {
             core::panic!("Execution failed: {err}");
@@ -248,9 +248,10 @@ mod tests {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         let (dxb, _) =
             compile_script(datex_script, CompileOptions::default()).unwrap();
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             &dxb,
             ExecutionOptions { verbose: true },
+            None
         );
         execute_dxb_sync(context)
     }
@@ -264,9 +265,10 @@ mod tests {
     fn execute_dxb_debug(
         dxb_body: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             dxb_body,
             ExecutionOptions { verbose: true },
+            None
         );
         execute_dxb_sync(context)
     }

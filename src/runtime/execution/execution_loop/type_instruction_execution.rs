@@ -2,7 +2,7 @@ use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeInstruction};
 use crate::references::reference::{Reference, ReferenceMutability};
-use crate::runtime::execution::execution_loop::{ExecutionStep, ExternalExecutionStep, InterruptProvider};
+use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::runtime::execution::macros::{intercept_step, interrupt_with_maybe_value, next_iter};
 use crate::types::definition::TypeDefinition;
@@ -32,22 +32,22 @@ pub(crate) use interrupt_with_next_type_instruction;
 /// Returns the resolved Type or aborts with an ExecutionError if no type could be resolved (should not happen in valid program)
 macro_rules! get_next_type {
     ($interrupt_provider:expr) => {{
-        use crate::runtime::execution::execution_loop::type_instruction_iteration::next_type_instruction_iteration;
-        use crate::runtime::execution::execution_loop::type_instruction_iteration::interrupt_with_next_type_instruction;
+        use crate::runtime::execution::execution_loop::type_instruction_execution::execute_type_instruction;
+        use crate::runtime::execution::execution_loop::type_instruction_execution::interrupt_with_next_type_instruction;
         use crate::runtime::execution::macros::intercept_step;
 
-        use crate::runtime::execution::execution_loop::ExecutionStep;
+        use crate::runtime::execution::execution_loop::ExecutionInterrupt;
         use crate::runtime::execution::errors::ExecutionError;
         use crate::runtime::execution::errors::InvalidProgramError;
 
         let next = interrupt_with_next_type_instruction!(
             $interrupt_provider,
-            ExecutionStep::GetNextTypeInstruction
+            ExecutionInterrupt::GetNextTypeInstruction
         );
-        let mut inner_iterator = next_type_instruction_iteration($interrupt_provider, next);
+        let mut inner_iterator = execute_type_instruction($interrupt_provider, next);
         let maybe_type = intercept_step!(
             inner_iterator,
-            Ok(ExecutionStep::TypeReturn(base_type)) => {
+            Ok(ExecutionInterrupt::TypeReturn(base_type)) => {
                 base_type
             }
         );
@@ -61,17 +61,13 @@ macro_rules! get_next_type {
 }
 pub(crate) use get_next_type;
 
-pub(crate) fn next_type_instruction_iteration(
+pub(crate) fn execute_type_instruction(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: TypeInstruction,
-) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
+) -> Box<impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>>> {
     Box::new(gen move {
-        yield Ok(ExecutionStep::TypeReturn(match instruction {
+        yield Ok(ExecutionInterrupt::TypeReturn(match instruction {
             TypeInstruction::List(list_data) => {
-                interrupt_with_maybe_value!(
-                    interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::Pause)
-                );
                 todo!()
             }
             TypeInstruction::LiteralInteger(integer) => {
@@ -94,13 +90,13 @@ pub(crate) fn next_type_instruction_iteration(
                         interrupt_provider,
                         match type_ref.address {
                             RawPointerAddress::Local(address) => {
-                                ExecutionStep::External(ExternalExecutionStep::ResolveLocalPointer(address))
+                                ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveLocalPointer(address))
                             }
                             RawPointerAddress::Internal(address) => {
-                                ExecutionStep::External(ExternalExecutionStep::ResolveInternalPointer(address))
+                                ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveInternalPointer(address))
                             }
                             RawPointerAddress::Full(address) => {
-                                ExecutionStep::External(ExternalExecutionStep::ResolvePointer(address))
+                                ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolvePointer(address))
                             }
                         }
                     );

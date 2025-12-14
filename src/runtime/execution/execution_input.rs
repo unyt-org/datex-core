@@ -1,5 +1,8 @@
 use core::cell::RefCell;
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
+use crate::runtime::execution::execution_loop::{execution_loop, ExternalExecutionInterrupt, InterruptProvider};
+use crate::runtime::execution::execution_loop::state::{ExecutionLoopState, RuntimeExecutionState};
+use crate::runtime::execution::ExecutionError;
+use crate::runtime::RuntimeInternal;
 use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
@@ -8,16 +11,15 @@ pub struct ExecutionOptions {
 }
 
 /// Input required to execute a DXB program.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExecutionInput<'a> {
     /// Options for execution.
     pub options: ExecutionOptions,
     /// The DXB program body containing raw bytecode.
     pub dxb_body: &'a [u8],
-    /// The execution should be ended after this run, no further executions will be done for this context.
-    pub end_execution: bool,
-    /// The runtime execution context that can persist across executions.
-    pub state: Rc<RefCell<RuntimeExecutionState>>,
+    /// For persisting execution state across multiple executions (e.g., for REPL scenarios).
+    pub loop_state: Option<ExecutionLoopState>,
+    pub runtime: Option<Rc<RuntimeInternal>>,
 }
 
 impl Default for ExecutionInput<'_> {
@@ -25,22 +27,70 @@ impl Default for ExecutionInput<'_> {
         Self {
             options: ExecutionOptions::default(),
             dxb_body: &[],
-            state: Rc::new(RefCell::new(RuntimeExecutionState::default())),
-            end_execution: true,
+            loop_state: None,
+            runtime: None,
         }
     }
 }
 
 impl<'a> ExecutionInput<'a> {
-    pub fn new_with_dxb_and_options(
+    pub fn new(
         dxb_body: &'a [u8],
         options: ExecutionOptions,
+        runtime: Option<Rc<RuntimeInternal>>,
     ) -> Self {
         Self {
             options,
             dxb_body,
-            state: Rc::new(RefCell::new(RuntimeExecutionState::default())),
-            end_execution: true,
+            loop_state: None,
+            runtime,
+        }
+    }
+
+    pub fn execution_loop(
+        mut self,
+        interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
+        gen move {
+            // use execution iterator if one already exists from previous execution
+            let mut iterator = if let Some(existing_loop_state) = self.loop_state.take() {
+                // update dxb so that instruction iterator can continue with next instructions
+                *existing_loop_state.dxb_body.borrow_mut() = self.dxb_body.to_vec();
+                existing_loop_state
+            }
+            // otherwise start a new execution loop
+            else {
+                let state = match self.runtime {
+                    Some(internal) => RuntimeExecutionState::new(internal),
+                    None => RuntimeExecutionState::default(),
+                };
+                // TODO: optimize, don't clone the whole DXB body every time here
+                let dxb_rc = Rc::new(RefCell::new(self.dxb_body.to_vec()));
+                ExecutionLoopState {
+                    dxb_body: dxb_rc.clone(),
+                    iterator: Box::new(execution_loop(state, dxb_rc, interrupt_provider.clone()))
+                }
+            };
+
+            // proxy the iterator, storing it back into state if interrupted to await more instructions
+            loop {
+                let item = iterator.iterator.next();
+                if item.is_none() {
+                    break;
+                }
+                let item = item.unwrap();
+
+                match item {
+                    Err(ExecutionError::AwaitingMoreInstructions) => {
+                        // yield the intermediate result with the current iterator state and intermediate value
+                        // TODO: return intermediate value from execution here
+                        yield Ok(ExternalExecutionInterrupt::IntermediateResult(iterator, None));
+                        return;
+                    }
+                    _ => yield item
+                }
+            }
+
         }
     }
 }

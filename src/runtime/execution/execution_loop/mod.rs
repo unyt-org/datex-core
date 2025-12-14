@@ -1,22 +1,25 @@
 mod operations;
-pub mod regular_instruction_iteration;
+pub mod regular_instruction_execution;
 pub mod state;
-pub mod type_instruction_iteration;
+pub mod type_instruction_execution;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use log::info;
-use datex_core::runtime::execution::execution_loop::regular_instruction_iteration::next_regular_instruction_iteration;
+use datex_core::parser::next_instructions_stack::NextInstructionsStack;
+use datex_core::runtime::execution::execution_loop::regular_instruction_execution::execute_regular_instruction;
+use datex_core::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, BitwiseUnaryOperator, ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator, UnaryOperator};
 use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
 use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction, Instruction};
 use crate::parser::body;
+use crate::parser::body::{iterate_instructions, DXBParserError};
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::execution_loop::type_instruction_iteration::{next_type_instruction_iteration};
+use crate::runtime::execution::execution_loop::type_instruction_execution::{execute_type_instruction};
 use crate::runtime::execution::macros::{handle_steps, intercept_steps, interrupt, interrupt_with_maybe_value, next_iter, yield_unwrap};
 use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
@@ -34,7 +37,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug)]
-pub enum ExecutionStep {
+pub enum ExecutionInterrupt {
     ValueReturn(Option<ValueContainer>),
     TypeReturn(Type),
     KeyValuePairReturn((OwnedMapKey, ValueContainer)),
@@ -44,20 +47,19 @@ pub enum ExecutionStep {
     DropSlot(u32),
     GetNextRegularInstruction,
     GetNextTypeInstruction,
-    External(ExternalExecutionStep)
+    External(ExternalExecutionInterrupt)
 }
 
-// TODO ExecutionStep::External
 #[derive(Debug)]
-pub enum ExternalExecutionStep {
+pub enum ExternalExecutionInterrupt {
     Result(Option<ValueContainer>),
+    IntermediateResult(ExecutionLoopState, Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
     GetInternalSlotValue(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Apply(ValueContainer, Vec<ValueContainer>),
-    Pause,
 }
 
 #[derive(Debug)]
@@ -68,62 +70,87 @@ pub enum InterruptProvider {
 }
 
 /// Main execution loop that drives the execution of the DXB body
-/// The interrupt_provider is used to provide synchronous or asynchronous I/O operations
-pub fn execute_loop(
-    input: ExecutionInput,
+/// The interrupt_provider is used to provide results for synchronous or asynchronous I/O operations
+pub fn execution_loop(
+    state: RuntimeExecutionState,
+    dxb_body: Rc<RefCell<Vec<u8>>>,
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
-) -> impl Iterator<Item = Result<ExternalExecutionStep, ExecutionError>> {
+) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
-        let dxb_body = input.dxb_body;
-        let state = input.state;
-        let next_instructions_stack =
-            state.borrow_mut().next_instructions_stack.clone();
-
+        
         let mut instruction_iterator =
-            body::iterate_instructions(dxb_body, next_instructions_stack);
-
+            iterate_instructions(dxb_body, state.next_instructions_stack);
 
         let first_instruction = instruction_iterator.next();
 
         if let Some(Ok(Instruction::RegularInstruction(first_instruction))) = first_instruction {
-            let mut inner_iterator = next_regular_instruction_iteration(
+            // execute the root instruction, which will drive further recursive execution
+            let inner_iterator = execute_regular_instruction(
                 interrupt_provider.clone(),
                 first_instruction,
             );
-            while let Some(step) = inner_iterator.next() {
+            for step in inner_iterator {
                 let step = yield_unwrap!(step);
                 match step {
-                    // yield external steps directly
-                    ExecutionStep::External(external_step) => {
+                    // yield external steps directly to be handled by the caller
+                    ExecutionInterrupt::External(external_step) => {
                         yield Ok(external_step);
                     }
-                    // final outer value return
-                    ExecutionStep::ValueReturn(value) => {
-                        return yield Ok(ExternalExecutionStep::Result(value))
+                    // final execution result - loop ends here
+                    ExecutionInterrupt::ValueReturn(value) => {
+                        return yield Ok(ExternalExecutionInterrupt::Result(value))
                     }
-                    // feed new instructions as long as they are requested
-                    ExecutionStep::GetNextRegularInstruction => {
-                        match yield_unwrap!(next_iter!(instruction_iterator)) {
-                            Instruction::RegularInstruction(next_instruction) => {
+                    // feed new instructions to execution as long as they are requested
+                    ExecutionInterrupt::GetNextRegularInstruction => {
+                        match next_iter!(instruction_iterator) {
+                            // feed next regular instruction
+                            Ok(Instruction::RegularInstruction(next_instruction)) => {
                                 interrupt_provider.borrow_mut().replace(
                                     InterruptProvider::NextRegularInstruction(
                                         next_instruction,
                                     ),
                                 );
                             }
-                            _ => unreachable!()
+                            // instruction is not a regular instruction - invalid program
+                            Ok(_) => {
+                                yield Err(ExecutionError::InvalidProgram(
+                                    InvalidProgramError::ExpectedRegularInstruction,
+                                ));
+                            }
+                            // instruction iterator ran out of instructions - must wait for more
+                            Err(DXBParserError::ExpectingMoreInstructions) => {
+                                yield Err(ExecutionError::AwaitingMoreInstructions);
+                            }
+                            // other parsing errors from instruction iterator
+                            Err(err) => {
+                                return yield Err(ExecutionError::DXBParserError(err));
+                            }
                         }
                     }
-                    ExecutionStep::GetNextTypeInstruction => {
-                        match yield_unwrap!(next_iter!(instruction_iterator)) {
-                            Instruction::TypeInstruction(next_instruction) => {
+                    ExecutionInterrupt::GetNextTypeInstruction => {
+                        match next_iter!(instruction_iterator) {
+                            // feed next type instruction
+                            Ok(Instruction::TypeInstruction(next_instruction)) => {
                                 interrupt_provider.borrow_mut().replace(
                                     InterruptProvider::NextTypeInstruction(
                                         next_instruction,
                                     ),
                                 );
                             }
-                            _ => unreachable!()
+                            // instruction is not a type instruction - invalid program
+                            Ok(_) => {
+                                yield Err(ExecutionError::InvalidProgram(
+                                    InvalidProgramError::ExpectedTypeValue,
+                                ));
+                            }
+                            // instruction iterator ran out of instructions - must wait for more
+                            Err(DXBParserError::ExpectingMoreInstructions) => {
+                                yield Err(ExecutionError::AwaitingMoreInstructions);
+                            }
+                            // other parsing errors from instruction iterator
+                            Err(err) => {
+                                return yield Err(ExecutionError::DXBParserError(err));
+                            }
                         }
                     }
                     _ => todo!(),
@@ -136,10 +163,12 @@ pub fn execute_loop(
             ));
         }
 
+        // TODO: should this be unreachable?
         // if execution exited without value return, return None
-        yield Ok(ExternalExecutionStep::Result(None))
+        yield Ok(ExternalExecutionInterrupt::Result(None))
     }
 }
+
 
 // TODO
 fn handle_apply(
