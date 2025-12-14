@@ -77,7 +77,7 @@ pub enum RegularInstruction {
     False,
     Null,
     Statements(StatementsData),
-    ShortStatements(ShortStatementsData),
+    ShortStatements(StatementsData),
     List(ListData),
     ShortList(ListData),
     Map(MapData),

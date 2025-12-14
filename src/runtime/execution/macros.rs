@@ -1,10 +1,11 @@
 /// Get the next iteration item or break the loop
 /// Useful inside loops where iteration also occurs within the loop body
+/// A loop label must be provided to break from
 macro_rules! next_iter {
-    ($iterator:ident) => {
+    ($iterator:ident, $label:lifetime) => {
         match $iterator.next() {
             Some(instruction) => instruction,
-            None => break,
+            None => break $label,
         }
     };
 }
@@ -56,31 +57,12 @@ macro_rules! intercept_step {
 }
 pub(crate) use intercept_step;
 
-/// Intercept specific steps in an iterator
-/// All steps must be handled within the macro
-macro_rules! handle_steps {
-    (
-        $iterator:expr,
-        $( $pattern:pat => $body:expr ),+ $(,)?
-    ) => {
-        for step in $iterator {
-            match step {
-                $(
-                    $pattern => $body,
-                )+
-            }
-        }
-    };
-}
-pub(crate) use handle_steps;
-
-
 
 /// Yield an interrupt and get the next input
 macro_rules! interrupt {
     ($input:expr, $arg:expr) => {{
         yield Ok($arg);
-        $input.take().unwrap()
+        $input.take()
     }};
 }
 pub(crate) use interrupt;
@@ -89,8 +71,9 @@ pub(crate) use interrupt;
 /// expecting the next input to be a ResolvedValue variant
 macro_rules! interrupt_with_maybe_value {
     ($input:expr, $arg:expr) => {{
-        yield Ok($arg);
-        let res = $input.take().unwrap();
+        use crate::runtime::execution::macros::interrupt;
+
+        let res = interrupt!($input, $arg).unwrap();
         match res {
             crate::runtime::execution::execution_loop::InterruptProvider::ResolvedValue(value) => value,
             _ => unreachable!(),

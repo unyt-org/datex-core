@@ -1,8 +1,6 @@
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
-use crate::global::operators::{
-    AssignmentOperator, BinaryOperator, UnaryOperator,
-};
+use crate::global::operators::{AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator};
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData,
@@ -28,23 +26,22 @@ use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
+use log::info;
 use datex_core::global::protocol_structures::instructions::RegularInstruction;
+use datex_core::runtime::execution::execution_loop::operations::handle_comparison_operation;
 use datex_core::runtime::execution::macros::interrupt_with_value;
 use datex_core::values::core_value::CoreValue;
 
 /// Yield an interrupt and get the next regular instruction,
 /// expecting the next input to be a NextRegularInstruction variant
 macro_rules! interrupt_with_next_regular_instruction {
-    ($input:expr, $arg:expr) => {{
-        yield Ok($arg);
-        let res = $input.take().unwrap();
+    ($input:expr) => {{
+        use crate::runtime::execution::macros::interrupt;
+
+        let res = interrupt!($input, ExecutionInterrupt::GetNextRegularInstruction).unwrap();
         match res {
             InterruptProvider::NextRegularInstruction(value) => value,
-            _ => {
-                return yield Err(ExecutionError::InvalidProgram(
-                    InvalidProgramError::ExpectedRegularInstruction,
-                ));
-            }
+            _ => unreachable!(), // must be ensured by execution loop
         }
     }};
 }
@@ -53,10 +50,7 @@ macro_rules! interrupt_with_next_regular_instruction {
 /// Returns the resolved value or None if the next instructions did not generate a value
 macro_rules! get_next_maybe_value {
     ($interrupt_provider:expr) => {{
-        let next = interrupt_with_next_regular_instruction!(
-            $interrupt_provider,
-            ExecutionInterrupt::GetNextRegularInstruction
-        );
+        let next = interrupt_with_next_regular_instruction!($interrupt_provider);
         let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
@@ -93,10 +87,7 @@ macro_rules! get_next_value {
 /// Returns the key value pair or aborts with an ExecutionError (should not happen in valid program)
 macro_rules! get_next_key_value_pair {
     ($interrupt_provider:expr) => {{
-        let next = interrupt_with_next_regular_instruction!(
-            $interrupt_provider,
-            ExecutionInterrupt::GetNextRegularInstruction
-        );
+        let next = interrupt_with_next_regular_instruction!($interrupt_provider);
         let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
@@ -197,13 +188,7 @@ pub(crate) fn execute_regular_instruction(
             RegularInstruction::Add
             | RegularInstruction::Subtract
             | RegularInstruction::Multiply
-            | RegularInstruction::Divide
-            | RegularInstruction::Is
-            | RegularInstruction::Matches
-            | RegularInstruction::StructuralEqual
-            | RegularInstruction::Equal
-            | RegularInstruction::NotStructuralEqual
-            | RegularInstruction::NotEqual => {
+            | RegularInstruction::Divide => {
                 let lhs = get_next_value!(interrupt_provider.clone());
                 let rhs = get_next_value!(interrupt_provider);
 
@@ -215,9 +200,29 @@ pub(crate) fn execute_regular_instruction(
                 Some(yield_unwrap!(res))
             }
 
+            // comparison operations
+            RegularInstruction::Is
+            | RegularInstruction::Matches
+            | RegularInstruction::StructuralEqual
+            | RegularInstruction::Equal
+            | RegularInstruction::NotStructuralEqual
+            | RegularInstruction::NotEqual => {
+                let lhs = get_next_value!(interrupt_provider.clone());
+                let rhs = get_next_value!(interrupt_provider);
+
+                let res = handle_comparison_operation(
+                    ComparisonOperator::from(instruction),
+                    &lhs,
+                    &rhs,
+                );
+                Some(yield_unwrap!(res))
+            }
+
+
             // unary operations
             RegularInstruction::CreateRef
             | RegularInstruction::CreateRefMut
+            | RegularInstruction::Deref
             | RegularInstruction::UnaryPlus
             | RegularInstruction::UnaryMinus
             | RegularInstruction::BitwiseNot => {
@@ -280,9 +285,10 @@ pub(crate) fn execute_regular_instruction(
                 )
             }
 
-            RegularInstruction::Statements(statements_data) => {
+            RegularInstruction::Statements(statements_data)
+            | RegularInstruction::ShortStatements(statements_data) => {
                 let mut last_value = None;
-                for _ in 0..statements_data.statements_count {
+                for i in 0..statements_data.statements_count {
                     last_value =
                         get_next_maybe_value!(interrupt_provider.clone());
                 }
@@ -354,11 +360,11 @@ pub(crate) fn execute_regular_instruction(
             }
 
             RegularInstruction::AssignToReference(operator) => {
-                let reference = get_next_value!(interrupt_provider.clone());
+                let ref_value_container = get_next_value!(interrupt_provider.clone());
                 let value_container = get_next_value!(interrupt_provider);
 
                 // assignment value must be a reference
-                if let Some(reference) = reference.maybe_reference() {
+                if let Some(reference) = ref_value_container.maybe_reference() {
                     let lhs = reference.value_container();
                     let res = yield_unwrap!(handle_assignment_operation(
                         operator,
@@ -366,42 +372,29 @@ pub(crate) fn execute_regular_instruction(
                         value_container,
                     ));
                     yield_unwrap!(reference.set_value_container(res));
-                    Some(lhs)
-                } else {
-                    return yield Err(ExecutionError::DerefOfNonReference);
-                }
-            }
-
-            RegularInstruction::Deref => {
-                let reference = get_next_value!(interrupt_provider);
-                // dereferenced value must be a reference
-                if let Some(reference) = reference.maybe_reference() {
-                    let lhs = reference.value_container();
-                    Some(lhs)
+                    Some(ref_value_container)
                 } else {
                     return yield Err(ExecutionError::DerefOfNonReference);
                 }
             }
 
             RegularInstruction::GetRef(address) => {
-                interrupt_with_maybe_value!(
+                Some(interrupt_with_value!(
                     interrupt_provider,
                     ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolvePointer(address))
-                )
+                ))
             }
-
             RegularInstruction::GetLocalRef(address) => {
-                interrupt_with_maybe_value!(
+                Some(interrupt_with_value!(
                     interrupt_provider,
                     ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveLocalPointer(address))
-                )
+                ))
             }
-
             RegularInstruction::GetInternalRef(address) => {
-                interrupt_with_maybe_value!(
+                Some(interrupt_with_value!(
                     interrupt_provider,
                     ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveInternalPointer(address))
-                )
+                ))
             }
 
             RegularInstruction::AddAssign(SlotAddress(address))

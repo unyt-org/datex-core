@@ -71,12 +71,12 @@ pub fn handle_unary_operation(
 pub fn handle_comparison_operation(
     operator: ComparisonOperator,
     lhs: &ValueContainer,
-    rhs: ValueContainer,
+    rhs: &ValueContainer,
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     match operator {
         ComparisonOperator::StructuralEqual => {
-            let val = lhs.structural_eq(&rhs);
+            let val = lhs.structural_eq(rhs);
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Equal => {
@@ -84,11 +84,11 @@ pub fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::NotStructuralEqual => {
-            let val = !lhs.structural_eq(&rhs);
+            let val = !lhs.structural_eq(rhs);
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::NotEqual => {
-            let val = !lhs.value_eq(&rhs);
+            let val = !lhs.value_eq(rhs);
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Is => {
@@ -96,7 +96,7 @@ pub fn handle_comparison_operation(
             // instead of a ref. Identity checks using the is operator shall be only allowed
             // for references.
             // @benstre: or keep as always false ? - maybe a compiler check would be better
-            let val = lhs.identical(&rhs);
+            let val = lhs.identical(rhs);
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Matches => {
