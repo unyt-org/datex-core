@@ -1012,7 +1012,7 @@ impl ComHub {
         &self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
-    ) {
+    ) -> Result<(), ComHubError> {
         let socket_ref = socket.try_lock().unwrap();
         let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.borrow().contains_key(&socket_ref.uuid) {
@@ -1060,7 +1060,7 @@ impl ComHub {
                 .set_signature_type(SignatureType::Unencrypted);
             // TODO #182 include fingerprint of the own public key into body
 
-            let block = self.prepare_own_block(block).await.unwrap();
+            let block = self.prepare_own_block(block).await?;
 
             drop(socket_ref);
             self.send_block_to_endpoints_via_socket(
@@ -1070,6 +1070,7 @@ impl ComHub {
                 None,
             );
         }
+        Ok(())
     }
 
     /// Registers a socket as a fallback socket for outgoing connections
@@ -1557,7 +1558,7 @@ impl ComHub {
         &self,
         mut block: DXBBlock,
     ) -> Result<(), Vec<Endpoint>> {
-        block = self.prepare_own_block(block).await.unwrap();
+        block = self.prepare_own_block(block).await.map_err(|_| vec![])?;
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
         self.send_block(block, vec![], false)
