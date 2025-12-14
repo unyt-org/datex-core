@@ -35,6 +35,7 @@ impl RuntimeExecutionState {
         MemoryDump {
             slots: self
                 .slots
+                .slots
                 .borrow()
                 .iter()
                 .map(|(k, v)| (*k, v.clone()))

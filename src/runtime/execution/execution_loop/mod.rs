@@ -77,9 +77,10 @@ pub fn execution_loop(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
 ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
-        
+
         let mut instruction_iterator =
             iterate_instructions(dxb_body, state.next_instructions_stack);
+        let mut slots = state.slots;
 
         let first_instruction = instruction_iterator.next();
 
@@ -102,58 +103,93 @@ pub fn execution_loop(
                     }
                     // feed new instructions to execution as long as they are requested
                     ExecutionInterrupt::GetNextRegularInstruction => {
-                        match next_iter!(instruction_iterator) {
-                            // feed next regular instruction
-                            Ok(Instruction::RegularInstruction(next_instruction)) => {
-                                interrupt_provider.borrow_mut().replace(
-                                    InterruptProvider::NextRegularInstruction(
-                                        next_instruction,
-                                    ),
-                                );
-                            }
-                            // instruction is not a regular instruction - invalid program
-                            Ok(_) => {
-                                yield Err(ExecutionError::InvalidProgram(
-                                    InvalidProgramError::ExpectedRegularInstruction,
-                                ));
-                            }
-                            // instruction iterator ran out of instructions - must wait for more
-                            Err(DXBParserError::ExpectingMoreInstructions) => {
-                                yield Err(ExecutionError::AwaitingMoreInstructions);
-                            }
-                            // other parsing errors from instruction iterator
-                            Err(err) => {
-                                return yield Err(ExecutionError::DXBParserError(err));
-                            }
+                        loop {
+                            match next_iter!(instruction_iterator) {
+                                // feed next regular instruction
+                                Ok(Instruction::RegularInstruction(next_instruction)) => {
+                                    interrupt_provider.borrow_mut().replace(
+                                        InterruptProvider::NextRegularInstruction(
+                                            next_instruction,
+                                        ),
+                                    );
+                                }
+                                // instruction is not a regular instruction - invalid program
+                                Ok(_) => {
+                                    yield Err(ExecutionError::InvalidProgram(
+                                        InvalidProgramError::ExpectedRegularInstruction,
+                                    ));
+                                }
+                                // instruction iterator ran out of instructions - must wait for more
+                                Err(DXBParserError::ExpectingMoreInstructions) => {
+                                    yield Err(ExecutionError::DXBParserError(
+                                        DXBParserError::ExpectingMoreInstructions,
+                                    ));
+                                    // assume that when continuing after this yield, more instructions will have been loaded
+                                    // so we run the loop again to try to get the next instruction
+                                    continue;
+                                }
+                                // other parsing errors from instruction iterator
+                                Err(err) => {
+                                    return yield Err(ExecutionError::DXBParserError(err));
+                                }
+                            };
+                            // only run this once per default
+                            break;
                         }
                     }
                     ExecutionInterrupt::GetNextTypeInstruction => {
-                        match next_iter!(instruction_iterator) {
-                            // feed next type instruction
-                            Ok(Instruction::TypeInstruction(next_instruction)) => {
-                                interrupt_provider.borrow_mut().replace(
-                                    InterruptProvider::NextTypeInstruction(
-                                        next_instruction,
-                                    ),
-                                );
+                        loop {
+                            match next_iter!(instruction_iterator) {
+                                // feed next type instruction
+                                Ok(Instruction::TypeInstruction(next_instruction)) => {
+                                    interrupt_provider.borrow_mut().replace(
+                                        InterruptProvider::NextTypeInstruction(
+                                            next_instruction,
+                                        ),
+                                    );
+                                }
+                                // instruction is not a type instruction - invalid program
+                                Ok(_) => {
+                                    yield Err(ExecutionError::InvalidProgram(
+                                        InvalidProgramError::ExpectedTypeValue,
+                                    ));
+                                }
+                                // instruction iterator ran out of instructions - must wait for more
+                                Err(DXBParserError::ExpectingMoreInstructions) => {
+                                    yield Err(ExecutionError::DXBParserError(
+                                        DXBParserError::ExpectingMoreInstructions,
+                                    ));
+                                    // assume that when continuing after this yield, more instructions will have been loaded
+                                    // so we run the loop again to try to get the next instruction
+                                    continue;
+                                }
+                                // other parsing errors from instruction iterator
+                                Err(err) => {
+                                    return yield Err(ExecutionError::DXBParserError(err));
+                                }
                             }
-                            // instruction is not a type instruction - invalid program
-                            Ok(_) => {
-                                yield Err(ExecutionError::InvalidProgram(
-                                    InvalidProgramError::ExpectedTypeValue,
-                                ));
-                            }
-                            // instruction iterator ran out of instructions - must wait for more
-                            Err(DXBParserError::ExpectingMoreInstructions) => {
-                                yield Err(ExecutionError::AwaitingMoreInstructions);
-                            }
-                            // other parsing errors from instruction iterator
-                            Err(err) => {
-                                return yield Err(ExecutionError::DXBParserError(err));
-                            }
+                            // only run this once per default
+                            break;
                         }
                     }
-                    _ => todo!(),
+                    ExecutionInterrupt::GetSlotValue(address) => {
+                        let val = yield_unwrap!(slots.get_slot_value(address));
+                        interrupt_provider
+                            .borrow_mut()
+                            .replace(InterruptProvider::ResolvedValue(val));
+                    }
+                    ExecutionInterrupt::SetSlotValue(address, value) => {
+                        yield_unwrap!(slots.set_slot_value(address, value));
+                    }
+                    ExecutionInterrupt::DropSlot(address) => {
+                        yield_unwrap!(slots.drop_slot(address));
+                    }
+                    ExecutionInterrupt::AllocateSlot(address, value) => {
+                        slots.allocate_slot(address, Some(value));
+                    }
+                    // only for internal interrupts
+                    ExecutionInterrupt::TypeReturn(_) => unreachable!(),
+                    ExecutionInterrupt::KeyValuePairReturn(_) => unreachable!(),
                 }
             }
         } else {

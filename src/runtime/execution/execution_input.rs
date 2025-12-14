@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use crate::parser::body::DXBParserError;
 use crate::runtime::execution::execution_loop::{execution_loop, ExternalExecutionInterrupt, InterruptProvider};
 use crate::runtime::execution::execution_loop::state::{ExecutionLoopState, RuntimeExecutionState};
 use crate::runtime::execution::ExecutionError;
@@ -60,10 +61,7 @@ impl<'a> ExecutionInput<'a> {
             }
             // otherwise start a new execution loop
             else {
-                let state = match self.runtime {
-                    Some(internal) => RuntimeExecutionState::new(internal),
-                    None => RuntimeExecutionState::default(),
-                };
+                let state = RuntimeExecutionState::default();
                 // TODO: optimize, don't clone the whole DXB body every time here
                 let dxb_rc = Rc::new(RefCell::new(self.dxb_body.to_vec()));
                 ExecutionLoopState {
@@ -81,7 +79,7 @@ impl<'a> ExecutionInput<'a> {
                 let item = item.unwrap();
 
                 match item {
-                    Err(ExecutionError::AwaitingMoreInstructions) => {
+                    Err(ExecutionError::DXBParserError(DXBParserError::ExpectingMoreInstructions)) => {
                         // yield the intermediate result with the current iterator state and intermediate value
                         // TODO: return intermediate value from execution here
                         yield Ok(ExternalExecutionInterrupt::IntermediateResult(iterator, None));

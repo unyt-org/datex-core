@@ -5,7 +5,6 @@ use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
-use crate::utils::buffers;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use binrw::io::Cursor;
@@ -20,11 +19,6 @@ use datex_core::parser::next_instructions_stack::NextInstructionsStack;
 use crate::parser::next_instructions_stack::NextInstructionType;
 use crate::runtime::execution::macros::yield_unwrap;
 use crate::stdlib::convert::TryFrom;
-
-fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
-    let size = buffers::read_u32(dxb_body, index);
-    buffers::read_vec_slice(dxb_body, index, size as usize)
-}
 
 #[derive(Debug)]
 pub enum DXBParserError {
@@ -98,19 +92,19 @@ pub fn iterate_instructions(
         #[coroutine]
         move || {
             // get reader for dxb_body
-            let mut dxb_body = std::mem::take(&mut *dxb_body_ref.borrow_mut());
+            let mut dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
             let mut len = dxb_body.len();
             let mut reader = Cursor::new(dxb_body);
 
             loop {
-                // if cursor is at the end, break
+                // if cursor is at the end, check if more instructions are expected, else end iteration
                 if reader.position() as usize >= len {
                     // indicates that more instructions need to be read
                     if !next_instructions_stack.is_end() {
                         yield Err(DXBParserError::ExpectingMoreInstructions);
                         // assume that more instructions are loaded into dxb_body externally after this yield
                         // so we just reload the dxb_body from the Rc<RefCell>
-                        dxb_body = std::mem::take(&mut *dxb_body_ref.borrow_mut());
+                        dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
                         len = dxb_body.len();
                         reader = Cursor::new(dxb_body);
                         continue;
@@ -120,6 +114,7 @@ pub fn iterate_instructions(
 
                 let next_instruction_type = next_instructions_stack.pop();
 
+                // parse instruction based on its type
                 yield Ok(match next_instruction_type {
 
                     NextInstructionType::End => return, // end of instructions
