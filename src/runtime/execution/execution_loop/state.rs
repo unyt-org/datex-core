@@ -1,11 +1,10 @@
 use core::cell::RefCell;
-use std::fmt::Debug;
+use core::fmt::Debug;
 use crate::parser::next_instructions_stack::NextInstructionsStack;
 use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::ExecutionError;
-use crate::runtime::RuntimeInternal;
 use crate::values::value_container::ValueContainer;
 
 pub struct ExecutionLoopState {
@@ -14,7 +13,7 @@ pub struct ExecutionLoopState {
 }
 
 impl Debug for ExecutionLoopState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ExecutionIterator")
             .field("dxb_body_length", &self.dxb_body.borrow().len())
             .finish()
@@ -23,30 +22,19 @@ impl Debug for ExecutionLoopState {
 
 #[derive(Debug, Default)]
 pub struct RuntimeExecutionState {
-    pub(crate) slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
+    /// Local memory slots for current execution context.
+    /// TODO: replace this with a local stack and deprecate local slots?
+    pub(crate) slots: RuntimeExecutionSlots,
     /// Used to track the next instructions to be executed, distinguishing between regular and type instructions.
     pub(crate) next_instructions_stack: NextInstructionsStack,
-    runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 
-impl RuntimeExecutionState {
-    pub fn new(runtime_internal: Rc<RuntimeInternal>) -> Self {
-        Self {
-            runtime_internal: Some(runtime_internal),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Default)]
+pub struct RuntimeExecutionSlots {
+    pub(crate) slots: RefCell<HashMap<u32, Option<ValueContainer>>>
+}
 
-    pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {
-        &self.runtime_internal
-    }
-
-    pub fn set_runtime_internal(
-        &mut self,
-        runtime_internal: Rc<RuntimeInternal>,
-    ) {
-        self.runtime_internal = Some(runtime_internal);
-    }
+impl RuntimeExecutionSlots {
 
     /// Allocates a new slot with the given slot address.
     pub(crate) fn allocate_slot(&self, address: u32, value: Option<ValueContainer>) {
