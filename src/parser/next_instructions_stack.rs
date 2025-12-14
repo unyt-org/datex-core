@@ -3,7 +3,12 @@ use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone)]
 pub enum NextScopeInstruction {
+    /// number of regular instructions expected to follow
     Regular(u32),
+    /// unknown number of regular instructions is expected to follow
+    // this state must be explicitly ended when a specific end instruction is reached
+    RegularUnbounded,
+    /// number of type instructions expected to follow
     Type(u32),
 }
 
@@ -71,6 +76,9 @@ impl NextInstructionsStack {
                     }
                     NextInstructionType::Regular
                 }
+                NextScopeInstruction::RegularUnbounded => {
+                    NextInstructionType::Regular
+                }
                 NextScopeInstruction::Type(count) => {
                     if *count > 1 {
                         *count -= 1;
@@ -83,5 +91,23 @@ impl NextInstructionsStack {
         } else {
             NextInstructionType::End
         }
+    }
+
+    /// Ends the current unbounded regular instruction scope.
+    /// Returns Ok if successful, Err if the top of the stack is not an unbounded regular instruction scope.
+    pub fn pop_unbounded_regular(&mut self) -> Result<(), ()> {
+        let stack = &mut self.0;
+        match stack.last() {
+            Some(NextScopeInstruction::RegularUnbounded) => {
+                stack.pop();
+                Ok(())
+            }
+            _ => Err(())
+        }
+    }
+
+    /// Returns true if there are no more instructions to process.
+    pub fn is_end(&self) -> bool {
+        self.0.is_empty()
     }
 }

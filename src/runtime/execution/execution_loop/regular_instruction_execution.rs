@@ -11,8 +11,8 @@ use crate::runtime::execution::execution_loop::operations::{
     handle_assignment_operation, handle_binary_operation,
     handle_unary_operation,
 };
-use crate::runtime::execution::execution_loop::type_instruction_iteration::get_next_type;
-use crate::runtime::execution::execution_loop::{ExecutionStep, ExternalExecutionStep, InterruptProvider};
+use crate::runtime::execution::execution_loop::type_instruction_execution::get_next_type;
+use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
 use crate::runtime::execution::macros::{
     intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap,
 };
@@ -55,12 +55,12 @@ macro_rules! get_next_maybe_value {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!(
             $interrupt_provider,
-            ExecutionStep::GetNextRegularInstruction
+            ExecutionInterrupt::GetNextRegularInstruction
         );
-        let mut inner_iterator = next_regular_instruction_iteration($interrupt_provider, next);
+        let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
-            Ok(ExecutionStep::ValueReturn(value)) => {
+            Ok(ExecutionInterrupt::ValueReturn(value)) => {
                 value
             }
         );
@@ -95,12 +95,12 @@ macro_rules! get_next_key_value_pair {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!(
             $interrupt_provider,
-            ExecutionStep::GetNextRegularInstruction
+            ExecutionInterrupt::GetNextRegularInstruction
         );
-        let mut inner_iterator = next_regular_instruction_iteration($interrupt_provider, next);
+        let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
         let maybe_value = intercept_step!(
             inner_iterator,
-            Ok(ExecutionStep::KeyValuePairReturn(value)) => {
+            Ok(ExecutionInterrupt::KeyValuePairReturn(value)) => {
                 value
             }
         );
@@ -113,12 +113,12 @@ macro_rules! get_next_key_value_pair {
     }};
 }
 
-pub(crate) fn next_regular_instruction_iteration(
+pub(crate) fn execute_regular_instruction(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: RegularInstruction,
-) -> Box<impl Iterator<Item = Result<ExecutionStep, ExecutionError>>> {
+) -> Box<impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>>> {
     Box::new(gen move {
-        yield Ok(ExecutionStep::ValueReturn(match instruction {
+        yield Ok(ExecutionInterrupt::ValueReturn(match instruction {
             // boolean
             RegularInstruction::True => Some(true.into()),
             RegularInstruction::False => Some(false.into()),
@@ -239,7 +239,7 @@ pub(crate) fn next_regular_instruction_iteration(
 
                     let slot_value = interrupt_with_value!(
                         interrupt_provider,
-                        ExecutionStep::GetSlotValue(local_slot)
+                        ExecutionInterrupt::GetSlotValue(local_slot)
                     );
                     buffer.extend_from_slice(&compile_value_container(
                         &slot_value,
@@ -263,7 +263,7 @@ pub(crate) fn next_regular_instruction_iteration(
 
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::RemoteExecution(receivers, buffer))
+                    ExecutionInterrupt::External(ExternalExecutionInterrupt::RemoteExecution(receivers, buffer))
                 )
             }
 
@@ -276,7 +276,7 @@ pub(crate) fn next_regular_instruction_iteration(
                 }
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::Apply(callee, args))
+                    ExecutionInterrupt::External(ExternalExecutionInterrupt::Apply(callee, args))
                 )
             }
 
@@ -292,7 +292,8 @@ pub(crate) fn next_regular_instruction_iteration(
                 }
             }
 
-            RegularInstruction::List(list_data) => {
+            RegularInstruction::List(list_data)
+            | RegularInstruction::ShortList(list_data)=> {
                 let mut list = List::with_capacity(list_data.element_count);
                 for _ in 0..list_data.element_count {
                     let element = get_next_value!(interrupt_provider.clone());
@@ -301,7 +302,8 @@ pub(crate) fn next_regular_instruction_iteration(
                 Some(list.into())
             }
 
-            RegularInstruction::Map(map_data) => {
+            RegularInstruction::Map(map_data)
+            | RegularInstruction::ShortMap(map_data) => {
                 let mut map = Map::default(); // TODO: optimize initial map construction (capacity, etc)
                 for _ in 0..map_data.element_count {
                     let (key, value) =
@@ -312,14 +314,14 @@ pub(crate) fn next_regular_instruction_iteration(
             }
 
             RegularInstruction::KeyValueShortText(ShortTextData(key)) => {
-                return yield Ok(ExecutionStep::KeyValuePairReturn((
+                return yield Ok(ExecutionInterrupt::KeyValuePairReturn((
                     OwnedMapKey::Text(key),
                     get_next_value!(interrupt_provider),
                 )));
             }
 
             RegularInstruction::KeyValueDynamic => {
-                return yield Ok(ExecutionStep::KeyValuePairReturn((
+                return yield Ok(ExecutionInterrupt::KeyValuePairReturn((
                     OwnedMapKey::Value(get_next_value!(
                         interrupt_provider.clone()
                     )),
@@ -332,21 +334,21 @@ pub(crate) fn next_regular_instruction_iteration(
                 let value = get_next_value!(interrupt_provider.clone());
                 interrupt!(
                     interrupt_provider,
-                    ExecutionStep::AllocateSlot(address, value.clone())
+                    ExecutionInterrupt::AllocateSlot(address, value.clone())
                 );
                 Some(value)
             }
             RegularInstruction::GetSlot(SlotAddress(address)) => {
                 Some(interrupt_with_value!(
                     interrupt_provider,
-                    ExecutionStep::GetSlotValue(address)
+                    ExecutionInterrupt::GetSlotValue(address)
                 ))
             }
             RegularInstruction::SetSlot(SlotAddress(address)) => {
                 let value = get_next_value!(interrupt_provider.clone());
                 interrupt!(
                     interrupt_provider,
-                    ExecutionStep::SetSlotValue(address, value.clone())
+                    ExecutionInterrupt::SetSlotValue(address, value.clone())
                 );
                 Some(value)
             }
@@ -384,21 +386,21 @@ pub(crate) fn next_regular_instruction_iteration(
             RegularInstruction::GetRef(address) => {
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::ResolvePointer(address))
+                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolvePointer(address))
                 )
             }
 
             RegularInstruction::GetLocalRef(address) => {
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::ResolveLocalPointer(address))
+                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveLocalPointer(address))
                 )
             }
 
             RegularInstruction::GetInternalRef(address) => {
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionStep::External(ExternalExecutionStep::ResolveInternalPointer(address))
+                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveInternalPointer(address))
                 )
             }
 
@@ -406,7 +408,7 @@ pub(crate) fn next_regular_instruction_iteration(
             | RegularInstruction::SubtractAssign(SlotAddress(address)) => {
                 let slot_value = interrupt_with_value!(
                     interrupt_provider,
-                    ExecutionStep::GetSlotValue(address)
+                    ExecutionInterrupt::GetSlotValue(address)
                 );
                 let value = get_next_value!(interrupt_provider.clone());
 
@@ -418,7 +420,7 @@ pub(crate) fn next_regular_instruction_iteration(
                 // set slot value
                 interrupt!(
                     interrupt_provider,
-                    ExecutionStep::SetSlotValue(address, new_val.clone())
+                    ExecutionInterrupt::SetSlotValue(address, new_val.clone())
                 );
                 // return assigned value
                 Some(new_val)
@@ -427,7 +429,7 @@ pub(crate) fn next_regular_instruction_iteration(
             RegularInstruction::DropSlot(SlotAddress(address)) => {
                 interrupt!(
                     interrupt_provider,
-                    ExecutionStep::DropSlot(address)
+                    ExecutionInterrupt::DropSlot(address)
                 );
                 None
             }

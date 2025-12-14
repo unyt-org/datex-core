@@ -52,9 +52,10 @@ impl<'de> DatexDeserializer {
     /// Create a deserializer from a byte slice containing DXB data
     /// This will execute the DXB and extract the resulting value for deserialization
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, DeserializationError> {
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             input,
             ExecutionOptions { verbose: true },
+            None,
         );
         let value = execute_dxb_sync(context)
             .map_err(DeserializationError::ExecutionError)?

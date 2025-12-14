@@ -40,7 +40,7 @@ pub fn json_to_json_syntax_value(json: &str) -> json_syntax::Value {
 pub fn json_to_datex_value(json: &str) -> ValueContainer {
     let (dxb, _) = compile_script(json, CompileOptions::default())
         .expect("Failed to parse JSON string");
-    let exec_input = ExecutionInput::new_with_dxb_and_options(
+    let exec_input = ExecutionInput::new(
         &dxb,
         ExecutionOptions::default(),
     );
@@ -72,7 +72,7 @@ pub fn json_to_runtime_value_datex<'a>(
         },
     )
     .expect("Failed to parse JSON string");
-    let exec_input = ExecutionInput::new_with_dxb_and_options(
+    let exec_input = ExecutionInput::new(
         &dxb,
         ExecutionOptions::default(),
     );
@@ -123,7 +123,7 @@ pub fn json_to_dxb<'a>(
 
 // DXB -> value
 pub fn dxb_to_runtime_value(dxb: &[u8]) {
-    let exec_input = ExecutionInput::new_with_dxb_and_options(
+    let exec_input = ExecutionInput::new(
         dxb,
         ExecutionOptions::default(),
     );

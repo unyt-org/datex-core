@@ -67,12 +67,13 @@ fn compare_datex_result_with_json(json_string: &str) {
     let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
     let (dxb, _) =
         compile_script(json_string, CompileOptions::default()).unwrap();
-    let exec_input = ExecutionInput::new_with_dxb_and_options(
+    let exec_input = ExecutionInput::new(
         &dxb,
         ExecutionOptions {
             verbose: false,
             ..ExecutionOptions::default()
         },
+        None
     );
     let datex_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     let json_value_converted = json_value_to_datex_value(&json_value);

@@ -1,17 +1,31 @@
 use core::cell::RefCell;
+use std::fmt::Debug;
 use crate::parser::next_instructions_stack::NextInstructionsStack;
+use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::RuntimeInternal;
 use crate::values::value_container::ValueContainer;
 
-#[derive(Debug, Clone, Default)]
+pub struct ExecutionLoopState {
+    pub iterator: Box<dyn Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>>,
+    pub dxb_body: Rc<RefCell<Vec<u8>>>,
+}
+
+impl Debug for ExecutionLoopState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExecutionIterator")
+            .field("dxb_body_length", &self.dxb_body.borrow().len())
+            .finish()
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct RuntimeExecutionState {
-    index: usize,
     pub(crate) slots: RefCell<HashMap<u32, Option<ValueContainer>>>,
     /// Used to track the next instructions to be executed, distinguishing between regular and type instructions.
-    pub(crate) next_instructions_stack: Rc<RefCell<NextInstructionsStack>>,
+    pub(crate) next_instructions_stack: NextInstructionsStack,
     runtime_internal: Option<Rc<RuntimeInternal>>,
 }
 
@@ -21,10 +35,6 @@ impl RuntimeExecutionState {
             runtime_internal: Some(runtime_internal),
             ..Default::default()
         }
-    }
-
-    pub fn reset_index(&mut self) {
-        self.index = 0;
     }
 
     pub fn runtime_internal(&self) -> &Option<Rc<RuntimeInternal>> {

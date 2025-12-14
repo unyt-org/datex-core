@@ -1,16 +1,16 @@
-use core::cell::RefCell;
 use datex_core::runtime::execution::context::ExecutionContext;
 use crate::stdlib::rc::Rc;
 use crate::compiler::scope::CompilationScope;
 use crate::runtime::execution::{ExecutionOptions, MemoryDump};
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
+use crate::runtime::execution::execution_loop::state::{ExecutionLoopState, RuntimeExecutionState};
 use crate::runtime::RuntimeInternal;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct LocalExecutionContext {
     #[cfg(feature = "compiler")]
     pub compile_scope: CompilationScope,
-    pub runtime_execution_state: Rc<RefCell<RuntimeExecutionState>>,
+    pub loop_state: Option<ExecutionLoopState>,
+    pub runtime: Option<Rc<RuntimeInternal>>,
     pub execution_options: ExecutionOptions,
     pub verbose: bool,
 }
@@ -20,9 +20,8 @@ impl LocalExecutionContext {
         LocalExecutionContext {
             #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
-            runtime_execution_state: Rc::new(RefCell::new(
-                RuntimeExecutionState::default(),
-            )),
+            loop_state: None,
+            runtime: None,
             execution_options: ExecutionOptions::default(),
             verbose: false,
         }
@@ -46,9 +45,8 @@ impl LocalExecutionContext {
         LocalExecutionContext {
             #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
-            runtime_execution_state: Rc::new(RefCell::new(
-                RuntimeExecutionState::new(runtime_internal),
-            )),
+            loop_state: None,
+            runtime: Some(runtime_internal),
             execution_options: ExecutionOptions { verbose: true },
             verbose: true,
         }
@@ -61,9 +59,8 @@ impl LocalExecutionContext {
         LocalExecutionContext {
             #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(once),
-            runtime_execution_state: Rc::new(RefCell::new(
-                RuntimeExecutionState::new(runtime_internal),
-            )),
+            loop_state: None,
+            runtime: Some(runtime_internal),
             ..Default::default()
         }
     }
@@ -72,14 +69,7 @@ impl LocalExecutionContext {
         &mut self,
         runtime_internal: Rc<RuntimeInternal>,
     ) {
-        self.runtime_execution_state
-            .borrow_mut()
-            .set_runtime_internal(runtime_internal);
-    }
-
-    /// Returns a memory dump of the current state of the execution context.
-    pub fn memory_dump(&self) -> MemoryDump {
-        self.runtime_execution_state.borrow().memory_dump()
+        self.runtime = Some(runtime_internal);
     }
 }
 

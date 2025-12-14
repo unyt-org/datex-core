@@ -15,12 +15,10 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
-use log::info;
 use datex_core::global::protocol_structures::instructions::{RawLocalPointerAddress, StatementsData};
 use datex_core::parser::next_instructions_stack::NextInstructionsStack;
 use crate::parser::next_instructions_stack::NextInstructionType;
 use crate::runtime::execution::macros::yield_unwrap;
-use crate::stdlib::format;
 use crate::stdlib::convert::TryFrom;
 
 fn extract_scope(dxb_body: &[u8], index: &mut usize) -> Vec<u8> {
@@ -34,6 +32,8 @@ pub enum DXBParserError {
     InvalidBinaryCode(u8),
     FailedToReadInstructionCode,
     InvalidInstructionCode(u8),
+    /// Returned when the end of the DXB body is reached, but further instructions are expected.
+    ExpectingMoreInstructions,
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
     FromUtf8Error(FromUtf8Error),
@@ -81,45 +81,44 @@ impl Display for DXBParserError {
             DXBParserError::FromUtf8Error(err) => {
                 core::write!(f, "UTF-8 conversion error: {err}")
             }
+            DXBParserError::ExpectingMoreInstructions => {
+                core::write!(f, "Expecting more instructions")
+            }
         }
     }
 }
 
 // TODO: we must ensure while an execution for a block runs, no other executions run using the same next_instructions_stack - maybe also find a solution without Rc<RefCell>
-pub fn iterate_instructions<'a>(
-    dxb_body: &'a [u8],
-    next_instructions_stack: Rc<RefCell<NextInstructionsStack>>
-) -> impl Iterator<Item = Result<Instruction, DXBParserError>> + 'a {
-
-    // debug log bytes
-    info!(
-        "DXB Body Bytes: {}",
-        dxb_body
-            .chunks(16)
-            .map(|chunk| {
-                chunk
-                    .iter()
-                    .map(|byte| format!("{:02X}", byte))
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            })
-            .collect::<Vec<String>>()
-            .join("\n")
-    );
+pub fn iterate_instructions(
+    dxb_body_ref: Rc<RefCell<Vec<u8>>>,
+    mut next_instructions_stack: NextInstructionsStack
+) -> impl Iterator<Item = Result<Instruction, DXBParserError>> {
 
     core::iter::from_coroutine(
         #[coroutine]
         move || {
             // get reader for dxb_body
-            let len = dxb_body.len();
+            let mut dxb_body = std::mem::take(&mut *dxb_body_ref.borrow_mut());
+            let mut len = dxb_body.len();
             let mut reader = Cursor::new(dxb_body);
+
             loop {
                 // if cursor is at the end, break
                 if reader.position() as usize >= len {
+                    // indicates that more instructions need to be read
+                    if !next_instructions_stack.is_end() {
+                        yield Err(DXBParserError::ExpectingMoreInstructions);
+                        // assume that more instructions are loaded into dxb_body externally after this yield
+                        // so we just reload the dxb_body from the Rc<RefCell>
+                        dxb_body = std::mem::take(&mut *dxb_body_ref.borrow_mut());
+                        len = dxb_body.len();
+                        reader = Cursor::new(dxb_body);
+                        continue;
+                    }
                     return;
                 }
 
-                let next_instruction_type = next_instructions_stack.borrow_mut().pop();
+                let next_instruction_type = next_instructions_stack.pop();
 
                 yield Ok(match next_instruction_type {
 
@@ -198,7 +197,7 @@ pub fn iterate_instructions<'a>(
 
                             InstructionCode::REMOTE_EXECUTION => {
                                 let data = InstructionBlockData::read(&mut reader);
-                                next_instructions_stack.borrow_mut().push_next_regular(1); // receivers
+                                next_instructions_stack.push_next_regular(1); // receivers
                                 RegularInstruction::RemoteExecution(yield_unwrap!(data))
                             },
 
@@ -226,45 +225,45 @@ pub fn iterate_instructions<'a>(
                             // collections
                             InstructionCode::LIST => {
                                 let list_data = yield_unwrap!(ListData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(list_data.element_count);
+                                next_instructions_stack.push_next_regular(list_data.element_count);
                                 RegularInstruction::List(list_data)
                             }
                             InstructionCode::SHORT_LIST => {
                                 let list_data = yield_unwrap!(ShortListData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(list_data.element_count as u32);
-                                RegularInstruction::ShortList(list_data)
+                                next_instructions_stack.push_next_regular(list_data.element_count as u32);
+                                RegularInstruction::ShortList(ListData {element_count: list_data.element_count as u32})
                             }
                             InstructionCode::MAP => {
                                 let map_data = yield_unwrap!(MapData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(map_data.element_count);
+                                next_instructions_stack.push_next_regular(map_data.element_count);
                                 RegularInstruction::Map(map_data)
                             }
                             InstructionCode::SHORT_MAP => {
                                 let map_data = yield_unwrap!(ShortMapData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(map_data.element_count as u32);
-                                RegularInstruction::ShortMap(map_data)
+                                next_instructions_stack.push_next_regular(map_data.element_count as u32);
+                                RegularInstruction::ShortMap(MapData {element_count: map_data.element_count as u32} )
                             }
 
                             InstructionCode::STATEMENTS => {
                                 let statements_data = yield_unwrap!(StatementsData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(statements_data.statements_count);
+                                next_instructions_stack.push_next_regular(statements_data.statements_count);
                                 RegularInstruction::Statements(statements_data)
                             }
 
                             InstructionCode::APPLY_ZERO => RegularInstruction::Apply(ApplyData { arg_count: 0 }),
                             InstructionCode::APPLY_SINGLE => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 RegularInstruction::Apply(ApplyData { arg_count: 1 })
                             },
 
                             InstructionCode::APPLY => {
                                 let apply_data = yield_unwrap!(ApplyData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(apply_data.arg_count as u32); // each argument is at least one instruction
+                                next_instructions_stack.push_next_regular(apply_data.arg_count as u32); // each argument is at least one instruction
                                 RegularInstruction::Apply(apply_data)
                             }
 
                             InstructionCode::DEREF => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 RegularInstruction::Deref
                             },
                             InstructionCode::ASSIGN_TO_REF => {
@@ -283,12 +282,12 @@ pub fn iterate_instructions<'a>(
                             InstructionCode::KEY_VALUE_SHORT_TEXT => {
                                 let raw_data = ShortTextDataRaw::read(&mut reader);
                                 let text = yield_unwrap!(String::from_utf8(yield_unwrap!(raw_data).text));
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 RegularInstruction::KeyValueShortText(ShortTextData(text))
                             }
 
                             InstructionCode::KEY_VALUE_DYNAMIC => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::KeyValueDynamic
                             },
 
@@ -304,36 +303,36 @@ pub fn iterate_instructions<'a>(
 
                             // equality
                             InstructionCode::STRUCTURAL_EQUAL => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::StructuralEqual
                             },
                             InstructionCode::EQUAL => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::Equal
                             },
                             InstructionCode::NOT_STRUCTURAL_EQUAL => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::NotStructuralEqual
                             },
                             InstructionCode::NOT_EQUAL => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::NotEqual
                             },
                             InstructionCode::IS => {
-                                next_instructions_stack.borrow_mut().push_next_regular(2);
+                                next_instructions_stack.push_next_regular(2);
                                 RegularInstruction::Is
                             },
                             InstructionCode::MATCHES => {
-                                next_instructions_stack.borrow_mut().push_next_type(1); // type to match against
-                                next_instructions_stack.borrow_mut().push_next_regular(1); // value to check
+                                next_instructions_stack.push_next_type(1); // type to match against
+                                next_instructions_stack.push_next_regular(1); // value to check
                                 RegularInstruction::Matches
                             },
                             InstructionCode::CREATE_REF => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 RegularInstruction::CreateRef
                             },
                             InstructionCode::CREATE_REF_MUT => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 RegularInstruction::CreateRefMut
                             },
 
@@ -351,25 +350,25 @@ pub fn iterate_instructions<'a>(
                                 RegularInstruction::DropSlot(yield_unwrap!(address))
                             }
                             InstructionCode::SET_SLOT => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 let address = SlotAddress::read(&mut reader);
                                 RegularInstruction::SetSlot(yield_unwrap!(address))
                             }
 
                             InstructionCode::GET_REF => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 let address = RawFullPointerAddress::read(&mut reader);
                                 RegularInstruction::GetRef(yield_unwrap!(address))
                             }
 
                             InstructionCode::GET_LOCAL_REF => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 let address = RawLocalPointerAddress::read(&mut reader);
                                 RegularInstruction::GetLocalRef(yield_unwrap!(address))
                             }
 
                             InstructionCode::GET_INTERNAL_REF => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
+                                next_instructions_stack.push_next_regular(1);
                                 let address =
                                     RawInternalPointerAddress::read(&mut reader);
                                 RegularInstruction::GetInternalRef(yield_unwrap!(address))
@@ -386,12 +385,12 @@ pub fn iterate_instructions<'a>(
                             }
 
                             InstructionCode::TYPED_VALUE => {
-                                next_instructions_stack.borrow_mut().push_next_regular(1);
-                                next_instructions_stack.borrow_mut().push_next_type(1);
+                                next_instructions_stack.push_next_regular(1);
+                                next_instructions_stack.push_next_type(1);
                                 RegularInstruction::TypedValue
                             }
                             InstructionCode::TYPE_EXPRESSION => {
-                                next_instructions_stack.borrow_mut().push_next_type(1);
+                                next_instructions_stack.push_next_type(1);
                                 RegularInstruction::TypeExpression
                             }
 
@@ -406,7 +405,7 @@ pub fn iterate_instructions<'a>(
                         match instruction_code {
                             TypeInstructionCode::TYPE_LIST => {
                                 let list_data = yield_unwrap!(ListData::read(&mut reader));
-                                next_instructions_stack.borrow_mut().push_next_regular(list_data.element_count);
+                                next_instructions_stack.push_next_regular(list_data.element_count);
                                 TypeInstruction::List(list_data)
                             }
                             TypeInstructionCode::TYPE_LITERAL_INTEGER => {
@@ -415,7 +414,7 @@ pub fn iterate_instructions<'a>(
                             }
                             TypeInstructionCode::TYPE_WITH_IMPLS => {
                                 let impl_data = ImplTypeData::read(&mut reader);
-                                next_instructions_stack.borrow_mut().push_next_type(1);
+                                next_instructions_stack.push_next_type(1);
                                 TypeInstruction::ImplType(yield_unwrap!(impl_data))
                             }
                             TypeInstructionCode::TYPE_REFERENCE => {
@@ -432,7 +431,7 @@ pub fn iterate_instructions<'a>(
 }
 
 fn get_next_regular_instruction_code(
-    mut reader: &mut Cursor<&[u8]>,
+    mut reader: &mut Cursor<Vec<u8>>,
 ) -> Result<InstructionCode, DXBParserError> {
     let instruction_code = u8::read(&mut reader)
         .map_err(|_| DXBParserError::FailedToReadInstructionCode)?;
@@ -442,7 +441,7 @@ fn get_next_regular_instruction_code(
 }
 
 fn get_next_type_instruction_code(
-    mut reader: &mut Cursor<&[u8]>,
+    mut reader: &mut Cursor<Vec<u8>>,
 ) -> Result<TypeInstructionCode, DXBParserError> {
     let instruction_code = u8::read(&mut reader)
         .map_err(|_| DXBParserError::FailedToReadInstructionCode)?;

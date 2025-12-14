@@ -79,9 +79,9 @@ pub enum RegularInstruction {
     Statements(StatementsData),
     ShortStatements(ShortStatementsData),
     List(ListData),
-    ShortList(ShortListData),
+    ShortList(ListData),
     Map(MapData),
-    ShortMap(ShortMapData),
+    ShortMap(MapData),
 
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
