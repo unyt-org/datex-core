@@ -679,11 +679,14 @@ impl ComHub {
         // increment distance for next hop
         block.routing_header.distance += 1;
 
-        // TODO #178: ensure ttl is >= 1
+        // ensure ttl is >= 1
         // decrease TTL by 1
-        block.routing_header.ttl -= 1;
-        // if ttl is 0, drop the block
-        if block.routing_header.ttl == 0 {
+        if block.routing_header.ttl > 1 {
+            block.routing_header.ttl -= 1;
+        }
+        // if ttl is would becomes 0 after decrement drop the block
+        else if block.routing_header.ttl == 1 {
+            block.routing_header.ttl -= 1;
             warn!("Block TTL expired. Dropping block...");
             return;
         }
