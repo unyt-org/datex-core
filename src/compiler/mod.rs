@@ -49,6 +49,7 @@ use log::info;
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
+use crate::runtime::execution::context::ExecutionMode;
 use crate::utils::buffers::append_u8;
 
 pub mod context;
@@ -121,7 +122,7 @@ impl VariableModel {
     pub fn infer(
         variable_kind: VariableKind,
         variable_metadata: Option<VariableMetadata>,
-        is_end_of_source_text: bool,
+        execution_mode: ExecutionMode,
     ) -> Self {
         // const variables are always constant
         if variable_kind == VariableKind::Const {
@@ -133,7 +134,7 @@ impl VariableModel {
         // the variable will be transferred across realms later
         else if variable_metadata.is_none()
             || variable_metadata.unwrap().is_cross_realm
-            || !is_end_of_source_text
+            || execution_mode == ExecutionMode::Unbounded
         {
             VariableModel::VariableReference
         }
@@ -147,14 +148,14 @@ impl VariableModel {
         ast_metadata: &AstMetadata,
         variable_id: Option<VariableId>,
         variable_kind: VariableKind,
-        is_end_of_source_text: bool,
+        execution_mode: ExecutionMode,
     ) -> Self {
         let variable_metadata =
             variable_id.and_then(|id| ast_metadata.variable_metadata(id));
         Self::infer(
             variable_kind,
             variable_metadata.cloned(),
-            is_end_of_source_text,
+            execution_mode,
         )
     }
 }
@@ -287,7 +288,7 @@ pub fn compile_script_or_return_static_value<'a>(
     let mut compilation_context = CompilationContext::new(
         Vec::with_capacity(256),
         vec![],
-        options.compile_scope.once,
+        options.compile_scope.execution_mode,
     );
     // FIXME #480: no clone here
     let scope = compile_ast(ast.clone(), &mut compilation_context, options)?;
@@ -377,7 +378,7 @@ pub fn compile_template<'a>(
         Vec::with_capacity(256),
         // TODO #482: no clone here
         inserted_values.to_vec(),
-        options.compile_scope.once,
+        options.compile_scope.execution_mode,
     );
     compile_ast(ast, &mut compilation_context, options)
         .map(|scope| (compilation_context.buffer, scope))
@@ -433,8 +434,8 @@ fn precompile_to_rich_ast(
     scope: &mut CompilationScope,
     precompiler_options: PrecompilerOptions,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
-    // if once is set to true in already used, return error
-    if scope.once {
+    // if static execution mode and scope already used, return error
+    if scope.execution_mode == ExecutionMode::Static {
         if scope.was_used {
             return Err(
                 SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
@@ -623,6 +624,9 @@ fn compile_expression(
                 } else {
                     scope
                 };
+
+                // if this is a continues compilation
+
                 let len = statements.len();
 
                 match len {
@@ -779,7 +783,7 @@ fn compile_expression(
                     &metadata.borrow(),
                     id,
                     kind,
-                    compilation_context.is_end_of_source_text,
+                    compilation_context.execution_mode,
                 );
 
             // create new variable depending on the model
@@ -966,7 +970,7 @@ fn compile_expression(
 
             // compile remote execution block
             let mut execution_block_ctx =
-                CompilationContext::new(Vec::with_capacity(256), vec![], true);
+                CompilationContext::new(Vec::with_capacity(256), vec![], ExecutionMode::Static);
             let external_scope = compile_rich_ast(
                 &mut execution_block_ctx,
                 RichAst::new(*script, &metadata),
@@ -1168,7 +1172,7 @@ pub mod tests {
         let mut compilation_context = CompilationContext::new(
             Vec::with_capacity(256),
             vec![],
-            options.compile_scope.once,
+            options.compile_scope.execution_mode,
         );
         compile_ast(ast, &mut compilation_context, options).unwrap();
         compilation_context

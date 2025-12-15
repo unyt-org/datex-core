@@ -1,6 +1,6 @@
 use crate::compiler::scope::CompilationScope;
 use crate::global::dxb_block::OutgoingContextId;
-use crate::runtime::execution::context::ExecutionContext;
+use crate::runtime::execution::context::{ExecutionContext, ExecutionMode};
 use crate::values::core_values::endpoint::Endpoint;
 
 #[derive(Debug, Clone, Default)]
@@ -9,27 +9,29 @@ pub struct RemoteExecutionContext {
     pub compile_scope: CompilationScope,
     pub endpoint: Endpoint,
     pub context_id: Option<OutgoingContextId>,
+    pub execution_mode: ExecutionMode,
 }
 
 impl RemoteExecutionContext {
     /// Creates a new remote execution context with the given endpoint.
-    pub fn new(endpoint: impl Into<Endpoint>, once: bool) -> Self {
+    pub fn new(endpoint: impl Into<Endpoint>, execution_mode: ExecutionMode) -> Self {
         RemoteExecutionContext {
             #[cfg(feature = "compiler")]
-            compile_scope: CompilationScope::new(once),
+            compile_scope: CompilationScope::new(execution_mode),
             endpoint: endpoint.into(),
             context_id: None,
+            execution_mode,
         }
     }
 }
 
 
 impl ExecutionContext {
-    pub fn remote_once(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, true))
+    pub fn remote(endpoint: impl Into<Endpoint>) -> Self {
+        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::Static))
     }
 
-    pub fn remote(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, false))
+    pub fn remote_unbounded(endpoint: impl Into<Endpoint>) -> Self {
+        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::Unbounded))
     }
 }

@@ -11,9 +11,7 @@ use crate::runtime::execution::execution_loop::operations::{
 };
 use crate::runtime::execution::execution_loop::type_instruction_execution::get_next_type;
 use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
-use crate::runtime::execution::macros::{
-    intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap,
-};
+use crate::runtime::execution::macros::{intercept_maybe_step, intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::stdlib::rc::Rc;
 use crate::types::definition::TypeDefinition;
@@ -52,18 +50,12 @@ macro_rules! get_next_maybe_value {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!($interrupt_provider);
         let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
-        let maybe_value = intercept_step!(
+        intercept_step!(
             inner_iterator,
             Ok(ExecutionInterrupt::ValueReturn(value)) => {
                 value
             }
-        );
-        match maybe_value {
-            Some(value) => value,
-            _ => {
-                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedValue));
-            }
-        }
+        )
     }};
 }
 
@@ -89,19 +81,36 @@ macro_rules! get_next_key_value_pair {
     ($interrupt_provider:expr) => {{
         let next = interrupt_with_next_regular_instruction!($interrupt_provider);
         let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
-        let maybe_value = intercept_step!(
+        intercept_step!(
             inner_iterator,
             Ok(ExecutionInterrupt::KeyValuePairReturn(value)) => {
                 value
             }
-        );
-        match maybe_value {
-            Some(kv) => kv,
-            _ => {
-                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedValue));
-            }
-        }
+        )
     }};
+}
+
+
+enum ValueOrStatementsEnd {
+    Value(Option<ValueContainer>),
+    StatementsEnd,
+}
+
+/// Drives the regular instruction iteration until the next statement or end of statements
+macro_rules! get_next_value_or_statements_end {
+    ($interrupt_provider:expr) => {{
+        let next = interrupt_with_next_regular_instruction!($interrupt_provider);
+        let mut inner_iterator = execute_regular_instruction($interrupt_provider, next);
+        intercept_step!(
+            inner_iterator,
+            Ok(ExecutionInterrupt::ValueReturn(value)) => {
+                ValueOrStatementsEnd::Value(value)
+            },
+            Ok(ExecutionInterrupt::StatementsEnd) => {
+                ValueOrStatementsEnd::StatementsEnd
+            }
+        )
+    }}
 }
 
 pub(crate) fn execute_regular_instruction(
@@ -288,7 +297,7 @@ pub(crate) fn execute_regular_instruction(
             RegularInstruction::Statements(statements_data)
             | RegularInstruction::ShortStatements(statements_data) => {
                 let mut last_value = None;
-                for i in 0..statements_data.statements_count {
+                for _ in 0..statements_data.statements_count {
                     last_value =
                         get_next_maybe_value!(interrupt_provider.clone());
                 }
@@ -296,6 +305,31 @@ pub(crate) fn execute_regular_instruction(
                     true => None,
                     false => last_value,
                 }
+            }
+
+            RegularInstruction::UnboundedStatements(statements_data) => {
+                let mut last_value = ValueOrStatementsEnd::StatementsEnd;
+                loop {
+                    match get_next_value_or_statements_end!(interrupt_provider.clone()) {
+                        ValueOrStatementsEnd::Value(value) => {
+                            last_value = ValueOrStatementsEnd::Value(value);
+                        }
+                        ValueOrStatementsEnd::StatementsEnd => {
+                            break;
+                        }
+                    }
+                }
+                match statements_data.terminated {
+                    true => None,
+                    false => match last_value {
+                        ValueOrStatementsEnd::Value(value) => value,
+                        ValueOrStatementsEnd::StatementsEnd => None,
+                    }
+                }
+            }
+
+            RegularInstruction::StatementsEnd => {
+                return yield Ok(ExecutionInterrupt::StatementsEnd);
             }
 
             RegularInstruction::List(list_data)

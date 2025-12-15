@@ -38,6 +38,7 @@ use futures::channel::oneshot::Sender;
 use global_context::{set_global_context, GlobalContext};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use crate::runtime::execution::context::ExecutionMode;
 
 pub mod dif_interface;
 pub mod execution;
@@ -121,7 +122,7 @@ macro_rules! get_execution_context {
                 context
             },
             None => {
-               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone(), true)
+               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone(), ExecutionMode::Static)
             }
         }
     };
@@ -238,7 +239,7 @@ impl RuntimeInternal {
         } else {
             let new_context = ExecutionContext::local_with_runtime_internal(
                 self_rc.clone(),
-                false,
+                ExecutionMode::Unbounded,
             );
             new_context
         }

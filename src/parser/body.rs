@@ -1,6 +1,6 @@
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, InstructionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData, ShortStatementsData};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, InstructionBlockData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data, ImplTypeData, TypeReferenceData, Instruction, ListData, ShortListData, MapData, ShortMapData, ShortStatementsData, UnboundedStatementsData};
 use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -255,6 +255,16 @@ pub fn iterate_instructions(
                                     statements_count: statements_data.statements_count as u32,
                                     terminated: statements_data.terminated
                                 })
+                            }
+
+                            InstructionCode::UNBOUNDED_STATEMENTS => {
+                                let statements_data = yield_unwrap!(UnboundedStatementsData::read(&mut reader));
+                                next_instructions_stack.push_next_regular_unbounded();
+                                RegularInstruction::UnboundedStatements(statements_data)
+                            }
+
+                            InstructionCode::UNBOUNDED_STATEMENTS_END => {
+                                RegularInstruction::StatementsEnd
                             }
 
                             InstructionCode::APPLY_ZERO => RegularInstruction::Apply(ApplyData { arg_count: 0 }),

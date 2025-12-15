@@ -45,6 +45,10 @@ impl NextInstructionsStack {
             }
         }
     }
+    
+    pub fn push_next_regular_unbounded(&mut self) {
+        self.0.push(NextScopeInstruction::RegularUnbounded);
+    }
 
     pub fn push_next_type(&mut self, count: u32) {
         match self.0.last_mut() {
