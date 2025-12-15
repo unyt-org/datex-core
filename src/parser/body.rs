@@ -268,14 +268,14 @@ pub fn iterate_instructions(
                             }
 
                             InstructionCode::UNBOUNDED_STATEMENTS => {
-                                let statements_data = yield_unwrap!(UnboundedStatementsData::read(&mut reader));
                                 next_instructions_stack.push_next_regular_unbounded();
-                                RegularInstruction::UnboundedStatements(statements_data)
+                                RegularInstruction::UnboundedStatements
                             }
 
                             InstructionCode::UNBOUNDED_STATEMENTS_END => {
+                                let statements_data = yield_unwrap!(UnboundedStatementsData::read(&mut reader));
                                 yield_unwrap!(next_instructions_stack.pop_unbounded_regular());
-                                RegularInstruction::UnboundedStatementsEnd
+                                RegularInstruction::UnboundedStatementsEnd(statements_data.terminated)
                             }
 
                             InstructionCode::APPLY_ZERO => RegularInstruction::Apply(ApplyData { arg_count: 0 }),
@@ -631,7 +631,7 @@ mod tests {
         let mut iterator = iterate_instructions(data_ref.clone());
         // first instruction should be UNBOUNDED_STATEMENTS
         let result = iterator.next().unwrap();
-        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatements(_)))));
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatements))));
         // next instruction should error expecting more instructions
         let result = iterator.next().unwrap();
         assert!(matches!(result, Err(DXBParserError::ExpectingMoreInstructions)));
@@ -650,7 +650,7 @@ mod tests {
         assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(_)))));
         // next instruction should be UNBOUNDED_STATEMENTS_END
         let result = iterator.next().unwrap();
-        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatementsEnd))));
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatementsEnd(_)))));
         // ensure no more instructions
         assert!(iterator.next().is_none());
     }

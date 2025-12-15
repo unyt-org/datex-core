@@ -11,11 +11,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use core::cell::RefCell;
 
 use crate::ast::parse_result::ValidDatexParseResult;
-use crate::ast::structs::expression::{
-    BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
-    DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
-    VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
-};
+use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData, DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation, UnboundedStatement, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::error::{
@@ -134,7 +130,7 @@ impl VariableModel {
         // the variable will be transferred across realms later
         else if variable_metadata.is_none()
             || variable_metadata.unwrap().is_cross_realm
-            || execution_mode == ExecutionMode::Unbounded
+            || execution_mode.is_unbounded()
         {
             VariableModel::VariableReference
         }
@@ -302,6 +298,24 @@ pub fn compile_script_or_return_static_value<'a>(
     }
 }
 
+/// Ensure that the root ast node is a statements node
+/// Returns if the initial ast was terminated
+fn ensure_statements(ast: &mut DatexExpression, unbounded_section: Option<UnboundedStatement>) -> bool {
+    if let DatexExpressionData::Statements(Statements {is_terminated, unbounded, ..}) = &mut ast.data {
+        *unbounded= unbounded_section;
+        *is_terminated
+    } else {
+        // wrap in statements
+        let original_ast = ast.clone();
+        ast.data = DatexExpressionData::Statements(Statements {
+            statements: vec![original_ast],
+            is_terminated: false,
+            unbounded: unbounded_section
+        });
+        false
+    }
+}
+
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Only returns the first occurring error
 pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
@@ -318,10 +332,22 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //         compile_value_container(inserted_values[0]).map(StaticValueOrAst::from)?;
     //     return Ok((result, options.compile_scope));
     // }
-
-    let valid_parse_result = parse(datex_script)
+    let mut valid_parse_result = parse(datex_script)
         .to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
+
+    // make sure to append a statements block for the first block in ExecutionMode::Unbounded
+    let is_terminated = if let ExecutionMode::Unbounded { has_next } = options.compile_scope.execution_mode {
+        ensure_statements(
+            &mut valid_parse_result.ast,
+            Some(UnboundedStatement {
+                is_first: !options.compile_scope.was_used,
+                is_last: !has_next,
+            })
+        )
+    } else {
+        matches!(valid_parse_result.ast.data, DatexExpressionData::Statements(Statements { is_terminated: true, .. }))
+    };
 
     precompile_to_rich_ast(
         valid_parse_result,
@@ -333,6 +359,11 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     .map_err(|e| match e {
         SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
         _ => unreachable!(), // because detailed_errors: false
+    })
+    .map(|ast| {
+        // store information about termination (last semicolon) in metadata
+        ast.metadata.borrow_mut().is_terminated = is_terminated;
+        ast
     })
 }
 
@@ -435,19 +466,19 @@ fn precompile_to_rich_ast(
     precompiler_options: PrecompilerOptions,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
     // if static execution mode and scope already used, return error
-    if scope.execution_mode == ExecutionMode::Static {
-        if scope.was_used {
-            return Err(
-                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                    SpannedCompilerError::from(
-                        CompilerError::OnceScopeUsedMultipleTimes,
-                    ),
+    if scope.execution_mode == ExecutionMode::Static && scope.was_used {
+        return Err(
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                SpannedCompilerError::from(
+                    CompilerError::OnceScopeUsedMultipleTimes,
                 ),
-            );
-        }
-        // set was_used to true
-        scope.was_used = true;
+            ),
+        );
     }
+
+    // set was_used to true
+    scope.was_used = true;
+
     let rich_ast = if let Some(precompiler_data) = &scope.precompiler_data {
         // precompile the AST, adding metadata for variables etc.
         precompile_ast(
@@ -607,10 +638,12 @@ fn compile_expression(
         DatexExpressionData::Statements(Statements {
             mut statements,
             is_terminated,
+            unbounded,
         }) => {
             compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
-            if statements.len() == 1 && !is_terminated {
+            // (not for unbounded execution mode)
+            if unbounded.is_none() && statements.len() == 1 && !is_terminated {
                 scope = compile_expression(
                     compilation_context,
                     RichAst::new(statements.remove(0), &metadata),
@@ -619,6 +652,7 @@ fn compile_expression(
                 )?;
             } else {
                 let is_outer_context = meta.is_outer_context();
+
                 // if not outer context, new scope
                 let mut child_scope = if is_outer_context {
                     scope
@@ -626,11 +660,13 @@ fn compile_expression(
                     scope.push()
                 };
 
-                // if this is an unbounded execution mode and the outer context, mark as unbounded
-                if compilation_context.execution_mode == ExecutionMode::Unbounded
-                    && is_outer_context {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::UNBOUNDED_STATEMENTS);
+                if let Some(UnboundedStatement {is_first, ..}) = unbounded {
+                    // if this is the first section of an unbounded statements block, mark as unbounded
+                    if is_first {
+                        compilation_context
+                            .append_instruction_code(InstructionCode::UNBOUNDED_STATEMENTS);
+                    }
+                    // if not first, don't insert any instruction code
                 }
                 // otherwise, statements with fixed length
                 else {
@@ -654,13 +690,13 @@ fn compile_expression(
                             );
                         }
                     }
-                }
 
-                // append termination flag
-                append_u8(
-                    &mut compilation_context.buffer,
-                    if is_terminated { 1 } else { 0 },
-                );
+                    // append termination flag
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        if is_terminated { 1 } else { 0 },
+                    );
+                }
 
                 for (i, statement) in statements.into_iter().enumerate() {
                     child_scope = compile_expression(
@@ -686,6 +722,17 @@ fn compile_expression(
                     }
                 } else {
                     scope = child_scope;
+                }
+
+                // if this is the last section of an unbounded statements block, add closing instruction
+                if let Some(UnboundedStatement {is_last: true, ..}) = unbounded {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::UNBOUNDED_STATEMENTS_END);
+                    // append termination flag
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        if is_terminated { 1 } else { 0 },
+                    );
                 }
             }
         }
@@ -1155,6 +1202,10 @@ pub mod tests {
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;
+    use crate::compiler::scope::CompilationScope;
+    use crate::runtime::execution::context::{ExecutionContext, ExecutionMode, LocalExecutionContext};
+    use crate::runtime::execution::ExecutionError;
+    use crate::values::value_container::ValueContainer;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -1184,6 +1235,36 @@ pub mod tests {
         );
         compile_ast(ast, &mut compilation_context, options).unwrap();
         compilation_context
+    }
+
+    fn compile_datex_script_debug_unbounded(
+        datex_script_parts: impl Iterator<Item = &'static str>,
+    ) -> impl Iterator<Item = Vec<u8>> {
+        let datex_script_parts = datex_script_parts.collect::<Vec<_>>();
+        gen move {
+            let mut compilation_scope = CompilationScope::new(ExecutionMode::unbounded());
+            let len = datex_script_parts.len();
+            for (index, script_part) in datex_script_parts.into_iter().enumerate() {
+                // if last part, compile and return static value if possible
+                if index == len - 1 {
+                    compilation_scope.mark_as_last_execution();
+                }
+                let (dxb, new_compilation_scope) = compile_script(script_part, CompileOptions::new_with_scope(compilation_scope)).unwrap();
+                compilation_scope = new_compilation_scope;
+                yield dxb;
+            }
+        }
+    }
+
+    fn assert_unbounded_input_matches_output(
+        input: Vec<&'static str>,
+        expected_output: Vec<Vec<u8>>,
+    ) {
+        let input = input.into_iter();
+        let expected_output = expected_output.into_iter();
+        for (result, expected) in compile_datex_script_debug_unbounded(input.into_iter()).zip(expected_output.into_iter()) {
+            assert_eq!(result, expected);
+        }
     }
 
     #[test]
@@ -2741,5 +2822,90 @@ pub mod tests {
                 .to_vec(),
         );
         assert_eq!(res, instructions);
+    }
+
+    #[test]
+    fn compile_continuous_terminated_script() {
+        let input = vec![
+            "1",
+            "2",
+            "3;",
+        ];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::INT_8.into(),
+                1,
+            ],
+            vec![
+                InstructionCode::INT_8.into(),
+                2,
+            ],
+            vec![
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                1, // terminated
+            ]
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn compile_continuous_unterminated_script() {
+        let input = vec![
+            "1",
+            "2 + 3",
+            "3",
+        ];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::INT_8.into(),
+                1,
+            ],
+            vec![
+                InstructionCode::ADD.into(),
+                InstructionCode::INT_8.into(),
+                2,
+                InstructionCode::INT_8.into(),
+                3,
+            ],
+            vec![
+                InstructionCode::INT_8.into(),
+                3,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                0, // unterminated
+            ]
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn compile_continuous_complex() {
+        let input = vec![
+            "1",
+            "integer",
+        ];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::INT_8.into(),
+                1,
+            ],
+            vec![
+                InstructionCode::GET_INTERNAL_REF.into(),
+                // pointer id for integer
+                100,
+                0,
+                0,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                0, // unterminated
+            ],
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
     }
 }

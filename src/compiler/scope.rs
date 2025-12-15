@@ -64,6 +64,18 @@ impl CompilationScope {
             ..CompilationScope::default()
         }
     }
+    
+    pub fn mark_as_last_execution(&mut self) {
+        match self.execution_mode {
+            ExecutionMode::Static => {
+                panic!("mark_as_last_execution can only be called for Unbounded execution modes");
+            }
+            ExecutionMode::Unbounded {..} => {
+                self.execution_mode = ExecutionMode::Unbounded { has_next: false };
+            }
+            _ => {}
+        }
+    }
 
     pub fn has_external_parent_scope(&self) -> bool {
         self.external_parent_scope.is_some()

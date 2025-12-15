@@ -239,7 +239,7 @@ impl RuntimeInternal {
         } else {
             let new_context = ExecutionContext::local_with_runtime_internal(
                 self_rc.clone(),
-                ExecutionMode::Unbounded,
+                ExecutionMode::unbounded(),
             );
             new_context
         }

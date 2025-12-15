@@ -6,6 +6,7 @@ pub mod type_instruction_execution;
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use log::info;
+use datex_core::global::protocol_structures::instructions::UnboundedStatementsData;
 use datex_core::parser::next_instructions_stack::NextInstructionsStack;
 use datex_core::runtime::execution::execution_loop::regular_instruction_execution::execute_regular_instruction;
 use datex_core::runtime::execution::execution_loop::state::ExecutionLoopState;
@@ -44,7 +45,7 @@ pub enum ExecutionInterrupt {
     /// contains a key-value pair that is intercepted by a map construction operation
     KeyValuePairReturn((OwnedMapKey, ValueContainer)),
     /// indicates the end of an unbounded statements block - is intercepted by a statements block loop
-    StatementsEnd,
+    StatementsEnd(bool),
     AllocateSlot(u32, ValueContainer),
     GetSlotValue(u32),
     SetSlotValue(u32, ValueContainer),
@@ -208,7 +209,7 @@ pub fn execution_loop(
                     // only for internal interrupts
                     ExecutionInterrupt::TypeReturn(_) => unreachable!(),
                     ExecutionInterrupt::KeyValuePairReturn(_) => unreachable!(),
-                    ExecutionInterrupt::StatementsEnd => unreachable!(),
+                    ExecutionInterrupt::StatementsEnd(_) => unreachable!(),
                 }
             }
         } else {

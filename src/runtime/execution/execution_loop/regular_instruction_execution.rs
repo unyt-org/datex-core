@@ -1,10 +1,7 @@
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator};
-use crate::global::protocol_structures::instructions::{
-    ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
-    FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData,
-};
+use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData, UnboundedStatementsData};
 use crate::runtime::execution::execution_loop::operations::{
     handle_assignment_operation, handle_binary_operation,
     handle_unary_operation,
@@ -93,7 +90,7 @@ macro_rules! get_next_key_value_pair {
 
 enum ValueOrStatementsEnd {
     Value(Option<ValueContainer>),
-    StatementsEnd,
+    StatementsEnd(bool)
 }
 
 /// Drives the regular instruction iteration until the next statement or end of statements
@@ -106,8 +103,8 @@ macro_rules! get_next_value_or_statements_end {
             Ok(ExecutionInterrupt::ValueReturn(value)) => {
                 ValueOrStatementsEnd::Value(value)
             },
-            Ok(ExecutionInterrupt::StatementsEnd) => {
-                ValueOrStatementsEnd::StatementsEnd
+            Ok(ExecutionInterrupt::StatementsEnd(terminated)) => {
+                ValueOrStatementsEnd::StatementsEnd(terminated)
             }
         )
     }}
@@ -309,8 +306,9 @@ pub(crate) fn execute_regular_instruction(
                 }
             }
 
-            RegularInstruction::UnboundedStatements(statements_data) => {
-                let mut last_value = ValueOrStatementsEnd::StatementsEnd;
+            RegularInstruction::UnboundedStatements => {
+                let mut last_value: Option<ValueContainer> = None;
+                let mut terminated = false;
                 loop {
                     match get_next_value_or_statements_end!(interrupt_provider.clone()) {
                         ValueOrStatementsEnd::Value(value) => {
@@ -319,24 +317,22 @@ pub(crate) fn execute_regular_instruction(
                                 interrupt_provider,
                                 ExecutionInterrupt::SetActiveValue(value.clone())
                             );
-                            last_value = ValueOrStatementsEnd::Value(value);
+                            last_value = value;
                         }
-                        ValueOrStatementsEnd::StatementsEnd => {
+                        ValueOrStatementsEnd::StatementsEnd(is_terminated) => {
+                            terminated = is_terminated;
                             break;
                         }
                     }
                 }
-                match statements_data.terminated {
+                match terminated {
                     true => None,
-                    false => match last_value {
-                        ValueOrStatementsEnd::Value(value) => value,
-                        ValueOrStatementsEnd::StatementsEnd => None,
-                    }
+                    false => last_value,
                 }
             }
 
-            RegularInstruction::UnboundedStatementsEnd => {
-                return yield Ok(ExecutionInterrupt::StatementsEnd);
+            RegularInstruction::UnboundedStatementsEnd(terminated) => {
+                return yield Ok(ExecutionInterrupt::StatementsEnd(terminated));
             }
 
             RegularInstruction::List(list_data)

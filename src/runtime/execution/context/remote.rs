@@ -32,6 +32,6 @@ impl ExecutionContext {
     }
 
     pub fn remote_unbounded(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::Unbounded))
+        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::unbounded()))
     }
 }

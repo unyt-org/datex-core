@@ -1,3 +1,4 @@
+use datex_core::values::core_values::text::Text;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
     CreateRef, DatexExpressionData, List, Map,
@@ -72,9 +73,12 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                         TypeExpressionData::Integer(integer.clone())
                             .with_default_span()
                     }
-                    _ => core::todo!("#416 Undescribed by author."),
+                    _ => TypeExpressionData::Text(format!(
+                        "[[STRUCTURAL TYPE {:?}]]",
+                        struct_type
+                    )).with_default_span(),
                 },
-                _ => core::todo!("#417 Undescribed by author."),
+                _ => TypeExpressionData::Text(format!("[[TYPE {:?}]]", type_value.type_definition)).with_default_span()
             },
         ),
     }

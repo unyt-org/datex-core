@@ -180,6 +180,7 @@ mod tests {
                     ty: None,
                 }],
                 is_terminated: true,
+                unbounded: None,
             }),
             span: 1..2,
             wrapped: None,
