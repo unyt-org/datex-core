@@ -165,13 +165,26 @@ impl ExecutionContext {
         dxb: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ExecutionContext::Local { .. } => {
+            ExecutionContext::Local(..) => {
                 let execution_input =
                     self.get_local_execution_input(dxb)?;
-                execute_dxb(execution_input).await
+                let res = execute_dxb(execution_input).await;
+                match res {
+                    Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(state))) => {
+                        match self {
+                            ExecutionContext::Local(LocalExecutionContext {loop_state, .. }) => {
+                                loop_state.replace(state);
+                                Ok(intermediate_result)
+                            },
+                            // TODO: improve this
+                            _ => unreachable!(), // we already matched above
+                        }
+                    },
+                    _ => res
+                }
             }
             // remote execution is not supported directly in execution context
-            ExecutionContext::Remote { .. } => {
+            ExecutionContext::Remote(..) => {
                 core::panic!("Remote execution requires a Runtime");
             }
         }

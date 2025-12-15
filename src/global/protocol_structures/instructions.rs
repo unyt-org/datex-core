@@ -79,7 +79,7 @@ pub enum RegularInstruction {
     Statements(StatementsData),
     ShortStatements(StatementsData),
     UnboundedStatements(UnboundedStatementsData),
-    StatementsEnd,
+    UnboundedStatementsEnd,
     List(ListData),
     ShortList(ListData),
     Map(MapData),
@@ -209,7 +209,7 @@ impl Display for RegularInstruction {
             RegularInstruction::UnboundedStatements(_) => {
                 core::write!(f, "UNBOUNDED_STATEMENTS")
             }
-            RegularInstruction::StatementsEnd => {
+            RegularInstruction::UnboundedStatementsEnd => {
                 core::write!(f, "STATEMENTS_END")
             }
             RegularInstruction::List(data) => {

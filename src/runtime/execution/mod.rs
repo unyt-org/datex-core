@@ -56,7 +56,7 @@ pub fn execute_dxb_sync(
             ExternalExecutionInterrupt::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
-                        get_internal_pointer_value(address)?,
+                        Some(get_internal_pointer_value(address)?),
                     ));
             }
             ExternalExecutionInterrupt::GetInternalSlotValue(slot) => {
@@ -100,7 +100,7 @@ pub async fn execute_dxb(
             ExternalExecutionInterrupt::ResolveInternalPointer(address) => {
                 *interrupt_provider.borrow_mut() =
                     Some(InterruptProvider::ResolvedValue(
-                        get_internal_pointer_value(address)?,
+                        Some(get_internal_pointer_value(address)?),
                     ));
             }
             ExternalExecutionInterrupt::RemoteExecution(receivers, body) => {
@@ -133,7 +133,12 @@ pub async fn execute_dxb(
                         slot,
                     )?));
             }
-            _ => core::todo!("#99 Undescribed by author."),
+            interrupt => {
+                println!(
+                    "Error: unhandled interrupt: {:?}",
+                    interrupt
+                );
+            }
         }
     }
 
@@ -178,15 +183,15 @@ fn get_pointer_value(
 
 fn get_internal_pointer_value(
     address: RawInternalPointerAddress,
-) -> Result<Option<ValueContainer>, ExecutionError> {
+) -> Result<ValueContainer, ExecutionError> {
     let core_lib_id =
         CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
     core_lib_id
         .map_err(|_| ExecutionError::ReferenceNotFound)
         .map(|id| {
-            Some(ValueContainer::Reference(Reference::TypeReference(
+            ValueContainer::Reference(Reference::TypeReference(
                 get_core_lib_type_reference(id),
-            )))
+            ))
         })
 }
 
