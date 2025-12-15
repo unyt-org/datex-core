@@ -49,6 +49,8 @@ pub enum ExecutionInterrupt {
     GetSlotValue(u32),
     SetSlotValue(u32, ValueContainer),
     DropSlot(u32),
+    // used for intermediate results in unbounded scopes
+    SetActiveValue(Option<ValueContainer>),
     GetNextRegularInstruction,
     GetNextTypeInstruction,
     /// yields an external interrupt to be handled by the execution loop caller (for I/O operations, pointer resolution, remote execution, etc.)
@@ -58,7 +60,6 @@ pub enum ExecutionInterrupt {
 #[derive(Debug)]
 pub enum ExternalExecutionInterrupt {
     Result(Option<ValueContainer>),
-    IntermediateResult(ExecutionLoopState, Option<ValueContainer>),
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
@@ -88,6 +89,8 @@ pub fn execution_loop(
 
         let first_instruction = instruction_iterator.next();
 
+        let mut active_value: Option<ValueContainer> = None;
+
         if let Some(Ok(Instruction::RegularInstruction(first_instruction))) = first_instruction {
             // execute the root instruction, which will drive further recursive execution
             let inner_iterator = execute_regular_instruction(
@@ -96,7 +99,9 @@ pub fn execution_loop(
             );
             'main: for step in inner_iterator {
                 let step = yield_unwrap!(step);
+
                 info!("Execution loop step: {:?}", step);
+
                 match step {
                     // yield external steps directly to be handled by the caller
                     ExecutionInterrupt::External(external_step) => {
@@ -126,9 +131,7 @@ pub fn execution_loop(
                                 }
                                 // instruction iterator ran out of instructions - must wait for more
                                 Err(DXBParserError::ExpectingMoreInstructions) => {
-                                    yield Err(ExecutionError::DXBParserError(
-                                        DXBParserError::ExpectingMoreInstructions,
-                                    ));
+                                    yield Err(ExecutionError::IntermediateResultWithState(active_value.clone(), None));
                                     // assume that when continuing after this yield, more instructions will have been loaded
                                     // so we run the loop again to try to get the next instruction
                                     continue;
@@ -161,9 +164,7 @@ pub fn execution_loop(
                                 }
                                 // instruction iterator ran out of instructions - must wait for more
                                 Err(DXBParserError::ExpectingMoreInstructions) => {
-                                    yield Err(ExecutionError::DXBParserError(
-                                        DXBParserError::ExpectingMoreInstructions,
-                                    ));
+                                    yield Err(ExecutionError::IntermediateResultWithState(active_value.clone(), None));
                                     // assume that when continuing after this yield, more instructions will have been loaded
                                     // so we run the loop again to try to get the next instruction
                                     continue;
@@ -200,6 +201,9 @@ pub fn execution_loop(
                     }
                     ExecutionInterrupt::AllocateSlot(address, value) => {
                         slots.allocate_slot(address, Some(value));
+                    }
+                    ExecutionInterrupt::SetActiveValue(value) => {
+                        active_value = value;
                     }
                     // only for internal interrupts
                     ExecutionInterrupt::TypeReturn(_) => unreachable!(),

@@ -17,7 +17,7 @@ use log::info;
 use crate::stdlib::rc::Rc;
 use datex_core::global::protocol_structures::instructions::{RawLocalPointerAddress, StatementsData};
 use datex_core::parser::next_instructions_stack::NextInstructionsStack;
-use crate::parser::next_instructions_stack::NextInstructionType;
+use crate::parser::next_instructions_stack::{NextInstructionType, NotInUnboundedRegularScopeError};
 use crate::runtime::execution::macros::yield_unwrap;
 use crate::stdlib::convert::TryFrom;
 
@@ -32,6 +32,7 @@ pub enum DXBParserError {
     FmtError(fmt::Error),
     BinRwError(binrw::Error),
     FromUtf8Error(FromUtf8Error),
+    NotInUnboundedRegularScopeError,
 }
 
 impl From<fmt::Error> for DXBParserError {
@@ -49,6 +50,12 @@ impl From<binrw::Error> for DXBParserError {
 impl From<FromUtf8Error> for DXBParserError {
     fn from(error: FromUtf8Error) -> Self {
         DXBParserError::FromUtf8Error(error)
+    }
+}
+
+impl From<NotInUnboundedRegularScopeError> for DXBParserError {
+    fn from(_: NotInUnboundedRegularScopeError) -> Self {
+        DXBParserError::NotInUnboundedRegularScopeError
     }
 }
 
@@ -78,6 +85,9 @@ impl Display for DXBParserError {
             }
             DXBParserError::ExpectingMoreInstructions => {
                 core::write!(f, "Expecting more instructions")
+            }
+            DXBParserError::NotInUnboundedRegularScopeError => {
+                core::write!(f, "Not in unbounded regular scope error")
             }
         }
     }
@@ -264,7 +274,8 @@ pub fn iterate_instructions(
                             }
 
                             InstructionCode::UNBOUNDED_STATEMENTS_END => {
-                                RegularInstruction::StatementsEnd
+                                yield_unwrap!(next_instructions_stack.pop_unbounded_regular());
+                                RegularInstruction::UnboundedStatementsEnd
                             }
 
                             InstructionCode::APPLY_ZERO => RegularInstruction::Apply(ApplyData { arg_count: 0 }),
@@ -609,6 +620,37 @@ mod tests {
         // next instruction should be second UINT_8
         let result = iterator.next().unwrap();
         assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(_)))));
+        // ensure no more instructions
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn unbounded_expect_more_instructions() {
+        let data = vec![InstructionCode::UNBOUNDED_STATEMENTS as u8, 0x00]; // Start unbounded statements
+        let data_ref = Rc::new(RefCell::new(data));
+        let mut iterator = iterate_instructions(data_ref.clone());
+        // first instruction should be UNBOUNDED_STATEMENTS
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatements(_)))));
+        // next instruction should error expecting more instructions
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Err(DXBParserError::ExpectingMoreInstructions)));
+
+        // now provide more data for the statements
+        let new_data = vec![
+            InstructionCode::UINT_8 as u8,  // first statement
+            42,
+            InstructionCode::UNBOUNDED_STATEMENTS_END as u8, // end unbounded statements
+        ];
+
+        *data_ref.borrow_mut() = new_data;
+
+        // next instruction should be first UINT_8
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UInt8(_)))));
+        // next instruction should be UNBOUNDED_STATEMENTS_END
+        let result = iterator.next().unwrap();
+        assert!(matches!(result, Ok(Instruction::RegularInstruction(RegularInstruction::UnboundedStatementsEnd))));
         // ensure no more instructions
         assert!(iterator.next().is_none());
     }

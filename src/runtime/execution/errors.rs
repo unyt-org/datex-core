@@ -1,9 +1,10 @@
 use core::fmt::Display;
+use datex_core::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::network::com_hub::ResponseError;
 use crate::parser::body::DXBParserError;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::types::error::IllegalTypeError;
-use crate::values::value_container::ValueError;
+use crate::values::value_container::{ValueContainer, ValueError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {
@@ -64,6 +65,7 @@ pub enum ExecutionError {
     ExpectedTypeValue,
     AssignmentError(AssignmentError),
     ReferenceFromValueContainerError(ReferenceCreationError),
+    IntermediateResultWithState(Option<ValueContainer>, Option<ExecutionLoopState>)
 }
 impl From<ReferenceCreationError> for ExecutionError {
     fn from(error: ReferenceCreationError) -> Self {
@@ -166,6 +168,13 @@ impl Display for ExecutionError {
             }
             ExecutionError::ExpectedTypeValue => {
                 core::write!(f, "Expected a type value")
+            }
+            ExecutionError::IntermediateResultWithState(value_opt, state_opt) => {
+                core::write!(
+                    f,
+                    "Execution produced an intermediate result: {:?} with state: {:?}",
+                    value_opt, state_opt
+                )
             }
         }
     }

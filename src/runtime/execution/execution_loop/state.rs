@@ -25,6 +25,7 @@ pub struct RuntimeExecutionState {
     /// Local memory slots for current execution context.
     /// TODO: replace this with a local stack and deprecate local slots?
     pub(crate) slots: RuntimeExecutionSlots,
+    pub(crate) active_value: Option<ValueContainer>,
 }
 
 #[derive(Debug, Default)]

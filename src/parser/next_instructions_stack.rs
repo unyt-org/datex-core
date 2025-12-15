@@ -19,6 +19,9 @@ pub enum NextInstructionType {
 }
 
 #[derive(Debug, Clone)]
+pub struct NotInUnboundedRegularScopeError;
+
+#[derive(Debug, Clone)]
 pub struct NextInstructionsStack(Vec<NextScopeInstruction>);
 
 impl Default for NextInstructionsStack {
@@ -99,14 +102,14 @@ impl NextInstructionsStack {
 
     /// Ends the current unbounded regular instruction scope.
     /// Returns Ok if successful, Err if the top of the stack is not an unbounded regular instruction scope.
-    pub fn pop_unbounded_regular(&mut self) -> Result<(), ()> {
+    pub fn pop_unbounded_regular(&mut self) -> Result<(), NotInUnboundedRegularScopeError> {
         let stack = &mut self.0;
         match stack.last() {
             Some(NextScopeInstruction::RegularUnbounded) => {
                 stack.pop();
                 Ok(())
             }
-            _ => Err(())
+            _ => Err(NotInUnboundedRegularScopeError)
         }
     }
 

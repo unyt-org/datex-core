@@ -113,6 +113,8 @@ macro_rules! get_next_value_or_statements_end {
     }}
 }
 
+/// TODO: put interrupt provider together with state (active value, stack) and pass that around
+/// instead of using interrupts for accessing the state
 pub(crate) fn execute_regular_instruction(
     interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
     instruction: RegularInstruction,
@@ -312,6 +314,11 @@ pub(crate) fn execute_regular_instruction(
                 loop {
                     match get_next_value_or_statements_end!(interrupt_provider.clone()) {
                         ValueOrStatementsEnd::Value(value) => {
+                            // store as active value
+                            interrupt!(
+                                interrupt_provider,
+                                ExecutionInterrupt::SetActiveValue(value.clone())
+                            );
                             last_value = ValueOrStatementsEnd::Value(value);
                         }
                         ValueOrStatementsEnd::StatementsEnd => {
@@ -328,7 +335,7 @@ pub(crate) fn execute_regular_instruction(
                 }
             }
 
-            RegularInstruction::StatementsEnd => {
+            RegularInstruction::UnboundedStatementsEnd => {
                 return yield Ok(ExecutionInterrupt::StatementsEnd);
             }
 

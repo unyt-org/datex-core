@@ -43,7 +43,7 @@ impl<'a> ExecutionInput<'a> {
     ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
         gen move {
             // use execution iterator if one already exists from previous execution
-            let mut iterator = if let Some(existing_loop_state) = self.loop_state.take() {
+            let mut loop_state = if let Some(existing_loop_state) = self.loop_state.take() {
                 // update dxb so that instruction iterator can continue with next instructions
                 *existing_loop_state.dxb_body.borrow_mut() = self.dxb_body.to_vec();
                 existing_loop_state
@@ -61,18 +61,15 @@ impl<'a> ExecutionInput<'a> {
 
             // proxy the iterator, storing it back into state if interrupted to await more instructions
             loop {
-                let item = iterator.iterator.next();
+                let item = loop_state.iterator.next();
                 if item.is_none() {
                     break;
                 }
                 let item = item.unwrap();
 
                 match item {
-                    Err(ExecutionError::DXBParserError(DXBParserError::ExpectingMoreInstructions)) => {
-                        // yield the intermediate result with the current iterator state and intermediate value
-                        // TODO: return intermediate value from execution here
-                        yield Ok(ExternalExecutionInterrupt::IntermediateResult(iterator, None));
-                        return;
+                    Err(ExecutionError::IntermediateResultWithState(intermediate_result, _)) => {
+                        return yield Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(loop_state)));
                     }
                     _ => yield item
                 }

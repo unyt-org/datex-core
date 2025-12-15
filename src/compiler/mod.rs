@@ -618,33 +618,41 @@ fn compile_expression(
                     scope,
                 )?;
             } else {
+                let is_outer_context = meta.is_outer_context();
                 // if not outer context, new scope
-                let mut child_scope = if !meta.is_outer_context() {
-                    scope.push()
-                } else {
+                let mut child_scope = if is_outer_context {
                     scope
+                } else {
+                    scope.push()
                 };
 
-                // if this is a continues compilation
+                // if this is an unbounded execution mode and the outer context, mark as unbounded
+                if compilation_context.execution_mode == ExecutionMode::Unbounded
+                    && is_outer_context {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::UNBOUNDED_STATEMENTS);
+                }
+                // otherwise, statements with fixed length
+                else {
+                    let len = statements.len();
 
-                let len = statements.len();
-
-                match len {
-                    0..=255 => {
-                        compilation_context
-                            .append_instruction_code(InstructionCode::SHORT_STATEMENTS);
-                        append_u8(
-                            &mut compilation_context.buffer,
-                            len as u8,
-                        );
-                    }
-                    _ => {
-                        compilation_context
-                            .append_instruction_code(InstructionCode::STATEMENTS);
-                        append_u32(
-                            &mut compilation_context.buffer,
-                            len as u32, // FIXME: conversion from usize to u32
-                        );
+                    match len {
+                        0..=255 => {
+                            compilation_context
+                                .append_instruction_code(InstructionCode::SHORT_STATEMENTS);
+                            append_u8(
+                                &mut compilation_context.buffer,
+                                len as u8,
+                            );
+                        }
+                        _ => {
+                            compilation_context
+                                .append_instruction_code(InstructionCode::STATEMENTS);
+                            append_u32(
+                                &mut compilation_context.buffer,
+                                len as u32, // FIXME: conversion from usize to u32
+                            );
+                        }
                     }
                 }
 
