@@ -22,16 +22,26 @@ pub trait CryptoTrait: Send + Sync {
         to_digest: &'a [u8],
     ) -> CryptoResult<'a, [u8; 32]>;
 
-    fn enc_b58<'a>(&'a self, hash: &'a [u8]) -> Result<String, CryptoError> {
-        let encoded = bs58::encode(hash).into_string();
-        Ok(encoded)
+    fn enc_b58<'a>(
+        &'a self,
+        to_encode: &'a [u8; 32],
+    ) -> Result<[u8; 44], CryptoError> {
+        let mut out_buf = [0u8; 44];
+        bs58::encode(to_encode)
+            .onto(&mut out_buf[..])
+            .map_err(|_| CryptoError::Decryption)?;
+        Ok(out_buf)
     }
 
-    fn dec_b58<'a>(&'a self, fp: &'a str) -> Result<Vec<u8>, CryptoError> {
-        let decoded = bs58::decode(fp)
-            .into_vec()
+    fn dec_b58<'a>(
+        &'a self,
+        to_decode: &'a [u8; 44],
+    ) -> Result<[u8; 32], CryptoError> {
+        let mut out_buf = [0u8; 32];
+        bs58::decode(to_decode)
+            .onto(&mut out_buf[..])
             .map_err(|_| CryptoError::Decryption)?;
-        Ok(decoded)
+        Ok(out_buf)
     }
 
     /// Hash key derivation function.
