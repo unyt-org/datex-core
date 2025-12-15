@@ -11,30 +11,12 @@ macro_rules! next_iter {
 }
 pub(crate) use next_iter;
 
-/// Intercept specific steps in an iterator and perform actions
-/// Non-handled steps are yielded back to the caller
-macro_rules! intercept_steps {
-    (
-        $iterator:expr,
-        $( $pattern:pat => $body:expr ),+ $(,)?
-    ) => {
-        for step in $iterator {
-            match step {
-                $(
-                    $pattern => $body,
-                )+
-                step => yield step,
-            }
-        }
-    };
-}
-pub(crate) use intercept_steps;
-
 
 /// Intercept a specific step in an iterator.
 /// Non-handled steps are yielded back to the caller.
 /// The result of the matched body is returned if the step is encountered before the iterator ends.
-macro_rules! intercept_step {
+/// If no next step is encountered, None is returned.
+macro_rules! intercept_maybe_step {
     (
         $iterator:expr,
         $( $pattern:pat => $body:expr ),+ $(,)?
@@ -54,6 +36,36 @@ macro_rules! intercept_step {
             }
         }
     };
+}
+pub(crate) use intercept_maybe_step;
+
+/// Intercept a specific step in an iterator.
+/// Non-handled steps are yielded back to the caller.
+/// The result of the matched body is returned if the step is encountered before the iterator ends.
+/// If no next step is encountered, an InvalidProgram error is yielded.
+macro_rules! intercept_step {
+    (
+        $iterator:expr,
+        $( $pattern:pat => $body:expr ),+ $(,)?
+    ) => {{
+        use crate::runtime::execution::errors::ExecutionError;
+        use crate::runtime::execution::errors::InvalidProgramError;
+
+        loop {
+            let step = $iterator.next();
+            if let Some(step) = step {
+                match step {
+                    $(
+                        $pattern => break $body,
+                    )+
+                    step => yield step,
+                }
+            }
+            else {
+                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedInstruction));
+            }
+        }
+    }};
 }
 pub(crate) use intercept_step;
 

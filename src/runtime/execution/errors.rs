@@ -12,6 +12,7 @@ pub enum InvalidProgramError {
     MissingRemoteExecutionReceiver,
     ExpectedTypeValue,
     ExpectedValue,
+    ExpectedInstruction,
     ExpectedRegularInstruction,
     ExpectedTypeInstruction,
 }
@@ -36,6 +37,9 @@ impl Display for InvalidProgramError {
             }
             InvalidProgramError::ExpectedTypeInstruction => {
                 core::write!(f, "Expected a type instruction")
+            }
+            InvalidProgramError::ExpectedInstruction => {
+                core::write!(f, "Expected an instruction")
             }
         }
     }

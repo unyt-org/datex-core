@@ -16,6 +16,7 @@ pub use execution_input::ExecutionOptions;
 pub use execution_input::ExecutionInput;
 pub use errors::*;
 pub use memory_dump::*;
+use crate::runtime::execution::context::ExecutionMode;
 use crate::runtime::execution::execution_loop::{ExternalExecutionInterrupt, InterruptProvider};
 
 pub mod macros;
@@ -112,7 +113,7 @@ pub async fn execute_dxb(
                         .cast_to_endpoint()
                         .unwrap();
                     let mut remote_execution_context =
-                        RemoteExecutionContext::new(receiver_endpoint, true);
+                        RemoteExecutionContext::new(receiver_endpoint, ExecutionMode::Static);
                     let res = RuntimeInternal::execute_remote(
                         runtime.clone(),
                         &mut remote_execution_context,

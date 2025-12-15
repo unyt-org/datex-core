@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use datex_core::runtime::execution::macros::intercept_step;
 use crate::stdlib::rc::Rc;
 use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeInstruction};
 use crate::references::reference::{Reference, ReferenceMutability};
@@ -42,18 +43,12 @@ macro_rules! get_next_type {
 
         let next = interrupt_with_next_type_instruction!($interrupt_provider);
         let mut inner_iterator = execute_type_instruction($interrupt_provider, next);
-        let maybe_type = intercept_step!(
+        intercept_step!(
             inner_iterator,
             Ok(ExecutionInterrupt::TypeReturn(base_type)) => {
                 base_type
             }
-        );
-        match maybe_type {
-            Some(ty) => ty,
-            None => {
-                return yield Err(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedTypeValue));
-            }
-        }
+        )
     }};
 }
 pub(crate) use get_next_type;

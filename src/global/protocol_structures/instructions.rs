@@ -78,6 +78,8 @@ pub enum RegularInstruction {
     Null,
     Statements(StatementsData),
     ShortStatements(StatementsData),
+    UnboundedStatements(UnboundedStatementsData),
+    StatementsEnd,
     List(ListData),
     ShortList(ListData),
     Map(MapData),
@@ -203,6 +205,12 @@ impl Display for RegularInstruction {
             }
             RegularInstruction::ShortStatements(data) => {
                 core::write!(f, "SHORT_STATEMENTS {}", data.statements_count)
+            }
+            RegularInstruction::UnboundedStatements(_) => {
+                core::write!(f, "UNBOUNDED_STATEMENTS")
+            }
+            RegularInstruction::StatementsEnd => {
+                core::write!(f, "STATEMENTS_END")
             }
             RegularInstruction::List(data) => {
                 core::write!(f, "LIST {}", data.element_count)
@@ -454,6 +462,14 @@ pub struct ShortListData {
 #[brw(little)]
 pub struct StatementsData {
     pub statements_count: u32,
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
+    pub terminated: bool,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UnboundedStatementsData {
     #[br(map = |x: u8| x != 0)]
     #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
     pub terminated: bool,

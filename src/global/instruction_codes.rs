@@ -21,6 +21,8 @@ pub enum InstructionCode {
     EXIT = 0x00,
     STATEMENTS,      // statements block
     SHORT_STATEMENTS, // optimized statements block with up to 255 instructions
+    UNBOUNDED_STATEMENTS,
+    UNBOUNDED_STATEMENTS_END,  // end of statements block (only needed for unbounded blocks)
     CACHE_POINT,     // cache dxb from this point on
     CACHE_RESET,     // reset dxb scope cache
 
@@ -88,28 +90,6 @@ pub enum InstructionCode {
     SUBSCRIBERS,    // subscribers $aa
     PLAIN_SCOPE,    // scope xy;
     // don't use 0x64 (magic number)
-    TRANSFORM,             // transform x <Int>
-    OBSERVE,               // observe x ()=>()
-    RUN,                   // run xy;
-    AWAIT,                 // await xy;
-    DEFER,                 // maybe xy;
-    FUNCTION,              // function ()
-    ASSERT,                // assert
-    ITERATOR,              // iterator ()
-    NEXT,                  // next it
-    FREEZE,                // freeze
-    SEAL,                  // seal
-    HAS,                   // x has y
-    KEYS,                  // keys x
-    GET_TYPE,              // type $aa
-    GET,                   // get file://..., get @user::34
-    RANGE,                 // ..
-    RESOLVE_RELATIVE_PATH, // ./abc
-    DO,                    // do xy;
-    DEFAULT,               // x default y
-    COLLAPSE,              // collapse x
-    RESPONSE,              // response x
-    CLONE_COLLAPSE,        // collapse
 
     // comparators 0x80 - 0x8f
     STRUCTURAL_EQUAL,     // ==
@@ -254,13 +234,32 @@ pub enum InstructionCode {
     STREAM,      // << stream
     STOP_STREAM, // </ stream
 
-    EXTEND, // ...
-
-    YEET, // !
 
     REMOTE_EXECUTION, // ::
 
-    _SYNC_SILENT, // <==:
+    TRANSFORM,             // transform x <Int>
+    OBSERVE,               // observe x ()=>()
+    RUN,                   // run xy;
+    AWAIT,                 // await xy;
+    DEFER,                 // maybe xy;
+    FUNCTION,              // function ()
+    ASSERT,                // assert
+    ITERATOR,              // iterator ()
+    NEXT,                  // next it
+    FREEZE,                // freeze
+    SEAL,                  // seal
+    HAS,                   // x has y
+    KEYS,                  // keys x
+    GET_TYPE,              // type $aa
+    GET,                   // get file://..., get @user::34
+    RANGE,                 // ..
+    RESOLVE_RELATIVE_PATH, // ./abc
+    DO,                    // do xy;
+    DEFAULT,               // x default y
+    COLLAPSE,              // collapse x
+    RESPONSE,              // response x
+    CLONE_COLLAPSE,        // collapse
+
 }
 
 
