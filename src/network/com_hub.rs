@@ -684,7 +684,7 @@ impl ComHub {
         if block.routing_header.ttl > 1 {
             block.routing_header.ttl -= 1;
         }
-        // if ttl is would becomes 0 after decrement drop the block
+        // if ttl becomes 0 after decrement drop the block
         else if block.routing_header.ttl == 1 {
             block.routing_header.ttl -= 1;
             warn!("Block TTL expired. Dropping block...");
