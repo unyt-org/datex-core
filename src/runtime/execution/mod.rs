@@ -224,6 +224,9 @@ mod tests {
     use crate::{assert_structural_eq, assert_value_eq, datex_list};
     use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use log::{debug, info};
+    use datex_core::runtime::execution::context::LocalExecutionContext;
+    use crate::compiler::scope::CompilationScope;
+    use crate::runtime::execution::context::ExecutionContext;
     use crate::runtime::execution::execution_input::ExecutionOptions;
     use crate::stdlib::string::ToString;
     use crate::stdlib::vec::Vec;
@@ -247,6 +250,40 @@ mod tests {
         execute_dxb_sync(context).unwrap_or_else(|err| {
             core::panic!("Execution failed: {err}");
         })
+    }
+
+    fn execute_datex_script_debug_unbounded(
+        datex_script_parts: impl Iterator<Item = &'static str>,
+    ) -> impl Iterator<Item = Result<Option<ValueContainer>, ExecutionError>> {
+        gen move {
+            let datex_script_parts = datex_script_parts.collect::<Vec<_>>();
+            let mut execution_context = ExecutionContext::Local(LocalExecutionContext::new(ExecutionMode::unbounded()));
+            let mut compilation_scope = CompilationScope::new(ExecutionMode::unbounded());
+
+            let len = datex_script_parts.len();
+            for (index, script_part) in datex_script_parts.into_iter().enumerate() {
+                // if last part, compile and return static value if possible
+                if index == len - 1 {
+                    compilation_scope.mark_as_last_execution();
+                }
+
+                let (dxb, new_compilation_scope) = compile_script(script_part, CompileOptions::new_with_scope(compilation_scope)).unwrap();
+                compilation_scope = new_compilation_scope;
+                yield execution_context.execute_dxb_sync(&dxb)
+            }
+        }
+    }
+
+    fn assert_unbounded_input_matches_output(
+        input: Vec<&'static str>,
+        expected_output: Vec<Option<ValueContainer>>,
+    ) {
+        let input = input.into_iter();
+        let expected_output = expected_output.into_iter();
+        for (result, expected) in execute_datex_script_debug_unbounded(input.into_iter()).zip(expected_output.into_iter()) {
+            let result = result.unwrap();
+            assert_eq!(result, expected);
+        }
     }
 
     fn execute_datex_script_debug_with_error(
@@ -502,9 +539,9 @@ mod tests {
         info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(map.get("x"), Ok(&Integer::from(1i8).into()));
-        assert_eq!(map.get("y"), Ok(&Integer::from(2i8).into()));
-        assert_eq!(map.get("z"), Ok(&Integer::from(42i8).into()));
+        assert_eq!(map.get("x"), Ok(&Integer::from(1).into()));
+        assert_eq!(map.get("y"), Ok(&Integer::from(2).into()));
+        assert_eq!(map.get("z"), Ok(&Integer::from(42).into()));
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![
@@ -516,9 +553,9 @@ mod tests {
 
         // strict equality checks
         let expected_strict: Map = Map::from(vec![
-            ("x".to_string(), Integer::from(1_u32).into()),
-            ("y".to_string(), Integer::from(2_u32).into()),
-            ("z".to_string(), Integer::from(42_u32).into()),
+            ("x".to_string(), Integer::from(1).into()),
+            ("y".to_string(), Integer::from(2).into()),
+            ("z".to_string(), Integer::from(42).into()),
         ]);
         debug!("Expected map: {expected_strict}");
         debug!("Map result: {map}");
@@ -530,7 +567,7 @@ mod tests {
     fn statements() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("1; 2; 3");
-        assert_eq!(result, Integer::from(3i8).into());
+        assert_eq!(result, Integer::from(3).into());
     }
 
     #[test]
@@ -544,7 +581,7 @@ mod tests {
     fn val_assignment() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("const x = 42; x");
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
@@ -552,7 +589,7 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = 1 + 2; x");
-        assert_eq!(result, Integer::from(3i8).into());
+        assert_eq!(result, Integer::from(3).into());
     }
 
     #[test]
@@ -562,9 +599,9 @@ mod tests {
         let result =
             execute_datex_script_debug_with_result("[const x = 42, 2, x]");
         let expected = datex_list![
-            Integer::from(42i8),
-            Integer::from(2i8),
-            Integer::from(42i8)
+            Integer::from(42),
+            Integer::from(2),
+            Integer::from(42)
         ];
         assert_eq!(result, expected.into());
     }
@@ -574,7 +611,7 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = &42; *x");
-        assert_eq!(result, ValueContainer::from(Integer::from(42i8)));
+        assert_eq!(result, ValueContainer::from(Integer::from(42)));
     }
 
     #[test]
@@ -583,7 +620,7 @@ mod tests {
         let result =
             execute_datex_script_debug_with_result("const x = &mut 42; x");
         assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(42i8)));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(42)));
     }
 
     #[test]
@@ -592,14 +629,14 @@ mod tests {
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; *x += 1",
         );
-        assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
 
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; *x += 1; x",
         );
 
         assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(43i8)));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(43)));
     }
 
     #[test]
@@ -608,7 +645,7 @@ mod tests {
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; *x -= 1",
         );
-        assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
 
         let result = execute_datex_script_debug_with_result(
             "const x = &mut 42; *x -= 1; x",
@@ -617,7 +654,7 @@ mod tests {
         // FIXME #414 due to addition the resulting value container of the slot
         // is no longer a reference but a value what is incorrect.
         // assert_matches!(result, ValueContainer::Reference(..));
-        assert_value_eq!(result, ValueContainer::from(Integer::from(41i8)));
+        assert_value_eq!(result, ValueContainer::from(Integer::from(41)));
     }
 
     #[test]
@@ -631,7 +668,7 @@ mod tests {
     fn shebang() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("#!datex\n42");
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
@@ -639,12 +676,12 @@ mod tests {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("// this is a comment\n42");
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
 
         let result = execute_datex_script_debug_with_result(
             "// this is a comment\n// another comment\n42",
         );
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
@@ -653,15 +690,29 @@ mod tests {
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment */\n42",
         );
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
 
         let result = execute_datex_script_debug_with_result(
             "/* this is a comment\n   with multiple lines */\n42",
         );
-        assert_eq!(result, Integer::from(42i8).into());
+        assert_eq!(result, Integer::from(42).into());
 
         let result = execute_datex_script_debug_with_result("[1, /* 2, */ 3]");
-        let expected = datex_list![Integer::from(1i8), Integer::from(3i8)];
+        let expected = datex_list![Integer::from(1), Integer::from(3)];
         assert_eq!(result, expected.into());
+    }
+
+    #[test]
+    fn continuous_execution() {
+        assert_unbounded_input_matches_output(
+            vec![
+                "1",
+                "2",
+            ],
+            vec![
+                Some(Integer::from(1).into()),
+                Some(Integer::from(2).into()),
+            ]
+        )
     }
 }

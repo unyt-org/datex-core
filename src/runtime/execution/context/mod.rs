@@ -103,39 +103,32 @@ impl ExecutionContext {
         &'a mut self,
         dxb: &'a [u8],
     ) -> Result<ExecutionInput<'a>, ExecutionError> {
-        let (input, verbose) = {
-            let (runtime, loop_state, execution_options, verbose) = match self
-            {
-                ExecutionContext::Local(LocalExecutionContext {
-                                            runtime,
-                                            loop_state,
-                                            execution_options,
-                                            verbose,
-                                            ..
-                                        }) => (runtime, loop_state, execution_options, *verbose),
-                // remote execution is not supported directly in execution context
-                ExecutionContext::Remote(_) => {
-                    core::panic!("Remote execution requires a Runtime");
-                }
-            };
-
-            (
-                ExecutionInput {
+        match self {
+            ExecutionContext::Remote(_) => {
+                core::panic!("Remote execution requires a Runtime");
+            }
+            ExecutionContext::Local(LocalExecutionContext {
+                                        runtime,
+                                        loop_state,
+                                        execution_options,
+                                        verbose,
+                                        ..
+                                    }) => {
+                let input = ExecutionInput {
                     runtime: runtime.clone(),
                     loop_state: loop_state.take(),
                     options: (*execution_options).clone(),
                     dxb_body: dxb,
-                }, 
-                verbose
-            )
-        };
+                };
 
-        // show DXB and decompiled code if verbose is enabled
-        if verbose {
-            self.print_dxb_debug(dxb)?;
+                // show DXB and decompiled code if verbose is enabled
+                if *verbose {
+                    self.print_dxb_debug(dxb)?;
+                }
+
+                Ok(input)
+            }
         }
-        
-        Ok(input)        
     }
 
     /// Executes DXB in a local execution context.
@@ -145,7 +138,8 @@ impl ExecutionContext {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         let execution_input =
             self.get_local_execution_input(dxb)?;
-        execute_dxb_sync(execution_input)
+        let res = execute_dxb_sync(execution_input);
+        self.intercept_intermediate_result(res)
     }
 
     /// Executes a script in a local execution context.
@@ -166,27 +160,38 @@ impl ExecutionContext {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ExecutionContext::Local(..) => {
-                let execution_input =
-                    self.get_local_execution_input(dxb)?;
-                let res = execute_dxb(execution_input).await;
-                match res {
-                    Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(state))) => {
-                        match self {
-                            ExecutionContext::Local(LocalExecutionContext {loop_state, .. }) => {
-                                loop_state.replace(state);
-                                Ok(intermediate_result)
-                            },
-                            // TODO: improve this
-                            _ => unreachable!(), // we already matched above
-                        }
-                    },
-                    _ => res
-                }
+                let res = {
+                    let execution_input =
+                        self.get_local_execution_input(dxb)?;
+                    execute_dxb(execution_input).await
+                };
+                self.intercept_intermediate_result(res)
             }
             // remote execution is not supported directly in execution context
             ExecutionContext::Remote(..) => {
                 core::panic!("Remote execution requires a Runtime");
             }
+        }
+    }
+    
+    /// Intercepts an intermediate execution result,
+    /// storing the loop state if present in the execution context and returning the intermediate result as an Ok value.
+    /// Note: this function assumes that self is a Local execution context
+    fn intercept_intermediate_result(
+        &mut self,
+        execution_result: Result<Option<ValueContainer>, ExecutionError>,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match execution_result {
+            Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(state))) => {
+                match self {
+                    ExecutionContext::Local(LocalExecutionContext {loop_state, .. }) => {
+                        loop_state.replace(state);
+                        Ok(intermediate_result)
+                    },
+                    _ => unreachable!(), // note: this must be ensured by the caller
+                }
+            },
+            _ => execution_result
         }
     }
 

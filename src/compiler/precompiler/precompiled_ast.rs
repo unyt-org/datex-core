@@ -36,6 +36,9 @@ impl Display for VariableShape {
 #[derive(Default, Debug)]
 pub struct AstMetadata {
     pub variables: Vec<VariableMetadata>,
+    /// Indicates whether the AST is terminated (; at the end)
+    /// A terminated script can never return a value
+    pub is_terminated: bool,
 }
 
 impl AstMetadata {

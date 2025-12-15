@@ -12,7 +12,19 @@ pub enum ExecutionMode {
     Static,
     /// An execution of a program that may be extended at runtime.
     /// This mode is used for REPLs and dynamic remote executions with persistent contexts.
-    Unbounded,
+    Unbounded {
+        has_next: bool,
+    },
+}
+
+impl ExecutionMode {
+    pub fn unbounded() -> Self {
+        ExecutionMode::Unbounded { has_next: true }
+    }
+    
+    pub fn is_unbounded(&self) -> bool {
+        matches!(self, ExecutionMode::Unbounded { .. })
+    }
 }
 
 #[derive(Debug, Default)]
@@ -97,7 +109,7 @@ impl ExecutionContext {
 
     /// Creates a new local execution context (can be used multiple times).
     pub fn local_unbounded() -> Self {
-        ExecutionContext::Local(LocalExecutionContext::new(ExecutionMode::Unbounded))
+        ExecutionContext::Local(LocalExecutionContext::new(ExecutionMode::Unbounded {has_next: true}))
     }
 
     /// Creates a new local execution context with a runtime.
