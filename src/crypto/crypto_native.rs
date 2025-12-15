@@ -293,6 +293,16 @@ mod tests {
         );
     }
 
+    #[test]
+    pub fn base58() {
+        let something = b"Something".to_vec();
+        let based = CRYPTO.enc_b58(&something).unwrap();
+        let unbased = CRYPTO.dec_b58(&based).unwrap();
+        assert_eq!(something, unbased);
+        println!("Based: {:?}", based);
+        println!("Unbased: {:?}", unbased);
+    }
+
     // Signatures
     #[tokio::test]
     pub async fn dsa_ed25519() {
