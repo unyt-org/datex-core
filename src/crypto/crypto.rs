@@ -2,6 +2,7 @@ use crate::stdlib::boxed::Box;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{future::Future, pin::Pin};
+use bs58;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
@@ -20,6 +21,18 @@ pub trait CryptoTrait: Send + Sync {
         &'a self,
         to_digest: &'a [u8],
     ) -> CryptoResult<'a, [u8; 32]>;
+
+    fn enc_b58<'a>(&'a self, hash: &'a [u8]) -> Result<String, CryptoError> {
+        let encoded = bs58::encode(hash).into_string();
+        Ok(encoded)
+    }
+
+    fn dec_b58<'a>(&'a self, fp: &'a str) -> Result<Vec<u8>, CryptoError> {
+        let decoded = bs58::decode(fp)
+            .into_vec()
+            .map_err(|_| CryptoError::Decryption)?;
+        Ok(decoded)
+    }
 
     /// Hash key derivation function.
     fn hkdf_sha256<'a>(
