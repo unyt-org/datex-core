@@ -16,6 +16,19 @@ pub enum PointerAddress {
     // globally unique internal pointer, e.g. for #core, #std
     Internal([u8; 3]), // TODO #312 shrink down to 2 bytes?
 }
+
+impl From<RawPointerAddress> for PointerAddress {
+    fn from(raw: RawPointerAddress) -> Self {
+        match raw {
+            RawPointerAddress::Local(bytes) => PointerAddress::Local(bytes.id),
+            RawPointerAddress::Internal(bytes) => {
+                PointerAddress::Internal(bytes.id)
+            }
+            RawPointerAddress::Full(bytes) => PointerAddress::Remote(bytes.id),
+        }
+    }
+}
+
 impl TryFrom<String> for PointerAddress {
     type Error = &'static str;
     fn try_from(s: String) -> Result<Self, Self::Error> {

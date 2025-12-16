@@ -1,4 +1,5 @@
 use crate::global::operators::AssignmentOperator;
+use crate::global::protocol_structures::routing_header::PointerAddress;
 use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
