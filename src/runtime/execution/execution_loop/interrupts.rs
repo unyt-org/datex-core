@@ -1,9 +1,12 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::global::protocol_structures::instructions::{RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RegularInstruction, TypeInstruction};
+use crate::global::protocol_structures::instructions::{
+    RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress,
+    RegularInstruction, TypeInstruction,
+};
 use crate::values::core_values::map::OwnedMapKey;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum ExecutionInterrupt {
@@ -24,7 +27,9 @@ pub enum ExecutionInterrupt {
     GetNextRegularInstruction,
     GetNextTypeInstruction,
     /// yields an external interrupt to be handled by the execution loop caller (for I/O operations, pointer resolution, remote execution, etc.)
-    External(crate::runtime::execution::execution_loop::ExternalExecutionInterrupt)
+    External(
+        crate::runtime::execution::execution_loop::ExternalExecutionInterrupt,
+    ),
 }
 
 #[derive(Debug)]
@@ -47,13 +52,13 @@ pub enum InterruptResult {
 
 #[derive(Debug, Clone)]
 pub struct InterruptProvider {
-    result: Rc<RefCell<Option<InterruptResult>>>
+    result: Rc<RefCell<Option<InterruptResult>>>,
 }
 
 impl InterruptProvider {
     pub fn new() -> Self {
         Self {
-            result: Rc::new(RefCell::new(None))
+            result: Rc::new(RefCell::new(None)),
         }
     }
 

@@ -83,7 +83,9 @@ impl From<RegularInstruction> for AssignmentOperator {
             RegularInstruction::MultiplyAssign(_) => {
                 AssignmentOperator::MultiplyAssign
             }
-            RegularInstruction::DivideAssign(_) => AssignmentOperator::DivideAssign,
+            RegularInstruction::DivideAssign(_) => {
+                AssignmentOperator::DivideAssign
+            }
             _ => core::todo!(
                 "Assignment operator for instruction {:?} not implemented",
                 instruction

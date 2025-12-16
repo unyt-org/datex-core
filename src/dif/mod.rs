@@ -33,10 +33,7 @@ mod tests {
     use crate::dif::value::DIFValueContainer;
     use crate::runtime::memory::Memory;
     use crate::{
-        dif::{
-            representation::DIFValueRepresentation,
-            value::DIFValue,
-        },
+        dif::{representation::DIFValueRepresentation, value::DIFValue},
         libs::core::CoreLibPointerId,
         values::{
             core_values::integer::typed_integer::IntegerTypeVariant,

@@ -1,16 +1,18 @@
+use crate::compiler::error::SpannedCompilerError;
+use crate::compiler::scope::CompilationScope;
+use crate::compiler::{CompileOptions, compile_template};
+use crate::runtime::execution::{
+    ExecutionError, ExecutionInput, MemoryDump, execute_dxb, execute_dxb_sync,
+};
+use crate::values::value_container::ValueContainer;
+pub use local::*;
 use log::info;
 pub use remote::*;
 pub use script::*;
-pub use local::*;
-use crate::compiler::{compile_template, CompileOptions};
-use crate::compiler::error::SpannedCompilerError;
-use crate::compiler::scope::CompilationScope;
-use crate::runtime::execution::{execute_dxb, execute_dxb_sync, ExecutionError, ExecutionInput, MemoryDump};
-use crate::values::value_container::ValueContainer;
 
+mod local;
 mod remote;
 mod script;
-mod local;
 
 /// An execution context holds the persistent state for executing multiple scripts sequentially within the same context.
 /// This can be either a local context, which is used for executing scripts in the same process, or a remote context,
@@ -26,13 +28,13 @@ impl ExecutionContext {
     fn compile_scope(&self) -> &CompilationScope {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
-                                        compile_scope,
-                                        ..
-                                    }) => compile_scope,
+                compile_scope,
+                ..
+            }) => compile_scope,
             ExecutionContext::Remote(RemoteExecutionContext {
-                                         compile_scope,
-                                         ..
-                                     }) => compile_scope,
+                compile_scope,
+                ..
+            }) => compile_scope,
         }
     }
 
@@ -40,13 +42,13 @@ impl ExecutionContext {
     fn set_compile_scope(&mut self, new_compile_scope: CompilationScope) {
         match self {
             ExecutionContext::Local(LocalExecutionContext {
-                                        compile_scope,
-                                        ..
-                                    }) => *compile_scope = new_compile_scope,
+                compile_scope,
+                ..
+            }) => *compile_scope = new_compile_scope,
             ExecutionContext::Remote(RemoteExecutionContext {
-                                         compile_scope,
-                                         ..
-                                     }) => *compile_scope = new_compile_scope,
+                compile_scope,
+                ..
+            }) => *compile_scope = new_compile_scope,
         }
     }
 
@@ -108,12 +110,12 @@ impl ExecutionContext {
                 core::panic!("Remote execution requires a Runtime");
             }
             ExecutionContext::Local(LocalExecutionContext {
-                                        runtime,
-                                        loop_state,
-                                        execution_options,
-                                        verbose,
-                                        ..
-                                    }) => {
+                runtime,
+                loop_state,
+                execution_options,
+                verbose,
+                ..
+            }) => {
                 let input = ExecutionInput {
                     runtime: runtime.clone(),
                     loop_state: loop_state.take(),
@@ -136,8 +138,7 @@ impl ExecutionContext {
         &mut self,
         dxb: &[u8],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        let execution_input =
-            self.get_local_execution_input(dxb)?;
+        let execution_input = self.get_local_execution_input(dxb)?;
         let res = execute_dxb_sync(execution_input);
         self.intercept_intermediate_result(res)
     }
@@ -173,7 +174,7 @@ impl ExecutionContext {
             }
         }
     }
-    
+
     /// Intercepts an intermediate execution result,
     /// storing the loop state if present in the execution context and returning the intermediate result as an Ok value.
     /// Note: this function assumes that self is a Local execution context
@@ -182,16 +183,22 @@ impl ExecutionContext {
         execution_result: Result<Option<ValueContainer>, ExecutionError>,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match execution_result {
-            Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(state))) => {
+            Err(ExecutionError::IntermediateResultWithState(
+                intermediate_result,
+                Some(state),
+            )) => {
                 match self {
-                    ExecutionContext::Local(LocalExecutionContext {loop_state, .. }) => {
+                    ExecutionContext::Local(LocalExecutionContext {
+                        loop_state,
+                        ..
+                    }) => {
                         loop_state.replace(state);
                         Ok(intermediate_result)
-                    },
+                    }
                     _ => unreachable!(), // note: this must be ensured by the caller
                 }
-            },
-            _ => execution_result
+            }
+            _ => execution_result,
         }
     }
 

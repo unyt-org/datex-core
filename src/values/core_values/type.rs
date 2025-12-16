@@ -19,6 +19,7 @@ use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::text::Text;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
@@ -26,7 +27,6 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
-use crate::values::pointer::PointerAddress;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -34,7 +34,6 @@ pub struct Type {
     pub base_type: Option<Rc<RefCell<TypeReference>>>,
     pub reference_mutability: Option<ReferenceMutability>,
 }
-
 
 // x: &User; Type {reference: }
 
@@ -208,10 +207,7 @@ impl Type {
         impl_types: Vec<PointerAddress>,
     ) -> Self {
         Type {
-            type_definition: TypeDefinition::impl_type(
-                base_type,
-                impl_types,
-            ),
+            type_definition: TypeDefinition::impl_type(base_type, impl_types),
             base_type: None,
             reference_mutability: None,
         }

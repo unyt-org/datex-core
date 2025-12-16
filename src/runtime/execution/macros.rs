@@ -11,7 +11,6 @@ macro_rules! next_iter {
 }
 pub(crate) use next_iter;
 
-
 /// Intercept a specific step in an iterator.
 /// Non-handled steps are yielded back to the caller.
 /// The result of the matched body is returned if the step is encountered before the iterator ends.
@@ -20,7 +19,7 @@ macro_rules! intercept_maybe_step {
     (
         $iterator:expr,
         $( $pattern:pat => $body:expr ),+ $(,)?
-    ) => {        
+    ) => {
         loop {
             let step = $iterator.next();
             if let Some(step) = step  {
@@ -69,7 +68,6 @@ macro_rules! intercept_step {
 }
 pub(crate) use intercept_step;
 
-
 /// Yield an interrupt and get the next input
 macro_rules! interrupt {
     ($input:expr, $arg:expr) => {{
@@ -108,7 +106,6 @@ macro_rules! interrupt_with_value {
     }};
 }
 pub(crate) use interrupt_with_value;
-
 
 /// Unwrap a Result expression, yielding an error if it is an Err variant
 /// This is similar to the `?` operator but works within generator functions

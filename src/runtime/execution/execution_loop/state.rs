@@ -1,15 +1,17 @@
-use core::cell::RefCell;
-use core::fmt::Debug;
-use datex_core::runtime::execution::execution_loop::InterruptResult;
+use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
 use crate::runtime::execution::execution_loop::interrupts::InterruptProvider;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
-use crate::runtime::execution::ExecutionError;
 use crate::values::value_container::ValueContainer;
+use core::cell::RefCell;
+use core::fmt::Debug;
+use datex_core::runtime::execution::execution_loop::InterruptResult;
 
 pub struct ExecutionLoopState {
-    pub iterator: Box<dyn Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>>,
+    pub iterator: Box<
+        dyn Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>,
+    >,
     pub dxb_body: Rc<RefCell<Vec<u8>>>,
     pub(crate) interrupt_provider: InterruptProvider,
 }
@@ -32,13 +34,16 @@ pub struct RuntimeExecutionState {
 
 #[derive(Debug, Default)]
 pub struct RuntimeExecutionSlots {
-    pub(crate) slots: HashMap<u32, Option<ValueContainer>>
+    pub(crate) slots: HashMap<u32, Option<ValueContainer>>,
 }
 
 impl RuntimeExecutionSlots {
-
     /// Allocates a new slot with the given slot address.
-    pub(crate) fn allocate_slot(&mut self, address: u32, value: Option<ValueContainer>) {
+    pub(crate) fn allocate_slot(
+        &mut self,
+        address: u32,
+        value: Option<ValueContainer>,
+    ) {
         self.slots.insert(address, value);
     }
 

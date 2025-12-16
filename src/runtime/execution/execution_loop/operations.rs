@@ -1,5 +1,11 @@
-use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator, UnaryOperator};
-use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
+use crate::global::operators::binary::{
+    ArithmeticOperator, BitwiseOperator, LogicalOperator,
+};
+use crate::global::operators::{
+    ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator,
+    ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator,
+    UnaryOperator,
+};
 use crate::references::reference::Reference;
 use crate::runtime::execution::ExecutionError;
 use crate::traits::identity::Identity;
@@ -133,12 +139,8 @@ pub fn handle_arithmetic_operation(
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     match operator {
-        ArithmeticOperator::Add => {
-            Ok((lhs + rhs)?)
-        }
-        ArithmeticOperator::Subtract => {
-            Ok((lhs - rhs)?)
-        }
+        ArithmeticOperator::Add => Ok((lhs + rhs)?),
+        ArithmeticOperator::Subtract => Ok((lhs - rhs)?),
         // ArithmeticOperator::Multiply => {
         //     Ok((active_value_container * &value_container)?)
         // }
@@ -182,20 +184,14 @@ pub fn handle_binary_operation(
     rhs: &ValueContainer,
 ) -> Result<ValueContainer, ExecutionError> {
     match operator {
-        BinaryOperator::Arithmetic(arith_op) => handle_arithmetic_operation(
-            arith_op,
-            lhs,
-            rhs,
-        ),
-        BinaryOperator::Bitwise(bitwise_op) => handle_bitwise_operation(
-            bitwise_op,
-            lhs,
-            rhs,
-        ),
-        BinaryOperator::Logical(logical_op) => handle_logical_operation(
-            logical_op,
-            lhs,
-            rhs,
-        ),
+        BinaryOperator::Arithmetic(arith_op) => {
+            handle_arithmetic_operation(arith_op, lhs, rhs)
+        }
+        BinaryOperator::Bitwise(bitwise_op) => {
+            handle_bitwise_operation(bitwise_op, lhs, rhs)
+        }
+        BinaryOperator::Logical(logical_op) => {
+            handle_logical_operation(logical_op, lhs, rhs)
+        }
     }
 }

@@ -1,9 +1,9 @@
-use core::prelude::rust_2024::*;
+use crate::types::definition::TypeDefinition;
 use binrw::{BinRead, BinWrite};
+use core::prelude::rust_2024::*;
+use datex_core::references::reference::ReferenceMutability;
 use num_enum::TryFromPrimitive;
 use strum::Display;
-use datex_core::references::reference::ReferenceMutability;
-use crate::types::definition::TypeDefinition;
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -66,20 +66,29 @@ pub enum TypeInstructionCode {
     STD_TYPE_ITERATOR,
 }
 
-
 impl From<&TypeDefinition> for TypeInstructionCode {
     fn from(value: &TypeDefinition) -> Self {
         match value {
-            TypeDefinition::ImplType(_, _) => TypeInstructionCode::TYPE_WITH_IMPLS,
+            TypeDefinition::ImplType(_, _) => {
+                TypeInstructionCode::TYPE_WITH_IMPLS
+            }
             TypeDefinition::Reference(_) => TypeInstructionCode::TYPE_REFERENCE,
             TypeDefinition::Unit => TypeInstructionCode::TYPE_UNIT,
             TypeDefinition::Unknown => TypeInstructionCode::TYPE_UNKNOWN,
             TypeDefinition::Never => TypeInstructionCode::TYPE_NEVER,
-            TypeDefinition::Structural(_) => TypeInstructionCode::TYPE_STRUCTURAL,
-            TypeDefinition::Intersection(_) => TypeInstructionCode::TYPE_INTERSECTION,
+            TypeDefinition::Structural(_) => {
+                TypeInstructionCode::TYPE_STRUCTURAL
+            }
+            TypeDefinition::Intersection(_) => {
+                TypeInstructionCode::TYPE_INTERSECTION
+            }
             TypeDefinition::Union(_) => TypeInstructionCode::TYPE_UNION,
-            TypeDefinition::Function {..} => TypeInstructionCode::TYPE_FUNCTION,
-            TypeDefinition::Collection(_) => TypeInstructionCode::TYPE_COLLECTION,
+            TypeDefinition::Function { .. } => {
+                TypeInstructionCode::TYPE_FUNCTION
+            }
+            TypeDefinition::Collection(_) => {
+                TypeInstructionCode::TYPE_COLLECTION
+            }
             TypeDefinition::Type(_) => unreachable!(), // TODO: nested types
         }
     }
@@ -90,14 +99,18 @@ impl From<&TypeDefinition> for TypeInstructionCode {
 pub enum TypeMutabilityCode {
     MutableReference,
     ImmutableReference,
-    Value
+    Value,
 }
 
 impl From<&Option<ReferenceMutability>> for TypeMutabilityCode {
     fn from(value: &Option<ReferenceMutability>) -> Self {
         match value {
-            Some(ReferenceMutability::Mutable) => TypeMutabilityCode::MutableReference,
-            Some(ReferenceMutability::Immutable) => TypeMutabilityCode::ImmutableReference,
+            Some(ReferenceMutability::Mutable) => {
+                TypeMutabilityCode::MutableReference
+            }
+            Some(ReferenceMutability::Immutable) => {
+                TypeMutabilityCode::ImmutableReference
+            }
             None => TypeMutabilityCode::Value,
         }
     }
@@ -106,8 +119,12 @@ impl From<&Option<ReferenceMutability>> for TypeMutabilityCode {
 impl From<TypeMutabilityCode> for Option<ReferenceMutability> {
     fn from(value: TypeMutabilityCode) -> Self {
         match value {
-            TypeMutabilityCode::MutableReference => Some(ReferenceMutability::Mutable),
-            TypeMutabilityCode::ImmutableReference => Some(ReferenceMutability::Immutable),
+            TypeMutabilityCode::MutableReference => {
+                Some(ReferenceMutability::Mutable)
+            }
+            TypeMutabilityCode::ImmutableReference => {
+                Some(ReferenceMutability::Immutable)
+            }
             TypeMutabilityCode::Value => None,
         }
     }

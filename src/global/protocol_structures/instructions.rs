@@ -1,4 +1,5 @@
 use crate::global::operators::AssignmentOperator;
+use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
@@ -9,7 +10,6 @@ use crate::values::core_values::{
 use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
-use crate::global::type_instruction_codes::TypeMutabilityCode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -22,7 +22,9 @@ pub enum Instruction {
 impl Display for Instruction {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Instruction::RegularInstruction(instr) => core::write!(f, "{}", instr),
+            Instruction::RegularInstruction(instr) => {
+                core::write!(f, "{}", instr)
+            }
             Instruction::TypeInstruction(instr) => {
                 core::write!(f, "TYPE_INSTRUCTION {}", instr)
             }
@@ -145,16 +147,34 @@ pub enum RegularInstruction {
 impl Display for RegularInstruction {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            RegularInstruction::Int8(data) => core::write!(f, "INT_8 {}", data.0),
-            RegularInstruction::Int16(data) => core::write!(f, "INT_16 {}", data.0),
-            RegularInstruction::Int32(data) => core::write!(f, "INT_32 {}", data.0),
-            RegularInstruction::Int64(data) => core::write!(f, "INT_64 {}", data.0),
-            RegularInstruction::Int128(data) => core::write!(f, "INT_128 {}", data.0),
+            RegularInstruction::Int8(data) => {
+                core::write!(f, "INT_8 {}", data.0)
+            }
+            RegularInstruction::Int16(data) => {
+                core::write!(f, "INT_16 {}", data.0)
+            }
+            RegularInstruction::Int32(data) => {
+                core::write!(f, "INT_32 {}", data.0)
+            }
+            RegularInstruction::Int64(data) => {
+                core::write!(f, "INT_64 {}", data.0)
+            }
+            RegularInstruction::Int128(data) => {
+                core::write!(f, "INT_128 {}", data.0)
+            }
 
-            RegularInstruction::UInt8(data) => core::write!(f, "UINT_8 {}", data.0),
-            RegularInstruction::UInt16(data) => core::write!(f, "UINT_16 {}", data.0),
-            RegularInstruction::UInt32(data) => core::write!(f, "UINT_32 {}", data.0),
-            RegularInstruction::UInt64(data) => core::write!(f, "UINT_64 {}", data.0),
+            RegularInstruction::UInt8(data) => {
+                core::write!(f, "UINT_8 {}", data.0)
+            }
+            RegularInstruction::UInt16(data) => {
+                core::write!(f, "UINT_16 {}", data.0)
+            }
+            RegularInstruction::UInt32(data) => {
+                core::write!(f, "UINT_32 {}", data.0)
+            }
+            RegularInstruction::UInt64(data) => {
+                core::write!(f, "UINT_64 {}", data.0)
+            }
             RegularInstruction::UInt128(data) => {
                 core::write!(f, "UINT_128 {}", data.0)
             }
@@ -196,7 +216,9 @@ impl Display for RegularInstruction {
             RegularInstruction::ShortText(data) => {
                 core::write!(f, "SHORT_TEXT {}", data.0)
             }
-            RegularInstruction::Text(data) => core::write!(f, "TEXT {}", data.0),
+            RegularInstruction::Text(data) => {
+                core::write!(f, "TEXT {}", data.0)
+            }
             RegularInstruction::True => core::write!(f, "TRUE"),
             RegularInstruction::False => core::write!(f, "FALSE"),
             RegularInstruction::Null => core::write!(f, "NULL"),
@@ -237,7 +259,9 @@ impl Display for RegularInstruction {
             RegularInstruction::Divide => core::write!(f, "DIVIDE"),
 
             // equality checks
-            RegularInstruction::StructuralEqual => core::write!(f, "STRUCTURAL_EQUAL"),
+            RegularInstruction::StructuralEqual => {
+                core::write!(f, "STRUCTURAL_EQUAL")
+            }
             RegularInstruction::Equal => core::write!(f, "EQUAL"),
             RegularInstruction::NotStructuralEqual => {
                 core::write!(f, "NOT_STRUCTURAL_EQUAL")
@@ -285,7 +309,9 @@ impl Display for RegularInstruction {
                 )
             }
             RegularInstruction::CreateRef => core::write!(f, "CREATE_REF"),
-            RegularInstruction::CreateRefMut => core::write!(f, "CREATE_REF_MUT"),
+            RegularInstruction::CreateRefMut => {
+                core::write!(f, "CREATE_REF_MUT")
+            }
             RegularInstruction::GetOrCreateRef(data) => {
                 core::write!(
                     f,
@@ -328,7 +354,9 @@ impl Display for RegularInstruction {
             RegularInstruction::UnaryPlus => core::write!(f, "+"),
             RegularInstruction::BitwiseNot => core::write!(f, "BITWISE_NOT"),
             RegularInstruction::TypedValue => core::write!(f, "TYPED_VALUE"),
-            RegularInstruction::TypeExpression => core::write!(f, "TYPE_EXPRESSION"),
+            RegularInstruction::TypeExpression => {
+                core::write!(f, "TYPE_EXPRESSION")
+            }
         }
     }
 }
@@ -355,10 +383,9 @@ impl Display for TypeInstruction {
             TypeInstruction::List(data) => {
                 core::write!(f, "LIST {}", data.element_count)
             }
-            TypeInstruction::TypeReference(address) => core::write!(
-                f,
-                "TYPE_REFERENCE",
-            ),
+            TypeInstruction::TypeReference(address) => {
+                core::write!(f, "TYPE_REFERENCE",)
+            }
             TypeInstruction::ImplType(data) => {
                 core::write!(f, "IMPL_TYPE ({} impls)", data.impl_count)
             }
@@ -566,7 +593,6 @@ pub struct ApplyData {
     pub arg_count: u16,
 }
 
-
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct ImplTypeData {
@@ -582,7 +608,6 @@ pub struct TypeReferenceData {
     pub metadata: TypeMetadata,
     pub address: RawPointerAddress,
 }
-
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]

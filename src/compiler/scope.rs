@@ -3,8 +3,8 @@ use crate::collections::HashMap;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
-use core::cell::RefCell;
 use crate::runtime::execution::context::ExecutionMode;
+use core::cell::RefCell;
 
 #[derive(Debug, Default, Clone)]
 pub struct PrecompilerData {
@@ -64,14 +64,17 @@ impl CompilationScope {
             ..CompilationScope::default()
         }
     }
-    
+
     pub fn mark_as_last_execution(&mut self) {
         match self.execution_mode {
             ExecutionMode::Static => {
-                panic!("mark_as_last_execution can only be called for Unbounded execution modes");
+                panic!(
+                    "mark_as_last_execution can only be called for Unbounded execution modes"
+                );
             }
-            ExecutionMode::Unbounded {..} => {
-                self.execution_mode = ExecutionMode::Unbounded { has_next: false };
+            ExecutionMode::Unbounded { .. } => {
+                self.execution_mode =
+                    ExecutionMode::Unbounded { has_next: false };
             }
             _ => {}
         }

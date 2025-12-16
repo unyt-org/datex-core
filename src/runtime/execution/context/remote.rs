@@ -14,7 +14,10 @@ pub struct RemoteExecutionContext {
 
 impl RemoteExecutionContext {
     /// Creates a new remote execution context with the given endpoint.
-    pub fn new(endpoint: impl Into<Endpoint>, execution_mode: ExecutionMode) -> Self {
+    pub fn new(
+        endpoint: impl Into<Endpoint>,
+        execution_mode: ExecutionMode,
+    ) -> Self {
         RemoteExecutionContext {
             #[cfg(feature = "compiler")]
             compile_scope: CompilationScope::new(execution_mode),
@@ -25,13 +28,18 @@ impl RemoteExecutionContext {
     }
 }
 
-
 impl ExecutionContext {
     pub fn remote(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::Static))
+        ExecutionContext::Remote(RemoteExecutionContext::new(
+            endpoint,
+            ExecutionMode::Static,
+        ))
     }
 
     pub fn remote_unbounded(endpoint: impl Into<Endpoint>) -> Self {
-        ExecutionContext::Remote(RemoteExecutionContext::new(endpoint, ExecutionMode::unbounded()))
+        ExecutionContext::Remote(RemoteExecutionContext::new(
+            endpoint,
+            ExecutionMode::unbounded(),
+        ))
     }
 }

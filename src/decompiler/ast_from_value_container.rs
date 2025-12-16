@@ -1,4 +1,3 @@
-use datex_core::values::core_values::text::Text;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{
     CreateRef, DatexExpressionData, List, Map,
@@ -9,6 +8,7 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use datex_core::values::core_values::text::Text;
 
 impl From<&ValueContainer> for DatexExpressionData {
     /// Converts a ValueContainer into a DatexExpression AST.
@@ -76,9 +76,14 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                     _ => TypeExpressionData::Text(format!(
                         "[[STRUCTURAL TYPE {:?}]]",
                         struct_type
-                    )).with_default_span(),
+                    ))
+                    .with_default_span(),
                 },
-                _ => TypeExpressionData::Text(format!("[[TYPE {:?}]]", type_value.type_definition)).with_default_span()
+                _ => TypeExpressionData::Text(format!(
+                    "[[TYPE {:?}]]",
+                    type_value.type_definition
+                ))
+                .with_default_span(),
             },
         ),
     }

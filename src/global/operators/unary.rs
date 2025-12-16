@@ -1,7 +1,7 @@
 use crate::global::instruction_codes::InstructionCode;
+use crate::global::protocol_structures::instructions::RegularInstruction;
 use core::fmt::{Display, Formatter};
 use core::prelude::rust_2024::*;
-use crate::global::protocol_structures::instructions::RegularInstruction;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum UnaryOperator {
@@ -58,7 +58,6 @@ impl From<RegularInstruction> for UnaryOperator {
         UnaryOperator::from(&instruction)
     }
 }
-
 
 impl Display for UnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
