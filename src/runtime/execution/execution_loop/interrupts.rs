@@ -55,6 +55,12 @@ pub struct InterruptProvider {
     result: Rc<RefCell<Option<InterruptResult>>>,
 }
 
+impl Default for InterruptProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InterruptProvider {
     pub fn new() -> Self {
         Self {

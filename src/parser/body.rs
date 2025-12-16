@@ -32,7 +32,6 @@ use crate::global::protocol_structures::instructions::{
     RawLocalPointerAddress, StatementsData,
 };
 use crate::parser::next_instructions_stack::NextInstructionsStack;
-use log::info;
 
 #[derive(Debug)]
 pub enum DXBParserError {
