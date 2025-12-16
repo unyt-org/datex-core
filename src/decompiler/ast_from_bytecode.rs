@@ -3,11 +3,13 @@ use std::rc::Rc;
 use logos::Source;
 use datex_core::ast::structs::expression::{DatexExpression, List};
 use datex_core::ast::structs::r#type::TypeExpression;
+use datex_core::values::core_values::decimal::Decimal;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::protocol_structures::instructions::{Instruction, RegularInstruction};
 use crate::parser::body::{iterate_instructions, DXBParserError};
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 
 enum CollectedResult {
@@ -110,19 +112,37 @@ pub fn ast_from_bytecode(dxb: &[u8]) -> Result<DatexExpression, DXBParserError> 
                     RegularInstruction::UInt64(integer_data) => {
                         Some(DatexExpressionData::TypedInteger(TypedInteger::from(integer_data.0)).with_default_span())
                     }
-                    RegularInstruction::BigInteger(_) => todo!(),
-                    RegularInstruction::Endpoint(_) => todo!(),
-                    RegularInstruction::DecimalF32(_) => todo!(),
-                    RegularInstruction::DecimalF64(_) => todo!(),
-                    RegularInstruction::DecimalAsInt16(_) => todo!(),
-                    RegularInstruction::DecimalAsInt32(_) => todo!(),
-                    RegularInstruction::Decimal(_) => todo!(),
+                    RegularInstruction::BigInteger(integer_data) => {
+                        Some(DatexExpressionData::Integer(integer_data.0.clone()).with_default_span())
+                    }
+                    RegularInstruction::Endpoint(endpoint) => {
+                        Some(DatexExpressionData::Endpoint(endpoint.clone()).with_default_span())
+                    }
+                    RegularInstruction::DecimalF32(f32_data) => {
+                        Some(DatexExpressionData::TypedDecimal(TypedDecimal::from(f32_data.0)).with_default_span())
+                    }
+                    RegularInstruction::DecimalF64(f64_data) => {
+                        Some(DatexExpressionData::TypedDecimal(TypedDecimal::from(f64_data.0)).with_default_span())
+                    }
+                    RegularInstruction::DecimalAsInt16(decimal_i16_data) => {
+                        Some(DatexExpressionData::Decimal(Decimal::from(decimal_i16_data.0 as f64)).with_default_span())
+                    }
+                    RegularInstruction::DecimalAsInt32(decimal_i32_data) => {
+                        Some(DatexExpressionData::Decimal(Decimal::from(decimal_i32_data.0 as f64)).with_default_span())
+                    }
+                    RegularInstruction::Decimal(decimal_data) => {
+                        Some(DatexExpressionData::Decimal(decimal_data.0.clone()).with_default_span())
+                    }
                     RegularInstruction::RemoteExecution(_) => todo!(),
-                    RegularInstruction::ShortText(_) => todo!(),
-                    RegularInstruction::Text(_) => todo!(),
-                    RegularInstruction::True => todo!(),
-                    RegularInstruction::False => todo!(),
-                    RegularInstruction::Null => todo!(),
+                    RegularInstruction::ShortText(short_text_data) => {
+                        Some(DatexExpressionData::Text(short_text_data.0.clone()).with_default_span())
+                    }
+                    RegularInstruction::Text(text_data) => {
+                        Some(DatexExpressionData::Text(text_data.0.clone()).with_default_span())
+                    }
+                    RegularInstruction::True => Some(DatexExpressionData::Boolean(true).with_default_span()),
+                    RegularInstruction::False => Some(DatexExpressionData::Boolean(false).with_default_span()),
+                    RegularInstruction::Null => Some(DatexExpressionData::Null.with_default_span()),
                     RegularInstruction::Statements(statements_data) | RegularInstruction::ShortStatements(statements_data) => {
                         // FIXME: no clone
                         collector.collect(instruction.clone(), statements_data.statements_count);
@@ -249,6 +269,44 @@ mod tests {
         assert_eq!(
             ast,
             DatexExpressionData::TypedInteger(TypedInteger::from(42u8)).with_default_span()
+        );
+    }
+
+    #[test]
+    fn ast_from_bytecode_null() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::NULL as u8,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Null.with_default_span()
+        );
+    }
+
+    #[test]
+    fn ast_from_bytecode_simple_boolean() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::TRUE as u8,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Boolean(true).with_default_span()
+        );
+    }
+
+    #[test]
+    fn ast_from_bytecode_simple_text() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::SHORT_TEXT as u8,
+            0x05, // length 5
+            b'H', b'e', b'l', b'l', b'o',
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Text("Hello".to_string()).with_default_span()
         );
     }
 
