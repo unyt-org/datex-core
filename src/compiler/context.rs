@@ -5,7 +5,7 @@ use crate::runtime::execution::context::ExecutionMode;
 use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
 use core::cmp::PartialEq;
-use datex_core::core_compiler::value_compiler::append_instruction_code;
+use crate::core_compiler::value_compiler::append_instruction_code;
 use itertools::Itertools;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]

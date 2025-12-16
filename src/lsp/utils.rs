@@ -2,20 +2,20 @@ use crate::lsp::LanguageServerBackend;
 use crate::lsp::errors::SpannedLSPCompilerError;
 use crate::lsp::type_hint_collector::TypeHintCollector;
 use crate::values::core_values::r#type::Type;
-use datex_core::ast::structs::expression::{
+use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, List, Map, Statements,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
-use datex_core::compiler::error::DetailedCompilerErrors;
-use datex_core::compiler::precompiler::precompiled_ast::VariableMetadata;
-use datex_core::values::core_values::decimal::Decimal;
-use datex_core::values::core_values::decimal::typed_decimal::TypedDecimal;
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::values::core_values::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::TypedInteger;
-use datex_core::visitor::VisitAction;
-use datex_core::visitor::expression::ExpressionVisitor;
-use datex_core::visitor::type_expression::TypeExpressionVisitor;
+use crate::compiler::error::DetailedCompilerErrors;
+use crate::compiler::precompiler::precompiled_ast::VariableMetadata;
+use crate::values::core_values::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::visitor::VisitAction;
+use crate::visitor::expression::ExpressionVisitor;
+use crate::visitor::type_expression::TypeExpressionVisitor;
 use realhydroper_lsp::lsp_types::{
     MessageType, Position, Range, TextDocumentPositionParams,
 };

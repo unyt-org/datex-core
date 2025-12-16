@@ -31,7 +31,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
-use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use crate::network::com_interfaces::com_interface::ComInterfaceFactory;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };

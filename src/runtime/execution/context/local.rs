@@ -5,7 +5,7 @@ use crate::runtime::execution::execution_loop::state::{
 };
 use crate::runtime::execution::{ExecutionOptions, MemoryDump};
 use crate::stdlib::rc::Rc;
-use datex_core::runtime::execution::context::ExecutionContext;
+use crate::runtime::execution::context::ExecutionContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionMode {

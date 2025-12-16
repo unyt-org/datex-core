@@ -13,14 +13,14 @@ use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
+use crate::values::core_values::map::Map;
 use crate::values::core_values::r#type::Type;
+use crate::values::pointer::PointerAddress;
+use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::iter::once;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::values::core_values::map::Map;
-use datex_core::values::pointer::PointerAddress;
-use datex_core::values::value_container::ValueContainer;
 use datex_macros::LibTypeString;
 use strum::IntoEnumIterator;
 

@@ -17,7 +17,7 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
-use datex_core::runtime::execution::macros::intercept_step;
+use crate::runtime::execution::macros::intercept_step;
 
 /// Yield an interrupt and get the next type instruction,
 /// expecting the next input to be a NextTypeInstruction variant

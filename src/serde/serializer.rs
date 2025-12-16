@@ -13,7 +13,7 @@ use crate::values::core_values::map::Map;
 use crate::values::value_container::ValueContainer;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::core_compiler::value_compiler::compile_value_container;
+use crate::core_compiler::value_compiler::compile_value_container;
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,

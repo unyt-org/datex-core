@@ -16,8 +16,8 @@ use core::fmt::Display;
 use core::hash::Hash;
 use core::prelude::rust_2024::*;
 use core::unimplemented;
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::values::core_values::integer::Integer;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

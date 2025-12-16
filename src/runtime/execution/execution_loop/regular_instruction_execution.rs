@@ -35,10 +35,10 @@ use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
-use datex_core::global::protocol_structures::instructions::RegularInstruction;
-use datex_core::runtime::execution::execution_loop::operations::handle_comparison_operation;
-use datex_core::runtime::execution::macros::interrupt_with_value;
-use datex_core::values::core_value::CoreValue;
+use crate::global::protocol_structures::instructions::RegularInstruction;
+use crate::runtime::execution::execution_loop::operations::handle_comparison_operation;
+use crate::runtime::execution::macros::interrupt_with_value;
+use crate::values::core_value::CoreValue;
 use log::info;
 
 /// Yield an interrupt and get the next regular instruction,

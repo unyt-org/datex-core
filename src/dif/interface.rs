@@ -1,5 +1,7 @@
+use crate::dif::reference::DIFReference;
 use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::update::DIFUpdateData;
+use crate::dif::value::DIFReferenceNotFoundError;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{
     ObserveOptions, ObserverError, TransceiverId,
@@ -14,8 +16,6 @@ use crate::values::pointer::PointerAddress;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::dif::reference::DIFReference;
-use datex_core::dif::value::DIFReferenceNotFoundError;
 
 #[derive(Debug)]
 pub enum DIFObserveError {

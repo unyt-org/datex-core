@@ -4,7 +4,7 @@ use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::types::error::IllegalTypeError;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::Display;
-use datex_core::runtime::execution::execution_loop::state::ExecutionLoopState;
+use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {

@@ -12,8 +12,8 @@ use binrw::io::Cursor;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
-use datex_core::values::core_values::endpoint::Endpoint;
+use crate::global::protocol_structures::instructions::RawFullPointerAddress;
+use crate::values::core_values::endpoint::Endpoint;
 
 #[derive(Debug, Default)]
 pub struct Memory {

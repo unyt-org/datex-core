@@ -14,7 +14,7 @@ use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unreachable;
-use datex_core::runtime::execution::context::RemoteExecutionContext;
+use crate::runtime::execution::context::RemoteExecutionContext;
 pub use errors::*;
 pub use execution_input::ExecutionInput;
 pub use execution_input::ExecutionOptions;
@@ -240,8 +240,8 @@ mod tests {
     use crate::values::core_values::list::List;
     use crate::values::core_values::map::Map;
     use crate::{assert_structural_eq, assert_value_eq, datex_list};
-    use datex_core::runtime::execution::context::LocalExecutionContext;
-    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
+    use crate::runtime::execution::context::LocalExecutionContext;
+    use crate::values::core_values::integer::typed_integer::TypedInteger;
     use log::{debug, info};
 
     fn execute_datex_script_debug(
