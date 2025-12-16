@@ -4,6 +4,7 @@ use crate::references::reference::ReferenceMutability;
 use crate::references::reference::mutability_option_as_int;
 use crate::runtime::memory::Memory;
 use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
@@ -13,10 +14,9 @@ use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::{Deserialize, Serialize};
 use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
-use crate::stdlib::format;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFTypeDefinition {
@@ -65,16 +65,24 @@ pub enum DIFTypeDefinitionKind {
 impl From<&DIFTypeDefinition> for DIFTypeDefinitionKind {
     fn from(value: &DIFTypeDefinition) -> Self {
         match value {
-            DIFTypeDefinition::Structural(_) => DIFTypeDefinitionKind::Structural,
+            DIFTypeDefinition::Structural(_) => {
+                DIFTypeDefinitionKind::Structural
+            }
             DIFTypeDefinition::Reference(_) => DIFTypeDefinitionKind::Reference,
             DIFTypeDefinition::Type(_) => DIFTypeDefinitionKind::Type,
-            DIFTypeDefinition::Intersection(_) => DIFTypeDefinitionKind::Intersection,
+            DIFTypeDefinition::Intersection(_) => {
+                DIFTypeDefinitionKind::Intersection
+            }
             DIFTypeDefinition::Union(_) => DIFTypeDefinitionKind::Union,
-            DIFTypeDefinition::ImplType(_, _) => DIFTypeDefinitionKind::ImplType,
+            DIFTypeDefinition::ImplType(_, _) => {
+                DIFTypeDefinitionKind::ImplType
+            }
             DIFTypeDefinition::Unit => DIFTypeDefinitionKind::Unit,
             DIFTypeDefinition::Never => DIFTypeDefinitionKind::Never,
             DIFTypeDefinition::Unknown => DIFTypeDefinitionKind::Unknown,
-            DIFTypeDefinition::Function { .. } => DIFTypeDefinitionKind::Function,
+            DIFTypeDefinition::Function { .. } => {
+                DIFTypeDefinitionKind::Function
+            }
         }
     }
 }
@@ -97,7 +105,8 @@ impl Serialize for DIFTypeDefinition {
             DIFTypeDefinition::Unknown => 1,
             _ => 2,
         };
-        let mut state = serializer.serialize_struct("DIFTypeDefinition", len)?;
+        let mut state =
+            serializer.serialize_struct("DIFTypeDefinition", len)?;
         state.serialize_field("kind", &(kind as u8))?;
         match self {
             DIFTypeDefinition::Structural(def) => {
@@ -128,10 +137,7 @@ impl Serialize for DIFTypeDefinition {
                 parameters,
                 return_type,
             } => {
-                state.serialize_field(
-                    "def",
-                    &(parameters, return_type),
-                )?;
+                state.serialize_field("def", &(parameters, return_type))?;
             }
             DIFTypeDefinition::Reference(_) => {
                 // already handled above
@@ -141,7 +147,6 @@ impl Serialize for DIFTypeDefinition {
         state.end()
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -165,7 +170,10 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
         impl<'de> Visitor<'de> for DIFTypeDefinitionVisitor {
             type Value = DIFTypeDefinition;
 
-            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+            fn expecting(
+                &self,
+                formatter: &mut core::fmt::Formatter,
+            ) -> core::fmt::Result {
                 formatter.write_str("struct DIFTypeDefinition")
             }
 
@@ -174,35 +182,50 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
             where
                 E: de::Error,
             {
-                let type_ref = PointerAddress::deserialize(v.into_deserializer())?;
+                let type_ref =
+                    PointerAddress::deserialize(v.into_deserializer())?;
                 Ok(DIFTypeDefinition::Reference(type_ref))
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<DIFTypeDefinition, V::Error>
+            fn visit_map<V>(
+                self,
+                mut map: V,
+            ) -> Result<DIFTypeDefinition, V::Error>
             where
                 V: MapAccess<'de>,
             {
-
                 let mut kind: Option<u8> = None;
                 let mut def: Option<DIFTypeDefinitionData> = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "kind" => kind = Some(map.next_value()?),
-                        "def"  => def  = Some(map.next_value()?),
-                        _ => return Err(de::Error::unknown_field(&key, &["kind", "def"])),
+                        "def" => def = Some(map.next_value()?),
+                        _ => {
+                            return Err(de::Error::unknown_field(
+                                &key,
+                                &["kind", "def"],
+                            ));
+                        }
                     }
                 }
-                
 
-                let kind = kind.ok_or_else(|| de::Error::missing_field("kind"))?;
-                let kind = DIFTypeDefinitionKind::try_from(kind).map_err(|_| {
-                    de::Error::custom(format!("Invalid kind value: {}", kind))
-                })?;
+                let kind =
+                    kind.ok_or_else(|| de::Error::missing_field("kind"))?;
+                let kind =
+                    DIFTypeDefinitionKind::try_from(kind).map_err(|_| {
+                        de::Error::custom(format!(
+                            "Invalid kind value: {}",
+                            kind
+                        ))
+                    })?;
                 Ok(match kind {
                     DIFTypeDefinitionKind::Structural => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        if let DIFTypeDefinitionData::Structural(struct_def) = def {
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Structural(struct_def) =
+                            def
+                        {
                             DIFTypeDefinition::Structural(Box::new(struct_def))
                         } else {
                             return Err(de::Error::custom(
@@ -211,8 +234,10 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         }
                     }
                     DIFTypeDefinitionKind::Reference => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        if let DIFTypeDefinitionData::Reference(type_ref) = def {
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Reference(type_ref) = def
+                        {
                             DIFTypeDefinition::Reference(type_ref)
                         } else {
                             return Err(de::Error::custom(
@@ -221,7 +246,8 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         }
                     }
                     DIFTypeDefinitionKind::Type => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
                         if let DIFTypeDefinitionData::SingleType(ty) = def {
                             DIFTypeDefinition::Type(Box::new(ty))
                         } else {
@@ -231,7 +257,8 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         }
                     }
                     DIFTypeDefinitionKind::Intersection => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
                         if let DIFTypeDefinitionData::TypeVec(types) = def {
                             DIFTypeDefinition::Intersection(types)
                         } else {
@@ -241,7 +268,8 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         }
                     }
                     DIFTypeDefinitionKind::Union => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
                         if let DIFTypeDefinitionData::TypeVec(types) = def {
                             DIFTypeDefinition::Union(types)
                         } else {
@@ -251,8 +279,11 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         }
                     }
                     DIFTypeDefinitionKind::ImplType => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        if let DIFTypeDefinitionData::ImplType((ty, impls)) = def {
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::ImplType((ty, impls)) =
+                            def
+                        {
                             DIFTypeDefinition::ImplType(Box::new(ty), impls)
                         } else {
                             return Err(de::Error::custom(
@@ -262,10 +293,17 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                     }
                     DIFTypeDefinitionKind::Unit => DIFTypeDefinition::Unit,
                     DIFTypeDefinitionKind::Never => DIFTypeDefinition::Never,
-                    DIFTypeDefinitionKind::Unknown => DIFTypeDefinition::Unknown,
+                    DIFTypeDefinitionKind::Unknown => {
+                        DIFTypeDefinition::Unknown
+                    }
                     DIFTypeDefinitionKind::Function => {
-                        let def = def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        if let DIFTypeDefinitionData::Function((parameters, return_type)) = def {
+                        let def =
+                            def.ok_or_else(|| de::Error::missing_field("def"))?;
+                        if let DIFTypeDefinitionData::Function((
+                            parameters,
+                            return_type,
+                        )) = def
+                        {
                             DIFTypeDefinition::Function {
                                 parameters,
                                 return_type,
@@ -283,7 +321,6 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
         deserializer.deserialize_any(DIFTypeDefinitionVisitor)
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DIFStructuralTypeDefinition {
@@ -373,7 +410,10 @@ impl DIFTypeDefinition {
         }
     }
 
-    pub(crate) fn to_type_definition(&self, memory: &RefCell<Memory>) -> TypeDefinition {
+    pub(crate) fn to_type_definition(
+        &self,
+        memory: &RefCell<Memory>,
+    ) -> TypeDefinition {
         match self {
             DIFTypeDefinition::Intersection(types) => {
                 TypeDefinition::Intersection(
@@ -418,7 +458,6 @@ pub struct DIFType {
 }
 impl DIFConvertible for DIFType {}
 
-
 /// DIFType serializes as normal struct - for Reference type_definition without name or mutability, the pointer
 /// address is directly serialized as string
 /// (same for deserialization)
@@ -427,7 +466,10 @@ impl Serialize for DIFType {
     where
         S: serde::Serializer,
     {
-        if self.name.is_none() && self.mutability.is_none() && let DIFTypeDefinition::Reference(_) = self.type_definition {
+        if self.name.is_none()
+            && self.mutability.is_none()
+            && let DIFTypeDefinition::Reference(_) = self.type_definition
+        {
             return self.type_definition.serialize(serializer);
         }
 
@@ -457,7 +499,10 @@ impl<'de> Deserialize<'de> for DIFType {
         impl<'de> Visitor<'de> for DIFTypeVisitor {
             type Value = DIFType;
 
-            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+            fn expecting(
+                &self,
+                formatter: &mut core::fmt::Formatter,
+            ) -> core::fmt::Result {
                 formatter.write_str("struct DIFType")
             }
 
@@ -465,7 +510,8 @@ impl<'de> Deserialize<'de> for DIFType {
             where
                 E: de::Error,
             {
-                let type_def = DIFTypeDefinition::deserialize(v.into_deserializer())?;
+                let type_def =
+                    DIFTypeDefinition::deserialize(v.into_deserializer())?;
                 Ok(DIFType {
                     name: None,
                     mutability: None,
@@ -486,11 +532,17 @@ impl<'de> Deserialize<'de> for DIFType {
                         "name" => name = Some(map.next_value()?),
                         "mut" => mutability = Some(map.next_value()?),
                         "def" => type_definition = Some(map.next_value()?),
-                        _ => return Err(de::Error::unknown_field(&key, &["name", "mut", "def"])),
+                        _ => {
+                            return Err(de::Error::unknown_field(
+                                &key,
+                                &["name", "mut", "def"],
+                            ));
+                        }
                     }
                 }
 
-                let type_definition = type_definition.ok_or_else(|| de::Error::missing_field("def"))?;
+                let type_definition = type_definition
+                    .ok_or_else(|| de::Error::missing_field("def"))?;
 
                 Ok(DIFType {
                     name,

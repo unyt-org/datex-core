@@ -1,6 +1,6 @@
-use core::fmt::Display;
 use crate::compiler::error::SpannedCompilerError;
 use crate::runtime::execution::ExecutionError;
+use core::fmt::Display;
 
 #[derive(Debug)]
 pub enum ScriptExecutionError {

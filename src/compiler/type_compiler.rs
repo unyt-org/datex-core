@@ -12,10 +12,7 @@ use core::cell::RefCell;
 
 /// Compilation functions for type expressions.
 impl CompilationContext {
-    pub fn append_type_instruction_code(
-        &mut self,
-        code: TypeInstructionCode,
-    ) {
+    pub fn append_type_instruction_code(&mut self, code: TypeInstructionCode) {
         append_u8(&mut self.buffer, code as u8);
     }
 

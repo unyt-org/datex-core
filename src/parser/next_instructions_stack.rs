@@ -31,7 +31,6 @@ impl Default for NextInstructionsStack {
 }
 
 impl NextInstructionsStack {
-
     /// Indicate that the next `count` instructions are regular instructions.
     pub fn push_next_regular(&mut self, count: u32) {
         match self.0.last_mut() {
@@ -48,7 +47,7 @@ impl NextInstructionsStack {
             }
         }
     }
-    
+
     pub fn push_next_regular_unbounded(&mut self) {
         self.0.push(NextScopeInstruction::RegularUnbounded);
     }
@@ -77,8 +76,7 @@ impl NextInstructionsStack {
                 NextScopeInstruction::Regular(count) => {
                     if *count > 1 {
                         *count -= 1;
-                    }
-                    else {
+                    } else {
                         stack.pop();
                     }
                     NextInstructionType::Regular
@@ -102,14 +100,16 @@ impl NextInstructionsStack {
 
     /// Ends the current unbounded regular instruction scope.
     /// Returns Ok if successful, Err if the top of the stack is not an unbounded regular instruction scope.
-    pub fn pop_unbounded_regular(&mut self) -> Result<(), NotInUnboundedRegularScopeError> {
+    pub fn pop_unbounded_regular(
+        &mut self,
+    ) -> Result<(), NotInUnboundedRegularScopeError> {
         let stack = &mut self.0;
         match stack.last() {
             Some(NextScopeInstruction::RegularUnbounded) => {
                 stack.pop();
                 Ok(())
             }
-            _ => Err(NotInUnboundedRegularScopeError)
+            _ => Err(NotInUnboundedRegularScopeError),
         }
     }
 

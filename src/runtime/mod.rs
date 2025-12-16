@@ -11,9 +11,7 @@ use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
 use crate::runtime::execution::ExecutionError;
-use execution::context::{
-    ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
-};
+use crate::runtime::execution::context::ExecutionMode;
 use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
 use crate::stdlib::borrow::ToOwned;
@@ -34,11 +32,13 @@ use core::result::Result;
 use core::slice;
 use core::unreachable;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use execution::context::{
+    ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
+};
 use futures::channel::oneshot::Sender;
-use global_context::{set_global_context, GlobalContext};
+use global_context::{GlobalContext, set_global_context};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use crate::runtime::execution::context::ExecutionMode;
 
 pub mod dif_interface;
 pub mod execution;
@@ -294,11 +294,10 @@ impl RuntimeInternal {
         Endpoint,
         OutgoingContextId,
     ) {
-        let section_context_id = incoming_section.get_section_context_id().clone();
-        let mut context = Self::take_execution_context(
-            self_rc.clone(),
-            &section_context_id,
-        );
+        let section_context_id =
+            incoming_section.get_section_context_id().clone();
+        let mut context =
+            Self::take_execution_context(self_rc.clone(), &section_context_id);
         info!(
             "Executing incoming section with index: {}",
             incoming_section.get_section_index()
@@ -340,8 +339,11 @@ impl RuntimeInternal {
 
         // insert the context back into the map for future use
         // TODO: is this needed or can we drop the context after execution here?
-        self_rc.execution_contexts.borrow_mut().insert(section_context_id, context);
-        
+        self_rc
+            .execution_contexts
+            .borrow_mut()
+            .insert(section_context_id, context);
+
         (Ok(result), sender_endpoint, context_id)
     }
 

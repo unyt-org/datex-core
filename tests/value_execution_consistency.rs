@@ -19,7 +19,7 @@ fn compile_and_execute(input: ValueContainer) -> ValueContainer {
     execute_dxb_sync(ExecutionInput::new(
         &dxb,
         ExecutionOptions { verbose: true },
-        None
+        None,
     ))
     .unwrap()
     .unwrap()

@@ -502,7 +502,7 @@ impl Serializer for &mut DatexSerializer {
             Ok(execute_dxb_sync(ExecutionInput::new(
                 bytes,
                 ExecutionOptions::default(),
-                None
+                None,
             ))
             .unwrap()
             .unwrap())

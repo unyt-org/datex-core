@@ -118,7 +118,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                 DatexExpressionData::Statements(Statements {
                     statements,
                     is_terminated,
-                    unbounded: None
+                    unbounded: None,
                 })
                 .with_span(e.span())
             }

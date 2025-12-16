@@ -67,7 +67,9 @@ impl From<ComparisonOperator> for InstructionCode {
 impl From<&RegularInstruction> for ComparisonOperator {
     fn from(instruction: &RegularInstruction) -> Self {
         match instruction {
-            RegularInstruction::StructuralEqual => ComparisonOperator::StructuralEqual,
+            RegularInstruction::StructuralEqual => {
+                ComparisonOperator::StructuralEqual
+            }
             RegularInstruction::Equal => ComparisonOperator::Equal,
             RegularInstruction::NotStructuralEqual => {
                 ComparisonOperator::NotStructuralEqual

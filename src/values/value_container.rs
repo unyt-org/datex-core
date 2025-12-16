@@ -7,7 +7,9 @@ use core::result::Result;
 use super::value::Value;
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::stdlib::boxed::Box;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
@@ -19,8 +21,6 @@ use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
 use datex_core::references::reference::Reference;
 use serde::Deserialize;
-use crate::stdlib::string::String;
-use crate::stdlib::boxed::Box;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {

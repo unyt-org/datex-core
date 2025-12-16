@@ -19,8 +19,8 @@ use crate::global::protocol_structures::instructions::UInt64Data;
 use crate::global::protocol_structures::instructions::UInt128Data;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    RegularInstruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
-    TextData,
+    Int8Data, Int16Data, Int32Data, Int64Data, RegularInstruction,
+    ShortTextData, TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
@@ -337,12 +337,12 @@ impl DecompilerState<'_> {
 //     let mut output = String::new();
 //     let mut indentation_levels = 0;
 //     let formatting = state.options.formatting;
-// 
+//
 //     let instruction_iterator = body::iterate_instructions(state.dxb_body);
-// 
+//
 //     for instruction in instruction_iterator {
 //         let instruction = instruction?;
-// 
+//
 //         match instruction {
 //             RegularInstruction::Int8(Int8Data(i8)) => {
 //                 handle_before_term(
@@ -672,7 +672,7 @@ impl DecompilerState<'_> {
 //                     core::write!(output, ";")?;
 //                 }
 //             },
-// 
+//
 //             // operations
 //             RegularInstruction::Add
 //             | RegularInstruction::Subtract
@@ -688,7 +688,7 @@ impl DecompilerState<'_> {
 //                 state.get_current_scope().active_operator =
 //                     Some((instruction, true));
 //             }
-// 
+//
 //             RegularInstruction::UnaryMinus
 //             | RegularInstruction::UnaryPlus
 //             | RegularInstruction::BitwiseNot => {
@@ -702,7 +702,7 @@ impl DecompilerState<'_> {
 //                 state.get_current_scope().active_operator =
 //                     Some((instruction, false));
 //             }
-// 
+//
 //             // slots
 //             RegularInstruction::AllocateSlot(address) => {
 //                 handle_before_term(
@@ -766,7 +766,7 @@ impl DecompilerState<'_> {
 //                     core::write!(output, "#{} = ", address.0)?;
 //                 }
 //             }
-// 
+//
 //             RegularInstruction::GetRef(address) => {
 //                 handle_before_term(
 //                     state,
@@ -788,7 +788,7 @@ impl DecompilerState<'_> {
 //                 core::write!(output, "$<{}:{}>", endpoint_hex, address_hex)?;
 //                 handle_after_term(state, &mut output, false)?;
 //             }
-// 
+//
 //             RegularInstruction::GetInternalRef(address) => {
 //                 handle_before_term(
 //                     state,
@@ -804,7 +804,7 @@ impl DecompilerState<'_> {
 //                 core::write!(output, "$<internal:{}>", address_hex)?;
 //                 handle_after_term(state, &mut output, false)?;
 //             }
-// 
+//
 //             RegularInstruction::GetLocalRef(address) => {
 //                 handle_before_term(
 //                     state,
@@ -820,7 +820,7 @@ impl DecompilerState<'_> {
 //                 core::write!(output, "$<origin:{}>", address_hex)?;
 //                 handle_after_term(state, &mut output, false)?;
 //             }
-// 
+//
 //             RegularInstruction::AddAssign(address) => {
 //                 handle_before_term(
 //                     state,
@@ -837,7 +837,7 @@ impl DecompilerState<'_> {
 //                     core::write!(output, "#{} += ", address.0)?;
 //                 }
 //             }
-// 
+//
 //             RegularInstruction::SubtractAssign(address) => {
 //                 handle_before_term(
 //                     state,
@@ -854,7 +854,7 @@ impl DecompilerState<'_> {
 //                     core::write!(output, "#{} -= ", address.0)?;
 //                 }
 //             }
-// 
+//
 //             RegularInstruction::CreateRef => {
 //                 handle_before_term(
 //                     state,
@@ -865,7 +865,7 @@ impl DecompilerState<'_> {
 //                 state.get_current_scope().skip_comma_for_next_item = true;
 //                 core::write!(output, "&")?;
 //             }
-// 
+//
 //             RegularInstruction::CreateRefMut => {
 //                 handle_before_term(
 //                     state,
@@ -876,7 +876,7 @@ impl DecompilerState<'_> {
 //                 state.get_current_scope().skip_comma_for_next_item = true;
 //                 core::write!(output, "&mut ")?;
 //             }
-// 
+//
 //             RegularInstruction::RemoteExecution => {
 //                 handle_before_term(
 //                     state,
@@ -887,7 +887,7 @@ impl DecompilerState<'_> {
 //                 state.get_current_scope().active_operator =
 //                     Some((instruction, true));
 //             }
-// 
+//
 //             RegularInstruction::ExecutionBlock(data) => {
 //                 handle_before_term(
 //                     state,
@@ -908,18 +908,18 @@ impl DecompilerState<'_> {
 //                 // write the decompiled body
 //                 core::write!(output, "[{slot_mapping}]({decompiled_body})")?;
 //             }
-// 
+//
 //             _ => {
 //                 core::write!(output, "[[{instruction}]]")?;
 //             }
 //         }
 //     }
-// 
+//
 //     // add syntax highlighting
 //     if state.options.colorized {
 //         output = apply_syntax_highlighting(output)?;
 //     }
-// 
+//
 //     Ok(output)
 // }
 

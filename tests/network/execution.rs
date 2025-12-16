@@ -2,7 +2,9 @@ use crate::network::helpers::mock_setup::get_mock_setup_with_two_runtimes;
 use core::time::Duration;
 use datex_core::logger::init_logger_debug;
 use datex_core::run_async;
-use datex_core::runtime::execution::context::{ExecutionContext, ExecutionMode};
+use datex_core::runtime::execution::context::{
+    ExecutionContext, ExecutionMode,
+};
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
 use datex_core::values::core_values::integer::typed_integer::TypedInteger;

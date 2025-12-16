@@ -517,11 +517,8 @@ impl ComHub {
     ) -> Option<Vec<NetworkTraceHop>> {
         // convert DATEX to hops
         let dxb = block.body.clone();
-        let exec_input = ExecutionInput::new(
-            &dxb,
-            ExecutionOptions::default(),
-            None,
-        );
+        let exec_input =
+            ExecutionInput::new(&dxb, ExecutionOptions::default(), None);
         let hops_datex =
             execute_dxb_sync(exec_input).expect("Failed to execute DATEX");
         if let Some(ValueContainer::Value(Value {

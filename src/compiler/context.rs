@@ -1,12 +1,12 @@
 use crate::collections::HashMap;
 use crate::core_compiler::value_compiler::append_value_container;
 use crate::global::instruction_codes::InstructionCode;
+use crate::runtime::execution::context::ExecutionMode;
 use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
 use core::cmp::PartialEq;
 use datex_core::core_compiler::value_compiler::append_instruction_code;
 use itertools::Itertools;
-use crate::runtime::execution::context::ExecutionMode;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
 pub struct VirtualSlot {
@@ -162,7 +162,7 @@ impl CompilationContext {
         }
         append_u32(&mut self.buffer, 0); // placeholder for the slot address
     }
-    
+
     pub fn set_u32_at_index(&mut self, u32: u32, index: usize) {
         self.buffer[index..index + CompilationContext::INT_32_BYTES as usize]
             .copy_from_slice(&u32.to_le_bytes());

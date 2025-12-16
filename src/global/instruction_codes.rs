@@ -19,12 +19,12 @@ use strum_macros::EnumIter;
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
-    STATEMENTS,      // statements block
+    STATEMENTS,       // statements block
     SHORT_STATEMENTS, // optimized statements block with up to 255 instructions
     UNBOUNDED_STATEMENTS,
-    UNBOUNDED_STATEMENTS_END,  // end of statements block (only needed for unbounded blocks)
-    CACHE_POINT,     // cache dxb from this point on
-    CACHE_RESET,     // reset dxb scope cache
+    UNBOUNDED_STATEMENTS_END, // end of statements block (only needed for unbounded blocks)
+    CACHE_POINT,              // cache dxb from this point on
+    CACHE_RESET,              // reset dxb scope cache
 
     // internal variables and other shorthands 0x30 - 0x4f
     VAR_RESULT,
@@ -148,11 +148,11 @@ pub enum InstructionCode {
     GET_REF = 120u8,          // $x
     GET_INTERNAL_REF = 121u8, // $y, containing globally unique internal id
     GET_LOCAL_REF = 122u8, // $x, containing only the id, origin id is inferred from sender
-    GET_OR_INIT_REF, // $aa := ...
-    POINTER_ACTION, // $aa += ...
-    CREATE_REF,    // &()
-    CREATE_REF_MUT, // &mut ()
-    SET_REF,       // &aa = ...
+    GET_OR_INIT_REF,       // $aa := ...
+    POINTER_ACTION,        // $aa += ...
+    CREATE_REF,            // &()
+    CREATE_REF_MUT,        // &mut ()
+    SET_REF,               // &aa = ...
 
     ASSIGN_TO_REF, // *x = 10;
 
@@ -217,10 +217,10 @@ pub enum InstructionCode {
     TIME, // ~2022-10-10~
 
     // lists and maps 0xe0 - 0xef
-    LIST,   // (1,2,3)
+    LIST,       // (1,2,3)
     SHORT_LIST, // (1,2,3) - optimized short list with up to 255 elements
-    MAP,    // (a:1, b:2)
-    SHORT_MAP, // {a:1, b:2} - optimized short map with up to 255 elements
+    MAP,        // (a:1, b:2)
+    SHORT_MAP,  // {a:1, b:2} - optimized short map with up to 255 elements
 
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key
@@ -233,7 +233,6 @@ pub enum InstructionCode {
 
     STREAM,      // << stream
     STOP_STREAM, // </ stream
-
 
     REMOTE_EXECUTION, // ::
 
@@ -259,14 +258,12 @@ pub enum InstructionCode {
     COLLAPSE,              // collapse x
     RESPONSE,              // response x
     CLONE_COLLAPSE,        // collapse
-
 }
-
 
 #[cfg(test)]
 mod tests {
-    use strum::IntoEnumIterator;
     use super::*;
+    use strum::IntoEnumIterator;
 
     #[ignore]
     #[test]

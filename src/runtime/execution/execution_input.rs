@@ -1,10 +1,14 @@
-use core::cell::RefCell;
-use crate::runtime::execution::execution_loop::{execution_loop};
-use crate::runtime::execution::execution_loop::interrupts::{ExternalExecutionInterrupt, InterruptProvider};
-use crate::runtime::execution::execution_loop::state::{ExecutionLoopState, RuntimeExecutionState};
-use crate::runtime::execution::ExecutionError;
 use crate::runtime::RuntimeInternal;
+use crate::runtime::execution::ExecutionError;
+use crate::runtime::execution::execution_loop::execution_loop;
+use crate::runtime::execution::execution_loop::interrupts::{
+    ExternalExecutionInterrupt, InterruptProvider,
+};
+use crate::runtime::execution::execution_loop::state::{
+    ExecutionLoopState, RuntimeExecutionState,
+};
 use crate::stdlib::rc::Rc;
+use core::cell::RefCell;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionOptions {
@@ -39,9 +43,14 @@ impl<'a> ExecutionInput<'a> {
 
     pub fn execution_loop(
         mut self,
-    ) -> (InterruptProvider, impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>) {
+    ) -> (
+        InterruptProvider,
+        impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>,
+    ) {
         // use execution iterator if one already exists from previous execution
-        let mut loop_state = if let Some(existing_loop_state) = self.loop_state.take() {
+        let mut loop_state = if let Some(existing_loop_state) =
+            self.loop_state.take()
+        {
             // update dxb so that instruction iterator can continue with next instructions
             *existing_loop_state.dxb_body.borrow_mut() = self.dxb_body.to_vec();
             existing_loop_state
@@ -54,7 +63,11 @@ impl<'a> ExecutionInput<'a> {
             let interrupt_provider = InterruptProvider::new();
             ExecutionLoopState {
                 dxb_body: dxb_rc.clone(),
-                iterator: Box::new(execution_loop(state, dxb_rc, interrupt_provider.clone())),
+                iterator: Box::new(execution_loop(
+                    state,
+                    dxb_rc,
+                    interrupt_provider.clone(),
+                )),
                 interrupt_provider,
             }
         };
@@ -70,10 +83,18 @@ impl<'a> ExecutionInput<'a> {
                 let item = item.unwrap();
 
                 match item {
-                    Err(ExecutionError::IntermediateResultWithState(intermediate_result, _)) => {
-                        return yield Err(ExecutionError::IntermediateResultWithState(intermediate_result, Some(loop_state)));
+                    Err(ExecutionError::IntermediateResultWithState(
+                        intermediate_result,
+                        _,
+                    )) => {
+                        return yield Err(
+                            ExecutionError::IntermediateResultWithState(
+                                intermediate_result,
+                                Some(loop_state),
+                            ),
+                        );
                     }
-                    _ => yield item
+                    _ => yield item,
                 }
             }
         };

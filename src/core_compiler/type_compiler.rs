@@ -1,10 +1,10 @@
-use datex_core::global::type_instruction_codes::TypeInstructionCode;
-use datex_core::types::definition::TypeDefinition;
 use crate::core_compiler::value_compiler::append_get_ref;
 use crate::global::type_instruction_codes::TypeMutabilityCode;
-use crate::values::core_values::r#type::Type;
 use crate::stdlib::vec::Vec;
 use crate::utils::buffers::append_u8;
+use crate::values::core_values::r#type::Type;
+use datex_core::global::type_instruction_codes::TypeInstructionCode;
+use datex_core::types::definition::TypeDefinition;
 
 /// Compiles a given type container to a DXB body
 pub fn compile_type(ty: &Type) -> Vec<u8> {
@@ -15,7 +15,6 @@ pub fn compile_type(ty: &Type) -> Vec<u8> {
 }
 
 pub fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
-
     // append instruction code
     let instruction_code = TypeInstructionCode::from(&ty.type_definition);
     append_type_space_instruction_code(buffer, instruction_code);
@@ -28,7 +27,10 @@ pub fn append_type(buffer: &mut Vec<u8>, ty: &Type) {
     append_type_definition(buffer, &ty.type_definition);
 }
 
-fn append_type_definition(buffer: &mut Vec<u8>, type_definition: &TypeDefinition) {
+fn append_type_definition(
+    buffer: &mut Vec<u8>,
+    type_definition: &TypeDefinition,
+) {
     match type_definition {
         TypeDefinition::ImplType(ty, impls) => {
             // Append the number of impls
@@ -46,18 +48,26 @@ fn append_type_definition(buffer: &mut Vec<u8>, type_definition: &TypeDefinition
         TypeDefinition::Reference(type_ref) => {
             // TODO: ensure pointer_address exists here
             let type_ref = type_ref.borrow();
-            let pointer_address = type_ref.pointer_address.as_ref().expect("Type reference must have a pointer address");
+            let pointer_address = type_ref
+                .pointer_address
+                .as_ref()
+                .expect("Type reference must have a pointer address");
             append_get_ref(buffer, pointer_address);
         }
         _ => todo!("Type definition compilation not implemented yet"),
     };
 }
 
-
-pub fn append_type_space_instruction_code(buffer: &mut Vec<u8>, code: TypeInstructionCode) {
+pub fn append_type_space_instruction_code(
+    buffer: &mut Vec<u8>,
+    code: TypeInstructionCode,
+) {
     append_u8(buffer, code as u8);
 }
 
-pub fn append_type_mutability_code(buffer: &mut Vec<u8>, code: TypeMutabilityCode) {
+pub fn append_type_mutability_code(
+    buffer: &mut Vec<u8>,
+    code: TypeMutabilityCode,
+) {
     append_u8(buffer, code as u8);
 }

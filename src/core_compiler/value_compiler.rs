@@ -1,5 +1,6 @@
+use crate::core_compiler::type_compiler::append_type;
 use crate::global::instruction_codes::InstructionCode;
-use crate::libs::core::{get_core_lib_type_definition, CoreLibPointerId};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_definition};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
@@ -23,7 +24,6 @@ use core::prelude::rust_2024::*;
 use datex_core::utils::buffers::{
     append_i32, append_i64, append_i128, append_u16, append_u64,
 };
-use crate::core_compiler::type_compiler::{append_type};
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {
@@ -88,7 +88,10 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             // if list size < 256, use SHORT_LIST
             match val.len() {
                 0..=255 => {
-                    append_instruction_code(buffer, InstructionCode::SHORT_LIST);
+                    append_instruction_code(
+                        buffer,
+                        InstructionCode::SHORT_LIST,
+                    );
                     append_u8(buffer, val.len() as u8);
                 }
                 _ => {
@@ -172,7 +175,10 @@ pub fn append_endpoint(buffer: &mut Vec<u8>, endpoint: &Endpoint) {
 
 /// Appends a typed integer with explicit type casts
 pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
-    append_type_cast(buffer, &get_core_lib_type_definition(CoreLibPointerId::from(integer)));
+    append_type_cast(
+        buffer,
+        &get_core_lib_type_definition(CoreLibPointerId::from(integer)),
+    );
     append_encoded_integer(buffer, &integer.to_smallest_fitting());
 }
 
@@ -283,7 +289,10 @@ pub fn append_big_integer(buffer: &mut Vec<u8>, integer: &Integer) {
 }
 
 pub fn append_typed_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
-    append_type_cast(buffer, &get_core_lib_type_definition(CoreLibPointerId::from(decimal)));
+    append_type_cast(
+        buffer,
+        &get_core_lib_type_definition(CoreLibPointerId::from(decimal)),
+    );
     append_encoded_decimal(buffer, decimal);
 }
 

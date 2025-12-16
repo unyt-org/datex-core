@@ -1,8 +1,8 @@
+pub mod interrupts;
 mod operations;
 pub mod regular_instruction_execution;
 pub mod state;
 pub mod type_instruction_execution;
-pub mod interrupts;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
@@ -38,7 +38,6 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
-
 /// Main execution loop that drives the execution of the DXB body
 /// The interrupt_provider is used to provide results for synchronous or asynchronous I/O operations
 pub fn execution_loop(
@@ -47,7 +46,6 @@ pub fn execution_loop(
     interrupt_provider: InterruptProvider,
 ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
-
         let mut instruction_iterator = iterate_instructions(dxb_body);
         let mut slots = state.slots;
 
@@ -55,7 +53,9 @@ pub fn execution_loop(
 
         let mut active_value: Option<ValueContainer> = None;
 
-        if let Some(Ok(Instruction::RegularInstruction(first_instruction))) = first_instruction {
+        if let Some(Ok(Instruction::RegularInstruction(first_instruction))) =
+            first_instruction
+        {
             // execute the root instruction, which will drive further recursive execution
             let inner_iterator = execute_regular_instruction(
                 interrupt_provider.clone(),
@@ -71,14 +71,18 @@ pub fn execution_loop(
                     }
                     // final execution result - loop ends here
                     ExecutionInterrupt::ValueReturn(value) => {
-                        return yield Ok(ExternalExecutionInterrupt::Result(value))
+                        return yield Ok(ExternalExecutionInterrupt::Result(
+                            value,
+                        ));
                     }
                     // feed new instructions to execution as long as they are requested
                     ExecutionInterrupt::GetNextRegularInstruction => {
                         loop {
                             match next_iter!(instruction_iterator, 'main) {
                                 // feed next regular instruction
-                                Ok(Instruction::RegularInstruction(next_instruction)) => {
+                                Ok(Instruction::RegularInstruction(
+                                    next_instruction,
+                                )) => {
                                     interrupt_provider.provide_result(
                                         InterruptResult::NextRegularInstruction(
                                             next_instruction,
@@ -92,7 +96,9 @@ pub fn execution_loop(
                                     ));
                                 }
                                 // instruction iterator ran out of instructions - must wait for more
-                                Err(DXBParserError::ExpectingMoreInstructions) => {
+                                Err(
+                                    DXBParserError::ExpectingMoreInstructions,
+                                ) => {
                                     yield Err(ExecutionError::IntermediateResultWithState(active_value.clone(), None));
                                     // assume that when continuing after this yield, more instructions will have been loaded
                                     // so we run the loop again to try to get the next instruction
@@ -100,7 +106,9 @@ pub fn execution_loop(
                                 }
                                 // other parsing errors from instruction iterator
                                 Err(err) => {
-                                    return yield Err(ExecutionError::DXBParserError(err));
+                                    return yield Err(
+                                        ExecutionError::DXBParserError(err),
+                                    );
                                 }
                             };
                             // only run this once per default
@@ -111,7 +119,9 @@ pub fn execution_loop(
                         loop {
                             match next_iter!(instruction_iterator, 'main) {
                                 // feed next type instruction
-                                Ok(Instruction::TypeInstruction(next_instruction)) => {
+                                Ok(Instruction::TypeInstruction(
+                                    next_instruction,
+                                )) => {
                                     interrupt_provider.provide_result(
                                         InterruptResult::NextTypeInstruction(
                                             next_instruction,
@@ -125,7 +135,9 @@ pub fn execution_loop(
                                     ));
                                 }
                                 // instruction iterator ran out of instructions - must wait for more
-                                Err(DXBParserError::ExpectingMoreInstructions) => {
+                                Err(
+                                    DXBParserError::ExpectingMoreInstructions,
+                                ) => {
                                     yield Err(ExecutionError::IntermediateResultWithState(active_value.clone(), None));
                                     // assume that when continuing after this yield, more instructions will have been loaded
                                     // so we run the loop again to try to get the next instruction
@@ -133,7 +145,9 @@ pub fn execution_loop(
                                 }
                                 // other parsing errors from instruction iterator
                                 Err(err) => {
-                                    return yield Err(ExecutionError::DXBParserError(err));
+                                    return yield Err(
+                                        ExecutionError::DXBParserError(err),
+                                    );
                                 }
                             }
                             // only run this once per default
@@ -149,8 +163,11 @@ pub fn execution_loop(
                         }
                         // else handle normal slot
                         else {
-                            let val = yield_unwrap!(slots.get_slot_value(address));
-                            interrupt_provider.provide_result(InterruptResult::ResolvedValue(val));
+                            let val =
+                                yield_unwrap!(slots.get_slot_value(address));
+                            interrupt_provider.provide_result(
+                                InterruptResult::ResolvedValue(val),
+                            );
                         }
                     }
                     ExecutionInterrupt::SetSlotValue(address, value) => {
@@ -183,7 +200,6 @@ pub fn execution_loop(
         yield Ok(ExternalExecutionInterrupt::Result(None))
     }
 }
-
 
 // TODO
 fn handle_apply(

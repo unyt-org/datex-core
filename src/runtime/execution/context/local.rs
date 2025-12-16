@@ -1,9 +1,11 @@
-use datex_core::runtime::execution::context::ExecutionContext;
-use crate::stdlib::rc::Rc;
 use crate::compiler::scope::CompilationScope;
-use crate::runtime::execution::{ExecutionOptions, MemoryDump};
-use crate::runtime::execution::execution_loop::state::{ExecutionLoopState, RuntimeExecutionState};
 use crate::runtime::RuntimeInternal;
+use crate::runtime::execution::execution_loop::state::{
+    ExecutionLoopState, RuntimeExecutionState,
+};
+use crate::runtime::execution::{ExecutionOptions, MemoryDump};
+use crate::stdlib::rc::Rc;
+use datex_core::runtime::execution::context::ExecutionContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionMode {
@@ -12,16 +14,14 @@ pub enum ExecutionMode {
     Static,
     /// An execution of a program that may be extended at runtime.
     /// This mode is used for REPLs and dynamic remote executions with persistent contexts.
-    Unbounded {
-        has_next: bool,
-    },
+    Unbounded { has_next: bool },
 }
 
 impl ExecutionMode {
     pub fn unbounded() -> Self {
         ExecutionMode::Unbounded { has_next: true }
     }
-    
+
     pub fn is_unbounded(&self) -> bool {
         matches!(self, ExecutionMode::Unbounded { .. })
     }
@@ -100,16 +100,19 @@ impl LocalExecutionContext {
     }
 }
 
-
 impl ExecutionContext {
     /// Creates a new local execution context (can only be used once).
     pub fn local() -> Self {
-        ExecutionContext::Local(LocalExecutionContext::new(ExecutionMode::Static))
+        ExecutionContext::Local(LocalExecutionContext::new(
+            ExecutionMode::Static,
+        ))
     }
 
     /// Creates a new local execution context (can be used multiple times).
     pub fn local_unbounded() -> Self {
-        ExecutionContext::Local(LocalExecutionContext::new(ExecutionMode::Unbounded {has_next: true}))
+        ExecutionContext::Local(LocalExecutionContext::new(
+            ExecutionMode::Unbounded { has_next: true },
+        ))
     }
 
     /// Creates a new local execution context with a runtime.
@@ -143,5 +146,4 @@ impl ExecutionContext {
             ),
         )
     }
-
 }

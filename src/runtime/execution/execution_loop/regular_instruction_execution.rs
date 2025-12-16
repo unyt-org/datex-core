@@ -1,14 +1,28 @@
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
-use crate::global::operators::{AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator};
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData, UnboundedStatementsData};
+use crate::global::operators::{
+    AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
+};
+use crate::global::protocol_structures::instructions::{
+    ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
+    FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData,
+    UnboundedStatementsData,
+};
+use crate::runtime::execution::execution_loop::interrupts::{
+    ExecutionInterrupt, InterruptProvider,
+};
 use crate::runtime::execution::execution_loop::operations::{
     handle_assignment_operation, handle_binary_operation,
     handle_unary_operation,
 };
 use crate::runtime::execution::execution_loop::type_instruction_execution::get_next_type;
-use crate::runtime::execution::execution_loop::{ExternalExecutionInterrupt, InterruptResult};
-use crate::runtime::execution::macros::{intercept_maybe_step, intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap};
+use crate::runtime::execution::execution_loop::{
+    ExternalExecutionInterrupt, InterruptResult,
+};
+use crate::runtime::execution::macros::{
+    intercept_maybe_step, intercept_step, interrupt,
+    interrupt_with_maybe_value, yield_unwrap,
+};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::stdlib::rc::Rc;
 use crate::types::definition::TypeDefinition;
@@ -21,12 +35,11 @@ use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
-use log::info;
 use datex_core::global::protocol_structures::instructions::RegularInstruction;
 use datex_core::runtime::execution::execution_loop::operations::handle_comparison_operation;
 use datex_core::runtime::execution::macros::interrupt_with_value;
 use datex_core::values::core_value::CoreValue;
-use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, InterruptProvider};
+use log::info;
 
 /// Yield an interrupt and get the next regular instruction,
 /// expecting the next input to be a NextRegularInstruction variant
@@ -34,7 +47,9 @@ macro_rules! interrupt_with_next_regular_instruction {
     ($input:expr) => {{
         use crate::runtime::execution::macros::interrupt;
 
-        let res = interrupt!($input, ExecutionInterrupt::GetNextRegularInstruction).unwrap();
+        let res =
+            interrupt!($input, ExecutionInterrupt::GetNextRegularInstruction)
+                .unwrap();
         match res {
             InterruptResult::NextRegularInstruction(value) => value,
             _ => unreachable!(), // must be ensured by execution loop
@@ -88,10 +103,9 @@ macro_rules! get_next_key_value_pair {
     }};
 }
 
-
 enum ValueOrStatementsEnd {
     Value(Option<ValueContainer>),
-    StatementsEnd(bool)
+    StatementsEnd(bool),
 }
 
 /// Drives the regular instruction iteration until the next statement or end of statements
@@ -227,7 +241,6 @@ pub(crate) fn execute_regular_instruction(
                 Some(yield_unwrap!(res))
             }
 
-
             // unary operations
             RegularInstruction::CreateRef
             | RegularInstruction::CreateRefMut
@@ -277,7 +290,11 @@ pub(crate) fn execute_regular_instruction(
 
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionInterrupt::External(ExternalExecutionInterrupt::RemoteExecution(receivers, buffer))
+                    ExecutionInterrupt::External(
+                        ExternalExecutionInterrupt::RemoteExecution(
+                            receivers, buffer
+                        )
+                    )
                 )
             }
 
@@ -290,7 +307,9 @@ pub(crate) fn execute_regular_instruction(
                 }
                 interrupt_with_maybe_value!(
                     interrupt_provider,
-                    ExecutionInterrupt::External(ExternalExecutionInterrupt::Apply(callee, args))
+                    ExecutionInterrupt::External(
+                        ExternalExecutionInterrupt::Apply(callee, args)
+                    )
                 )
             }
 
@@ -311,12 +330,16 @@ pub(crate) fn execute_regular_instruction(
                 let mut last_value: Option<ValueContainer> = None;
                 let mut terminated = false;
                 loop {
-                    match get_next_value_or_statements_end!(interrupt_provider.clone()) {
+                    match get_next_value_or_statements_end!(
+                        interrupt_provider.clone()
+                    ) {
                         ValueOrStatementsEnd::Value(value) => {
                             // store as active value
                             interrupt!(
                                 interrupt_provider,
-                                ExecutionInterrupt::SetActiveValue(value.clone())
+                                ExecutionInterrupt::SetActiveValue(
+                                    value.clone()
+                                )
                             );
                             last_value = value;
                         }
@@ -337,7 +360,7 @@ pub(crate) fn execute_regular_instruction(
             }
 
             RegularInstruction::List(list_data)
-            | RegularInstruction::ShortList(list_data)=> {
+            | RegularInstruction::ShortList(list_data) => {
                 let mut list = List::with_capacity(list_data.element_count);
                 for _ in 0..list_data.element_count {
                     let element = get_next_value!(interrupt_provider.clone());
@@ -398,7 +421,8 @@ pub(crate) fn execute_regular_instruction(
             }
 
             RegularInstruction::AssignToReference(operator) => {
-                let ref_value_container = get_next_value!(interrupt_provider.clone());
+                let ref_value_container =
+                    get_next_value!(interrupt_provider.clone());
                 let value_container = get_next_value!(interrupt_provider);
 
                 // assignment value must be a reference
@@ -416,22 +440,30 @@ pub(crate) fn execute_regular_instruction(
                 }
             }
 
-            RegularInstruction::GetRef(address) => {
-                Some(interrupt_with_value!(
-                    interrupt_provider,
-                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolvePointer(address))
-                ))
-            }
+            RegularInstruction::GetRef(address) => Some(interrupt_with_value!(
+                interrupt_provider,
+                ExecutionInterrupt::External(
+                    ExternalExecutionInterrupt::ResolvePointer(address)
+                )
+            )),
             RegularInstruction::GetLocalRef(address) => {
                 Some(interrupt_with_value!(
                     interrupt_provider,
-                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveLocalPointer(address))
+                    ExecutionInterrupt::External(
+                        ExternalExecutionInterrupt::ResolveLocalPointer(
+                            address
+                        )
+                    )
                 ))
             }
             RegularInstruction::GetInternalRef(address) => {
                 Some(interrupt_with_value!(
                     interrupt_provider,
-                    ExecutionInterrupt::External(ExternalExecutionInterrupt::ResolveInternalPointer(address))
+                    ExecutionInterrupt::External(
+                        ExternalExecutionInterrupt::ResolveInternalPointer(
+                            address
+                        )
+                    )
                 ))
             }
 

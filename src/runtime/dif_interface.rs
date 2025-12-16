@@ -1,11 +1,13 @@
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
+use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::update::{DIFKey, DIFUpdateData};
 use crate::dif::value::DIFReferenceNotFoundError;
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::RuntimeInternal;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 use crate::{
     dif::{
@@ -20,8 +22,6 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::dif::r#type::DIFTypeDefinition;
-use crate::stdlib::vec::Vec;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
