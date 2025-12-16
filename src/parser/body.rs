@@ -476,8 +476,6 @@ pub fn iterate_instructions(
                     }.into()
                 });
 
-                info!("=> {:?}", instruction);
-
                 yield Ok(instruction);
             }
         },

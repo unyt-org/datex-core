@@ -64,8 +64,6 @@ pub fn execution_loop(
             'main: for step in inner_iterator {
                 let step = yield_unwrap!(step);
 
-                println!("Execution loop step: {:?}", step);
-
                 match step {
                     // yield external steps directly to be handled by the caller
                     ExecutionInterrupt::External(external_step) => {
