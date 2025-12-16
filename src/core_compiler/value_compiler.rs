@@ -8,6 +8,9 @@ use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_u8, append_u32,
     append_u128,
 };
+use crate::utils::buffers::{
+    append_i32, append_i64, append_i128, append_u16, append_u64,
+};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -21,9 +24,6 @@ use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use binrw::io::Cursor;
 use core::prelude::rust_2024::*;
-use crate::utils::buffers::{
-    append_i32, append_i64, append_i128, append_u16, append_u64,
-};
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {

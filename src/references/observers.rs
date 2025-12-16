@@ -178,6 +178,7 @@ impl Reference {
 mod tests {
     use crate::dif::r#type::DIFTypeDefinition;
     use crate::dif::update::{DIFUpdate, DIFUpdateData};
+    use crate::references::observers::Observer;
     use crate::references::observers::{ObserveOptions, TransceiverId};
     use crate::runtime::memory::Memory;
     use crate::stdlib::borrow::Cow;
@@ -196,7 +197,6 @@ mod tests {
         },
         values::value_container::ValueContainer,
     };
-    use crate::references::observers::Observer;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates

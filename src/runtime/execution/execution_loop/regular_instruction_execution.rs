@@ -3,6 +3,7 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{
     AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
 };
+use crate::global::protocol_structures::instructions::RegularInstruction;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData,
@@ -10,6 +11,7 @@ use crate::global::protocol_structures::instructions::{
 use crate::runtime::execution::execution_loop::interrupts::{
     ExecutionInterrupt, InterruptProvider,
 };
+use crate::runtime::execution::execution_loop::operations::handle_comparison_operation;
 use crate::runtime::execution::execution_loop::operations::{
     handle_assignment_operation, handle_binary_operation,
     handle_unary_operation,
@@ -18,13 +20,14 @@ use crate::runtime::execution::execution_loop::type_instruction_execution::get_n
 use crate::runtime::execution::execution_loop::{
     ExternalExecutionInterrupt, InterruptResult,
 };
+use crate::runtime::execution::macros::interrupt_with_value;
 use crate::runtime::execution::macros::{
-    intercept_step, interrupt,
-    interrupt_with_maybe_value, yield_unwrap,
+    intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap,
 };
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::append_u32;
+use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::Integer;
@@ -32,10 +35,6 @@ use crate::values::core_values::list::List;
 use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use crate::global::protocol_structures::instructions::RegularInstruction;
-use crate::runtime::execution::execution_loop::operations::handle_comparison_operation;
-use crate::runtime::execution::macros::interrupt_with_value;
-use crate::values::core_value::CoreValue;
 
 /// Yield an interrupt and get the next regular instruction,
 /// expecting the next input to be a NextRegularInstruction variant

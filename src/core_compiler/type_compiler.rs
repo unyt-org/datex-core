@@ -1,10 +1,10 @@
 use crate::core_compiler::value_compiler::append_get_ref;
+use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::vec::Vec;
+use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::append_u8;
 use crate::values::core_values::r#type::Type;
-use crate::global::type_instruction_codes::TypeInstructionCode;
-use crate::types::definition::TypeDefinition;
 
 /// Compiles a given type container to a DXB body
 pub fn compile_type(ty: &Type) -> Vec<u8> {

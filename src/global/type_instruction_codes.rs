@@ -1,7 +1,7 @@
+use crate::references::reference::ReferenceMutability;
 use crate::types::definition::TypeDefinition;
 use binrw::{BinRead, BinWrite};
 use core::prelude::rust_2024::*;
-use crate::references::reference::ReferenceMutability;
 use num_enum::TryFromPrimitive;
 use strum::Display;
 

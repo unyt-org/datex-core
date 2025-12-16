@@ -8,6 +8,8 @@ use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
@@ -16,8 +18,6 @@ use core::fmt::Display;
 use core::hash::Hash;
 use core::prelude::rust_2024::*;
 use core::unimplemented;
-use crate::values::core_values::endpoint::Endpoint;
-use crate::values::core_values::integer::Integer;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {

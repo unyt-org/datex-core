@@ -4,17 +4,20 @@ pub mod regular_instruction_execution;
 pub mod state;
 pub mod type_instruction_execution;
 
-use core::cell::RefCell;
-use crate::stdlib::rc::Rc;
-use crate::runtime::execution::execution_loop::regular_instruction_execution::execute_regular_instruction;
 use crate::global::protocol_structures::instructions::Instruction;
-use crate::parser::body::{iterate_instructions, DXBParserError};
-use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider, InterruptResult};
+use crate::parser::body::{DXBParserError, iterate_instructions};
+use crate::runtime::execution::execution_loop::interrupts::{
+    ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider,
+    InterruptResult,
+};
+use crate::runtime::execution::execution_loop::regular_instruction_execution::execute_regular_instruction;
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::macros::{next_iter, yield_unwrap};
+use crate::runtime::execution::{ExecutionError, InvalidProgramError};
+use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::values::value_container::ValueContainer;
+use core::cell::RefCell;
 
 /// Main execution loop that drives the execution of the DXB body
 /// The interrupt_provider is used to provide results for synchronous or asynchronous I/O operations

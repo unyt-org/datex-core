@@ -1,10 +1,8 @@
-use core::ops::Range;
-use crate::ast::structs::expression::{
-    DatexExpression, VariableDeclaration,
-};
+use crate::ast::structs::expression::{DatexExpression, VariableDeclaration};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::TypeExpressionVisitor;
+use core::ops::Range;
 
 #[derive(Default)]
 pub struct VariableDeclarationFinder {

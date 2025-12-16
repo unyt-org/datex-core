@@ -1,4 +1,5 @@
 use crate::references::reference::ReferenceMutability;
+use crate::references::type_reference::TypeReference;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
@@ -16,7 +17,6 @@ use crate::{
 };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
-use crate::references::type_reference::TypeReference;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
