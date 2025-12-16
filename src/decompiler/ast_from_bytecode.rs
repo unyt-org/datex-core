@@ -1,7 +1,7 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{DatexExpression, List};
+use crate::ast::structs::expression::{DatexExpression, List, Map};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
-use crate::ast::structs::r#type::TypeExpression;
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::global::protocol_structures::instructions::{
     Instruction, RegularInstruction, TypeInstruction,
 };
@@ -289,6 +289,41 @@ pub fn ast_from_bytecode(
                                 DatexExpressionData::List(List::new(elements))
                                     .with_default_span()
                             }
+                            RegularInstruction::Map(_)
+                            | RegularInstruction::ShortMap(_) => {
+                                let mut entries = Vec::new();
+                                let mut iter = collected_results.into_iter();
+                                while let Some(key_res) = iter.next() {
+                                    let value_res = iter.next().expect(
+                                        "Expected value for each key in map",
+                                    );
+                                    let key =
+                                        if let CollectedResult::Expression(
+                                            expr,
+                                        ) = key_res
+                                        {
+                                            expr
+                                        } else {
+                                            unreachable!(
+                                                "Expected DatexExpression in collected results for MAP key"
+                                            )
+                                        };
+                                    let value =
+                                        if let CollectedResult::Expression(
+                                            expr,
+                                        ) = value_res
+                                        {
+                                            expr
+                                        } else {
+                                            unreachable!(
+                                                "Expected DatexExpression in collected results for MAP value"
+                                            )
+                                        };
+                                    entries.push((key, value));
+                                }
+                                DatexExpressionData::Map(Map::new(entries))
+                                    .with_default_span()
+                            }
                             RegularInstruction::Statements(statements_data)
                             | RegularInstruction::ShortStatements(
                                 statements_data,
@@ -307,7 +342,12 @@ pub fn ast_from_bytecode(
                                 })
                                 .with_default_span()
                             }
-                            _ => todo!(),
+                            e => {
+                                todo!(
+                                    "Unhandled collected regular instruction: {:?}",
+                                    e
+                                );
+                            }
                         },
 
                         Instruction::TypeInstruction(_) => {
@@ -317,26 +357,32 @@ pub fn ast_from_bytecode(
                     collector.push_result(expr);
                 }
             }
-            Instruction::TypeInstruction(instruction) => {
-                match instruction {
-                    TypeInstruction::List(list) => {
-                        todo!("Handle TypeInstruction::List")
-                    }
-                    TypeInstruction::ImplType(impl_type_data) => {
-                        todo!("Handle TypeInstruction::ImplType")
-                    }
-                    TypeInstruction::LiteralInteger(integer_data) => {
-                        todo!("Handle TypeInstruction::LiteralInteger")
-                    }
-                    TypeInstruction::LiteralText(text_data) => {
-                        todo!("Handle TypeInstruction::LiteralText")
-                    }
-                    TypeInstruction::TypeReference(referemce) => {
-                        todo!("Handle TypeInstruction::TypeReference")
-                    }
+            Instruction::TypeInstruction(type_instruction) => {
+                let type_expression: Option<TypeExpression> =
+                    match type_instruction {
+                        TypeInstruction::List(list) => {
+                            collector.collect(
+                                instruction.clone(),
+                                list.element_count,
+                            );
+                            None
+                        }
+                        TypeInstruction::ImplType(impl_type_data) => {
+                            todo!("Handle TypeInstruction::ImplType")
+                        }
+                        TypeInstruction::LiteralInteger(integer_data) => {
+                            todo!("Handle TypeInstruction::LiteralInteger")
+                        }
+                        TypeInstruction::LiteralText(text_data) => {
+                            todo!("Handle TypeInstruction::LiteralText")
+                        }
+                        TypeInstruction::TypeReference(reference) => None,
 
-                    // Handle different type instructions here
-                    _ => todo!(),
+                        // Handle different type instructions here
+                        _ => todo!(),
+                    };
+                if let Some(type_expression) = type_expression {
+                    collector.push_result(type_expression);
                 }
             }
         }
