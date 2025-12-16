@@ -74,7 +74,7 @@ pub(crate) use intercept_step;
 macro_rules! interrupt {
     ($input:expr, $arg:expr) => {{
         yield Ok($arg);
-        $input.take()
+        $input.take_result()
     }};
 }
 pub(crate) use interrupt;
@@ -87,7 +87,7 @@ macro_rules! interrupt_with_maybe_value {
 
         let res = interrupt!($input, $arg).unwrap();
         match res {
-            crate::runtime::execution::execution_loop::InterruptProvider::ResolvedValue(value) => value,
+            crate::runtime::execution::execution_loop::InterruptResult::ResolvedValue(value) => value,
             _ => unreachable!(),
         }
     }};

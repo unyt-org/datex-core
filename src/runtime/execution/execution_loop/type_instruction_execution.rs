@@ -3,7 +3,7 @@ use datex_core::runtime::execution::macros::intercept_step;
 use crate::stdlib::rc::Rc;
 use crate::global::protocol_structures::instructions::{RawPointerAddress, TypeInstruction};
 use crate::references::reference::{Reference, ReferenceMutability};
-use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
+use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptResult};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::runtime::execution::macros::{interrupt_with_maybe_value, interrupt_with_value};
 use crate::types::definition::TypeDefinition;
@@ -22,7 +22,7 @@ macro_rules! interrupt_with_next_type_instruction {
 
         let res = interrupt!($input, ExecutionInterrupt::GetNextTypeInstruction).unwrap();
         match res {
-            InterruptProvider::NextTypeInstruction(value) => value,
+            InterruptResult::NextTypeInstruction(value) => value,
             _ => unreachable!(), // must be ensured by execution loop
         }
     }}
@@ -52,9 +52,10 @@ macro_rules! get_next_type {
     }};
 }
 pub(crate) use get_next_type;
+use crate::runtime::execution::execution_loop::interrupts::InterruptProvider;
 
 pub(crate) fn execute_type_instruction(
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    interrupt_provider: InterruptProvider,
     instruction: TypeInstruction,
 ) -> Box<impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>>> {
     Box::new(gen move {
