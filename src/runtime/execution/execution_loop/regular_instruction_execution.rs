@@ -6,7 +6,6 @@ use crate::global::operators::{
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, IntegerData, ShortTextData, SlotAddress, TextData,
-    UnboundedStatementsData,
 };
 use crate::runtime::execution::execution_loop::interrupts::{
     ExecutionInterrupt, InterruptProvider,
@@ -20,11 +19,10 @@ use crate::runtime::execution::execution_loop::{
     ExternalExecutionInterrupt, InterruptResult,
 };
 use crate::runtime::execution::macros::{
-    intercept_maybe_step, intercept_step, interrupt,
+    intercept_step, interrupt,
     interrupt_with_maybe_value, yield_unwrap,
 };
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::stdlib::rc::Rc;
 use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
@@ -34,12 +32,10 @@ use crate::values::core_values::list::List;
 use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use core::cell::RefCell;
 use crate::global::protocol_structures::instructions::RegularInstruction;
 use crate::runtime::execution::execution_loop::operations::handle_comparison_operation;
 use crate::runtime::execution::macros::interrupt_with_value;
 use crate::values::core_value::CoreValue;
-use log::info;
 
 /// Yield an interrupt and get the next regular instruction,
 /// expecting the next input to be a NextRegularInstruction variant

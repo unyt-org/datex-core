@@ -1,9 +1,7 @@
 use crate::compiler::scope::CompilationScope;
 use crate::runtime::RuntimeInternal;
-use crate::runtime::execution::execution_loop::state::{
-    ExecutionLoopState, RuntimeExecutionState,
-};
-use crate::runtime::execution::{ExecutionOptions, MemoryDump};
+use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
+use crate::runtime::execution::ExecutionOptions;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::context::ExecutionContext;
 

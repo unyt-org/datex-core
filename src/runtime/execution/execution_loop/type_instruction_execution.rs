@@ -5,18 +5,14 @@ use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::{
     ExecutionInterrupt, ExternalExecutionInterrupt, InterruptResult,
 };
-use crate::runtime::execution::macros::{
-    interrupt_with_maybe_value, interrupt_with_value,
-};
-use crate::runtime::execution::{ExecutionError, InvalidProgramError};
-use crate::stdlib::rc::Rc;
+use crate::runtime::execution::macros::interrupt_with_maybe_value;
+use crate::runtime::execution::ExecutionError;
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use core::cell::RefCell;
 use crate::runtime::execution::macros::intercept_step;
 
 /// Yield an interrupt and get the next type instruction,
@@ -46,8 +42,8 @@ macro_rules! get_next_type {
         use crate::runtime::execution::macros::intercept_step;
 
         use crate::runtime::execution::execution_loop::ExecutionInterrupt;
-        use crate::runtime::execution::errors::ExecutionError;
-        use crate::runtime::execution::errors::InvalidProgramError;
+        
+        
 
         let next = interrupt_with_next_type_instruction!($interrupt_provider);
         let mut inner_iterator = execute_type_instruction($interrupt_provider, next);

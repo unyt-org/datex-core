@@ -6,36 +6,14 @@ pub mod type_instruction_execution;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
-use log::info;
-use crate::global::protocol_structures::instructions::UnboundedStatementsData;
-use crate::parser::next_instructions_stack::NextInstructionsStack;
 use crate::runtime::execution::execution_loop::regular_instruction_execution::execute_regular_instruction;
-use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
-use crate::core_compiler::value_compiler::compile_value_container;
-use crate::global::instruction_codes::InstructionCode;
-use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, BitwiseUnaryOperator, ComparisonOperator, LogicalUnaryOperator, ReferenceUnaryOperator, UnaryOperator};
-use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
-use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, RegularInstruction, IntegerData, RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress, RawPointerAddress, ShortTextData, SlotAddress, TextData, TypeInstruction, Instruction};
-use crate::parser::body;
+use crate::global::protocol_structures::instructions::Instruction;
 use crate::parser::body::{iterate_instructions, DXBParserError};
-use crate::references::reference::{Reference, ReferenceMutability};
-use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
+use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider, InterruptResult};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::macros::{next_iter, yield_unwrap};
 use crate::traits::apply::Apply;
-use crate::traits::structural_eq::StructuralEq;
-use crate::traits::value_eq::ValueEq;
-use crate::types::definition::TypeDefinition;
-use crate::values::core_value::CoreValue;
-use crate::values::core_values::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::integer::Integer;
-use crate::values::core_values::list::List;
-use crate::values::core_values::map::{Map, OwnedMapKey};
-use crate::values::core_values::r#type::Type;
-use crate::values::pointer::PointerAddress;
-use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
 /// Main execution loop that drives the execution of the DXB body

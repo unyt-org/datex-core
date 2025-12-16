@@ -86,7 +86,7 @@ pub fn handle_comparison_operation(
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::Equal => {
-            let val = lhs.value_eq(&rhs);
+            let val = lhs.value_eq(rhs);
             Ok(ValueContainer::from(val))
         }
         ComparisonOperator::NotStructuralEqual => {

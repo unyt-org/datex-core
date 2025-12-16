@@ -1,7 +1,6 @@
 use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFTypeRepresentation;
 use crate::references::reference::ReferenceMutability;
-use crate::references::reference::mutability_option_as_int;
 use crate::runtime::memory::Memory;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::format;

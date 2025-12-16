@@ -50,11 +50,7 @@ impl Collector {
     fn try_pop_collected(
         &mut self,
     ) -> Option<(Instruction, Vec<CollectedResult>)> {
-        let collector = if let Some(collector) = self.collectors.last() {
-            collector
-        } else {
-            return None;
-        };
+        let collector = self.collectors.last()?;
         let expected_count = collector.1;
 
         if self.results.len() as u32 == expected_count {
@@ -346,9 +342,9 @@ pub fn ast_from_bytecode(
         }
     }
 
-    Ok(collector
+    collector
         .pop_datex_expression()
-        .ok_or(DXBParserError::ExpectingMoreInstructions)?)
+        .ok_or(DXBParserError::ExpectingMoreInstructions)
 }
 
 #[cfg(test)]

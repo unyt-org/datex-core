@@ -377,10 +377,9 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
         SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
         _ => unreachable!(), // because detailed_errors: false
     })
-    .map(|ast| {
+    .inspect(|ast| {
         // store information about termination (last semicolon) in metadata
         ast.metadata.borrow_mut().is_terminated = is_terminated;
-        ast
     })
 }
 
