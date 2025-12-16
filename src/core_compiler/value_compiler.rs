@@ -21,7 +21,7 @@ use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use binrw::io::Cursor;
 use core::prelude::rust_2024::*;
-use datex_core::utils::buffers::{
+use crate::utils::buffers::{
     append_i32, append_i64, append_i128, append_u16, append_u64,
 };
 

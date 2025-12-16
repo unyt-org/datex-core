@@ -200,6 +200,7 @@ where
 /// The value is a holder for a combination of a CoreValue representation and its actual type.
 mod tests {
     use super::*;
+    use crate::libs::core::{get_core_lib_type, get_core_lib_type_reference};
     use crate::{
         assert_structural_eq, datex_list,
         logger::init_logger_debug,
@@ -210,9 +211,6 @@ mod tests {
         },
     };
     use core::str::FromStr;
-    use datex_core::libs::core::{
-        get_core_lib_type, get_core_lib_type_reference,
-    };
     use log::info;
 
     #[test]

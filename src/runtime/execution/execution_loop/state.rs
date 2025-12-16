@@ -6,7 +6,7 @@ use crate::stdlib::rc::Rc;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use datex_core::runtime::execution::execution_loop::InterruptResult;
+use crate::runtime::execution::execution_loop::InterruptResult;
 
 pub struct ExecutionLoopState {
     pub iterator: Box<

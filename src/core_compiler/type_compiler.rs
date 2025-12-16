@@ -3,8 +3,8 @@ use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::vec::Vec;
 use crate::utils::buffers::append_u8;
 use crate::values::core_values::r#type::Type;
-use datex_core::global::type_instruction_codes::TypeInstructionCode;
-use datex_core::types::definition::TypeDefinition;
+use crate::global::type_instruction_codes::TypeInstructionCode;
+use crate::types::definition::TypeDefinition;
 
 /// Compiles a given type container to a DXB body
 pub fn compile_type(ty: &Type) -> Vec<u8> {

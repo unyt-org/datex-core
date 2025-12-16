@@ -196,7 +196,7 @@ mod tests {
         },
         values::value_container::ValueContainer,
     };
-    use datex_core::references::observers::Observer;
+    use crate::references::observers::Observer;
 
     /// Helper function to record DIF updates observed on a reference
     /// Returns a Rc<RefCell<Vec<DIFUpdate>>> that contains all observed updates

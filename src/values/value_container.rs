@@ -5,6 +5,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use super::value::Value;
+use crate::references::reference::Reference;
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
 use crate::stdlib::boxed::Box;
@@ -19,7 +20,6 @@ use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
-use datex_core::references::reference::Reference;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq)]

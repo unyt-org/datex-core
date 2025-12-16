@@ -44,10 +44,10 @@ use crate::utils::buffers::append_u8;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use datex_core::core_compiler::value_compiler::{
+use crate::core_compiler::value_compiler::{
     append_get_ref, append_key_string,
 };
-use datex_core::utils::buffers::append_u32;
+use crate::utils::buffers::append_u32;
 use log::info;
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;

@@ -589,10 +589,10 @@ impl TryFrom<CoreValue> for Map {
 
 #[cfg(test)]
 mod tests {
+    use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::map::Map;
     use crate::values::value_container::ValueContainer;
-    use datex_core::values::core_values::decimal::Decimal;
 
     #[test]
     fn test_map() {

@@ -28,10 +28,10 @@ use core::fmt;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::global::protocol_structures::instructions::{
+use crate::global::protocol_structures::instructions::{
     RawLocalPointerAddress, StatementsData,
 };
-use datex_core::parser::next_instructions_stack::NextInstructionsStack;
+use crate::parser::next_instructions_stack::NextInstructionsStack;
 use log::info;
 
 #[derive(Debug)]

@@ -9,13 +9,13 @@ use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::collections::HashMap;
 use crate::values::core_values::r#type::Type;
-use datex_core::ast::structs::expression::{
+use crate::ast::structs::expression::{
     DatexExpressionData, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };
-use datex_core::compiler::precompiler::precompiled_ast::RichAst;
-use datex_core::compiler::workspace::CompilerWorkspace;
-use datex_core::visitor::expression::ExpressionVisitor;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
+use crate::compiler::workspace::CompilerWorkspace;
+use crate::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};
 use realhydroper_lsp::{Client, LanguageServer, Server};
 use realhydroper_lsp::{LspService, lsp_types::*};

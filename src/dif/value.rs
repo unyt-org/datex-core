@@ -2,8 +2,10 @@ use crate::dif::DIFConvertible;
 use crate::dif::representation::DIFValueRepresentation;
 use crate::dif::r#type::DIFTypeDefinition;
 use crate::libs::core::CoreLibPointerId;
+use crate::runtime::memory::Memory;
 use crate::stdlib::string::ToString;
 use crate::types::definition::TypeDefinition;
+use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
@@ -15,8 +17,6 @@ use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::runtime::memory::Memory;
-use datex_core::values::core_value::CoreValue;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]

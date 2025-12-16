@@ -2,11 +2,11 @@ use crate::global::protocol_structures::instructions::{
     RawFullPointerAddress, RawInternalPointerAddress, RawLocalPointerAddress,
     RegularInstruction, TypeInstruction,
 };
+use crate::stdlib::rc::Rc;
 use crate::values::core_values::map::OwnedMapKey;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::stdlib::cell::RefCell;
 
 #[derive(Debug)]
 pub enum ExecutionInterrupt {

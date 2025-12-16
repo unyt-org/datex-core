@@ -16,7 +16,7 @@ use crate::{
 };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
-use datex_core::references::type_reference::TypeReference;
+use crate::references::type_reference::TypeReference;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
