@@ -626,7 +626,7 @@ mod tests {
 
     #[test]
     fn unbounded_expect_more_instructions() {
-        let data = vec![InstructionCode::UNBOUNDED_STATEMENTS as u8, 0x00]; // Start unbounded statements
+        let data = vec![InstructionCode::UNBOUNDED_STATEMENTS as u8]; // Start unbounded statements
         let data_ref = Rc::new(RefCell::new(data));
         let mut iterator = iterate_instructions(data_ref.clone());
         // first instruction should be UNBOUNDED_STATEMENTS
@@ -641,6 +641,7 @@ mod tests {
             InstructionCode::UINT_8 as u8,  // first statement
             42,
             InstructionCode::UNBOUNDED_STATEMENTS_END as u8, // end unbounded statements
+            0x00,
         ];
 
         *data_ref.borrow_mut() = new_data;

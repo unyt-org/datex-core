@@ -68,7 +68,7 @@ pub async fn test_remote_inline() {
         runtime_a.com_hub().print_metadata();
 
         // create an execution context for @test_b
-        let mut execution_context = ExecutionContext::local_with_runtime_internal(runtime_a.internal.clone(), ExecutionMode::Unbounded);
+        let mut execution_context = ExecutionContext::local_with_runtime_internal(runtime_a.internal.clone(), ExecutionMode::unbounded());
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("@test_b :: 1 + 2", &[], Some(&mut execution_context)).await;
