@@ -22,6 +22,7 @@ pub trait CryptoTrait: Send + Sync {
         to_digest: &'a [u8],
     ) -> CryptoResult<'a, [u8; 32]>;
 
+    /// Encodes 32 bytes to base58
     fn enc_b58<'a>(
         &'a self,
         to_encode: &'a [u8; 32],
@@ -33,6 +34,7 @@ pub trait CryptoTrait: Send + Sync {
         Ok(out_buf)
     }
 
+    /// Decodes 32 bytes from base58
     fn dec_b58<'a>(
         &'a self,
         to_decode: &'a [u8; 44],
