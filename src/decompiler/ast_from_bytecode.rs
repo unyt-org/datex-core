@@ -10,6 +10,7 @@ use crate::stdlib::rc::Rc;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 
 enum CollectedResult {
@@ -370,15 +371,22 @@ pub fn ast_from_bytecode(
                         TypeInstruction::ImplType(impl_type_data) => {
                             todo!("Handle TypeInstruction::ImplType")
                         }
-                        TypeInstruction::LiteralInteger(integer_data) => {
-                            todo!("Handle TypeInstruction::LiteralInteger")
-                        }
-                        TypeInstruction::LiteralText(text_data) => {
-                            todo!("Handle TypeInstruction::LiteralText")
-                        }
-                        TypeInstruction::TypeReference(reference) => None,
+                        TypeInstruction::LiteralInteger(integer_data) => Some(
+                            TypeExpressionData::Integer(integer_data.0.clone())
+                                .with_default_span(),
+                        ),
+                        TypeInstruction::LiteralText(text_data) => Some(
+                            TypeExpressionData::Text(text_data.0.clone())
+                                .with_default_span(),
+                        ),
+                        TypeInstruction::TypeReference(reference) => Some(
+                            TypeExpressionData::GetReference(
+                                PointerAddress::from(reference.address.clone()),
+                            )
+                            .with_default_span(),
+                        ),
 
-                        // Handle different type instructions here
+                        // TODO Handle different type instructions here
                         _ => todo!(),
                     };
                 if let Some(type_expression) = type_expression {
