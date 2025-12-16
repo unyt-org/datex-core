@@ -7,7 +7,7 @@ use crate::runtime::execution::execution_loop::operations::{
     handle_unary_operation,
 };
 use crate::runtime::execution::execution_loop::type_instruction_execution::get_next_type;
-use crate::runtime::execution::execution_loop::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider};
+use crate::runtime::execution::execution_loop::{ExternalExecutionInterrupt, InterruptResult};
 use crate::runtime::execution::macros::{intercept_maybe_step, intercept_step, interrupt, interrupt_with_maybe_value, yield_unwrap};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::stdlib::rc::Rc;
@@ -26,6 +26,7 @@ use datex_core::global::protocol_structures::instructions::RegularInstruction;
 use datex_core::runtime::execution::execution_loop::operations::handle_comparison_operation;
 use datex_core::runtime::execution::macros::interrupt_with_value;
 use datex_core::values::core_value::CoreValue;
+use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, InterruptProvider};
 
 /// Yield an interrupt and get the next regular instruction,
 /// expecting the next input to be a NextRegularInstruction variant
@@ -35,7 +36,7 @@ macro_rules! interrupt_with_next_regular_instruction {
 
         let res = interrupt!($input, ExecutionInterrupt::GetNextRegularInstruction).unwrap();
         match res {
-            InterruptProvider::NextRegularInstruction(value) => value,
+            InterruptResult::NextRegularInstruction(value) => value,
             _ => unreachable!(), // must be ensured by execution loop
         }
     }};
@@ -113,7 +114,7 @@ macro_rules! get_next_value_or_statements_end {
 /// TODO: put interrupt provider together with state (active value, stack) and pass that around
 /// instead of using interrupts for accessing the state
 pub(crate) fn execute_regular_instruction(
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    interrupt_provider: InterruptProvider,
     instruction: RegularInstruction,
 ) -> Box<impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>>> {
     Box::new(gen move {

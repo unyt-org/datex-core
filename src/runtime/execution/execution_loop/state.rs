@@ -1,7 +1,8 @@
 use core::cell::RefCell;
 use core::fmt::Debug;
-use crate::parser::next_instructions_stack::NextInstructionsStack;
+use datex_core::runtime::execution::execution_loop::InterruptResult;
 use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
+use crate::runtime::execution::execution_loop::interrupts::InterruptProvider;
 use crate::stdlib::collections::HashMap;
 use crate::stdlib::rc::Rc;
 use crate::runtime::execution::ExecutionError;
@@ -10,6 +11,7 @@ use crate::values::value_container::ValueContainer;
 pub struct ExecutionLoopState {
     pub iterator: Box<dyn Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>>>,
     pub dxb_body: Rc<RefCell<Vec<u8>>>,
+    pub(crate) interrupt_provider: InterruptProvider,
 }
 
 impl Debug for ExecutionLoopState {

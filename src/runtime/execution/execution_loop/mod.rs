@@ -2,6 +2,7 @@ mod operations;
 pub mod regular_instruction_execution;
 pub mod state;
 pub mod type_instruction_execution;
+pub mod interrupts;
 
 use core::cell::RefCell;
 use crate::stdlib::rc::Rc;
@@ -19,6 +20,7 @@ use crate::parser::body;
 use crate::parser::body::{iterate_instructions, DXBParserError};
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::{ExecutionError, ExecutionInput, InvalidProgramError};
+use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider, InterruptResult};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::macros::{next_iter, yield_unwrap};
 use crate::traits::apply::Apply;
@@ -36,52 +38,13 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
-#[derive(Debug)]
-pub enum ExecutionInterrupt {
-    /// contains an optional ValueContainer that is intercepted by the consumer of a value or passed as the final result at the end of execution
-    ValueReturn(Option<ValueContainer>),
-    /// contains a Type that is intercepted by a consumer of a type value
-    TypeReturn(Type),
-    /// contains a key-value pair that is intercepted by a map construction operation
-    KeyValuePairReturn((OwnedMapKey, ValueContainer)),
-    /// indicates the end of an unbounded statements block - is intercepted by a statements block loop
-    StatementsEnd(bool),
-    AllocateSlot(u32, ValueContainer),
-    GetSlotValue(u32),
-    SetSlotValue(u32, ValueContainer),
-    DropSlot(u32),
-    // used for intermediate results in unbounded scopes
-    SetActiveValue(Option<ValueContainer>),
-    GetNextRegularInstruction,
-    GetNextTypeInstruction,
-    /// yields an external interrupt to be handled by the execution loop caller (for I/O operations, pointer resolution, remote execution, etc.)
-    External(ExternalExecutionInterrupt)
-}
-
-#[derive(Debug)]
-pub enum ExternalExecutionInterrupt {
-    Result(Option<ValueContainer>),
-    ResolvePointer(RawFullPointerAddress),
-    ResolveLocalPointer(RawLocalPointerAddress),
-    ResolveInternalPointer(RawInternalPointerAddress),
-    GetInternalSlotValue(u32),
-    RemoteExecution(ValueContainer, Vec<u8>),
-    Apply(ValueContainer, Vec<ValueContainer>),
-}
-
-#[derive(Debug)]
-pub enum InterruptProvider {
-    ResolvedValue(Option<ValueContainer>),
-    NextRegularInstruction(RegularInstruction),
-    NextTypeInstruction(TypeInstruction),
-}
 
 /// Main execution loop that drives the execution of the DXB body
 /// The interrupt_provider is used to provide results for synchronous or asynchronous I/O operations
 pub fn execution_loop(
     state: RuntimeExecutionState,
     dxb_body: Rc<RefCell<Vec<u8>>>,
-    interrupt_provider: Rc<RefCell<Option<InterruptProvider>>>,
+    interrupt_provider: InterruptProvider,
 ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
 
@@ -101,7 +64,7 @@ pub fn execution_loop(
             'main: for step in inner_iterator {
                 let step = yield_unwrap!(step);
 
-                info!("Execution loop step: {:?}", step);
+                println!("Execution loop step: {:?}", step);
 
                 match step {
                     // yield external steps directly to be handled by the caller
@@ -118,8 +81,8 @@ pub fn execution_loop(
                             match next_iter!(instruction_iterator, 'main) {
                                 // feed next regular instruction
                                 Ok(Instruction::RegularInstruction(next_instruction)) => {
-                                    interrupt_provider.borrow_mut().replace(
-                                        InterruptProvider::NextRegularInstruction(
+                                    interrupt_provider.provide_result(
+                                        InterruptResult::NextRegularInstruction(
                                             next_instruction,
                                         ),
                                     );
@@ -151,8 +114,8 @@ pub fn execution_loop(
                             match next_iter!(instruction_iterator, 'main) {
                                 // feed next type instruction
                                 Ok(Instruction::TypeInstruction(next_instruction)) => {
-                                    interrupt_provider.borrow_mut().replace(
-                                        InterruptProvider::NextTypeInstruction(
+                                    interrupt_provider.provide_result(
+                                        InterruptResult::NextTypeInstruction(
                                             next_instruction,
                                         ),
                                     );
@@ -189,9 +152,7 @@ pub fn execution_loop(
                         // else handle normal slot
                         else {
                             let val = yield_unwrap!(slots.get_slot_value(address));
-                            interrupt_provider
-                                .borrow_mut()
-                                .replace(InterruptProvider::ResolvedValue(val));
+                            interrupt_provider.provide_result(InterruptResult::ResolvedValue(val));
                         }
                     }
                     ExecutionInterrupt::SetSlotValue(address, value) => {
