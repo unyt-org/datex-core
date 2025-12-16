@@ -221,9 +221,6 @@ impl Display for ComHubError {
             ComHubError::SignatureError => {
                 core::write!(f, "ComHubError: CryptoError")
             }
-            _ => {
-                core::write!(f, "ComHubError: Some mysterious comhub error")
-            }
         }
     }
 }
@@ -687,6 +684,10 @@ impl ComHub {
         // if ttl becomes 0 after decrement drop the block
         else if block.routing_header.ttl == 1 {
             block.routing_header.ttl -= 1;
+            warn!("Block TTL expired. Dropping block...");
+            return;
+        // else ttl must be zero
+        } else {
             warn!("Block TTL expired. Dropping block...");
             return;
         }
