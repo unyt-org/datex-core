@@ -1,4 +1,3 @@
-use super::super::core_value_trait::CoreValueTrait;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::traits::structural_eq::StructuralEq;
@@ -39,8 +38,6 @@ impl Display for Boolean {
         core::write!(f, "{}", self.0)
     }
 }
-
-impl CoreValueTrait for Boolean {}
 
 impl StructuralEq for Boolean {
     fn structural_eq(&self, other: &Self) -> bool {

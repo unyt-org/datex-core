@@ -6,7 +6,6 @@ use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::value_container::{ValueContainer, ValueError};
 use binrw::io::Cursor;
 use binrw::{BinRead, BinWrite};
@@ -99,8 +98,6 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
 //         Err(ValueError::TypeConversionError)
 //     }
 // }
-
-impl CoreValueTrait for Endpoint {}
 
 impl StructuralEq for Endpoint {
     fn structural_eq(&self, other: &Self) -> bool {

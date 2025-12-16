@@ -14,7 +14,6 @@ use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::callable::CallableSignature;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
@@ -401,8 +400,6 @@ impl Type {
         }
     }
 }
-
-impl CoreValueTrait for Type {}
 
 impl StructuralEq for Type {
     fn structural_eq(&self, other: &Self) -> bool {

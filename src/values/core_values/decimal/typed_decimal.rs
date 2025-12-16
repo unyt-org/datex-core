@@ -4,7 +4,6 @@ use crate::stdlib::ops::{Add, AddAssign, Sub};
 use crate::stdlib::string::String;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
 use core::fmt::Display;
@@ -111,8 +110,6 @@ impl Hash for TypedDecimal {
         }
     }
 }
-
-impl CoreValueTrait for TypedDecimal {}
 
 impl StructuralEq for TypedDecimal {
     fn structural_eq(&self, other: &Self) -> bool {

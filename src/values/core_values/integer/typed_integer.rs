@@ -1,5 +1,4 @@
 use crate::values::{
-    core_value_trait::CoreValueTrait,
     core_values::{
         error::NumberParseError,
         integer::{
@@ -470,7 +469,6 @@ impl Display for TypedInteger {
     }
 }
 
-impl CoreValueTrait for TypedInteger {}
 // FIXME #343 discuss on structural vs partial equality for integers
 impl StructuralEq for TypedInteger {
     fn structural_eq(&self, other: &Self) -> bool {

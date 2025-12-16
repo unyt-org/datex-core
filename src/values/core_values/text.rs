@@ -1,4 +1,3 @@
-use super::super::core_value_trait::CoreValueTrait;
 use crate::references::reference::IndexOutOfBoundsError;
 use crate::stdlib::ops::{Add, AddAssign};
 use crate::stdlib::string::String;
@@ -174,8 +173,6 @@ impl Text {
         Ok(())
     }
 }
-
-impl CoreValueTrait for Text {}
 
 impl StructuralEq for Text {
     fn structural_eq(&self, other: &Self) -> bool {
