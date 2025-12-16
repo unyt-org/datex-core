@@ -1,4 +1,3 @@
-use super::super::core_value_trait::CoreValueTrait;
 use crate::references::reference::IndexOutOfBoundsError;
 use crate::stdlib::ops::Index;
 use crate::stdlib::vec::Vec;
@@ -122,8 +121,6 @@ impl List {
         Ok(self.0.remove(index))
     }
 }
-
-impl CoreValueTrait for List {}
 
 impl StructuralEq for List {
     fn structural_eq(&self, other: &Self) -> bool {

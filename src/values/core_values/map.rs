@@ -1,4 +1,3 @@
-use super::super::core_value_trait::CoreValueTrait;
 use crate::collections::HashMap;
 use crate::references::reference::KeyNotFoundError;
 use crate::std_random::RandomState;
@@ -468,8 +467,6 @@ impl Hash for Map {
         }
     }
 }
-
-impl CoreValueTrait for Map {}
 
 impl Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
