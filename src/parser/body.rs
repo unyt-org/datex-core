@@ -114,511 +114,509 @@ impl Display for DXBParserError {
 pub fn iterate_instructions(
     dxb_body_ref: Rc<RefCell<Vec<u8>>>,
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> {
-    core::iter::from_coroutine(
-        #[coroutine]
-        move || {
-            // create a stack to track next instructions
-            let mut next_instructions_stack = NextInstructionsStack::default();
+    gen move {
+        // create a stack to track next instructions
+        let mut next_instructions_stack = NextInstructionsStack::default();
 
-            // get reader for dxb_body
-            let mut dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
-            let mut len = dxb_body.len();
-            let mut reader = Cursor::new(dxb_body);
+        // get reader for dxb_body
+        let mut dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
+        let mut len = dxb_body.len();
+        let mut reader = Cursor::new(dxb_body);
 
-            loop {
-                // if cursor is at the end, check if more instructions are expected, else end iteration
-                if reader.position() as usize >= len {
-                    // indicates that more instructions need to be read
-                    if !next_instructions_stack.is_end() {
-                        yield Err(DXBParserError::ExpectingMoreInstructions);
-                        // assume that more instructions are loaded into dxb_body externally after this yield
-                        // so we just reload the dxb_body from the Rc<RefCell>
-                        dxb_body =
-                            core::mem::take(&mut *dxb_body_ref.borrow_mut());
-                        len = dxb_body.len();
-                        reader = Cursor::new(dxb_body);
-                        continue;
-                    }
-                    return;
+        loop {
+            // if cursor is at the end, check if more instructions are expected, else end iteration
+            if reader.position() as usize >= len {
+                // indicates that more instructions need to be read
+                if !next_instructions_stack.is_end() {
+                    yield Err(DXBParserError::ExpectingMoreInstructions);
+                    // assume that more instructions are loaded into dxb_body externally after this yield
+                    // so we just reload the dxb_body from the Rc<RefCell>
+                    dxb_body =
+                        core::mem::take(&mut *dxb_body_ref.borrow_mut());
+                    len = dxb_body.len();
+                    reader = Cursor::new(dxb_body);
+                    continue;
                 }
-
-                let next_instruction_type = next_instructions_stack.pop();
-
-                // parse instruction based on its type
-                let instruction = (match next_instruction_type {
-                    NextInstructionType::End => return, // end of instructions
-
-                    NextInstructionType::Regular => {
-                        let instruction_code = yield_unwrap!(
-                            get_next_regular_instruction_code(&mut reader)
-                        );
-
-                        match instruction_code {
-                            InstructionCode::UINT_8 => {
-                                let data = UInt8Data::read(&mut reader);
-                                RegularInstruction::UInt8(yield_unwrap!(data))
-                            }
-                            InstructionCode::UINT_16 => {
-                                let data = UInt16Data::read(&mut reader);
-                                RegularInstruction::UInt16(yield_unwrap!(data))
-                            }
-                            InstructionCode::UINT_32 => {
-                                let data = UInt32Data::read(&mut reader);
-                                RegularInstruction::UInt32(yield_unwrap!(data))
-                            }
-                            InstructionCode::UINT_64 => {
-                                let data = UInt64Data::read(&mut reader);
-                                RegularInstruction::UInt64(yield_unwrap!(data))
-                            }
-                            InstructionCode::UINT_128 => {
-                                let data = UInt128Data::read(&mut reader);
-                                RegularInstruction::UInt128(yield_unwrap!(data))
-                            }
-
-                            InstructionCode::INT_8 => {
-                                let data = Int8Data::read(&mut reader);
-                                RegularInstruction::Int8(yield_unwrap!(data))
-                            }
-                            InstructionCode::INT_16 => {
-                                let data = Int16Data::read(&mut reader);
-                                RegularInstruction::Int16(yield_unwrap!(data))
-                            }
-                            InstructionCode::INT_32 => {
-                                let data = Int32Data::read(&mut reader);
-                                RegularInstruction::Int32(yield_unwrap!(data))
-                            }
-                            InstructionCode::INT_64 => {
-                                let data = Int64Data::read(&mut reader);
-                                RegularInstruction::Int64(yield_unwrap!(data))
-                            }
-                            InstructionCode::INT_128 => {
-                                let data = Int128Data::read(&mut reader);
-                                RegularInstruction::Int128(yield_unwrap!(data))
-                            }
-                            InstructionCode::INT_BIG => {
-                                let data = IntegerData::read(&mut reader);
-                                RegularInstruction::BigInteger(yield_unwrap!(
-                                    data
-                                ))
-                            }
-
-                            InstructionCode::DECIMAL_F32 => {
-                                let data = Float32Data::read(&mut reader);
-                                RegularInstruction::DecimalF32(yield_unwrap!(
-                                    data
-                                ))
-                            }
-                            InstructionCode::DECIMAL_F64 => {
-                                let data = Float64Data::read(&mut reader);
-                                RegularInstruction::DecimalF64(yield_unwrap!(
-                                    data
-                                ))
-                            }
-                            InstructionCode::DECIMAL_BIG => {
-                                let data = DecimalData::read(&mut reader);
-                                RegularInstruction::Decimal(yield_unwrap!(data))
-                            }
-                            InstructionCode::DECIMAL_AS_INT_16 => {
-                                let data = FloatAsInt16Data::read(&mut reader);
-                                RegularInstruction::DecimalAsInt16(
-                                    yield_unwrap!(data),
-                                )
-                            }
-                            InstructionCode::DECIMAL_AS_INT_32 => {
-                                let data = FloatAsInt32Data::read(&mut reader);
-                                RegularInstruction::DecimalAsInt32(
-                                    yield_unwrap!(data),
-                                )
-                            }
-
-                            InstructionCode::REMOTE_EXECUTION => {
-                                let data =
-                                    InstructionBlockData::read(&mut reader);
-                                next_instructions_stack.push_next_regular(1); // receivers
-                                RegularInstruction::RemoteExecution(
-                                    yield_unwrap!(data),
-                                )
-                            }
-
-                            InstructionCode::SHORT_TEXT => {
-                                let raw_data =
-                                    ShortTextDataRaw::read(&mut reader);
-                                let text = yield_unwrap!(String::from_utf8(
-                                    yield_unwrap!(raw_data).text
-                                ));
-                                RegularInstruction::ShortText(ShortTextData(
-                                    text,
-                                ))
-                            }
-
-                            InstructionCode::ENDPOINT => {
-                                let endpoint_data = Endpoint::read(&mut reader);
-                                RegularInstruction::Endpoint(yield_unwrap!(
-                                    endpoint_data
-                                ))
-                            }
-
-                            InstructionCode::TEXT => {
-                                let raw_data = TextDataRaw::read(&mut reader);
-                                let text = yield_unwrap!(String::from_utf8(
-                                    yield_unwrap!(raw_data).text
-                                ));
-                                RegularInstruction::Text(TextData(text))
-                            }
-
-                            InstructionCode::TRUE => RegularInstruction::True,
-                            InstructionCode::FALSE => RegularInstruction::False,
-                            InstructionCode::NULL => RegularInstruction::Null,
-
-                            // collections
-                            InstructionCode::LIST => {
-                                let list_data =
-                                    yield_unwrap!(ListData::read(&mut reader));
-                                next_instructions_stack
-                                    .push_next_regular(list_data.element_count);
-                                RegularInstruction::List(list_data)
-                            }
-                            InstructionCode::SHORT_LIST => {
-                                let list_data = yield_unwrap!(
-                                    ShortListData::read(&mut reader)
-                                );
-                                next_instructions_stack.push_next_regular(
-                                    list_data.element_count as u32,
-                                );
-                                RegularInstruction::ShortList(ListData {
-                                    element_count: list_data.element_count
-                                        as u32,
-                                })
-                            }
-                            InstructionCode::MAP => {
-                                let map_data =
-                                    yield_unwrap!(MapData::read(&mut reader));
-                                next_instructions_stack
-                                    .push_next_regular(map_data.element_count);
-                                RegularInstruction::Map(map_data)
-                            }
-                            InstructionCode::SHORT_MAP => {
-                                let map_data = yield_unwrap!(
-                                    ShortMapData::read(&mut reader)
-                                );
-                                next_instructions_stack.push_next_regular(
-                                    map_data.element_count as u32,
-                                );
-                                RegularInstruction::ShortMap(MapData {
-                                    element_count: map_data.element_count
-                                        as u32,
-                                })
-                            }
-
-                            InstructionCode::STATEMENTS => {
-                                let statements_data = yield_unwrap!(
-                                    StatementsData::read(&mut reader)
-                                );
-                                next_instructions_stack.push_next_regular(
-                                    statements_data.statements_count,
-                                );
-                                RegularInstruction::Statements(statements_data)
-                            }
-                            InstructionCode::SHORT_STATEMENTS => {
-                                let statements_data = yield_unwrap!(
-                                    ShortStatementsData::read(&mut reader)
-                                );
-                                next_instructions_stack.push_next_regular(
-                                    statements_data.statements_count as u32,
-                                );
-                                // convert ShortStatementsData to StatementsData for simplicity
-                                RegularInstruction::ShortStatements(
-                                    StatementsData {
-                                        statements_count: statements_data
-                                            .statements_count
-                                            as u32,
-                                        terminated: statements_data.terminated,
-                                    },
-                                )
-                            }
-
-                            InstructionCode::UNBOUNDED_STATEMENTS => {
-                                next_instructions_stack
-                                    .push_next_regular_unbounded();
-                                RegularInstruction::UnboundedStatements
-                            }
-
-                            InstructionCode::UNBOUNDED_STATEMENTS_END => {
-                                let statements_data = yield_unwrap!(
-                                    UnboundedStatementsData::read(&mut reader)
-                                );
-                                yield_unwrap!(
-                                    next_instructions_stack
-                                        .pop_unbounded_regular()
-                                );
-                                RegularInstruction::UnboundedStatementsEnd(
-                                    statements_data.terminated,
-                                )
-                            }
-
-                            InstructionCode::APPLY_ZERO => {
-                                RegularInstruction::Apply(ApplyData {
-                                    arg_count: 0,
-                                })
-                            }
-                            InstructionCode::APPLY_SINGLE => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::Apply(ApplyData {
-                                    arg_count: 1,
-                                })
-                            }
-
-                            InstructionCode::APPLY => {
-                                let apply_data =
-                                    yield_unwrap!(ApplyData::read(&mut reader));
-                                next_instructions_stack.push_next_regular(
-                                    apply_data.arg_count as u32,
-                                ); // each argument is at least one instruction
-                                RegularInstruction::Apply(apply_data)
-                            }
-
-                            InstructionCode::DEREF => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::Deref
-                            }
-                            InstructionCode::ASSIGN_TO_REF => {
-                                next_instructions_stack.push_next_regular(2);
-                                let operator = yield_unwrap!(
-                                    get_next_regular_instruction_code(
-                                        &mut reader
-                                    )
-                                );
-                                let operator = yield_unwrap!(
-                                    AssignmentOperator::try_from(operator)
-                                        .map_err(|_| {
-                                            DXBParserError::InvalidBinaryCode(
-                                                instruction_code as u8,
-                                            )
-                                        })
-                                );
-                                RegularInstruction::AssignToReference(operator)
-                            }
-
-                            InstructionCode::KEY_VALUE_SHORT_TEXT => {
-                                let raw_data =
-                                    ShortTextDataRaw::read(&mut reader);
-                                let text = yield_unwrap!(String::from_utf8(
-                                    yield_unwrap!(raw_data).text
-                                ));
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::KeyValueShortText(
-                                    ShortTextData(text),
-                                )
-                            }
-
-                            InstructionCode::KEY_VALUE_DYNAMIC => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::KeyValueDynamic
-                            }
-
-                            // operations
-                            InstructionCode::ADD => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Add
-                            }
-                            InstructionCode::SUBTRACT => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Subtract
-                            }
-                            InstructionCode::MULTIPLY => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Multiply
-                            }
-                            InstructionCode::DIVIDE => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Divide
-                            }
-
-                            InstructionCode::UNARY_MINUS => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::UnaryMinus
-                            }
-                            InstructionCode::UNARY_PLUS => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::UnaryPlus
-                            }
-                            InstructionCode::BITWISE_NOT => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::BitwiseNot
-                            }
-
-                            // equality
-                            InstructionCode::STRUCTURAL_EQUAL => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::StructuralEqual
-                            }
-                            InstructionCode::EQUAL => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Equal
-                            }
-                            InstructionCode::NOT_STRUCTURAL_EQUAL => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::NotStructuralEqual
-                            }
-                            InstructionCode::NOT_EQUAL => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::NotEqual
-                            }
-                            InstructionCode::IS => {
-                                next_instructions_stack.push_next_regular(2);
-                                RegularInstruction::Is
-                            }
-                            InstructionCode::MATCHES => {
-                                next_instructions_stack.push_next_type(1); // type to match against
-                                next_instructions_stack.push_next_regular(1); // value to check
-                                RegularInstruction::Matches
-                            }
-                            InstructionCode::CREATE_REF => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::CreateRef
-                            }
-                            InstructionCode::CREATE_REF_MUT => {
-                                next_instructions_stack.push_next_regular(1);
-                                RegularInstruction::CreateRefMut
-                            }
-
-                            // slots
-                            InstructionCode::ALLOCATE_SLOT => {
-                                next_instructions_stack.push_next_regular(1);
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::AllocateSlot(yield_unwrap!(
-                                    address
-                                ))
-                            }
-                            InstructionCode::GET_SLOT => {
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::GetSlot(yield_unwrap!(
-                                    address
-                                ))
-                            }
-                            InstructionCode::DROP_SLOT => {
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::DropSlot(yield_unwrap!(
-                                    address
-                                ))
-                            }
-                            InstructionCode::SET_SLOT => {
-                                next_instructions_stack.push_next_regular(1);
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::SetSlot(yield_unwrap!(
-                                    address
-                                ))
-                            }
-
-                            InstructionCode::GET_REF => {
-                                let address =
-                                    RawFullPointerAddress::read(&mut reader);
-                                RegularInstruction::GetRef(yield_unwrap!(
-                                    address
-                                ))
-                            }
-
-                            InstructionCode::GET_LOCAL_REF => {
-                                let address =
-                                    RawLocalPointerAddress::read(&mut reader);
-                                RegularInstruction::GetLocalRef(yield_unwrap!(
-                                    address
-                                ))
-                            }
-
-                            InstructionCode::GET_INTERNAL_REF => {
-                                let address = RawInternalPointerAddress::read(
-                                    &mut reader,
-                                );
-                                RegularInstruction::GetInternalRef(
-                                    yield_unwrap!(address),
-                                )
-                            }
-
-                            InstructionCode::ADD_ASSIGN => {
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::AddAssign(yield_unwrap!(
-                                    address
-                                ))
-                            }
-
-                            InstructionCode::SUBTRACT_ASSIGN => {
-                                let address = SlotAddress::read(&mut reader);
-                                RegularInstruction::SubtractAssign(
-                                    yield_unwrap!(address),
-                                )
-                            }
-
-                            InstructionCode::TYPED_VALUE => {
-                                next_instructions_stack.push_next_regular(1);
-                                next_instructions_stack.push_next_type(1);
-                                RegularInstruction::TypedValue
-                            }
-                            InstructionCode::TYPE_EXPRESSION => {
-                                next_instructions_stack.push_next_type(1);
-                                RegularInstruction::TypeExpression
-                            }
-
-                            _ => {
-                                return yield Err(
-                                    DXBParserError::InvalidBinaryCode(
-                                        instruction_code as u8,
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                    .into(),
-
-                    NextInstructionType::Type => {
-                        let instruction_code = yield_unwrap!(
-                            get_next_type_instruction_code(&mut reader)
-                        );
-                        match instruction_code {
-                            TypeInstructionCode::TYPE_LIST => {
-                                let list_data =
-                                    yield_unwrap!(ListData::read(&mut reader));
-                                next_instructions_stack
-                                    .push_next_regular(list_data.element_count);
-                                TypeInstruction::List(list_data)
-                            }
-                            TypeInstructionCode::TYPE_LITERAL_INTEGER => {
-                                let integer_data =
-                                    IntegerData::read(&mut reader);
-                                TypeInstruction::LiteralInteger(yield_unwrap!(
-                                    integer_data
-                                ))
-                            }
-                            TypeInstructionCode::TYPE_WITH_IMPLS => {
-                                let impl_data = ImplTypeData::read(&mut reader);
-                                next_instructions_stack.push_next_type(1);
-                                TypeInstruction::ImplType(yield_unwrap!(
-                                    impl_data
-                                ))
-                            }
-                            TypeInstructionCode::TYPE_REFERENCE => {
-                                let ref_data =
-                                    TypeReferenceData::read(&mut reader);
-                                TypeInstruction::TypeReference(yield_unwrap!(
-                                    ref_data
-                                ))
-                            }
-                            _ => {
-                                return yield Err(
-                                    DXBParserError::InvalidBinaryCode(
-                                        instruction_code as u8,
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                    .into(),
-                });
-
-                yield Ok(instruction);
+                return;
             }
-        },
-    )
+
+            let next_instruction_type = next_instructions_stack.pop();
+
+            // parse instruction based on its type
+            let instruction = (match next_instruction_type {
+                NextInstructionType::End => return, // end of instructions
+
+                NextInstructionType::Regular => {
+                    let instruction_code = yield_unwrap!(
+                        get_next_regular_instruction_code(&mut reader)
+                    );
+
+                    match instruction_code {
+                        InstructionCode::UINT_8 => {
+                            let data = UInt8Data::read(&mut reader);
+                            RegularInstruction::UInt8(yield_unwrap!(data))
+                        }
+                        InstructionCode::UINT_16 => {
+                            let data = UInt16Data::read(&mut reader);
+                            RegularInstruction::UInt16(yield_unwrap!(data))
+                        }
+                        InstructionCode::UINT_32 => {
+                            let data = UInt32Data::read(&mut reader);
+                            RegularInstruction::UInt32(yield_unwrap!(data))
+                        }
+                        InstructionCode::UINT_64 => {
+                            let data = UInt64Data::read(&mut reader);
+                            RegularInstruction::UInt64(yield_unwrap!(data))
+                        }
+                        InstructionCode::UINT_128 => {
+                            let data = UInt128Data::read(&mut reader);
+                            RegularInstruction::UInt128(yield_unwrap!(data))
+                        }
+
+                        InstructionCode::INT_8 => {
+                            let data = Int8Data::read(&mut reader);
+                            RegularInstruction::Int8(yield_unwrap!(data))
+                        }
+                        InstructionCode::INT_16 => {
+                            let data = Int16Data::read(&mut reader);
+                            RegularInstruction::Int16(yield_unwrap!(data))
+                        }
+                        InstructionCode::INT_32 => {
+                            let data = Int32Data::read(&mut reader);
+                            RegularInstruction::Int32(yield_unwrap!(data))
+                        }
+                        InstructionCode::INT_64 => {
+                            let data = Int64Data::read(&mut reader);
+                            RegularInstruction::Int64(yield_unwrap!(data))
+                        }
+                        InstructionCode::INT_128 => {
+                            let data = Int128Data::read(&mut reader);
+                            RegularInstruction::Int128(yield_unwrap!(data))
+                        }
+                        InstructionCode::INT_BIG => {
+                            let data = IntegerData::read(&mut reader);
+                            RegularInstruction::BigInteger(yield_unwrap!(
+                                data
+                            ))
+                        }
+
+                        InstructionCode::DECIMAL_F32 => {
+                            let data = Float32Data::read(&mut reader);
+                            RegularInstruction::DecimalF32(yield_unwrap!(
+                                data
+                            ))
+                        }
+                        InstructionCode::DECIMAL_F64 => {
+                            let data = Float64Data::read(&mut reader);
+                            RegularInstruction::DecimalF64(yield_unwrap!(
+                                data
+                            ))
+                        }
+                        InstructionCode::DECIMAL_BIG => {
+                            let data = DecimalData::read(&mut reader);
+                            RegularInstruction::Decimal(yield_unwrap!(data))
+                        }
+                        InstructionCode::DECIMAL_AS_INT_16 => {
+                            let data = FloatAsInt16Data::read(&mut reader);
+                            RegularInstruction::DecimalAsInt16(
+                                yield_unwrap!(data),
+                            )
+                        }
+                        InstructionCode::DECIMAL_AS_INT_32 => {
+                            let data = FloatAsInt32Data::read(&mut reader);
+                            RegularInstruction::DecimalAsInt32(
+                                yield_unwrap!(data),
+                            )
+                        }
+
+                        InstructionCode::REMOTE_EXECUTION => {
+                            let data =
+                                InstructionBlockData::read(&mut reader);
+                            next_instructions_stack.push_next_regular(1); // receivers
+                            RegularInstruction::RemoteExecution(
+                                yield_unwrap!(data),
+                            )
+                        }
+
+                        InstructionCode::SHORT_TEXT => {
+                            let raw_data =
+                                ShortTextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(raw_data).text
+                            ));
+                            RegularInstruction::ShortText(ShortTextData(
+                                text,
+                            ))
+                        }
+
+                        InstructionCode::ENDPOINT => {
+                            let endpoint_data = Endpoint::read(&mut reader);
+                            RegularInstruction::Endpoint(yield_unwrap!(
+                                endpoint_data
+                            ))
+                        }
+
+                        InstructionCode::TEXT => {
+                            let raw_data = TextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(raw_data).text
+                            ));
+                            RegularInstruction::Text(TextData(text))
+                        }
+
+                        InstructionCode::TRUE => RegularInstruction::True,
+                        InstructionCode::FALSE => RegularInstruction::False,
+                        InstructionCode::NULL => RegularInstruction::Null,
+
+                        // collections
+                        InstructionCode::LIST => {
+                            let list_data =
+                                yield_unwrap!(ListData::read(&mut reader));
+                            next_instructions_stack
+                                .push_next_regular(list_data.element_count);
+                            RegularInstruction::List(list_data)
+                        }
+                        InstructionCode::SHORT_LIST => {
+                            let list_data = yield_unwrap!(
+                                ShortListData::read(&mut reader)
+                            );
+                            next_instructions_stack.push_next_regular(
+                                list_data.element_count as u32,
+                            );
+                            RegularInstruction::ShortList(ListData {
+                                element_count: list_data.element_count
+                                    as u32,
+                            })
+                        }
+                        InstructionCode::MAP => {
+                            let map_data =
+                                yield_unwrap!(MapData::read(&mut reader));
+                            next_instructions_stack
+                                .push_next_regular(map_data.element_count);
+                            RegularInstruction::Map(map_data)
+                        }
+                        InstructionCode::SHORT_MAP => {
+                            let map_data = yield_unwrap!(
+                                ShortMapData::read(&mut reader)
+                            );
+                            next_instructions_stack.push_next_regular(
+                                map_data.element_count as u32,
+                            );
+                            RegularInstruction::ShortMap(MapData {
+                                element_count: map_data.element_count
+                                    as u32,
+                            })
+                        }
+
+                        InstructionCode::STATEMENTS => {
+                            let statements_data = yield_unwrap!(
+                                StatementsData::read(&mut reader)
+                            );
+                            next_instructions_stack.push_next_regular(
+                                statements_data.statements_count,
+                            );
+                            RegularInstruction::Statements(statements_data)
+                        }
+                        InstructionCode::SHORT_STATEMENTS => {
+                            let statements_data = yield_unwrap!(
+                                ShortStatementsData::read(&mut reader)
+                            );
+                            next_instructions_stack.push_next_regular(
+                                statements_data.statements_count as u32,
+                            );
+                            // convert ShortStatementsData to StatementsData for simplicity
+                            RegularInstruction::ShortStatements(
+                                StatementsData {
+                                    statements_count: statements_data
+                                        .statements_count
+                                        as u32,
+                                    terminated: statements_data.terminated,
+                                },
+                            )
+                        }
+
+                        InstructionCode::UNBOUNDED_STATEMENTS => {
+                            next_instructions_stack
+                                .push_next_regular_unbounded();
+                            RegularInstruction::UnboundedStatements
+                        }
+
+                        InstructionCode::UNBOUNDED_STATEMENTS_END => {
+                            let statements_data = yield_unwrap!(
+                                UnboundedStatementsData::read(&mut reader)
+                            );
+                            yield_unwrap!(
+                                next_instructions_stack
+                                    .pop_unbounded_regular()
+                            );
+                            RegularInstruction::UnboundedStatementsEnd(
+                                statements_data.terminated,
+                            )
+                        }
+
+                        InstructionCode::APPLY_ZERO => {
+                            RegularInstruction::Apply(ApplyData {
+                                arg_count: 0,
+                            })
+                        }
+                        InstructionCode::APPLY_SINGLE => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::Apply(ApplyData {
+                                arg_count: 1,
+                            })
+                        }
+
+                        InstructionCode::APPLY => {
+                            let apply_data =
+                                yield_unwrap!(ApplyData::read(&mut reader));
+                            next_instructions_stack.push_next_regular(
+                                apply_data.arg_count as u32,
+                            ); // each argument is at least one instruction
+                            RegularInstruction::Apply(apply_data)
+                        }
+
+                        InstructionCode::DEREF => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::Deref
+                        }
+                        InstructionCode::ASSIGN_TO_REF => {
+                            next_instructions_stack.push_next_regular(2);
+                            let operator = yield_unwrap!(
+                                get_next_regular_instruction_code(
+                                    &mut reader
+                                )
+                            );
+                            let operator = yield_unwrap!(
+                                AssignmentOperator::try_from(operator)
+                                    .map_err(|_| {
+                                        DXBParserError::InvalidBinaryCode(
+                                            instruction_code as u8,
+                                        )
+                                    })
+                            );
+                            RegularInstruction::AssignToReference(operator)
+                        }
+
+                        InstructionCode::KEY_VALUE_SHORT_TEXT => {
+                            let raw_data =
+                                ShortTextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(raw_data).text
+                            ));
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::KeyValueShortText(
+                                ShortTextData(text),
+                            )
+                        }
+
+                        InstructionCode::KEY_VALUE_DYNAMIC => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::KeyValueDynamic
+                        }
+
+                        // operations
+                        InstructionCode::ADD => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Add
+                        }
+                        InstructionCode::SUBTRACT => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Subtract
+                        }
+                        InstructionCode::MULTIPLY => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Multiply
+                        }
+                        InstructionCode::DIVIDE => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Divide
+                        }
+
+                        InstructionCode::UNARY_MINUS => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::UnaryMinus
+                        }
+                        InstructionCode::UNARY_PLUS => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::UnaryPlus
+                        }
+                        InstructionCode::BITWISE_NOT => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::BitwiseNot
+                        }
+
+                        // equality
+                        InstructionCode::STRUCTURAL_EQUAL => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::StructuralEqual
+                        }
+                        InstructionCode::EQUAL => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Equal
+                        }
+                        InstructionCode::NOT_STRUCTURAL_EQUAL => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::NotStructuralEqual
+                        }
+                        InstructionCode::NOT_EQUAL => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::NotEqual
+                        }
+                        InstructionCode::IS => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::Is
+                        }
+                        InstructionCode::MATCHES => {
+                            next_instructions_stack.push_next_type(1); // type to match against
+                            next_instructions_stack.push_next_regular(1); // value to check
+                            RegularInstruction::Matches
+                        }
+                        InstructionCode::CREATE_REF => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::CreateRef
+                        }
+                        InstructionCode::CREATE_REF_MUT => {
+                            next_instructions_stack.push_next_regular(1);
+                            RegularInstruction::CreateRefMut
+                        }
+
+                        // slots
+                        InstructionCode::ALLOCATE_SLOT => {
+                            next_instructions_stack.push_next_regular(1);
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::AllocateSlot(yield_unwrap!(
+                                address
+                            ))
+                        }
+                        InstructionCode::GET_SLOT => {
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::GetSlot(yield_unwrap!(
+                                address
+                            ))
+                        }
+                        InstructionCode::DROP_SLOT => {
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::DropSlot(yield_unwrap!(
+                                address
+                            ))
+                        }
+                        InstructionCode::SET_SLOT => {
+                            next_instructions_stack.push_next_regular(1);
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::SetSlot(yield_unwrap!(
+                                address
+                            ))
+                        }
+
+                        InstructionCode::GET_REF => {
+                            let address =
+                                RawFullPointerAddress::read(&mut reader);
+                            RegularInstruction::GetRef(yield_unwrap!(
+                                address
+                            ))
+                        }
+
+                        InstructionCode::GET_LOCAL_REF => {
+                            let address =
+                                RawLocalPointerAddress::read(&mut reader);
+                            RegularInstruction::GetLocalRef(yield_unwrap!(
+                                address
+                            ))
+                        }
+
+                        InstructionCode::GET_INTERNAL_REF => {
+                            let address = RawInternalPointerAddress::read(
+                                &mut reader,
+                            );
+                            RegularInstruction::GetInternalRef(
+                                yield_unwrap!(address),
+                            )
+                        }
+
+                        InstructionCode::ADD_ASSIGN => {
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::AddAssign(yield_unwrap!(
+                                address
+                            ))
+                        }
+
+                        InstructionCode::SUBTRACT_ASSIGN => {
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::SubtractAssign(
+                                yield_unwrap!(address),
+                            )
+                        }
+
+                        InstructionCode::TYPED_VALUE => {
+                            next_instructions_stack.push_next_regular(1);
+                            next_instructions_stack.push_next_type(1);
+                            RegularInstruction::TypedValue
+                        }
+                        InstructionCode::TYPE_EXPRESSION => {
+                            next_instructions_stack.push_next_type(1);
+                            RegularInstruction::TypeExpression
+                        }
+
+                        _ => {
+                            return yield Err(
+                                DXBParserError::InvalidBinaryCode(
+                                    instruction_code as u8,
+                                ),
+                            );
+                        }
+                    }
+                }
+                .into(),
+
+                NextInstructionType::Type => {
+                    let instruction_code = yield_unwrap!(
+                        get_next_type_instruction_code(&mut reader)
+                    );
+                    match instruction_code {
+                        TypeInstructionCode::TYPE_LIST => {
+                            let list_data =
+                                yield_unwrap!(ListData::read(&mut reader));
+                            next_instructions_stack
+                                .push_next_regular(list_data.element_count);
+                            TypeInstruction::List(list_data)
+                        }
+                        TypeInstructionCode::TYPE_LITERAL_INTEGER => {
+                            let integer_data =
+                                IntegerData::read(&mut reader);
+                            TypeInstruction::LiteralInteger(yield_unwrap!(
+                                integer_data
+                            ))
+                        }
+                        TypeInstructionCode::TYPE_WITH_IMPLS => {
+                            let impl_data = ImplTypeData::read(&mut reader);
+                            next_instructions_stack.push_next_type(1);
+                            TypeInstruction::ImplType(yield_unwrap!(
+                                impl_data
+                            ))
+                        }
+                        TypeInstructionCode::TYPE_REFERENCE => {
+                            let ref_data =
+                                TypeReferenceData::read(&mut reader);
+                            TypeInstruction::TypeReference(yield_unwrap!(
+                                ref_data
+                            ))
+                        }
+                        _ => {
+                            return yield Err(
+                                DXBParserError::InvalidBinaryCode(
+                                    instruction_code as u8,
+                                ),
+                            );
+                        }
+                    }
+                }
+                .into(),
+            });
+
+            yield Ok(instruction);
+        }
+    }
+
 }
 
 fn get_next_regular_instruction_code(
