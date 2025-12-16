@@ -1,9 +1,9 @@
 use crate::compiler::scope::CompilationScope;
 use crate::runtime::RuntimeInternal;
-use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::runtime::execution::ExecutionOptions;
-use crate::stdlib::rc::Rc;
 use crate::runtime::execution::context::ExecutionContext;
+use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
+use crate::stdlib::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionMode {

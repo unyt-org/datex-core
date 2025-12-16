@@ -36,18 +36,16 @@ use crate::core_compiler::value_compiler::{
     append_text, append_typed_decimal, append_typed_integer,
     append_value_container,
 };
+use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::utils::buffers::append_u8;
+use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use crate::core_compiler::value_compiler::{
-    append_get_ref, append_key_string,
-};
-use crate::utils::buffers::append_u32;
 use log::info;
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;

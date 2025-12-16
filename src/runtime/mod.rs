@@ -10,6 +10,7 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
+use crate::network::com_interfaces::com_interface::ComInterfaceFactory;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::serde::error::SerializationError;
@@ -31,7 +32,6 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
-use crate::network::com_interfaces::com_interface::ComInterfaceFactory;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
@@ -237,7 +237,6 @@ impl RuntimeInternal {
         if let Some(context) = execution_context {
             context
         } else {
-            
             ExecutionContext::local_with_runtime_internal(
                 self_rc.clone(),
                 ExecutionMode::unbounded(),

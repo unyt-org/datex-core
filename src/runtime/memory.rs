@@ -1,4 +1,5 @@
 use crate::collections::HashMap;
+use crate::global::protocol_structures::instructions::RawFullPointerAddress;
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::references::reference::Reference;
 use crate::references::type_reference::TypeReference;
@@ -7,13 +8,12 @@ use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::types::error::IllegalTypeError;
 use crate::utils::time::Time;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::values::pointer::PointerAddress;
 use binrw::io::Cursor;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::global::protocol_structures::instructions::RawFullPointerAddress;
-use crate::values::core_values::endpoint::Endpoint;
 
 #[derive(Debug, Default)]
 pub struct Memory {

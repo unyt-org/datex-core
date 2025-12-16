@@ -1,18 +1,18 @@
-use crate::lsp::LanguageServerBackend;
-use crate::lsp::errors::SpannedLSPCompilerError;
-use crate::lsp::type_hint_collector::TypeHintCollector;
-use crate::values::core_values::r#type::Type;
 use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, List, Map, Statements,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };
 use crate::compiler::error::DetailedCompilerErrors;
 use crate::compiler::precompiler::precompiled_ast::VariableMetadata;
+use crate::lsp::LanguageServerBackend;
+use crate::lsp::errors::SpannedLSPCompilerError;
+use crate::lsp::type_hint_collector::TypeHintCollector;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::r#type::Type;
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::TypeExpressionVisitor;

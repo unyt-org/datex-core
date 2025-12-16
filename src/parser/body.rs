@@ -10,7 +10,11 @@ use crate::global::protocol_structures::instructions::{
     TypeInstruction, TypeReferenceData, UInt8Data, UInt16Data, UInt32Data,
     UInt64Data, UInt128Data, UnboundedStatementsData,
 };
+use crate::global::protocol_structures::instructions::{
+    RawLocalPointerAddress, StatementsData,
+};
 use crate::global::type_instruction_codes::TypeInstructionCode;
+use crate::parser::next_instructions_stack::NextInstructionsStack;
 use crate::parser::next_instructions_stack::{
     NextInstructionType, NotInUnboundedRegularScopeError,
 };
@@ -28,10 +32,6 @@ use core::fmt;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::global::protocol_structures::instructions::{
-    RawLocalPointerAddress, StatementsData,
-};
-use crate::parser::next_instructions_stack::NextInstructionsStack;
 
 #[derive(Debug)]
 pub enum DXBParserError {
@@ -130,8 +130,7 @@ pub fn iterate_instructions(
                     yield Err(DXBParserError::ExpectingMoreInstructions);
                     // assume that more instructions are loaded into dxb_body externally after this yield
                     // so we just reload the dxb_body from the Rc<RefCell>
-                    dxb_body =
-                        core::mem::take(&mut *dxb_body_ref.borrow_mut());
+                    dxb_body = core::mem::take(&mut *dxb_body_ref.borrow_mut());
                     len = dxb_body.len();
                     reader = Cursor::new(dxb_body);
                     continue;
@@ -194,22 +193,16 @@ pub fn iterate_instructions(
                         }
                         InstructionCode::INT_BIG => {
                             let data = IntegerData::read(&mut reader);
-                            RegularInstruction::BigInteger(yield_unwrap!(
-                                data
-                            ))
+                            RegularInstruction::BigInteger(yield_unwrap!(data))
                         }
 
                         InstructionCode::DECIMAL_F32 => {
                             let data = Float32Data::read(&mut reader);
-                            RegularInstruction::DecimalF32(yield_unwrap!(
-                                data
-                            ))
+                            RegularInstruction::DecimalF32(yield_unwrap!(data))
                         }
                         InstructionCode::DECIMAL_F64 => {
                             let data = Float64Data::read(&mut reader);
-                            RegularInstruction::DecimalF64(yield_unwrap!(
-                                data
-                            ))
+                            RegularInstruction::DecimalF64(yield_unwrap!(data))
                         }
                         InstructionCode::DECIMAL_BIG => {
                             let data = DecimalData::read(&mut reader);
@@ -217,35 +210,31 @@ pub fn iterate_instructions(
                         }
                         InstructionCode::DECIMAL_AS_INT_16 => {
                             let data = FloatAsInt16Data::read(&mut reader);
-                            RegularInstruction::DecimalAsInt16(
-                                yield_unwrap!(data),
-                            )
+                            RegularInstruction::DecimalAsInt16(yield_unwrap!(
+                                data
+                            ))
                         }
                         InstructionCode::DECIMAL_AS_INT_32 => {
                             let data = FloatAsInt32Data::read(&mut reader);
-                            RegularInstruction::DecimalAsInt32(
-                                yield_unwrap!(data),
-                            )
+                            RegularInstruction::DecimalAsInt32(yield_unwrap!(
+                                data
+                            ))
                         }
 
                         InstructionCode::REMOTE_EXECUTION => {
-                            let data =
-                                InstructionBlockData::read(&mut reader);
+                            let data = InstructionBlockData::read(&mut reader);
                             next_instructions_stack.push_next_regular(1); // receivers
-                            RegularInstruction::RemoteExecution(
-                                yield_unwrap!(data),
-                            )
+                            RegularInstruction::RemoteExecution(yield_unwrap!(
+                                data
+                            ))
                         }
 
                         InstructionCode::SHORT_TEXT => {
-                            let raw_data =
-                                ShortTextDataRaw::read(&mut reader);
+                            let raw_data = ShortTextDataRaw::read(&mut reader);
                             let text = yield_unwrap!(String::from_utf8(
                                 yield_unwrap!(raw_data).text
                             ));
-                            RegularInstruction::ShortText(ShortTextData(
-                                text,
-                            ))
+                            RegularInstruction::ShortText(ShortTextData(text))
                         }
 
                         InstructionCode::ENDPOINT => {
@@ -276,15 +265,13 @@ pub fn iterate_instructions(
                             RegularInstruction::List(list_data)
                         }
                         InstructionCode::SHORT_LIST => {
-                            let list_data = yield_unwrap!(
-                                ShortListData::read(&mut reader)
-                            );
+                            let list_data =
+                                yield_unwrap!(ShortListData::read(&mut reader));
                             next_instructions_stack.push_next_regular(
                                 list_data.element_count as u32,
                             );
                             RegularInstruction::ShortList(ListData {
-                                element_count: list_data.element_count
-                                    as u32,
+                                element_count: list_data.element_count as u32,
                             })
                         }
                         InstructionCode::MAP => {
@@ -295,15 +282,13 @@ pub fn iterate_instructions(
                             RegularInstruction::Map(map_data)
                         }
                         InstructionCode::SHORT_MAP => {
-                            let map_data = yield_unwrap!(
-                                ShortMapData::read(&mut reader)
-                            );
+                            let map_data =
+                                yield_unwrap!(ShortMapData::read(&mut reader));
                             next_instructions_stack.push_next_regular(
                                 map_data.element_count as u32,
                             );
                             RegularInstruction::ShortMap(MapData {
-                                element_count: map_data.element_count
-                                    as u32,
+                                element_count: map_data.element_count as u32,
                             })
                         }
 
@@ -345,8 +330,7 @@ pub fn iterate_instructions(
                                 UnboundedStatementsData::read(&mut reader)
                             );
                             yield_unwrap!(
-                                next_instructions_stack
-                                    .pop_unbounded_regular()
+                                next_instructions_stack.pop_unbounded_regular()
                             );
                             RegularInstruction::UnboundedStatementsEnd(
                                 statements_data.terminated,
@@ -368,9 +352,8 @@ pub fn iterate_instructions(
                         InstructionCode::APPLY => {
                             let apply_data =
                                 yield_unwrap!(ApplyData::read(&mut reader));
-                            next_instructions_stack.push_next_regular(
-                                apply_data.arg_count as u32,
-                            ); // each argument is at least one instruction
+                            next_instructions_stack
+                                .push_next_regular(apply_data.arg_count as u32); // each argument is at least one instruction
                             RegularInstruction::Apply(apply_data)
                         }
 
@@ -381,24 +364,22 @@ pub fn iterate_instructions(
                         InstructionCode::ASSIGN_TO_REF => {
                             next_instructions_stack.push_next_regular(2);
                             let operator = yield_unwrap!(
-                                get_next_regular_instruction_code(
-                                    &mut reader
-                                )
+                                get_next_regular_instruction_code(&mut reader)
                             );
                             let operator = yield_unwrap!(
-                                AssignmentOperator::try_from(operator)
-                                    .map_err(|_| {
+                                AssignmentOperator::try_from(operator).map_err(
+                                    |_| {
                                         DXBParserError::InvalidBinaryCode(
                                             instruction_code as u8,
                                         )
-                                    })
+                                    }
+                                )
                             );
                             RegularInstruction::AssignToReference(operator)
                         }
 
                         InstructionCode::KEY_VALUE_SHORT_TEXT => {
-                            let raw_data =
-                                ShortTextDataRaw::read(&mut reader);
+                            let raw_data = ShortTextDataRaw::read(&mut reader);
                             let text = yield_unwrap!(String::from_utf8(
                                 yield_unwrap!(raw_data).text
                             ));
@@ -489,30 +470,22 @@ pub fn iterate_instructions(
                         }
                         InstructionCode::GET_SLOT => {
                             let address = SlotAddress::read(&mut reader);
-                            RegularInstruction::GetSlot(yield_unwrap!(
-                                address
-                            ))
+                            RegularInstruction::GetSlot(yield_unwrap!(address))
                         }
                         InstructionCode::DROP_SLOT => {
                             let address = SlotAddress::read(&mut reader);
-                            RegularInstruction::DropSlot(yield_unwrap!(
-                                address
-                            ))
+                            RegularInstruction::DropSlot(yield_unwrap!(address))
                         }
                         InstructionCode::SET_SLOT => {
                             next_instructions_stack.push_next_regular(1);
                             let address = SlotAddress::read(&mut reader);
-                            RegularInstruction::SetSlot(yield_unwrap!(
-                                address
-                            ))
+                            RegularInstruction::SetSlot(yield_unwrap!(address))
                         }
 
                         InstructionCode::GET_REF => {
                             let address =
                                 RawFullPointerAddress::read(&mut reader);
-                            RegularInstruction::GetRef(yield_unwrap!(
-                                address
-                            ))
+                            RegularInstruction::GetRef(yield_unwrap!(address))
                         }
 
                         InstructionCode::GET_LOCAL_REF => {
@@ -524,12 +497,11 @@ pub fn iterate_instructions(
                         }
 
                         InstructionCode::GET_INTERNAL_REF => {
-                            let address = RawInternalPointerAddress::read(
-                                &mut reader,
-                            );
-                            RegularInstruction::GetInternalRef(
-                                yield_unwrap!(address),
-                            )
+                            let address =
+                                RawInternalPointerAddress::read(&mut reader);
+                            RegularInstruction::GetInternalRef(yield_unwrap!(
+                                address
+                            ))
                         }
 
                         InstructionCode::ADD_ASSIGN => {
@@ -541,9 +513,9 @@ pub fn iterate_instructions(
 
                         InstructionCode::SUBTRACT_ASSIGN => {
                             let address = SlotAddress::read(&mut reader);
-                            RegularInstruction::SubtractAssign(
-                                yield_unwrap!(address),
-                            )
+                            RegularInstruction::SubtractAssign(yield_unwrap!(
+                                address
+                            ))
                         }
 
                         InstructionCode::TYPED_VALUE => {
@@ -580,8 +552,7 @@ pub fn iterate_instructions(
                             TypeInstruction::List(list_data)
                         }
                         TypeInstructionCode::TYPE_LITERAL_INTEGER => {
-                            let integer_data =
-                                IntegerData::read(&mut reader);
+                            let integer_data = IntegerData::read(&mut reader);
                             TypeInstruction::LiteralInteger(yield_unwrap!(
                                 integer_data
                             ))
@@ -589,13 +560,10 @@ pub fn iterate_instructions(
                         TypeInstructionCode::TYPE_WITH_IMPLS => {
                             let impl_data = ImplTypeData::read(&mut reader);
                             next_instructions_stack.push_next_type(1);
-                            TypeInstruction::ImplType(yield_unwrap!(
-                                impl_data
-                            ))
+                            TypeInstruction::ImplType(yield_unwrap!(impl_data))
                         }
                         TypeInstructionCode::TYPE_REFERENCE => {
-                            let ref_data =
-                                TypeReferenceData::read(&mut reader);
+                            let ref_data = TypeReferenceData::read(&mut reader);
                             TypeInstruction::TypeReference(yield_unwrap!(
                                 ref_data
                             ))
@@ -615,7 +583,6 @@ pub fn iterate_instructions(
             yield Ok(instruction);
         }
     }
-
 }
 
 fn get_next_regular_instruction_code(

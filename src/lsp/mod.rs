@@ -2,6 +2,12 @@ mod errors;
 mod type_hint_collector;
 mod utils;
 mod variable_declaration_finder;
+use crate::ast::structs::expression::{
+    DatexExpressionData, VariableAccess, VariableAssignment,
+    VariableDeclaration,
+};
+use crate::compiler::precompiler::precompiled_ast::RichAst;
+use crate::compiler::workspace::CompilerWorkspace;
 use crate::lsp::errors::SpannedLSPCompilerError;
 use crate::lsp::variable_declaration_finder::VariableDeclarationFinder;
 use crate::runtime::Runtime;
@@ -9,12 +15,6 @@ use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::collections::HashMap;
 use crate::values::core_values::r#type::Type;
-use crate::ast::structs::expression::{
-    DatexExpressionData, VariableAccess, VariableAssignment,
-    VariableDeclaration,
-};
-use crate::compiler::precompiler::precompiled_ast::RichAst;
-use crate::compiler::workspace::CompilerWorkspace;
 use crate::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};
 use realhydroper_lsp::{Client, LanguageServer, Server};
