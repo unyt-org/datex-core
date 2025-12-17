@@ -3,16 +3,22 @@ pub struct RangeDefinition<T> {
     start: T,
     // upper bound (exclusive)
     end: T,
-    // Items per step (requires metric)
-    step: T,
 }
 
 impl<T: PartialOrd<T>> RangeDefinition<T> {
-    fn new(start: T, end: T, step: T) -> Self {
-        RangeDefinition { start, end, step }
+    pub fn new(start: T, end: T) -> Self {
+        RangeDefinition { start, end }
     }
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.end <= self.start
+    }
+
+    pub fn start(&self) -> &T {
+        &self.start
+    }
+
+    pub fn end(&self) -> &T {
+        &self.end
     }
 }
 
@@ -28,16 +34,48 @@ impl<T: core::fmt::Display> core::fmt::Display for RangeDefinition<T> {
     }
 }
 
-impl<T> Iterator for RangeDefinition<T>
+pub struct RangeStepper<T> {
+    range: RangeDefinition<T>,
+    step: T,
+    current: T,
+}
+
+impl<T: core::fmt::Debug> core::fmt::Debug for RangeStepper<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.range, f)
+    }
+}
+
+impl<T: core::fmt::Display> core::fmt::Display for RangeStepper<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(&self.range, f)
+    }
+}
+
+impl<T> RangeStepper<T>
+where
+    T: Clone + PartialOrd,
+{
+    fn new(range: RangeDefinition<T>, step: T) -> Self {
+        let current = range.start.clone();
+        Self {
+            range,
+            step,
+            current,
+        }
+    }
+}
+
+impl<T> Iterator for RangeStepper<T>
 where
     T: Clone + PartialOrd + core::ops::Add<Output = T>,
 {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.is_empty() {
-            let val = self.start.clone();
-            self.start = self.start.clone() + self.step.clone();
+        if self.current < *self.range.end() {
+            let val = self.current.clone();
+            self.current = self.current.clone() + self.step.clone();
             Some(val)
         } else {
             None
@@ -45,41 +83,42 @@ where
     }
 }
 
-pub struct TypedRangeDefinition<T> {
-    range: RangeDefinition<T>,
+pub struct TypedRangeStepper<T> {
+    stepper: RangeStepper<T>,
 }
 
-impl<T: PartialOrd<T>> TypedRangeDefinition<T> {
+impl<T: PartialOrd<T> + Clone> TypedRangeStepper<T> {
     fn new(start: T, end: T, step: T) -> Self {
-        TypedRangeDefinition {
-            range: RangeDefinition::new(start, end, step),
+        TypedRangeStepper {
+            stepper: RangeStepper::new(RangeDefinition { start, end }, step),
         }
     }
 }
 
-impl<T: core::fmt::Debug> core::fmt::Debug for TypedRangeDefinition<T> {
+impl<T: core::fmt::Debug> core::fmt::Debug for TypedRangeStepper<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Debug::fmt(&self.range, f)
+        core::fmt::Debug::fmt(&self.stepper, f)
     }
 }
 
-impl<T: core::fmt::Display> core::fmt::Display for TypedRangeDefinition<T> {
+impl<T: core::fmt::Display> core::fmt::Display for TypedRangeStepper<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.range, f)
+        core::fmt::Display::fmt(&self.stepper, f)
     }
 }
 
-impl<T> Iterator for TypedRangeDefinition<T>
+impl<T> Iterator for TypedRangeStepper<T>
 where
     T: Clone + PartialOrd + core::ops::Add<Output = Option<T>>,
 {
     type Item = Option<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.range.is_empty() {
-            let val = self.range.start.clone();
-            self.range.start =
-                (self.range.start.clone() + self.range.step.clone()).unwrap();
+        if self.stepper.current < *self.stepper.range.end() {
+            let val = self.stepper.current.clone();
+            self.stepper.current = (self.stepper.current.clone()
+                + self.stepper.step.clone())
+            .unwrap();
             Some(Some(val))
         } else {
             None
@@ -113,7 +152,7 @@ mod tests {
         let step =
             TypedInteger::from_string_with_variant("3", IntegerTypeVariant::U8);
 
-        let range = TypedRangeDefinition::new(
+        let mut range = TypedRangeStepper::new(
             begin.unwrap(),
             ending.unwrap(),
             step.unwrap(),
@@ -124,7 +163,7 @@ mod tests {
         assert_eq!(displayed, "11...23");
         assert_eq!(debugged, "U8(11)...U8(23)");
 
-        assert!(!range.range.is_empty());
+        assert!(!range.stepper.range.is_empty());
 
         let pre_sum = TypedInteger::from_string_with_variant(
             "62",
@@ -134,10 +173,21 @@ mod tests {
         let mut post_sum =
             TypedInteger::from_string_with_variant("0", IntegerTypeVariant::U8)
                 .unwrap();
-        for i in range {
+        for i in &mut range {
             post_sum = (post_sum + i.unwrap()).unwrap();
         }
         assert_eq!(pre_sum, post_sum);
+
+        assert!(!range.stepper.range.is_empty());
+        assert!(range.next().is_none());
+        assert_eq!(
+            range.stepper.current,
+            TypedInteger::from_string_with_variant(
+                "23",
+                IntegerTypeVariant::U8
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
@@ -156,9 +206,8 @@ mod tests {
             DecimalTypeVariant::F32,
         );
 
-        let range = RangeDefinition::new(
-            begin.unwrap(),
-            ending.unwrap(),
+        let mut range = RangeStepper::new(
+            RangeDefinition::new(begin.unwrap(), ending.unwrap()),
             step.unwrap(),
         );
 
@@ -167,7 +216,7 @@ mod tests {
         assert_eq!(displayed, "0.11...0.23");
         assert_eq!(debugged, "F32(0.11)...F32(0.23)");
 
-        assert!(!range.is_empty());
+        assert!(!range.range.is_empty());
 
         let pre_sum = TypedDecimal::from_string_and_variant(
             "0.62",
@@ -177,10 +226,21 @@ mod tests {
         let mut post_sum =
             TypedDecimal::from_string_and_variant("0", DecimalTypeVariant::F32)
                 .unwrap();
-        for i in range {
+        for i in &mut range {
             post_sum += i;
         }
         assert_eq!(pre_sum, post_sum);
+
+        assert!(!range.range.is_empty());
+        assert!(range.next().is_none());
+        assert_eq!(
+            range.current,
+            TypedDecimal::from_string_and_variant(
+                "0.23",
+                DecimalTypeVariant::F32
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
@@ -189,9 +249,8 @@ mod tests {
         let ending = Integer::from_string("23");
         let step = Integer::from_string("3");
 
-        let range = RangeDefinition::new(
-            begin.unwrap(),
-            ending.unwrap(),
+        let mut range = RangeStepper::new(
+            RangeDefinition::new(begin.unwrap(), ending.unwrap()),
             step.unwrap(),
         );
 
@@ -200,14 +259,18 @@ mod tests {
         assert_eq!(displayed, "11...23");
         assert_eq!(debugged, "Integer(11)...Integer(23)");
 
-        assert!(!range.is_empty());
+        assert!(!range.range.is_empty());
 
         let pre_sum = Integer::from_string("62").unwrap();
         let mut post_sum = Integer::from_string("0").unwrap();
-        for i in range {
+        for i in &mut range {
             post_sum = post_sum + i;
         }
         assert_eq!(pre_sum, post_sum);
+
+        assert!(!range.range.is_empty());
+        assert!(range.next().is_none());
+        assert_eq!(range.current, Integer::from_string("23").unwrap(),);
     }
 
     #[test]
@@ -216,9 +279,8 @@ mod tests {
         let ending = Decimal::from_string("0.23");
         let step = Decimal::from_string("0.03");
 
-        let range = RangeDefinition::new(
-            begin.unwrap(),
-            ending.unwrap(),
+        let mut range = RangeStepper::new(
+            RangeDefinition::new(begin.unwrap(), ending.unwrap()),
             step.unwrap(),
         );
 
@@ -230,13 +292,17 @@ mod tests {
             "Finite(Rational { big_rational: Ratio { numer: 11, denom: 100 } })...Finite(Rational { big_rational: Ratio { numer: 23, denom: 100 } })"
         );
 
-        assert!(!range.is_empty());
+        assert!(!range.range.is_empty());
 
         let pre_sum = Decimal::from_string("0.62").unwrap();
         let mut post_sum = Decimal::from_string("0").unwrap();
-        for i in range {
+        for i in &mut range {
             post_sum = post_sum + i;
         }
         assert_eq!(pre_sum, post_sum);
+
+        assert!(!range.range.is_empty());
+        assert!(range.next().is_none());
+        assert_eq!(range.current, Decimal::from_string("0.23").unwrap());
     }
 }
