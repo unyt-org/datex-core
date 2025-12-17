@@ -1,3 +1,10 @@
+use core::fmt;
+
+#[derive(Debug)]
+pub enum RangeError {
+    StepOverflow,
+}
+
 pub struct RangeDefinition<T> {
     // lower bound (inclusive)
     start: T,
@@ -22,14 +29,14 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     }
 }
 
-impl<T: core::fmt::Debug> core::fmt::Debug for RangeDefinition<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+impl<T: fmt::Debug> fmt::Debug for RangeDefinition<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{:?}...{:?}", self.start, self.end)
     }
 }
 
-impl<T: core::fmt::Display> core::fmt::Display for RangeDefinition<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+impl<T: fmt::Display> fmt::Display for RangeDefinition<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{}...{}", self.start, self.end)
     }
 }
@@ -40,15 +47,15 @@ pub struct RangeStepper<T> {
     current: T,
 }
 
-impl<T: core::fmt::Debug> core::fmt::Debug for RangeStepper<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Debug::fmt(&self.range, f)
+impl<T: fmt::Debug> fmt::Debug for RangeStepper<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.range, f)
     }
 }
 
-impl<T: core::fmt::Display> core::fmt::Display for RangeStepper<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.range, f)
+impl<T: fmt::Display> fmt::Display for RangeStepper<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.range, f)
     }
 }
 
@@ -83,43 +90,50 @@ where
     }
 }
 
-pub struct TypedRangeStepper<T> {
+pub struct FallibleRangeStepper<T> {
     stepper: RangeStepper<T>,
 }
 
-impl<T: PartialOrd<T> + Clone> TypedRangeStepper<T> {
-    fn new(start: T, end: T, step: T) -> Self {
-        TypedRangeStepper {
-            stepper: RangeStepper::new(RangeDefinition { start, end }, step),
+impl<T: PartialOrd<T> + Clone> FallibleRangeStepper<T> {
+    fn new(start: T, end: T, step: T) -> Result<Self, RangeError> {
+        let range = RangeDefinition::new(start, end);
+        match range.is_empty() {
+            true => return Err(RangeError::StepOverflow),
+            false => Ok(Self {
+                stepper: RangeStepper::new(range, step),
+            }),
         }
     }
 }
 
-impl<T: core::fmt::Debug> core::fmt::Debug for TypedRangeStepper<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Debug::fmt(&self.stepper, f)
+impl<T: fmt::Debug> fmt::Debug for FallibleRangeStepper<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.stepper, f)
     }
 }
 
-impl<T: core::fmt::Display> core::fmt::Display for TypedRangeStepper<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.stepper, f)
+impl<T: fmt::Display> fmt::Display for FallibleRangeStepper<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.stepper, f)
     }
 }
 
-impl<T> Iterator for TypedRangeStepper<T>
+impl<T> Iterator for FallibleRangeStepper<T>
 where
     T: Clone + PartialOrd + core::ops::Add<Output = Option<T>>,
 {
-    type Item = Option<T>;
+    type Item = Result<T, RangeError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.stepper.current < *self.stepper.range.end() {
             let val = self.stepper.current.clone();
-            self.stepper.current = (self.stepper.current.clone()
-                + self.stepper.step.clone())
-            .unwrap();
-            Some(Some(val))
+            match self.stepper.current.clone() + self.stepper.step.clone() {
+                Some(next) => {
+                    self.stepper.current = next;
+                    Some(Ok(val))
+                }
+                None => Some(Err(RangeError::StepOverflow)),
+            }
         } else {
             None
         }
@@ -152,11 +166,12 @@ mod tests {
         let step =
             TypedInteger::from_string_with_variant("3", IntegerTypeVariant::U8);
 
-        let mut range = TypedRangeStepper::new(
+        let mut range = FallibleRangeStepper::new(
             begin.unwrap(),
             ending.unwrap(),
             step.unwrap(),
-        );
+        )
+        .unwrap();
 
         let displayed = format!("{}", range);
         let debugged = format!("{:?}", range);
