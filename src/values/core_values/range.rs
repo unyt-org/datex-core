@@ -16,13 +16,15 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     }
 }
 
-impl<T: core::fmt::Display + core::fmt::Debug> core::fmt::Display
-    for RangeDefinition<T>
-{
+impl<T: core::fmt::Debug> core::fmt::Debug for RangeDefinition<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::write!(f, "{:?}", self.start)?;
-        core::write!(f, "...")?;
-        core::write!(f, "{:?}", self.end)
+        core::write!(f, "{:?}...{:?}", self.start, self.end)
+    }
+}
+
+impl<T: core::fmt::Display> core::fmt::Display for RangeDefinition<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "{}...{}", self.start, self.end)
     }
 }
 
@@ -55,13 +57,15 @@ impl<T: PartialOrd<T>> TypedRangeDefinition<T> {
     }
 }
 
-impl<T: core::fmt::Display + core::fmt::Debug> core::fmt::Display
-    for TypedRangeDefinition<T>
-{
+impl<T: core::fmt::Debug> core::fmt::Debug for TypedRangeDefinition<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::write!(f, "{:?}", self.range.start)?;
-        core::write!(f, "...")?;
-        core::write!(f, "{:?}", self.range.end)
+        core::fmt::Debug::fmt(&self.range, f)
+    }
+}
+
+impl<T: core::fmt::Display> core::fmt::Display for TypedRangeDefinition<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(&self.range, f)
     }
 }
 
@@ -116,7 +120,9 @@ mod tests {
         );
 
         let displayed = format!("{}", range);
-        assert_eq!(displayed, "U8(11)...U8(23)");
+        let debugged = format!("{:?}", range);
+        assert_eq!(displayed, "11...23");
+        assert_eq!(debugged, "U8(11)...U8(23)");
 
         assert!(!range.range.is_empty());
 
@@ -157,7 +163,9 @@ mod tests {
         );
 
         let displayed = format!("{}", range);
-        assert_eq!(displayed, "F32(0.11)...F32(0.23)");
+        let debugged = format!("{:?}", range);
+        assert_eq!(displayed, "0.11...0.23");
+        assert_eq!(debugged, "F32(0.11)...F32(0.23)");
 
         assert!(!range.is_empty());
 
@@ -188,7 +196,9 @@ mod tests {
         );
 
         let displayed = format!("{}", range);
-        assert_eq!(displayed, "Integer(11)...Integer(23)");
+        let debugged = format!("{:?}", range);
+        assert_eq!(displayed, "11...23");
+        assert_eq!(debugged, "Integer(11)...Integer(23)");
 
         assert!(!range.is_empty());
 
@@ -213,9 +223,10 @@ mod tests {
         );
 
         let displayed = format!("{}", range);
-        // assert_eq!(displayed, "Decimal(0.11)...Decimal(0.23)");
+        let debugged = format!("{:?}", range);
+        assert_eq!(displayed, "0.11...0.23");
         assert_eq!(
-            displayed,
+            debugged,
             "Finite(Rational { big_rational: Ratio { numer: 11, denom: 100 } })...Finite(Rational { big_rational: Ratio { numer: 23, denom: 100 } })"
         );
 
