@@ -16,6 +16,16 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     }
 }
 
+impl<T: core::fmt::Display + core::fmt::Debug> core::fmt::Display
+    for RangeDefinition<T>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "{:?}", self.start)?;
+        core::write!(f, "...")?;
+        core::write!(f, "{:?}", self.end)
+    }
+}
+
 impl<T> Iterator for RangeDefinition<T>
 where
     T: Clone + PartialOrd + core::ops::Add<Output = T>,
@@ -42,6 +52,16 @@ impl<T: PartialOrd<T>> TypedRangeDefinition<T> {
         TypedRangeDefinition {
             range: RangeDefinition::new(start, end, step),
         }
+    }
+}
+
+impl<T: core::fmt::Display + core::fmt::Debug> core::fmt::Display
+    for TypedRangeDefinition<T>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "{:?}", self.range.start)?;
+        core::write!(f, "...")?;
+        core::write!(f, "{:?}", self.range.end)
     }
 }
 
@@ -95,6 +115,9 @@ mod tests {
             step.unwrap(),
         );
 
+        let displayed = format!("{}", range);
+        assert_eq!(displayed, "U8(11)...U8(23)");
+
         assert!(!range.range.is_empty());
 
         let pre_sum = TypedInteger::from_string_with_variant(
@@ -133,6 +156,9 @@ mod tests {
             step.unwrap(),
         );
 
+        let displayed = format!("{}", range);
+        assert_eq!(displayed, "F32(0.11)...F32(0.23)");
+
         assert!(!range.is_empty());
 
         let pre_sum = TypedDecimal::from_string_and_variant(
@@ -161,6 +187,9 @@ mod tests {
             step.unwrap(),
         );
 
+        let displayed = format!("{}", range);
+        assert_eq!(displayed, "Integer(11)...Integer(23)");
+
         assert!(!range.is_empty());
 
         let pre_sum = Integer::from_string("62").unwrap();
@@ -181,6 +210,13 @@ mod tests {
             begin.unwrap(),
             ending.unwrap(),
             step.unwrap(),
+        );
+
+        let displayed = format!("{}", range);
+        // assert_eq!(displayed, "Decimal(0.11)...Decimal(0.23)");
+        assert_eq!(
+            displayed,
+            "Finite(Rational { big_rational: Ratio { numer: 11, denom: 100 } })...Finite(Rational { big_rational: Ratio { numer: 23, denom: 100 } })"
         );
 
         assert!(!range.is_empty());
