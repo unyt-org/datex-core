@@ -169,6 +169,11 @@ mod tests {
             TypedInteger::from_string_with_variant("3", IntegerTypeVariant::U8)
                 .unwrap();
 
+        let invalid_range = FallibleRangeStepper::new(
+            RangeDefinition::new(ending.clone(), begin.clone()),
+            step.clone(),
+        );
+        assert!(invalid_range.is_err());
         let mut range = FallibleRangeStepper::new(
             RangeDefinition::new(begin, ending.clone()),
             step,
