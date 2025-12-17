@@ -11,7 +11,7 @@ use num_integer::Integer;
 use num_traits::{Signed, ToPrimitive, Zero};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rational {
     big_rational: BigRational,
 }

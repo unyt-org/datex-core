@@ -143,10 +143,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::core_values::decimal::Decimal;
-    use crate::values::core_values::decimal::typed_decimal::{
-        DecimalTypeVariant, TypedDecimal,
-    };
     use crate::values::core_values::integer::Integer;
     use crate::values::core_values::integer::typed_integer::{
         IntegerTypeVariant, TypedInteger,
@@ -201,48 +197,6 @@ mod tests {
     }
 
     #[test]
-    pub fn typed_decimal_range() {
-        let begin = TypedDecimal::from_string_and_variant(
-            "0.11",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-        let ending = TypedDecimal::from_string_and_variant(
-            "0.23",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-        let step = TypedDecimal::from_string_and_variant(
-            "0.03",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-
-        let mut range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-        assert!(!range.range.is_empty());
-
-        let pre_sum = TypedDecimal::from_string_and_variant(
-            "0.62",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-        let mut post_sum =
-            TypedDecimal::from_string_and_variant("0", DecimalTypeVariant::F32)
-                .unwrap();
-        for i in &mut range {
-            post_sum += i;
-        }
-        assert_eq!(pre_sum, post_sum);
-
-        assert!(!range.range.is_empty());
-        assert!(range.next().is_none());
-        assert_eq!(range.current, ending);
-    }
-
-    #[test]
     pub fn integer_range() {
         let begin = Integer::from_string("11").unwrap();
         let ending = Integer::from_string("23").unwrap();
@@ -256,30 +210,6 @@ mod tests {
 
         let pre_sum = Integer::from_string("62").unwrap();
         let mut post_sum = Integer::from_string("0").unwrap();
-        for i in &mut range {
-            post_sum = post_sum + i;
-        }
-        assert_eq!(pre_sum, post_sum);
-
-        assert!(!range.range.is_empty());
-        assert!(range.next().is_none());
-        assert_eq!(range.current, ending);
-    }
-
-    #[test]
-    pub fn decimal_range() {
-        let begin = Decimal::from_string("0.11").unwrap();
-        let ending = Decimal::from_string("0.23").unwrap();
-        let step = Decimal::from_string("0.03").unwrap();
-
-        let mut range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-        assert!(!range.range.is_empty());
-
-        let pre_sum = Decimal::from_string("0.62").unwrap();
-        let mut post_sum = Decimal::from_string("0").unwrap();
         for i in &mut range {
             post_sum = post_sum + i;
         }
@@ -320,35 +250,6 @@ mod tests {
     }
 
     #[test]
-    pub fn typed_decimal_range_formatting() {
-        // TypedDecimal Ranges
-        let begin = TypedDecimal::from_string_and_variant(
-            "0.11",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-        let ending = TypedDecimal::from_string_and_variant(
-            "0.23",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-        let step = TypedDecimal::from_string_and_variant(
-            "0.03",
-            DecimalTypeVariant::F32,
-        )
-        .unwrap();
-
-        let range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-        let displayed = format!("{}", range);
-        let debugged = format!("{:?}", range);
-        assert_eq!(displayed, "0.11...0.23");
-        assert_eq!(debugged, "F32(0.11)...F32(0.23)");
-    }
-
-    #[test]
     pub fn integer_range_formatting() {
         // Integer Ranges
         let begin = Integer::from_string("11").unwrap();
@@ -364,26 +265,5 @@ mod tests {
         let debugged = format!("{:?}", range);
         assert_eq!(displayed, "11...23");
         assert_eq!(debugged, "Integer(11)...Integer(23)");
-    }
-
-    #[test]
-    pub fn decimal_range_formatting() {
-        // Decimal ranges
-        let begin = Decimal::from_string("0.11").unwrap();
-        let ending = Decimal::from_string("0.23").unwrap();
-        let step = Decimal::from_string("0.03").unwrap();
-
-        let range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-
-        let displayed = format!("{}", range);
-        let debugged = format!("{:?}", range);
-        assert_eq!(displayed, "0.11...0.23");
-        assert_eq!(
-            debugged,
-            "Finite(Rational { big_rational: Ratio { numer: 11, denom: 100 } })...Finite(Rational { big_rational: Ratio { numer: 23, denom: 100 } })"
-        );
     }
 }
