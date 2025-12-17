@@ -26,7 +26,7 @@ use num_traits::{FromPrimitive, Zero};
 use rational::Rational;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialOrd)]
 pub enum Decimal {
     Finite(Rational),
     NaN,
