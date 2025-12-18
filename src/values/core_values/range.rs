@@ -8,12 +8,12 @@ pub enum RangeError {
     InvalidRange,
 }
 
-#[derive(Clone, Eq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct RangeDefinition {
     // lower bound (inclusive)
-    start: Integer,
+    pub start: Integer,
     // upper bound (exclusive)
-    end: Integer,
+    pub end: Integer,
 }
 
 impl From<RangeDefinition> for Range<Integer> {
@@ -28,12 +28,6 @@ impl From<Range<Integer>> for RangeDefinition {
             start: range.start,
             end: range.end,
         }
-    }
-}
-
-impl PartialEq for RangeDefinition {
-    fn eq(&self, other: &Self) -> bool {
-        self.start == other.start && self.end == other.end
     }
 }
 
