@@ -32,13 +32,13 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
 
 impl<T: fmt::Debug> fmt::Debug for RangeDefinition<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        core::write!(f, "{:?}...{:?}", self.start, self.end)
+        core::write!(f, "{:?}..{:?}", self.start, self.end)
     }
 }
 
 impl<T: fmt::Display> fmt::Display for RangeDefinition<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        core::write!(f, "{}...{}", self.start, self.end)
+        core::write!(f, "{}..{}", self.start, self.end)
     }
 }
 
@@ -91,110 +91,10 @@ where
     }
 }
 
-pub struct FallibleRangeStepper<T> {
-    stepper: RangeStepper<T>,
-}
-
-impl<T: PartialOrd<T> + Clone> FallibleRangeStepper<T> {
-    fn new(range: RangeDefinition<T>, step: T) -> Result<Self, RangeError> {
-        match range.is_empty() {
-            true => Err(RangeError::InvalidRange),
-            false => Ok(Self {
-                stepper: RangeStepper::new(range, step),
-            }),
-        }
-    }
-}
-
-impl<T: fmt::Debug> fmt::Debug for FallibleRangeStepper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.stepper, f)
-    }
-}
-
-impl<T: fmt::Display> fmt::Display for FallibleRangeStepper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.stepper, f)
-    }
-}
-
-impl<T> Iterator for FallibleRangeStepper<T>
-where
-    T: Clone + PartialOrd + core::ops::Add<Output = Option<T>>,
-{
-    type Item = Result<T, RangeError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.stepper.current < *self.stepper.range.end() {
-            let val = self.stepper.current.clone();
-            match self.stepper.current.clone() + self.stepper.step.clone() {
-                Some(next) => {
-                    self.stepper.current = next;
-                    Some(Ok(val))
-                }
-                None => Some(Err(RangeError::StepOverflow)),
-            }
-        } else {
-            None
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::values::core_values::integer::Integer;
-    use crate::values::core_values::integer::typed_integer::{
-        IntegerTypeVariant, TypedInteger,
-    };
-
-    #[test]
-    pub fn typed_integer_range() -> Result<(), RangeError> {
-        // 11 + 14 + 17 + 20 = 25 + 37 = 62
-        let begin = TypedInteger::from_string_with_variant(
-            "11",
-            IntegerTypeVariant::U8,
-        )
-        .unwrap();
-        let ending = TypedInteger::from_string_with_variant(
-            "23",
-            IntegerTypeVariant::U8,
-        )
-        .unwrap();
-        let step =
-            TypedInteger::from_string_with_variant("3", IntegerTypeVariant::U8)
-                .unwrap();
-
-        let invalid_range = FallibleRangeStepper::new(
-            RangeDefinition::new(ending.clone(), begin.clone()),
-            step.clone(),
-        );
-        assert!(invalid_range.is_err());
-        let mut range = FallibleRangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        )
-        .unwrap();
-
-        assert!(!range.stepper.range.is_empty());
-        let pre_sum = TypedInteger::from_string_with_variant(
-            "62",
-            IntegerTypeVariant::U8,
-        )
-        .unwrap();
-        let mut post_sum =
-            TypedInteger::from_string_with_variant("0", IntegerTypeVariant::U8)
-                .unwrap();
-        for i in &mut range {
-            post_sum = (post_sum + i?).ok_or(RangeError::StepOverflow)?;
-        }
-        assert_eq!(pre_sum, post_sum);
-
-        assert!(!range.stepper.range.is_empty());
-        assert!(range.next().is_none());
-        assert_eq!(range.stepper.current, ending);
-        Ok(())
-    }
 
     #[test]
     pub fn integer_range() {
@@ -221,35 +121,6 @@ mod tests {
     }
 
     #[test]
-    pub fn typed_integer_range_formatting() {
-        // TypedInteger Ranges
-        let begin = TypedInteger::from_string_with_variant(
-            "11",
-            IntegerTypeVariant::U8,
-        )
-        .unwrap();
-        let ending = TypedInteger::from_string_with_variant(
-            "23",
-            IntegerTypeVariant::U8,
-        )
-        .unwrap();
-        let step =
-            TypedInteger::from_string_with_variant("3", IntegerTypeVariant::U8)
-                .unwrap();
-
-        let range = FallibleRangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        )
-        .unwrap();
-
-        let displayed = format!("{}", range);
-        let debugged = format!("{:?}", range);
-        assert_eq!(displayed, "11...23");
-        assert_eq!(debugged, "U8(11)...U8(23)");
-    }
-
-    #[test]
     pub fn integer_range_formatting() {
         // Integer Ranges
         let begin = Integer::from_string("11").unwrap();
@@ -263,7 +134,7 @@ mod tests {
 
         let displayed = format!("{}", range);
         let debugged = format!("{:?}", range);
-        assert_eq!(displayed, "11...23");
-        assert_eq!(debugged, "Integer(11)...Integer(23)");
+        assert_eq!(displayed, "11..23");
+        assert_eq!(debugged, "Integer(11)..Integer(23)");
     }
 }

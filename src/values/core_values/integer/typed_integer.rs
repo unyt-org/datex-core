@@ -64,7 +64,7 @@ pub enum IntegerTypeVariant {
     Big,
 }
 
-#[derive(Debug, Clone, Eq, PartialOrd)]
+#[derive(Debug, Clone, Eq)]
 pub enum TypedInteger {
     Big(Integer),
     I8(i8),
