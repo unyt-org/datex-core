@@ -43,14 +43,6 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     pub fn is_empty(&self) -> bool {
         self.end <= self.start
     }
-
-    pub fn start(&self) -> &T {
-        &self.start
-    }
-
-    pub fn end(&self) -> &T {
-        &self.end
-    }
 }
 
 impl<T: fmt::Debug> fmt::Debug for RangeDefinition<T> {
@@ -95,6 +87,14 @@ where
             current,
         }
     }
+
+    pub fn start(&self) -> &T {
+        &self.range.start
+    }
+
+    pub fn end(&self) -> &T {
+        &self.range.end
+    }
 }
 
 impl<T> Iterator for RangeStepper<T>
@@ -104,7 +104,7 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current < *self.range.end() {
+        if self.current < *self.end() {
             let val = self.current.clone();
             self.current = self.current.clone() + self.step.clone();
             Some(val)
