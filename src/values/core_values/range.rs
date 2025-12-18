@@ -1,4 +1,5 @@
 use core::fmt;
+use core::ops::Range;
 
 #[derive(Debug)]
 pub enum RangeError {
@@ -6,11 +7,33 @@ pub enum RangeError {
     InvalidRange,
 }
 
+#[derive(Clone)]
 pub struct RangeDefinition<T> {
     // lower bound (inclusive)
     start: T,
     // upper bound (exclusive)
     end: T,
+}
+
+impl<T> From<RangeDefinition<T>> for Range<T> {
+    fn from(range: RangeDefinition<T>) -> Self {
+        range.start..range.end
+    }
+}
+
+impl<T> From<Range<T>> for RangeDefinition<T> {
+    fn from(range: Range<T>) -> Self {
+        RangeDefinition {
+            start: range.start,
+            end: range.end,
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for RangeDefinition<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start && self.end == other.end
+    }
 }
 
 impl<T: PartialOrd<T>> RangeDefinition<T> {
@@ -96,12 +119,44 @@ mod tests {
     use super::*;
     use crate::values::core_values::integer::Integer;
 
-    #[test]
-    pub fn integer_range() {
-        let begin = Integer::from_string("11").unwrap();
-        let ending = Integer::from_string("23").unwrap();
-        let step = Integer::from_string("3").unwrap();
+    fn test_helper() -> (Integer, Integer, Integer) {
+        (
+            Integer::from_string("11").unwrap(),
+            Integer::from_string("23").unwrap(),
+            Integer::from_string("3").unwrap(),
+        )
+    }
 
+    #[test]
+    pub fn range_from_into() {
+        let (begin, ending, _) = test_helper();
+        let dx_range = RangeDefinition::new(begin, ending.clone());
+        let std_range: Range<Integer> = dx_range.clone().into();
+        let other_dx_range: RangeDefinition<Integer> = std_range.clone().into();
+
+        let other_std_range = Range::from(other_dx_range.clone());
+        let other_dx_range = RangeDefinition::from(std_range.clone());
+        assert_eq!(dx_range, other_dx_range);
+        assert_eq!(std_range, other_std_range);
+    }
+
+    #[test]
+    pub fn range_formatting() {
+        let (begin, ending, step) = test_helper();
+        let range = RangeStepper::new(
+            RangeDefinition::new(begin, ending.clone()),
+            step,
+        );
+
+        let displayed = format!("{}", range);
+        let debugged = format!("{:?}", range);
+        assert_eq!(displayed, "11..23");
+        assert_eq!(debugged, "Integer(11)..Integer(23)");
+    }
+
+    #[test]
+    pub fn range_iterator() {
+        let (begin, ending, step) = test_helper();
         let mut range = RangeStepper::new(
             RangeDefinition::new(begin, ending.clone()),
             step,
@@ -118,23 +173,5 @@ mod tests {
         assert!(!range.range.is_empty());
         assert!(range.next().is_none());
         assert_eq!(range.current, ending);
-    }
-
-    #[test]
-    pub fn integer_range_formatting() {
-        // Integer Ranges
-        let begin = Integer::from_string("11").unwrap();
-        let ending = Integer::from_string("23").unwrap();
-        let step = Integer::from_string("3").unwrap();
-
-        let range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-
-        let displayed = format!("{}", range);
-        let debugged = format!("{:?}", range);
-        assert_eq!(displayed, "11..23");
-        assert_eq!(debugged, "Integer(11)..Integer(23)");
     }
 }
