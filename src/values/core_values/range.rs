@@ -151,11 +151,8 @@ mod tests {
 
     #[test]
     pub fn range_formatting() {
-        let (begin, ending, step) = test_helper();
-        let range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
+        let (begin, ending, _) = test_helper();
+        let range = RangeDefinition::new(begin, ending.clone());
 
         let displayed = format!("{}", range);
         let debugged = format!("{:?}", range);
