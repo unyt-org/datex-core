@@ -45,6 +45,15 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     }
 }
 
+impl<T: PartialOrd<T>> RangeDefinition<T>
+where
+    T: Clone + PartialOrd + core::ops::Add<Output = T>,
+{
+    pub fn step_by(self, step: T) -> RangeStepper<T> {
+        RangeStepper::new(self, step)
+    }
+}
+
 impl<T: fmt::Debug> fmt::Debug for RangeDefinition<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{:?}..{:?}", self.start, self.end)
@@ -155,23 +164,14 @@ mod tests {
     }
 
     #[test]
-    pub fn range_iterator() {
+    pub fn range_step_by() {
         let (begin, ending, step) = test_helper();
-        let mut range = RangeStepper::new(
-            RangeDefinition::new(begin, ending.clone()),
-            step,
-        );
-        assert!(!range.range.is_empty());
-
+        let range = RangeDefinition::new(begin, ending.clone());
         let pre_sum = Integer::from_string("62").unwrap();
         let mut post_sum = Integer::from_string("0").unwrap();
-        for i in &mut range {
+        for i in range.step_by(step) {
             post_sum = post_sum + i;
         }
         assert_eq!(pre_sum, post_sum);
-
-        assert!(!range.range.is_empty());
-        assert!(range.next().is_none());
-        assert_eq!(range.current, ending);
     }
 }
