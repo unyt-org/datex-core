@@ -1,3 +1,4 @@
+use crate::values::core_values::integer::Integer;
 use core::fmt;
 use core::ops::Range;
 
@@ -7,22 +8,22 @@ pub enum RangeError {
     InvalidRange,
 }
 
-#[derive(Clone)]
-pub struct RangeDefinition<T> {
+#[derive(Clone, Eq, Hash)]
+pub struct RangeDefinition {
     // lower bound (inclusive)
-    start: T,
+    start: Integer,
     // upper bound (exclusive)
-    end: T,
+    end: Integer,
 }
 
-impl<T> From<RangeDefinition<T>> for Range<T> {
-    fn from(range: RangeDefinition<T>) -> Self {
+impl From<RangeDefinition> for Range<Integer> {
+    fn from(range: RangeDefinition) -> Self {
         range.start..range.end
     }
 }
 
-impl<T> From<Range<T>> for RangeDefinition<T> {
-    fn from(range: Range<T>) -> Self {
+impl From<Range<Integer>> for RangeDefinition {
+    fn from(range: Range<Integer>) -> Self {
         RangeDefinition {
             start: range.start,
             end: range.end,
@@ -30,14 +31,14 @@ impl<T> From<Range<T>> for RangeDefinition<T> {
     }
 }
 
-impl<T: PartialEq> PartialEq for RangeDefinition<T> {
+impl PartialEq for RangeDefinition {
     fn eq(&self, other: &Self) -> bool {
         self.start == other.start && self.end == other.end
     }
 }
 
-impl<T: PartialOrd<T>> RangeDefinition<T> {
-    pub fn new(start: T, end: T) -> Self {
+impl RangeDefinition {
+    pub fn new(start: Integer, end: Integer) -> Self {
         RangeDefinition { start, end }
     }
     pub fn is_empty(&self) -> bool {
@@ -45,81 +46,15 @@ impl<T: PartialOrd<T>> RangeDefinition<T> {
     }
 }
 
-impl<T: PartialOrd<T>> RangeDefinition<T>
-where
-    T: Clone + PartialOrd + core::ops::Add<Output = T>,
-{
-    pub fn step_by(self, step: T) -> RangeStepper<T> {
-        RangeStepper::new(self, step)
-    }
-}
-
-impl<T: fmt::Debug> fmt::Debug for RangeDefinition<T> {
+impl fmt::Debug for RangeDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{:?}..{:?}", self.start, self.end)
     }
 }
 
-impl<T: fmt::Display> fmt::Display for RangeDefinition<T> {
+impl fmt::Display for RangeDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{}..{}", self.start, self.end)
-    }
-}
-
-pub struct RangeStepper<T> {
-    range: RangeDefinition<T>,
-    step: T,
-    current: T,
-}
-
-impl<T: fmt::Debug> fmt::Debug for RangeStepper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.range, f)
-    }
-}
-
-impl<T: fmt::Display> fmt::Display for RangeStepper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.range, f)
-    }
-}
-
-impl<T> RangeStepper<T>
-where
-    T: Clone + PartialOrd,
-{
-    fn new(range: RangeDefinition<T>, step: T) -> Self {
-        let current = range.start.clone();
-        Self {
-            range,
-            step,
-            current,
-        }
-    }
-
-    pub fn start(&self) -> &T {
-        &self.range.start
-    }
-
-    pub fn end(&self) -> &T {
-        &self.range.end
-    }
-}
-
-impl<T> Iterator for RangeStepper<T>
-where
-    T: Clone + PartialOrd + core::ops::Add<Output = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < *self.end() {
-            let val = self.current.clone();
-            self.current = self.current.clone() + self.step.clone();
-            Some(val)
-        } else {
-            None
-        }
     }
 }
 
@@ -141,7 +76,7 @@ mod tests {
         let (begin, ending, _) = test_helper();
         let dx_range = RangeDefinition::new(begin, ending.clone());
         let std_range: Range<Integer> = dx_range.clone().into();
-        let other_dx_range: RangeDefinition<Integer> = std_range.clone().into();
+        let other_dx_range: RangeDefinition = std_range.clone().into();
 
         let other_std_range = Range::from(other_dx_range.clone());
         let other_dx_range = RangeDefinition::from(std_range.clone());
@@ -158,17 +93,5 @@ mod tests {
         let debugged = format!("{:?}", range);
         assert_eq!(displayed, "11..23");
         assert_eq!(debugged, "Integer(11)..Integer(23)");
-    }
-
-    #[test]
-    pub fn range_step_by() {
-        let (begin, ending, step) = test_helper();
-        let range = RangeDefinition::new(begin, ending.clone());
-        let pre_sum = Integer::from_string("62").unwrap();
-        let mut post_sum = Integer::from_string("0").unwrap();
-        for i in range.step_by(step) {
-            post_sum = post_sum + i;
-        }
-        assert_eq!(pre_sum, post_sum);
     }
 }
