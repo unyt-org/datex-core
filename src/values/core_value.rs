@@ -21,6 +21,7 @@ use crate::values::core_values::integer::typed_integer::{
 };
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
+use crate::values::core_values::range::RangeDefinition;
 use crate::values::core_values::text::Text;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
@@ -40,6 +41,7 @@ pub enum CoreValue {
     List(List),
     Map(Map),
     Type(Type),
+    Range(RangeDefinition),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -219,6 +221,7 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
+            CoreValue::Range(_) => CoreLibPointerId::Range,
         }
     }
 }
@@ -752,6 +755,7 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => core::write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
             CoreValue::List(list) => core::write!(f, "{list}"),
+            CoreValue::Range(range) => core::write!(f, "{range}"),
         }
     }
 }

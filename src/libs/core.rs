@@ -55,6 +55,7 @@ pub enum CoreLibPointerId {
     Unit,                                // #core.Unit
     Never,                               // #core.never
     Unknown,                             // #core.unknown
+    Range,
 }
 
 impl CoreLibPointerId {
@@ -75,6 +76,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Map => 12,
             CoreLibPointerId::Never => 13,
             CoreLibPointerId::Unknown => 14,
+            CoreLibPointerId::Range => 15,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -102,6 +104,7 @@ impl CoreLibPointerId {
             12 => Some(CoreLibPointerId::Map),
             13 => Some(CoreLibPointerId::Never),
             14 => Some(CoreLibPointerId::Unknown),
+            15 => Some(CoreLibPointerId::Range),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {

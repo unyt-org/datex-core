@@ -44,6 +44,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
         }
         CoreValue::Boolean(boolean) => DatexExpressionData::Boolean(boolean.0),
         CoreValue::Text(text) => DatexExpressionData::Text(text.0.clone()),
+        // CoreValue::Range(range) => DatexExpressionData::Range(range.clone()),
+        CoreValue::Range(range) => todo!("OutRanged"),
         CoreValue::Endpoint(endpoint) => {
             DatexExpressionData::Endpoint(endpoint.clone())
         }
