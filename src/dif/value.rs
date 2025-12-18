@@ -185,7 +185,7 @@ impl DIFValue {
                     }
                 }
             }
-            CoreValue::Range(range) => {
+            CoreValue::RangeDefinition(range) => {
                 DIFValueRepresentation::String(range.to_string())
             }
             CoreValue::Decimal(decimal) => {

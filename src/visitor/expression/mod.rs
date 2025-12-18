@@ -74,6 +74,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::Integer(i) => {
                 self.visit_integer(i, &expr.span)
             }
+            DatexExpressionData::RangeDefinition(range) => {
+                panic!("OutRanged")
+            }
             DatexExpressionData::TypedInteger(ti) => {
                 self.visit_typed_integer(ti, &expr.span)
             }

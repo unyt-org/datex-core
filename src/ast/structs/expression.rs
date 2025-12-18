@@ -16,6 +16,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::range::RangeDefinition;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -87,6 +88,8 @@ pub enum DatexExpressionData {
 
     /// Integer, e.g 123456789123456789
     Integer(Integer),
+
+    RangeDefinition(RangeDefinition),
 
     /// Typed Integer, e.g. 123i8
     TypedInteger(TypedInteger),
@@ -250,6 +253,9 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                 ValueContainer::from(
                     crate::values::core_values::map::Map::from(entries),
                 )
+            }
+            DatexExpressionData::RangeDefinition(range) => {
+                ValueContainer::from(range.clone())
             }
             _ => Err(())?,
         })

@@ -41,7 +41,7 @@ pub enum CoreValue {
     List(List),
     Map(Map),
     Type(Type),
-    Range(RangeDefinition),
+    RangeDefinition(RangeDefinition),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -221,7 +221,7 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
-            CoreValue::Range(_) => CoreLibPointerId::Range,
+            CoreValue::RangeDefinition(_) => CoreLibPointerId::Range,
         }
     }
 }
@@ -755,7 +755,7 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => core::write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
             CoreValue::List(list) => core::write!(f, "{list}"),
-            CoreValue::Range(range) => core::write!(f, "{range}"),
+            CoreValue::RangeDefinition(range) => core::write!(f, "{range}"),
         }
     }
 }

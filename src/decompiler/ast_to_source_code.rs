@@ -463,6 +463,7 @@ impl AstToSourceCodeFormatter {
             }
             DatexExpressionData::Noop => "".to_string(),
             DatexExpressionData::Integer(i) => i.to_string(),
+            DatexExpressionData::RangeDefinition(range) => range.to_string(),
             DatexExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
                     ti.to_string_with_suffix()
