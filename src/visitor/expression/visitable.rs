@@ -287,7 +287,7 @@ impl<E> VisitableExpression<E> for DatexExpression {
             | DatexExpressionData::Decimal(_)
             | DatexExpressionData::TypedDecimal(_)
             | DatexExpressionData::Integer(_)
-            | DatexExpressionData::RangeDefinition(_)
+            | DatexExpressionData::Range(_)
             | DatexExpressionData::TypedInteger(_)
             | DatexExpressionData::Identifier(_)
             | DatexExpressionData::Endpoint(_) => Ok(()),

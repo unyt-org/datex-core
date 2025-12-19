@@ -44,9 +44,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
         }
         CoreValue::Boolean(boolean) => DatexExpressionData::Boolean(boolean.0),
         CoreValue::Text(text) => DatexExpressionData::Text(text.0.clone()),
-        CoreValue::RangeDefinition(range) => {
-            DatexExpressionData::RangeDefinition(range.clone())
-        }
+        CoreValue::Range(range) => DatexExpressionData::Range(range.clone()),
         CoreValue::Endpoint(endpoint) => {
             DatexExpressionData::Endpoint(endpoint.clone())
         }
@@ -91,7 +89,7 @@ mod tests {
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
     use crate::values::core_values::integer::typed_integer::TypedInteger;
-    use crate::values::core_values::range::RangeDefinition;
+    use crate::values::core_values::range::Range;
     use crate::values::value::Value;
     use crate::values::value_container::ValueContainer;
 
@@ -104,14 +102,14 @@ mod tests {
 
     #[test]
     fn range_to_ast() {
-        let range = ValueContainer::from(RangeDefinition::new(
+        let range = ValueContainer::from(Range::new(
             Integer::from(11),
             Integer::from(13),
         ));
         let ast = DatexExpressionData::from(&range);
         assert_eq!(
             ast,
-            DatexExpressionData::RangeDefinition(RangeDefinition::new(
+            DatexExpressionData::Range(Range::new(
                 Integer::from(11),
                 Integer::from(13)
             ))
