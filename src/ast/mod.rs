@@ -342,6 +342,7 @@ mod tests {
                 decimal::Decimal,
                 endpoint::{Endpoint, InvalidEndpointError},
                 integer::{Integer, typed_integer::TypedInteger},
+                range,
             },
             pointer::PointerAddress,
             value_container::ValueContainer,
@@ -1835,6 +1836,19 @@ mod tests {
             DatexExpressionData::Integer(
                 Integer::from_string("123456789123456789").unwrap()
             )
+        );
+    }
+
+    #[test]
+    fn fail_range() {
+        let src = "11..13";
+        let range = parse_unwrap_data(src);
+        assert_eq!(
+            range,
+            DatexExpressionData::Range(range::Range::new(
+                Integer::from(11),
+                Integer::from(13),
+            ))
         );
     }
 
