@@ -13,6 +13,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::core_values::range::RangeDefinition;
 use crate::values::pointer::PointerAddress;
 use crate::visitor::VisitAction;
 use crate::visitor::expression::visitable::{
@@ -75,7 +76,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
                 self.visit_integer(i, &expr.span)
             }
             DatexExpressionData::RangeDefinition(range) => {
-                panic!("OutRanged")
+                self.visit_range_definition(range, &expr.span)
             }
             DatexExpressionData::TypedInteger(ti) => {
                 self.visit_typed_integer(ti, &expr.span)
@@ -560,6 +561,16 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> ExpressionVisitResult<E> {
         let _ = span;
         let _ = slot;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    fn visit_range_definition(
+        &mut self,
+        range: &RangeDefinition,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = range;
         Ok(VisitAction::SkipChildren)
     }
 }

@@ -89,6 +89,10 @@ impl StructuralEq for CoreValue {
             }
             (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
             (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
+
+            (CoreValue::RangeDefinition(a), CoreValue::RangeDefinition(b)) => {
+                a.start.structural_eq(&b.start) && a.end.structural_eq(&b.end)
+            }
             _ => false,
         }
     }
@@ -221,7 +225,7 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
-            CoreValue::RangeDefinition(_) => CoreLibPointerId::Range,
+            CoreValue::RangeDefinition(_) => CoreLibPointerId::RangeDefinition,
         }
     }
 }
@@ -777,6 +781,18 @@ mod tests {
         let a = CoreValue::from(42i32);
         assert_eq!(a.default_type().to_string(), "integer/i32");
         assert_eq!(a.default_type().base_type().to_string(), "integer");
+    }
+
+    #[test]
+    pub fn range_from_core() {
+        assert_eq!(
+            CoreValue::from(RangeDefinition::new(
+                Integer::from(11),
+                Integer::from(13),
+            ))
+            .to_string(),
+            "11..13"
+        );
     }
 
     #[test]

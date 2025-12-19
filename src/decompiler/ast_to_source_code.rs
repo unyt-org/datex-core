@@ -845,6 +845,15 @@ mod tests {
 
         let null_ast = DatexExpressionData::Null;
         assert_eq!(compact().format(&null_ast.with_default_span()), "null");
+
+        let range_ast = DatexExpressionData::RangeDefinition(
+            crate::values::core_values::range::RangeDefinition::new(
+                crate::values::core_values::integer::Integer(11.into()),
+                crate::values::core_values::integer::Integer(13.into()),
+            ),
+        );
+
+        assert_eq!(compact().format(&range_ast.with_default_span()), "11..13");
     }
 
     #[test]
