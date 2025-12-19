@@ -67,16 +67,19 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             core::todo!("#439 Type value not supported in CompilationContext");
         }
         CoreValue::Integer(integer) => {
-            let integer = integer.to_smallest_fitting();
-            append_encoded_integer(buffer, &integer);
+            // NOTE: we might optimize this later, but using INT with big integer encoding 
+            // for all integers for now 
+            // let integer = integer.to_smallest_fitting();
+            // append_encoded_integer(buffer, &integer);
+            append_integer(buffer, integer);
         }
         CoreValue::TypedInteger(integer) => {
-            append_typed_integer(buffer, integer);
+            append_encoded_integer(buffer, integer);
         }
 
         CoreValue::Endpoint(endpoint) => append_endpoint(buffer, endpoint),
         CoreValue::Decimal(decimal) => append_decimal(buffer, decimal),
-        CoreValue::TypedDecimal(val) => append_typed_decimal(buffer, val),
+        CoreValue::TypedDecimal(val) => append_encoded_decimal(buffer, val),
         CoreValue::Boolean(val) => append_boolean(buffer, val.0),
         CoreValue::Null => {
             append_instruction_code(buffer, InstructionCode::NULL)
@@ -157,7 +160,11 @@ pub fn append_boolean(buffer: &mut Vec<u8>, boolean: bool) {
 }
 
 pub fn append_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
-    append_instruction_code(buffer, InstructionCode::DECIMAL_BIG);
+    append_instruction_code(buffer, InstructionCode::DECIMAL);
+    append_big_decimal(buffer, decimal);
+}
+
+pub fn append_big_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
     // big_decimal binrw write into buffer
     let original_length = buffer.len();
     let mut buffer_writer = Cursor::new(&mut *buffer);
@@ -179,7 +186,13 @@ pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
         buffer,
         &get_core_lib_type_definition(CoreLibPointerId::from(integer)),
     );
-    append_encoded_integer(buffer, &integer.to_smallest_fitting());
+    append_encoded_integer(buffer, &integer);
+}
+
+/// Appends a default, unsized integer
+pub fn append_integer(buffer: &mut Vec<u8>, integer: &Integer) {
+    append_instruction_code(buffer, InstructionCode::INT);
+    append_big_integer(buffer, integer);
 }
 
 /// Appends an encoded integer without explicit type casts
@@ -242,7 +255,8 @@ pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
                 append_float64(buffer, val.into_inner());
             }
             TypedDecimal::Decimal(val) => {
-                append_decimal(buffer, val);
+                append_instruction_code(buffer, InstructionCode::DECIMAL_BIG);
+                append_big_decimal(buffer, val);
             }
         }
     }

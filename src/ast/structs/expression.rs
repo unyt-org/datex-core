@@ -229,6 +229,12 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
             DatexExpressionData::Text(s) => ValueContainer::from(s.clone()),
             DatexExpressionData::Decimal(d) => ValueContainer::from(d.clone()),
             DatexExpressionData::Integer(i) => ValueContainer::from(i.clone()),
+            DatexExpressionData::TypedInteger(i) => {
+                ValueContainer::from(i.clone())
+            }
+            DatexExpressionData::TypedDecimal(d) => {
+                ValueContainer::from(d.clone())
+            }
             DatexExpressionData::Endpoint(e) => ValueContainer::from(e.clone()),
             DatexExpressionData::List(list) => {
                 let entries = list

@@ -86,7 +86,7 @@ pub fn ast_from_bytecode(
     for instruction in iterate_instructions(Rc::new(RefCell::new(dxb.to_vec())))
     {
         let instruction = instruction?;
-        match &instruction {
+        match instruction {
             // handle regular instructions
             Instruction::RegularInstruction(regular_instruction) => {
                 let expr: Option<DatexExpression> = match regular_instruction {
@@ -140,11 +140,15 @@ pub fn ast_from_bytecode(
                         .with_default_span(),
                     ),
                     RegularInstruction::BigInteger(integer_data) => Some(
-                        DatexExpressionData::Integer(integer_data.0.clone())
+                        DatexExpressionData::TypedInteger(TypedInteger::Big(integer_data.0))
+                            .with_default_span(),
+                    ),
+                    RegularInstruction::Integer(integer_data) => Some(
+                        DatexExpressionData::Integer(integer_data.0)
                             .with_default_span(),
                     ),
                     RegularInstruction::Endpoint(endpoint) => Some(
-                        DatexExpressionData::Endpoint(endpoint.clone())
+                        DatexExpressionData::Endpoint(endpoint)
                             .with_default_span(),
                     ),
                     RegularInstruction::DecimalF32(f32_data) => Some(
@@ -175,17 +179,21 @@ pub fn ast_from_bytecode(
                             .with_default_span(),
                         )
                     }
+                    RegularInstruction::BigDecimal(decimal_data) => Some(
+                        DatexExpressionData::TypedDecimal(TypedDecimal::Decimal(decimal_data.0))
+                            .with_default_span(),
+                    ),
                     RegularInstruction::Decimal(decimal_data) => Some(
-                        DatexExpressionData::Decimal(decimal_data.0.clone())
+                        DatexExpressionData::Decimal(decimal_data.0)
                             .with_default_span(),
                     ),
                     RegularInstruction::RemoteExecution(_) => todo!(),
                     RegularInstruction::ShortText(short_text_data) => Some(
-                        DatexExpressionData::Text(short_text_data.0.clone())
+                        DatexExpressionData::Text(short_text_data.0)
                             .with_default_span(),
                     ),
                     RegularInstruction::Text(text_data) => Some(
-                        DatexExpressionData::Text(text_data.0.clone())
+                        DatexExpressionData::Text(text_data.0)
                             .with_default_span(),
                     ),
                     RegularInstruction::True => Some(
@@ -199,10 +207,10 @@ pub fn ast_from_bytecode(
                     }
                     RegularInstruction::Statements(statements_data)
                     | RegularInstruction::ShortStatements(statements_data) => {
-                        // FIXME: no clone
+                        let count = statements_data.statements_count;
                         collector.collect(
-                            instruction.clone(),
-                            statements_data.statements_count,
+                            Instruction::RegularInstruction(RegularInstruction::Statements(statements_data)),
+                            count,
                         );
                         None
                     }
@@ -210,23 +218,25 @@ pub fn ast_from_bytecode(
                     RegularInstruction::UnboundedStatementsEnd(_) => todo!(),
                     RegularInstruction::List(list_data)
                     | RegularInstruction::ShortList(list_data) => {
+                        let count = list_data.element_count;
                         collector.collect(
-                            instruction.clone(),
-                            list_data.element_count,
+                            Instruction::RegularInstruction(RegularInstruction::List(list_data)),
+                            count,
                         );
                         None
                     }
                     RegularInstruction::Map(map_data)
                     | RegularInstruction::ShortMap(map_data) => {
+                        let count = map_data.element_count * 2;
                         collector.collect(
-                            instruction.clone(),
-                            map_data.element_count * 2,
+                            Instruction::RegularInstruction(RegularInstruction::Map(map_data)),
+                            count,
                         );
                         None
                     }
                     RegularInstruction::KeyValueDynamic => todo!(),
                     RegularInstruction::KeyValueShortText(text_data) => Some(
-                        DatexExpressionData::Text(text_data.0.clone())
+                        DatexExpressionData::Text(text_data.0)
                             .with_default_span(),
                     ),
                     RegularInstruction::Add => todo!(),
@@ -362,9 +372,12 @@ pub fn ast_from_bytecode(
                 let type_expression: Option<TypeExpression> =
                     match type_instruction {
                         TypeInstruction::List(list) => {
+                            let count = list.element_count;
                             collector.collect(
-                                instruction.clone(),
-                                list.element_count,
+                                Instruction::TypeInstruction(
+                                    TypeInstruction::List(list),
+                                ),
+                                count,
                             );
                             None
                         }
@@ -372,16 +385,16 @@ pub fn ast_from_bytecode(
                             todo!("Handle TypeInstruction::ImplType")
                         }
                         TypeInstruction::LiteralInteger(integer_data) => Some(
-                            TypeExpressionData::Integer(integer_data.0.clone())
+                            TypeExpressionData::Integer(integer_data.0)
                                 .with_default_span(),
                         ),
                         TypeInstruction::LiteralText(text_data) => Some(
-                            TypeExpressionData::Text(text_data.0.clone())
+                            TypeExpressionData::Text(text_data.0)
                                 .with_default_span(),
                         ),
                         TypeInstruction::TypeReference(reference) => Some(
                             TypeExpressionData::GetReference(
-                                PointerAddress::from(reference.address.clone()),
+                                PointerAddress::from(reference.address),
                             )
                             .with_default_span(),
                         ),

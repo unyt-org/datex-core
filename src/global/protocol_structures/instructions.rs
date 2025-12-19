@@ -1,5 +1,4 @@
 use crate::global::operators::AssignmentOperator;
-use crate::global::protocol_structures::routing_header::PointerAddress;
 use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
@@ -11,6 +10,7 @@ use crate::values::core_values::{
 use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
+use datex_core::values::pointer::PointerAddress;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -63,6 +63,9 @@ pub enum RegularInstruction {
 
     // big integers
     BigInteger(IntegerData),
+    
+    // default integer
+    Integer(IntegerData),
 
     Endpoint(Endpoint),
 
@@ -70,6 +73,8 @@ pub enum RegularInstruction {
     DecimalF64(Float64Data),
     DecimalAsInt16(FloatAsInt16Data),
     DecimalAsInt32(FloatAsInt32Data),
+    BigDecimal(DecimalData),
+    // default decimal
     Decimal(DecimalData),
 
     RemoteExecution(InstructionBlockData),
@@ -187,6 +192,9 @@ impl Display for RegularInstruction {
             RegularInstruction::BigInteger(data) => {
                 core::write!(f, "BIG_INTEGER {}", data.0)
             }
+            RegularInstruction::Integer(data) => {
+                core::write!(f, "INTEGER {}", data.0)
+            }
             RegularInstruction::Endpoint(data) => {
                 core::write!(f, "ENDPOINT {data}")
             }
@@ -211,8 +219,11 @@ impl Display for RegularInstruction {
                     decimal_to_string(data.0, false)
                 )
             }
-            RegularInstruction::Decimal(data) => {
+            RegularInstruction::BigDecimal(data) => {
                 core::write!(f, "DECIMAL_BIG {}", data.0)
+            }
+            RegularInstruction::Decimal(data) => {
+                core::write!(f, "DECIMAL {}", data.0)
             }
             RegularInstruction::ShortText(data) => {
                 core::write!(f, "SHORT_TEXT {}", data.0)
@@ -384,8 +395,8 @@ impl Display for TypeInstruction {
             TypeInstruction::List(data) => {
                 core::write!(f, "LIST {}", data.element_count)
             }
-            TypeInstruction::TypeReference(address) => {
-                core::write!(f, "TYPE_REFERENCE",)
+            TypeInstruction::TypeReference(reference_data) => {
+                core::write!(f, "TYPE_REFERENCE mutability: {}, address: {}", reference_data.metadata.mutability, PointerAddress::from(&reference_data.address))
             }
             TypeInstruction::ImplType(data) => {
                 core::write!(f, "IMPL_TYPE ({} impls)", data.impl_count)
