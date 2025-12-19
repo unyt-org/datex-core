@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{DatexExpression, List, Map};
+use crate::ast::structs::expression::{BinaryOperation, DatexExpression, List, Map, UnaryOperation};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::global::protocol_structures::instructions::{
@@ -12,6 +12,8 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
+use crate::global::operators::binary::ArithmeticOperator;
+use crate::global::operators::{BinaryOperator, UnaryOperator};
 
 enum CollectedResult {
     Expression(DatexExpression),
@@ -30,9 +32,79 @@ impl From<TypeExpression> for CollectedResult {
 }
 
 #[derive(Default)]
+struct CollectedResults {
+    results: Vec<CollectedResult>,
+}
+
+impl CollectedResults {
+    fn pop(&mut self) -> Option<CollectedResult> {
+        self.results.pop()
+    }
+
+    /// Pops a DatexExpression from the collected results.
+    /// Panics if the popped result is not a DatexExpression.
+    /// The caller must ensure that the next result is a DatexExpression and not a TypeExpression
+    /// and that there is at least one result to pop.
+    fn pop_expression(&mut self) -> DatexExpression {
+        match self.pop() {
+            Some(CollectedResult::Expression(expr)) => expr,
+            _ => unreachable!("Expected DatexExpression in collected results")
+        }
+    }
+
+    /// Collects all DatexExpressions from the collected results.
+    /// Panics if any of the popped results are not DatexExpressions.
+    fn collect_expressions(&mut self) -> Vec<DatexExpression> {
+        let count = self.len();
+        let mut expressions = Vec::with_capacity(count);
+        for _ in 0..count {
+            expressions.push(self.pop_expression());
+        }
+        expressions.reverse();
+        expressions
+    }
+
+    /// Collects all TypeExpressions from the collected results.
+    /// Panics if any of the popped results are not TypeExpressions.
+    fn collect_type_expressions(&mut self) -> Vec<TypeExpression> {
+        let count = self.len();
+        let mut type_expressions = Vec::with_capacity(count);
+        for _ in 0..count {
+            type_expressions.push(self.pop_type_expression());
+        }
+        type_expressions.reverse();
+        type_expressions
+    }
+
+    /// Pops a TypeExpression from the collected results.
+    /// Panics if the popped result is not a TypeExpression.
+    /// The caller must ensure that the next result is a TypeExpression and not a DatexExpression
+    /// and that there is at least one result to pop.
+    fn pop_type_expression(&mut self) -> TypeExpression {
+        match self.pop() {
+            Some(CollectedResult::TypeExpression(expr)) => expr,
+            _ => unreachable!("Expected TypeExpression in collected results")
+        }
+    }
+
+    fn push(&mut self, result: CollectedResult) {
+        self.results.push(result);
+    }
+
+    fn len(&self) -> usize {
+        self.results.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.results.is_empty()
+    }
+}
+
+
+#[derive(Default)]
 struct Collector {
     collectors: Vec<(Instruction, u32)>,
-    results: Vec<CollectedResult>,
+    results: CollectedResults,
 }
 
 impl Collector {
@@ -50,13 +122,13 @@ impl Collector {
 
     fn try_pop_collected(
         &mut self,
-    ) -> Option<(Instruction, Vec<CollectedResult>)> {
+    ) -> Option<(Instruction, CollectedResults)> {
         let collector = self.collectors.last()?;
         let expected_count = collector.1;
 
         if self.results.len() as u32 == expected_count {
             let collector = self.collectors.pop().unwrap(); // we already checked if the last element exists
-            Some((collector.0, self.results.drain(0..).collect()))
+            Some((collector.0, core::mem::take(&mut self.results)))
         } else if self.results.len() as u32 > expected_count {
             panic!(
                 "Collected more results than expected for the last instruction"
@@ -115,6 +187,12 @@ pub fn ast_from_bytecode(
                         ))
                         .with_default_span(),
                     ),
+                    RegularInstruction::Int128(integer_data) => Some(
+                        DatexExpressionData::TypedInteger(TypedInteger::from(
+                            integer_data.0,
+                        ))
+                            .with_default_span(),
+                    ),
                     RegularInstruction::UInt8(integer_data) => Some(
                         DatexExpressionData::TypedInteger(TypedInteger::from(
                             integer_data.0,
@@ -138,6 +216,12 @@ pub fn ast_from_bytecode(
                             integer_data.0,
                         ))
                         .with_default_span(),
+                    ),
+                    RegularInstruction::UInt128(integer_data) => Some(
+                        DatexExpressionData::TypedInteger(TypedInteger::from(
+                            integer_data.0,
+                        ))
+                            .with_default_span(),
                     ),
                     RegularInstruction::BigInteger(integer_data) => Some(
                         DatexExpressionData::TypedInteger(TypedInteger::Big(integer_data.0))
@@ -239,26 +323,45 @@ pub fn ast_from_bytecode(
                         DatexExpressionData::Text(text_data.0)
                             .with_default_span(),
                     ),
-                    RegularInstruction::Add => todo!(),
-                    RegularInstruction::Subtract => todo!(),
-                    RegularInstruction::Multiply => todo!(),
-                    RegularInstruction::Divide => todo!(),
-                    RegularInstruction::UnaryMinus => todo!(),
-                    RegularInstruction::UnaryPlus => todo!(),
-                    RegularInstruction::BitwiseNot => todo!(),
+                    RegularInstruction::Add
+                    | RegularInstruction::Subtract
+                    | RegularInstruction::Multiply
+                    | RegularInstruction::Divide
+                    | RegularInstruction::Matches
+                    | RegularInstruction::StructuralEqual
+                    | RegularInstruction::Equal
+                    | RegularInstruction::NotStructuralEqual
+                    | RegularInstruction::NotEqual
+                    => {
+                        collector.collect(
+                            Instruction::RegularInstruction(
+                                regular_instruction.clone(),
+                            ),
+                            2,
+                        );
+                        None
+                    }
+                    RegularInstruction::UnaryMinus
+                    | RegularInstruction::UnaryPlus
+                    | RegularInstruction::BitwiseNot
+                    | RegularInstruction::CreateRef
+                    | RegularInstruction::CreateRefMut
+                    | RegularInstruction::Deref
+                    => {
+                        collector.collect(
+                            Instruction::RegularInstruction(
+                                regular_instruction.clone(),
+                            ),
+                            1,
+                        );
+                        None
+                    }
                     RegularInstruction::Apply(_) => todo!(),
                     RegularInstruction::Is => todo!(),
-                    RegularInstruction::Matches => todo!(),
-                    RegularInstruction::StructuralEqual => todo!(),
-                    RegularInstruction::Equal => todo!(),
-                    RegularInstruction::NotStructuralEqual => todo!(),
-                    RegularInstruction::NotEqual => todo!(),
                     RegularInstruction::AddAssign(_) => todo!(),
                     RegularInstruction::SubtractAssign(_) => todo!(),
                     RegularInstruction::MultiplyAssign(_) => todo!(),
                     RegularInstruction::DivideAssign(_) => todo!(),
-                    RegularInstruction::CreateRef => todo!(),
-                    RegularInstruction::CreateRefMut => todo!(),
                     RegularInstruction::GetRef(_) => todo!(),
                     RegularInstruction::GetLocalRef(_) => todo!(),
                     RegularInstruction::GetInternalRef(_) => todo!(),
@@ -269,11 +372,8 @@ pub fn ast_from_bytecode(
                     RegularInstruction::DropSlot(_) => todo!(),
                     RegularInstruction::SetSlot(_) => todo!(),
                     RegularInstruction::AssignToReference(_) => todo!(),
-                    RegularInstruction::Deref => todo!(),
                     RegularInstruction::TypedValue => None,
                     RegularInstruction::TypeExpression => todo!(),
-                    RegularInstruction::Int128(_) => todo!(),
-                    RegularInstruction::UInt128(_) => todo!(),
                 };
 
                 if let Some(expr) = expr {
@@ -281,7 +381,7 @@ pub fn ast_from_bytecode(
                 }
 
                 // handle collecting nested expressions
-                if let Some((instruction, collected_results)) =
+                if let Some((instruction, mut collected_results)) =
                     collector.try_pop_collected()
                 {
                     let expr = match instruction {
@@ -290,47 +390,20 @@ pub fn ast_from_bytecode(
                         ) => match regular_instruction {
                             RegularInstruction::List(_)
                             | RegularInstruction::ShortList(_) => {
-                                let elements = collected_results.into_iter().map(|res| {
-                                        if let CollectedResult::Expression(expr) = res {
-                                            expr
-                                        } else {
-                                            unreachable!("Expected DatexExpression in collected results for LIST")
-                                        }
-                                    }).collect::<Vec<_>>();
+                                let elements = collected_results.collect_expressions();
                                 DatexExpressionData::List(List::new(elements))
                                     .with_default_span()
                             }
                             RegularInstruction::Map(_)
                             | RegularInstruction::ShortMap(_) => {
                                 let mut entries = Vec::new();
-                                let mut iter = collected_results.into_iter();
-                                while let Some(key_res) = iter.next() {
-                                    let value_res = iter.next().expect(
-                                        "Expected value for each key in map",
+                                while !collected_results.is_empty() {
+                                    entries.push(
+                                        (
+                                            collected_results.pop_expression(),
+                                            collected_results.pop_expression(),
+                                        )
                                     );
-                                    let key =
-                                        if let CollectedResult::Expression(
-                                            expr,
-                                        ) = key_res
-                                        {
-                                            expr
-                                        } else {
-                                            unreachable!(
-                                                "Expected DatexExpression in collected results for MAP key"
-                                            )
-                                        };
-                                    let value =
-                                        if let CollectedResult::Expression(
-                                            expr,
-                                        ) = value_res
-                                        {
-                                            expr
-                                        } else {
-                                            unreachable!(
-                                                "Expected DatexExpression in collected results for MAP value"
-                                            )
-                                        };
-                                    entries.push((key, value));
                                 }
                                 DatexExpressionData::Map(Map::new(entries))
                                     .with_default_span()
@@ -339,13 +412,7 @@ pub fn ast_from_bytecode(
                             | RegularInstruction::ShortStatements(
                                 statements_data,
                             ) => {
-                                let statements = collected_results.into_iter().map(|res| {
-                                        if let CollectedResult::Expression(expr) = res {
-                                            expr
-                                        } else {
-                                            unreachable!("Expected DatexExpression in collected results for STATEMENTS")
-                                        }
-                                    }).collect::<Vec<_>>();
+                                let statements = collected_results.collect_expressions();
                                 DatexExpressionData::Statements(Statements {
                                     statements,
                                     is_terminated: statements_data.terminated,
@@ -353,6 +420,41 @@ pub fn ast_from_bytecode(
                                 })
                                 .with_default_span()
                             }
+
+                            RegularInstruction::Add
+                            | RegularInstruction::Subtract
+                            | RegularInstruction::Multiply
+                            | RegularInstruction::Divide
+                            | RegularInstruction::Matches
+                            | RegularInstruction::StructuralEqual
+                            | RegularInstruction::Equal
+                            | RegularInstruction::NotStructuralEqual
+                            | RegularInstruction::NotEqual
+                            => {
+                                let right = collected_results.pop_expression();
+                                let left = collected_results.pop_expression();
+                                DatexExpressionData::BinaryOperation(BinaryOperation {
+                                    operator: BinaryOperator::from(&regular_instruction),
+                                    left: Box::new(left),
+                                    right: Box::new(right),
+                                    ty: None
+                                }).with_default_span()
+                            }
+                            
+                            RegularInstruction::UnaryMinus
+                            | RegularInstruction::UnaryPlus
+                            | RegularInstruction::BitwiseNot
+                            | RegularInstruction::CreateRef
+                            | RegularInstruction::CreateRefMut
+                            | RegularInstruction::Deref
+                            => {
+                                let expr = collected_results.pop_expression();
+                                DatexExpressionData::UnaryOperation(UnaryOperation {
+                                    operator: UnaryOperator::from(&regular_instruction),
+                                    expression: Box::new(expr),
+                                }).with_default_span()
+                            }
+
                             e => {
                                 todo!(
                                     "Unhandled collected regular instruction: {:?}",

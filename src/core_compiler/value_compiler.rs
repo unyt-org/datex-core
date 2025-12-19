@@ -261,24 +261,27 @@ pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
         }
     }
 
-    match decimal.as_integer() {
-        Some(int) => {
-            let smallest = smallest_fitting_signed(int as i128);
-            match smallest {
-                TypedInteger::I8(val) => {
-                    append_float_as_i16(buffer, val as i16);
-                }
-                TypedInteger::I16(val) => {
-                    append_float_as_i16(buffer, val);
-                }
-                TypedInteger::I32(val) => {
-                    append_float_as_i32(buffer, val);
-                }
-                _ => append_f32_or_f64(buffer, decimal),
-            }
-        }
-        None => append_f32_or_f64(buffer, decimal),
-    }
+    append_f32_or_f64(buffer, decimal);
+    
+    // TODO: maybe use this in the future, but type casts are necessary to decide which actual type is represented
+    // match decimal.as_integer() {
+    //     Some(int) => {
+    //         let smallest = smallest_fitting_signed(int as i128);
+    //         match smallest {
+    //             TypedInteger::I8(val) => {
+    //                 append_float_as_i16(buffer, val as i16);
+    //             }
+    //             TypedInteger::I16(val) => {
+    //                 append_float_as_i16(buffer, val);
+    //             }
+    //             TypedInteger::I32(val) => {
+    //                 append_float_as_i32(buffer, val);
+    //             }
+    //             _ => append_f32_or_f64(buffer, decimal),
+    //         }
+    //     }
+    //     None => append_f32_or_f64(buffer, decimal),
+    // }
 }
 
 pub fn append_float32(buffer: &mut Vec<u8>, float32: f32) {

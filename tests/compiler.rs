@@ -15,7 +15,7 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
 
     info!("original   : {datex_script}");
     info!("decompiled : {decompiled}");
-    assert_eq!(datex_script, decompiled)
+    assert_eq!(decompiled, datex_script)
 }
 
 fn compare_compiled(datex_script: &str, expected: &str) {
@@ -39,7 +39,7 @@ fn compare_compiled(datex_script: &str, expected: &str) {
     info!("original   : {datex_script}");
     info!("expected : {expected}");
     info!("decompiled : {decompiled_color}");
-    assert_eq!(expected, decompiled)
+    assert_eq!(decompiled, expected)
 }
 
 #[test]

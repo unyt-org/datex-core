@@ -33,6 +33,10 @@ impl Default for NextInstructionsStack {
 impl NextInstructionsStack {
     /// Indicate that the next `count` instructions are regular instructions.
     pub fn push_next_regular(&mut self, count: u32) {
+        // ignore zero counts
+        if count == 0 {
+            return;
+        }
         match self.0.last_mut() {
             Some(NextScopeInstruction::Regular(existing_count)) => {
                 // if existing count + count overflows, push a new entry instead
