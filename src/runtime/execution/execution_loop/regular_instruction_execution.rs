@@ -1,3 +1,4 @@
+use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{
@@ -30,7 +31,6 @@ use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
-use crate::values::core_values::integer::Integer;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::{Map, OwnedMapKey};
 use crate::values::value::Value;
@@ -134,41 +134,46 @@ pub(crate) fn execute_regular_instruction(
 
             // integers
             RegularInstruction::Int8(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::Int16(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::Int32(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::Int64(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::Int128(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
 
             // unsigned integers
             RegularInstruction::UInt8(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::UInt16(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::UInt32(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::UInt64(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
             RegularInstruction::UInt128(integer) => {
-                Some(Integer::from(integer.0).into())
+                Some(TypedInteger::from(integer.0).into())
             }
 
             // big integers
             RegularInstruction::BigInteger(IntegerData(integer)) => {
-                Some(integer.into())
+                Some(TypedInteger::Big(integer).into())
+            }
+
+            // default integer
+            RegularInstruction::Integer(IntegerData(i8)) => {
+                Some(i8.into())
             }
 
             // specific floats
@@ -178,8 +183,12 @@ pub(crate) fn execute_regular_instruction(
             RegularInstruction::DecimalF64(Float64Data(f64)) => {
                 Some(TypedDecimal::from(f64).into())
             }
+            // big decimal
+            RegularInstruction::BigDecimal(DecimalData(big_decimal)) => {
+                Some(TypedDecimal::Decimal(big_decimal).into())
+            }
 
-            // default decimals (big decimals)
+            // default decimals
             RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
                 Some(Decimal::from(i16 as f32).into())
             }

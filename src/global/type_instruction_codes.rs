@@ -94,7 +94,7 @@ impl From<&TypeDefinition> for TypeInstructionCode {
     }
 }
 
-#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq, Display)]
 #[brw(little, repr(u8))]
 pub enum TypeMutabilityCode {
     MutableReference,

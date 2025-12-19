@@ -30,12 +30,7 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
-use crate::core_compiler::value_compiler::{
-    append_boolean, append_decimal, append_encoded_integer, append_endpoint,
-    append_float_as_i16, append_float_as_i32, append_instruction_code,
-    append_text, append_typed_decimal, append_typed_integer,
-    append_value_container,
-};
+use crate::core_compiler::value_compiler::{append_boolean, append_encoded_integer, append_endpoint, append_float_as_i16, append_float_as_i32, append_instruction_code, append_integer, append_text, append_typed_decimal, append_typed_integer, append_value_container, append_decimal};
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::context::ExecutionMode;
@@ -536,13 +531,10 @@ fn compile_expression(
     // TODO #483: no clone
     match rich_ast.ast.data.clone() {
         DatexExpressionData::Integer(int) => {
-            append_encoded_integer(
-                &mut compilation_context.buffer,
-                &int.to_smallest_fitting(),
-            );
+            append_integer(&mut compilation_context.buffer, &int);
         }
         DatexExpressionData::TypedInteger(typed_int) => {
-            append_typed_integer(&mut compilation_context.buffer, &typed_int);
+            append_encoded_integer(&mut compilation_context.buffer, &typed_int);
         }
         DatexExpressionData::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
@@ -1230,6 +1222,7 @@ pub mod tests {
     };
     use datex_core::compiler::error::CompilerError;
     use log::*;
+    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -1307,15 +1300,15 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} * {rhs}"); // 1 * 2
+        let datex_script = format!("{lhs}u8 * {rhs}u8"); // 1 * 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1327,7 +1320,7 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} * {rhs};"); // 1 * 2
+        let datex_script = format!("{lhs}u8 * {rhs}u8;"); // 1 * 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1336,9 +1329,9 @@ pub mod tests {
                 1,
                 1, // terminated
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1349,21 +1342,21 @@ pub mod tests {
         init_logger_debug();
 
         // TODO #151: compare refs
-        let datex_script = "1 is 2".to_string();
+        let datex_script = "1u8 is 2u8".to_string();
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::IS.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
 
         let datex_script =
-            "const a = &mut 42; const b = &mut 69; a is b".to_string(); // a is b
+            "const a = &mut 42u8; const b = &mut 69u8; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1377,7 +1370,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 // val b = 69;
                 InstructionCode::ALLOCATE_SLOT.into(),
@@ -1386,7 +1379,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
                 // a is b
                 InstructionCode::IS.into(),
@@ -1410,53 +1403,53 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} == {rhs}"); // 1 == 2
+        let datex_script = format!("{lhs}u8 == {rhs}u8"); // 1 == 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::STRUCTURAL_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
 
-        let datex_script = format!("{lhs} === {rhs}"); // 1 === 2
+        let datex_script = format!("{lhs}u8 === {rhs}u8"); // 1 === 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
 
-        let datex_script = format!("{lhs} != {rhs}"); // 1 != 2
+        let datex_script = format!("{lhs}u8 != {rhs}u8"); // 1 != 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::NOT_STRUCTURAL_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
-        let datex_script = format!("{lhs} !== {rhs}"); // 1 !== 2
+        let datex_script = format!("{lhs}u8 !== {rhs}u8"); // 1 !== 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::NOT_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1468,20 +1461,20 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} + {rhs}"); // 1 + 2
+        let datex_script = format!("{lhs}u8 + {rhs}u8"); // 1 + 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs
             ]
         );
 
-        let datex_script = format!("{lhs} + {rhs};"); // 1 + 2;
+        let datex_script = format!("{lhs}u8 + {rhs}u8;"); // 1 + 2;
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1490,9 +1483,9 @@ pub mod tests {
                 1,
                 1, // terminated
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1507,7 +1500,7 @@ pub mod tests {
         let op3: u8 = 3;
         let op4: u8 = 4;
 
-        let datex_script = format!("{op1} + {op2} + {op3} + {op4}"); // 1 + 2 + 3 + 4
+        let datex_script = format!("{op1}u8 + {op2}u8 + {op3}u8 + {op4}u8"); // 1 + 2 + 3 + 4
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1515,13 +1508,13 @@ pub mod tests {
                 InstructionCode::ADD.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op4,
             ]
         );
@@ -1536,21 +1529,21 @@ pub mod tests {
         let op3: u8 = 3;
         let op4: u8 = 4;
 
-        let datex_script = format!("{op1} * {op2} + {op3} * {op4}"); // 1 + 2 + 3 + 4
+        let datex_script = format!("{op1}u8 * {op2}u8 + {op3}u8 * {op4}u8"); // 1 + 2 + 3 + 4
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op2,
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op4,
             ]
         );
@@ -1563,22 +1556,19 @@ pub mod tests {
         let a: u8 = 1;
         let b: u8 = 2;
         let c: u8 = 3;
-        let datex_script = format!("{a} + ({b} + {c})"); // 1 + (2 + 3)
+        let datex_script = format!("{a}u8 + ({b}u8 + {c}u8)"); // 1 + (2 + 3)
         let result = compile_and_log(&datex_script);
 
-        // note: scope is automatically collapsed by the parser since this is all the same operation
-        // TODO #152: we might need to change this to support nested additions, or maybe not if we only allow additions
-        // of values of the same type?...
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 a,
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 b,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 c,
             ]
         );
@@ -1591,18 +1581,18 @@ pub mod tests {
         let a: u8 = 1;
         let b: u8 = 2;
         let c: u8 = 3;
-        let datex_script = format!("{a} + ({b} - {c})"); // 1 + (2 - 3)
+        let datex_script = format!("{a}u8 + ({b}u8 - {c}u8)"); // 1 + (2 - 3)
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 a,
                 InstructionCode::SUBTRACT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 b,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 c,
             ]
         );
@@ -1612,9 +1602,9 @@ pub mod tests {
     fn integer_u8() {
         init_logger_debug();
         let val = 42;
-        let datex_script = format!("{val}"); // 42
+        let datex_script = format!("{val}u8"); // 42
         let result = compile_and_log(&datex_script);
-        assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
+        assert_eq!(result, vec![InstructionCode::UINT_8.into(), val,]);
     }
 
     // Test for decimal
@@ -1665,14 +1655,14 @@ pub mod tests {
     fn single_element_list() {
         init_logger_debug();
         // TODO #438: support list constructor (apply on type)
-        let datex_script = "[42]";
+        let datex_script = "[42u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::SHORT_LIST.into(),
                 1, // length
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
             ]
         );
@@ -1682,35 +1672,35 @@ pub mod tests {
     #[test]
     fn multi_element_list() {
         init_logger_debug();
-        let datex_script = "[1, 2, 3]";
+        let datex_script = "[1u8, 2u8, 3u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::SHORT_LIST.into(),
                 3, // length
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
             ]
         );
 
         // trailing comma
-        let datex_script = "[1, 2, 3,]";
+        let datex_script = "[1u8, 2u8, 3u8,]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::SHORT_LIST.into(),
                 3, // length
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
             ]
         );
@@ -1720,7 +1710,7 @@ pub mod tests {
     #[test]
     fn list_with_expressions() {
         init_logger_debug();
-        let datex_script = "[1 + 2, 3 * 4]";
+        let datex_script = "[1u8 + 2u8, 3u8 * 4u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
@@ -1728,14 +1718,14 @@ pub mod tests {
                 InstructionCode::SHORT_LIST.into(),
                 2, // length
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 4,
             ]
         );
@@ -1745,22 +1735,22 @@ pub mod tests {
     #[test]
     fn nested_lists() {
         init_logger_debug();
-        let datex_script = "[1, [2, 3], 4]";
+        let datex_script = "[1u8, [2u8, 3u8], 4u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::SHORT_LIST.into(),
                 3, // length
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
                 InstructionCode::SHORT_LIST.into(),
                 2, // length
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 4,
             ]
         );
@@ -1770,7 +1760,7 @@ pub mod tests {
     #[test]
     fn map_with_text_key() {
         init_logger_debug();
-        let datex_script = "{\"key\": 42}";
+        let datex_script = "{\"key\": 42u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::SHORT_MAP.into(),
@@ -1780,7 +1770,7 @@ pub mod tests {
             b'k',
             b'e',
             b'y',
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
         ];
         assert_eq!(result, expected);
@@ -1790,15 +1780,15 @@ pub mod tests {
     #[test]
     fn map_integer_key() {
         init_logger_debug();
-        let datex_script = "{(10): 42}";
+        let datex_script = "{(10u8): 42u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::SHORT_MAP.into(),
             1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             10,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
         ];
         assert_eq!(result, expected);
@@ -1809,7 +1799,7 @@ pub mod tests {
     fn map_with_long_text_key() {
         init_logger_debug();
         let long_key = "a".repeat(300);
-        let datex_script = format!("{{\"{long_key}\": 42}}");
+        let datex_script = format!("{{\"{long_key}\": 42u8}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
             InstructionCode::SHORT_MAP.into(),
@@ -1819,7 +1809,7 @@ pub mod tests {
         ];
         expected.extend((long_key.len() as u32).to_le_bytes());
         expected.extend(long_key.as_bytes());
-        expected.extend(vec![InstructionCode::INT_8.into(), 42]);
+        expected.extend(vec![InstructionCode::UINT_8.into(), 42]);
         assert_eq!(result, expected);
     }
 
@@ -1827,18 +1817,18 @@ pub mod tests {
     #[test]
     fn map_with_dynamic_key() {
         init_logger_debug();
-        let datex_script = "{(1 + 2): 42}";
+        let datex_script = "{(1u8 + 2u8): 42u8}";
         let result = compile_and_log(datex_script);
         let expected = [
             InstructionCode::SHORT_MAP.into(),
             1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             1,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             2,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
         ];
         assert_eq!(result, expected);
@@ -1848,7 +1838,7 @@ pub mod tests {
     #[test]
     fn map_with_multiple_keys() {
         init_logger_debug();
-        let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
+        let datex_script = "{key: 42u8, (4u8): 43u8, (1u8 + 2u8): 44u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
             InstructionCode::SHORT_MAP.into(),
@@ -1858,20 +1848,20 @@ pub mod tests {
             b'k',
             b'e',
             b'y',
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             4,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             43,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             1,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             2,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             44,
         ];
         assert_eq!(result, expected);
@@ -1893,7 +1883,7 @@ pub mod tests {
     #[test]
     fn allocate_slot() {
         init_logger_debug();
-        let script = "const a = 42";
+        let script = "const a = 42u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1904,7 +1894,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
             ]
         );
@@ -1913,7 +1903,7 @@ pub mod tests {
     #[test]
     fn allocate_slot_with_value() {
         init_logger_debug();
-        let script = "const a = 42; a + 1";
+        let script = "const a = 42u8; a + 1u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1927,7 +1917,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1936,7 +1926,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -1945,7 +1935,7 @@ pub mod tests {
     #[test]
     fn allocate_scoped_slots() {
         init_logger_debug();
-        let script = "const a = 42; (const a = 43; a); a";
+        let script = "const a = 42u8; (const a = 43u8; a); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1958,7 +1948,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::SHORT_STATEMENTS.into(),
                 2,
@@ -1968,7 +1958,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
                 InstructionCode::GET_SLOT.into(),
                 1,
@@ -1993,7 +1983,7 @@ pub mod tests {
     #[test]
     fn allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
-        let script = "const a = 42; const b = 41; (const a = 43; a; b); a";
+        let script = "const a = 42u8; const b = 41u8; (const a = 43u8; a; b); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -2006,14 +1996,14 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 41,
                 InstructionCode::SHORT_STATEMENTS.into(),
                 3,
@@ -2023,7 +2013,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
                 InstructionCode::GET_SLOT.into(),
                 2,
@@ -2053,7 +2043,7 @@ pub mod tests {
     #[test]
     fn allocate_ref() {
         init_logger_debug();
-        let script = "const a = &mut 42";
+        let script = "const a = &mut 42u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -2065,7 +2055,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
             ]
         );
@@ -2074,7 +2064,7 @@ pub mod tests {
     #[test]
     fn read_ref() {
         init_logger_debug();
-        let script = "const a = &mut 42; a";
+        let script = "const a = &mut 42u8; a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -2089,7 +2079,7 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
@@ -2106,16 +2096,16 @@ pub mod tests {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
-            &[Integer::from(1).into(), Integer::from(2).into()],
+            &[TypedInteger::from(1u8).into(), TypedInteger::from(2u8).into()],
             CompileOptions::default(),
         );
         assert_eq!(
             result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
@@ -2124,22 +2114,22 @@ pub mod tests {
     #[test]
     fn compile_macro() {
         init_logger_debug();
-        let a = Integer::from(1);
+        let a = TypedInteger::from(1u8);
         let result = compile!("?", a);
-        assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
+        assert_eq!(result.unwrap().0, vec![InstructionCode::UINT_8.into(), 1,]);
     }
 
     #[test]
     fn compile_macro_multi() {
         init_logger_debug();
-        let result = compile!("? + ?", Integer::from(1), Integer::from(2));
+        let result = compile!("? + ?", TypedInteger::from(1u8), TypedInteger::from(2u8));
         assert_eq!(
             result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
@@ -2217,7 +2207,7 @@ pub mod tests {
 
     #[test]
     fn compile_auto_static_value_detection() {
-        let script = "1";
+        let script = "1u8";
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
@@ -2225,10 +2215,10 @@ pub mod tests {
         .unwrap();
         assert_matches!(
             res,
-            StaticValueOrDXB::StaticValue(val) if val == Some(Integer::from(1).into())
+            StaticValueOrDXB::StaticValue(val) if val == Some(TypedInteger::from(1u8).into())
         );
 
-        let script = "1 + 2";
+        let script = "1u8 + 2u8";
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
@@ -2238,9 +2228,9 @@ pub mod tests {
             res,
             StaticValueOrDXB::DXB(code) if code == vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
             ]
         );
@@ -2248,7 +2238,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution() {
-        let script = "42 :: 43";
+        let script = "42u8 :: 43u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2267,11 +2257,11 @@ pub mod tests {
                 0,
                 0,
                 // literal value 43
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
                 // --- end of block
                 // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
             ]
         );
@@ -2279,7 +2269,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution_expression() {
-        let script = "42 :: 1 + 2";
+        let script = "42u8 :: 1u8 + 2u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2299,13 +2289,13 @@ pub mod tests {
                 0,
                 // expression: 1 + 2
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
                 // --- end of block
                 // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
             ]
         );
@@ -2314,7 +2304,7 @@ pub mod tests {
     #[test]
     fn remote_execution_injected_const() {
         init_logger_debug();
-        let script = "const x = 42; 1 :: x";
+        let script = "const x = 42u8; 1u8 :: x";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2329,7 +2319,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block
@@ -2357,7 +2347,7 @@ pub mod tests {
                 0,
                 // --- end of block
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -2368,7 +2358,7 @@ pub mod tests {
         init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
         // remote context, its state is synced via a ref (VariableReference model)
-        let script = "var x = 42; 1 :: x; x = 43;";
+        let script = "var x = 42u8; 1u8 :: x; x = 43u8;";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2383,7 +2373,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2426,7 +2416,7 @@ pub mod tests {
                 0,
                 // --- end of block
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
                 // TODO #238: this is not the correct slot assignment for VariableReference model
                 // set x to 43
@@ -2436,7 +2426,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
             ]
         );
@@ -2444,7 +2434,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution_injected_consts() {
-        let script = "const x = 42; const y = 69; 1 :: x + y";
+        let script = "const x = 42u8; const y = 69u8; 1u8 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2459,7 +2449,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2467,7 +2457,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block
@@ -2507,7 +2497,7 @@ pub mod tests {
                 0,
                 // --- end of block
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -2515,7 +2505,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution_shadow_const() {
-        let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
+        let script = "const x = 42u8; const y = 69u8; 1u8 :: (const x = 5u8; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
@@ -2530,7 +2520,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2538,7 +2528,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block
@@ -2567,7 +2557,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 5,
                 // expression: x + y
                 InstructionCode::ADD.into(),
@@ -2585,7 +2575,7 @@ pub mod tests {
                 0,
                 // --- end of block
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -2593,7 +2583,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution_nested() {
-        let script = "const x = 42; (1 :: (2 :: x))";
+        let script = "const x = 42u8; (1u8 :: (2u8 :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 
@@ -2609,7 +2599,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block 1
@@ -2654,11 +2644,11 @@ pub mod tests {
                 0,
                 // --- end of block 2
                 // caller (literal value 2 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
                 // -- end of block 1
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -2666,7 +2656,7 @@ pub mod tests {
 
     #[test]
     fn remote_execution_nested2() {
-        let script = "const x = 42; (1 :: (x :: x))";
+        let script = "const x = 42u8; (1u8 :: (x :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 
@@ -2682,7 +2672,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
                 InstructionCode::REMOTE_EXECUTION.into(),
                 // --- start of block 1
@@ -2734,7 +2724,7 @@ pub mod tests {
                 0,
                 // --- end of block 1
                 // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -2804,14 +2794,14 @@ pub mod tests {
     // this is not a valid Datex script, just testing the compiler
     #[test]
     fn deref() {
-        let script = "*10";
+        let script = "*10u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
                 InstructionCode::DEREF.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 // integer as u8
                 10,
             ]
@@ -2857,16 +2847,16 @@ pub mod tests {
 
     #[test]
     fn compile_continuous_terminated_script() {
-        let input = vec!["1", "2", "3;"];
+        let input = vec!["1u8", "2u8", "3u8;"];
         let expected_output = vec![
             vec![
                 InstructionCode::UNBOUNDED_STATEMENTS.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ],
-            vec![InstructionCode::INT_8.into(), 2],
+            vec![InstructionCode::UINT_8.into(), 2],
             vec![
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
                 InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
                 1, // terminated
@@ -2878,22 +2868,22 @@ pub mod tests {
 
     #[test]
     fn compile_continuous_unterminated_script() {
-        let input = vec!["1", "2 + 3", "3"];
+        let input = vec!["1u8", "2u8 + 3u8", "3u8"];
         let expected_output = vec![
             vec![
                 InstructionCode::UNBOUNDED_STATEMENTS.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ],
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
             ],
             vec![
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
                 InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
                 0, // unterminated
@@ -2905,11 +2895,11 @@ pub mod tests {
 
     #[test]
     fn compile_continuous_complex() {
-        let input = vec!["1", "integer"];
+        let input = vec!["1u8", "integer"];
         let expected_output = vec![
             vec![
                 InstructionCode::UNBOUNDED_STATEMENTS.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ],
             vec![

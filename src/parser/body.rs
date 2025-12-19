@@ -195,7 +195,11 @@ pub fn iterate_instructions(
                             let data = IntegerData::read(&mut reader);
                             RegularInstruction::BigInteger(yield_unwrap!(data))
                         }
-
+                        InstructionCode::INT => {
+                            let data = IntegerData::read(&mut reader);
+                            RegularInstruction::Integer(yield_unwrap!(data))
+                        }
+                        
                         InstructionCode::DECIMAL_F32 => {
                             let data = Float32Data::read(&mut reader);
                             RegularInstruction::DecimalF32(yield_unwrap!(data))
@@ -206,7 +210,7 @@ pub fn iterate_instructions(
                         }
                         InstructionCode::DECIMAL_BIG => {
                             let data = DecimalData::read(&mut reader);
-                            RegularInstruction::Decimal(yield_unwrap!(data))
+                            RegularInstruction::BigDecimal(yield_unwrap!(data))
                         }
                         InstructionCode::DECIMAL_AS_INT_16 => {
                             let data = FloatAsInt16Data::read(&mut reader);
@@ -219,6 +223,10 @@ pub fn iterate_instructions(
                             RegularInstruction::DecimalAsInt32(yield_unwrap!(
                                 data
                             ))
+                        }
+                        InstructionCode::DECIMAL => {
+                            let data = DecimalData::read(&mut reader);
+                            RegularInstruction::Decimal(yield_unwrap!(data))
                         }
 
                         InstructionCode::REMOTE_EXECUTION => {
@@ -579,6 +587,8 @@ pub fn iterate_instructions(
                 }
                 .into(),
             });
+
+            // println!("instruction {}", instruction);
 
             yield Ok(instruction);
         }

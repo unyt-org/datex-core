@@ -180,6 +180,7 @@ pub enum InstructionCode {
     INT_64,
     INT_128,
     INT_BIG,
+    INT, // default integer (unsized)
 
     UINT_8, // u8
     UINT_16,
@@ -192,6 +193,8 @@ pub enum InstructionCode {
     DECIMAL_BIG,
     DECIMAL_AS_INT_32,
     DECIMAL_AS_INT_16,
+
+    DECIMAL, // default decimal (unsized)
 
     TRUE,
     FALSE,

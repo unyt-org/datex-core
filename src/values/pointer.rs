@@ -17,18 +17,6 @@ pub enum PointerAddress {
     Internal([u8; 3]), // TODO #312 shrink down to 2 bytes?
 }
 
-impl From<RawPointerAddress> for PointerAddress {
-    fn from(raw: RawPointerAddress) -> Self {
-        match raw {
-            RawPointerAddress::Local(bytes) => PointerAddress::Local(bytes.id),
-            RawPointerAddress::Internal(bytes) => {
-                PointerAddress::Internal(bytes.id)
-            }
-            RawPointerAddress::Full(bytes) => PointerAddress::Remote(bytes.id),
-        }
-    }
-}
-
 impl TryFrom<String> for PointerAddress {
     type Error = &'static str;
     fn try_from(s: String) -> Result<Self, Self::Error> {
@@ -62,6 +50,12 @@ impl TryFrom<&str> for PointerAddress {
             }
             _ => Err("PointerAddress must be 5, 26 or 3 bytes long"),
         }
+    }
+}
+
+impl From<RawPointerAddress> for PointerAddress {
+    fn from(raw: RawPointerAddress) -> Self {
+        PointerAddress::from(&raw)
     }
 }
 
