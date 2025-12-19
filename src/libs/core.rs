@@ -223,6 +223,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         unknown(),
         map(),
         null(),
+        range(),
     ]
     .into_iter()
     .chain(once(integer.clone()))
@@ -270,6 +271,10 @@ pub fn boolean() -> CoreLibTypeDefinition {
 
 pub fn decimal() -> CoreLibTypeDefinition {
     create_core_type("decimal", None, None, CoreLibPointerId::Decimal(None))
+}
+
+pub fn range() -> CoreLibTypeDefinition {
+    create_core_type("range", None, None, CoreLibPointerId::RangeDefinition)
 }
 
 pub fn decimal_variant(

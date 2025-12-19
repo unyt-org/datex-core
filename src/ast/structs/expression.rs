@@ -255,7 +255,12 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                 )
             }
             DatexExpressionData::RangeDefinition(range) => {
-                ValueContainer::from(range.clone())
+                ValueContainer::from(
+                    crate::values::core_values::range::RangeDefinition::new(
+                        range.start.clone(),
+                        range.end.clone(),
+                    ),
+                )
             }
             _ => Err(())?,
         })

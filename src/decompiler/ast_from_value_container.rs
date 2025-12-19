@@ -91,6 +91,7 @@ mod tests {
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;
     use crate::values::core_values::integer::typed_integer::TypedInteger;
+    use crate::values::core_values::range::RangeDefinition;
     use crate::values::value::Value;
     use crate::values::value_container::ValueContainer;
 
@@ -99,6 +100,22 @@ mod tests {
         let value = ValueContainer::from(Integer::from(42));
         let ast = DatexExpressionData::from(&value);
         assert_eq!(ast, DatexExpressionData::Integer(Integer::from(42)));
+    }
+
+    #[test]
+    fn range_to_ast() {
+        let range = ValueContainer::from(RangeDefinition::new(
+            Integer::from(11),
+            Integer::from(13),
+        ));
+        let ast = DatexExpressionData::from(&range);
+        assert_eq!(
+            ast,
+            DatexExpressionData::RangeDefinition(RangeDefinition::new(
+                Integer::from(11),
+                Integer::from(13)
+            ))
+        );
     }
 
     #[test]
