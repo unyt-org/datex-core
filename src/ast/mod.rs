@@ -1844,7 +1844,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn fail_range() {
         let src = "11..13";
         let range = parse_unwrap_data(src);

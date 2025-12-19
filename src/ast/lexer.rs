@@ -138,7 +138,7 @@ pub enum Token {
     //   - `-123.45`, `+123.45`
     //   - `-Infinity`, `+Infinity`
     //   - `-3.e10`, `+3.e10`
-    #[regex(r"(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)\.|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", parse_typed_literal::<DecimalTypeVariant>)] 
+    #[regex(r"(((0|[1-9])(\d|_)*)?\.(\d|_)+(?:[eE][+-]?(\d|_)+)?|((0|[1-9])(\d|_)*)[eE][+-]?(\d|_)+)(?:f32|f64)?", parse_typed_literal::<DecimalTypeVariant>)] 
     DecimalLiteral(DecimalLiteral),
     // integer
     // ### Supported formats:
@@ -358,6 +358,12 @@ mod tests {
                 variant: None
             }))
         );
+    }
+
+    #[test]
+    fn range_token() {
+        let mut lexer = Token::lexer("..");
+        assert_eq!(lexer.next().unwrap(), Ok(Token::Range));
     }
 
     #[test]
