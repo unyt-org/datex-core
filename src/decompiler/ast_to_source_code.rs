@@ -549,12 +549,19 @@ impl AstToSourceCodeFormatter {
                 "DatexExpressionData::Recover should not appear in a valid AST"
             ),
             DatexExpressionData::Statements(statements) => {
+                let terminated = statements.is_terminated;
                 let statements_code: Vec<String> = statements
                     .statements
                     .iter()
-                    .map(|stmt| {
+                    .enumerate()
+                    .map(|(i, stmt)| {
                         let code = self.format(stmt);
-                        ast_fmt!(&self, "{};%n", code)
+                        if !terminated && i + 1 == statements.statements.len() {
+                            code
+                        }
+                        else {
+                            ast_fmt!(&self, "{};%n", code)
+                        }
                     })
                     .collect();
                 statements_code.join("")
