@@ -120,6 +120,9 @@ impl TypeContainer {
     pub fn integer() -> Self {
         get_core_lib_type(CoreLibPointerId::Integer(None))
     }
+    pub fn range_definition() -> Self {
+        get_core_lib_type(CoreLibPointerId::Range)
+    }
     pub fn typed_integer(variant: IntegerTypeVariant) -> Self {
         get_core_lib_type(CoreLibPointerId::Integer(Some(variant)))
     }

@@ -185,6 +185,9 @@ impl DIFValue {
                     }
                 }
             }
+            CoreValue::Range(range) => {
+                DIFValueRepresentation::String(range.to_string())
+            }
             CoreValue::Decimal(decimal) => {
                 // TODO #384: optimize this and pass as decimal if in range
                 DIFValueRepresentation::String(decimal.to_string())

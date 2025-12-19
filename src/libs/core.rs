@@ -55,6 +55,7 @@ pub enum CoreLibPointerId {
     Unit,                                // #core.Unit
     Never,                               // #core.never
     Unknown,                             // #core.unknown
+    Range,
 }
 
 impl CoreLibPointerId {
@@ -75,6 +76,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Map => 12,
             CoreLibPointerId::Never => 13,
             CoreLibPointerId::Unknown => 14,
+            CoreLibPointerId::Range => 15,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -102,6 +104,7 @@ impl CoreLibPointerId {
             12 => Some(CoreLibPointerId::Map),
             13 => Some(CoreLibPointerId::Never),
             14 => Some(CoreLibPointerId::Unknown),
+            15 => Some(CoreLibPointerId::Range),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -220,6 +223,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, TypeContainer> {
         unknown(),
         map(),
         null(),
+        range(),
     ]
     .into_iter()
     .chain(once(integer.clone()))
@@ -267,6 +271,10 @@ pub fn boolean() -> CoreLibTypeDefinition {
 
 pub fn decimal() -> CoreLibTypeDefinition {
     create_core_type("decimal", None, None, CoreLibPointerId::Decimal(None))
+}
+
+pub fn range() -> CoreLibTypeDefinition {
+    create_core_type("range", None, None, CoreLibPointerId::Range)
 }
 
 pub fn decimal_variant(

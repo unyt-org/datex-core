@@ -463,6 +463,7 @@ impl AstToSourceCodeFormatter {
             }
             DatexExpressionData::Noop => "".to_string(),
             DatexExpressionData::Integer(i) => i.to_string(),
+            DatexExpressionData::Range(range) => range.to_string(),
             DatexExpressionData::TypedInteger(ti) => {
                 if self.add_variant_suffix() {
                     ti.to_string_with_suffix()
@@ -844,6 +845,15 @@ mod tests {
 
         let null_ast = DatexExpressionData::Null;
         assert_eq!(compact().format(&null_ast.with_default_span()), "null");
+
+        let range_ast = DatexExpressionData::Range(
+            crate::values::core_values::range::Range::new(
+                crate::values::core_values::integer::Integer(11.into()),
+                crate::values::core_values::integer::Integer(13.into()),
+            ),
+        );
+
+        assert_eq!(compact().format(&range_ast.with_default_span()), "11..13");
     }
 
     #[test]
