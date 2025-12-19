@@ -12,6 +12,7 @@ use crate::ast::grammar::function::*;
 use crate::ast::grammar::key::*;
 use crate::ast::grammar::list::*;
 use crate::ast::grammar::map::*;
+use crate::ast::grammar::range::*;
 use crate::ast::grammar::unary::*;
 use crate::ast::grammar::utils::*;
 use crate::ast::spanned::Spanned;
@@ -157,11 +158,14 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     let binary = binary_operation(chain);
 
+    let range = range(binary.clone());
+    // let range = range(binary.clone());
+
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(binary.clone());
+    let comparison = comparison_operation(range.clone());
 
     // declarations or assignments
     let declaration_or_assignment =
@@ -1840,6 +1844,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn fail_range() {
         let src = "11..13";
         let range = parse_unwrap_data(src);

@@ -12,6 +12,7 @@ pub mod key;
 pub mod list;
 pub mod literal;
 pub mod map;
+pub mod range;
 pub mod text;
 pub mod r#type;
 pub mod unary;
