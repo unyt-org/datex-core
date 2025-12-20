@@ -7,7 +7,6 @@ use datex_core::runtime::execution::context::{
 };
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::value_container::ValueContainer;
 
 #[tokio::test]

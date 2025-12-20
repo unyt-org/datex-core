@@ -37,22 +37,16 @@ pub enum IndentType {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum FormattingMode {
     /// compact formatting, no unnecessary spaces or newlines
+    #[default]
     Compact,
     /// pretty formatting with indentation and newlines
     Pretty {
         indent: usize,
         indent_type: IndentType,
     },
-}
-
-impl Default for FormattingMode {
-    /// Default pretty formatting with 4 spaces indentation
-    fn default() -> Self {
-        FormattingMode::pretty()
-    }
 }
 
 impl FormattingMode {

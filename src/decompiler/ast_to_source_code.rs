@@ -738,7 +738,7 @@ mod tests {
         let src = to_expression("[1, 2, 3]");
         assert_eq!(compact().format(&src), "[1,2,3]");
         assert_eq!(pretty().format(&src), "[1, 2, 3]");
-        assert_eq!(json_compat().format(&src), "[1, 2, 3]");
+        assert_eq!(json_compat().format(&src), "[1,2,3]");
 
         let src = to_expression(
             "[1, [2, 3, 100, 200, 300, 400, 100, 200, 300, 100000000000000000000000000000000], 4]",
