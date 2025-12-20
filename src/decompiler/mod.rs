@@ -41,14 +41,13 @@ pub fn decompile_value(
 }
 
 fn format_ast(ast: DatexExpression, options: DecompileOptions) -> String {
+    let colorized = options.formatting_options.colorized;
     let formatter = AstToSourceCodeFormatter::new(
-        options.formatting_mode,
-        options.json_compat,
-        options.colorized,
+        options.formatting_options,
     );
     // convert AST to source code
     let source = formatter.format(&ast);
-    if options.colorized {
+    if colorized {
         apply_syntax_highlighting(source).unwrap()
     } else {
         source
