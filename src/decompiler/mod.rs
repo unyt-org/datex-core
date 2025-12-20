@@ -9,7 +9,7 @@ use core::fmt::Write;
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
-use crate::decompiler::ast_to_source_code::AstToSourceCodeFormatter;
+use crate::decompiler::ast_to_source_code::AstToSourceCodeConverter;
 
 use crate::decompiler::ast_from_bytecode::ast_from_bytecode;
 use crate::parser::body::DXBParserError;
@@ -42,7 +42,7 @@ pub fn decompile_value(
 
 fn format_ast(ast: DatexExpression, options: DecompileOptions) -> String {
     let colorized = options.formatting_options.colorized;
-    let formatter = AstToSourceCodeFormatter::new(
+    let formatter = AstToSourceCodeConverter::new(
         options.formatting_options,
     );
     // convert AST to source code

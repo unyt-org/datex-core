@@ -8,10 +8,8 @@ fn compare_compiled_with_decompiled(datex_script: &str) {
     let (dxb_body, _) =
         compile_script(datex_script, CompileOptions::default()).unwrap();
 
-    let decompiled = decompile_body(&dxb_body, DecompileOptions::default())
+    let decompiled = decompile_body(&dxb_body, DecompileOptions::compact())
         .unwrap_or_else(|err| core::panic!("Failed to decompile: {err:?}"));
-    // let decompiled_color = decompile_body(&dxb_body, true, true, true)
-    //     .unwrap_or_else(|err| core::panic!("Failed to decompile with color: {err:?}"));
 
     info!("original   : {datex_script}");
     info!("decompiled : {decompiled}");
@@ -66,17 +64,17 @@ c";"#,
 #[test]
 pub fn compile_expressions() {
     init_logger_debug();
-    compare_compiled_with_decompiled("1 + 2;");
+    compare_compiled_with_decompiled("1+2;");
     compare_compiled_with_decompiled("[1,2]");
     // ARR_START 1 2 3 SCOPE_END
-    compare_compiled_with_decompiled("[1,2,3 + 4]");
+    compare_compiled_with_decompiled("[1,2,3+4]");
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
     compare_compiled_with_decompiled("[1,2,[3],[4,5],6]");
     compare_compiled_with_decompiled("{a:42,b:\"test\"}");
     compare_compiled_with_decompiled("{a:42,b:\"test\",c:{d:1,e:[2,3]}}");
     compare_compiled_with_decompiled("{\"a b\":42}");
     compare_compiled_with_decompiled("{\"1\":42}");
-    compare_compiled_with_decompiled("{(1 + 2):42}");
+    compare_compiled_with_decompiled("{(1+2):42}");
     // FIXME #280: not working with old decompiler, replace in future
     // compare_compiled_with_decompiled("{(1):42,(1 + 2):42,(true):42}");
 }
