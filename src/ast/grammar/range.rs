@@ -9,7 +9,6 @@ use crate::values::core_values::range::Range;
 use chumsky::prelude::*;
 
 fn expect_integer(expr: DatexExpression) -> Result<Integer, ParseError> {
-    println!("{:?}", expr);
     match expr.data {
         DatexExpressionData::Integer(int) => Ok(int),
         DatexExpressionData::TypedInteger(tint) => Ok(Integer::from(tint)),
@@ -17,14 +16,14 @@ fn expect_integer(expr: DatexExpression) -> Result<Integer, ParseError> {
     }
 }
 pub fn range<'a>(
-    inner: impl DatexParserTrait<'a>,
+    atomic: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    inner
+    atomic
         .clone()
         .then(
             just(Token::Range)
                 .padded_by(whitespace())
-                .ignore_then(inner),
+                .ignore_then(atomic),
         )
         .map_with(|(start, end), e| {
             let begin = expect_integer(start).unwrap();

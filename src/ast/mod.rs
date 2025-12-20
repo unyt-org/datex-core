@@ -159,7 +159,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let binary = binary_operation(chain);
 
     let range = range(binary.clone());
-    // let range = range(binary.clone());
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -234,6 +233,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     inner_expression.define(
         choice((
             type_expression(),
+            range,
             if_expression,
             declaration_or_assignment,
             function_declaration,
