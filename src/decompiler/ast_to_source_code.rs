@@ -60,7 +60,7 @@ fn is_alphanumeric_identifier(s: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-pub struct AstToSourceCodeFormatter {
+pub struct AstToSourceCodeConverter {
     options: FormattingOptions,
 }
 
@@ -70,7 +70,7 @@ macro_rules! ast_fmt {
         $fmtter.fmt(std::format_args!($fmt $(, $args )*))
     };
 }
-impl AstToSourceCodeFormatter {
+impl AstToSourceCodeConverter {
     const MAX_INLINE: usize = 60;
 
     pub fn new(
@@ -531,8 +531,14 @@ impl AstToSourceCodeFormatter {
                     .enumerate()
                     .map(|(i, stmt)| {
                         let code = self.format(stmt);
-                        if !terminated && i + 1 == statements.statements.len() {
-                            code
+                        let is_last_statement =  i + 1 == statements.statements.len();
+                        if is_last_statement {
+                            if terminated {
+                                ast_fmt!(&self, "{};", code)
+                            }
+                            else {
+                                code
+                            }
                         }
                         else {
                             ast_fmt!(&self, "{};%n", code)
@@ -711,16 +717,16 @@ mod tests {
         values::core_values::decimal::Decimal,
     };
 
-    fn compact() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingOptions::compact())
+    fn compact() -> AstToSourceCodeConverter {
+        AstToSourceCodeConverter::new(FormattingOptions::compact())
     }
 
-    fn pretty() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingOptions::pretty())
+    fn pretty() -> AstToSourceCodeConverter {
+        AstToSourceCodeConverter::new(FormattingOptions::pretty())
     }
 
-    fn json_compat() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingOptions::json_compat())
+    fn json_compat() -> AstToSourceCodeConverter {
+        AstToSourceCodeConverter::new(FormattingOptions::json_compat())
     }
 
     fn to_expression(s: &str) -> DatexExpression {

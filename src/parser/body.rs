@@ -199,7 +199,7 @@ pub fn iterate_instructions(
                             let data = IntegerData::read(&mut reader);
                             RegularInstruction::Integer(yield_unwrap!(data))
                         }
-                        
+
                         InstructionCode::DECIMAL_F32 => {
                             let data = Float32Data::read(&mut reader);
                             RegularInstruction::DecimalF32(yield_unwrap!(data))
