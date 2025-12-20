@@ -115,8 +115,10 @@ macro_rules! yield_unwrap {
         let res = $e;
         if let Ok(res) = res {
             res
+        } else if let Err(err) = res {
+            return yield Err(err.into());
         } else {
-            return yield Err(res.unwrap_err().into());
+            unreachable!();
         }
     }};
 }

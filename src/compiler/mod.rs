@@ -979,7 +979,7 @@ fn compile_expression(
             compilation_context.mark_has_non_static_value();
 
             compilation_context
-                .append_instruction_code(InstructionCode::ASSIGN_TO_REF);
+                .append_instruction_code(InstructionCode::SET_REFERENCE_VALUE);
 
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));

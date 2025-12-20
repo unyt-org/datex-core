@@ -544,6 +544,17 @@ impl From<Vec<(String, ValueContainer)>> for Map {
     }
 }
 
+impl From<Vec<(OwnedMapKey, ValueContainer)>> for Map {
+    fn from(vec: Vec<(OwnedMapKey, ValueContainer)>) -> Self {
+        let mut map = Map::default();
+        for (k, v) in vec {
+            map.set(&k, v);
+        }
+        map
+    }
+}
+
+
 impl<K, V> FromIterator<(K, V)> for Map
 where
     K: Into<ValueContainer>,

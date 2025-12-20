@@ -154,7 +154,7 @@ pub enum InstructionCode {
     CREATE_REF_MUT,        // &mut ()
     SET_REF,               // &aa = ...
 
-    ASSIGN_TO_REF, // *x = 10;
+    SET_REFERENCE_VALUE, // *x = 10;
 
     DEREF, // *x
 

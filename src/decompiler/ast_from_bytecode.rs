@@ -17,6 +17,7 @@ use datex_core::ast::structs::expression::{ApplyChain, UnboundedStatement};
 use datex_core::parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::global::operators::{BinaryOperator, UnaryOperator};
 use crate::parser::instruction_collector::{CollectedResults, CollectionResultsPopper, FullOrPartialResult, InstructionCollector};
+use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt};
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -172,7 +173,7 @@ pub fn ast_from_bytecode(
                         RegularInstruction::GetSlot(_) |
                         RegularInstruction::DropSlot(_) |
                         RegularInstruction::SetSlot(_) |
-                        RegularInstruction::AssignToReference(_) |
+                        RegularInstruction::SetReferenceValue(_) |
                         RegularInstruction::Deref |
                         RegularInstruction::TypedValue |
                         RegularInstruction::RemoteExecution(_) |
@@ -309,7 +310,6 @@ pub fn ast_from_bytecode(
                             }
 
                             RegularInstruction::UnboundedStatementsEnd(terminated) => {
-                                collected_results.collect_value_results();
                                 let result = collector.try_pop_unbounded().ok_or(DXBParserError::NotInUnboundedRegularScopeError)?;
                                 if let FullOrPartialResult::Full(_, mut results) = result {
                                     DatexExpressionData::Statements(Statements {
@@ -345,13 +345,15 @@ pub fn ast_from_bytecode(
 
     }
 
-    collector
-        .take_root_result()
-        .map(|res| match res {
-            CollectedAstResult::Expression(expr) => expr,
-            _ => unreachable!("Expected DatexExpression as root result"),
-        })
-        .ok_or(DXBParserError::ExpectingMoreInstructions)
+    if let Some(result) = collector.take_root_result() {
+        match result {
+            CollectedAstResult::Expression(expr) => Ok(expr),
+            _ => unreachable!("Expected root result"),
+        }
+    }
+    else {
+        panic!("Execution finished without root result");
+    }
 }
 
 #[cfg(test)]
@@ -551,6 +553,34 @@ mod tests {
                     )
                 ],
             }).with_default_span()
+        );
+    }
+
+    #[test]
+    fn unbounded_statements() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::UNBOUNDED_STATEMENTS as u8,
+            InstructionCode::UINT_8 as u8,
+            10,
+            InstructionCode::UINT_8 as u8,
+            20,
+            InstructionCode::UNBOUNDED_STATEMENTS_END as u8,
+            1, // terminated
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Statements(Statements {
+                statements: vec![
+                    DatexExpressionData::TypedInteger(TypedInteger::from(10u8))
+                        .with_default_span(),
+                    DatexExpressionData::TypedInteger(TypedInteger::from(20u8))
+                        .with_default_span(),
+                ],
+                is_terminated: true,
+                unbounded: Some(UnboundedStatement {is_first: true, is_last: true}),
+            })
+            .with_default_span()
         );
     }
 }

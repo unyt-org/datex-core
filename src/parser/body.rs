@@ -369,7 +369,7 @@ pub fn iterate_instructions(
                             next_instructions_stack.push_next_regular(1);
                             RegularInstruction::Deref
                         }
-                        InstructionCode::ASSIGN_TO_REF => {
+                        InstructionCode::SET_REFERENCE_VALUE => {
                             next_instructions_stack.push_next_regular(2);
                             let operator = yield_unwrap!(
                                 get_next_regular_instruction_code(&mut reader)
@@ -383,7 +383,7 @@ pub fn iterate_instructions(
                                     }
                                 )
                             );
-                            RegularInstruction::AssignToReference(operator)
+                            RegularInstruction::SetReferenceValue(operator)
                         }
 
                         InstructionCode::KEY_VALUE_SHORT_TEXT => {
