@@ -19,6 +19,7 @@ pub use execution_input::ExecutionInput;
 pub use execution_input::ExecutionOptions;
 pub use memory_dump::*;
 use num_enum::TryFromPrimitive;
+use crate::traits::apply::Apply;
 
 pub mod context;
 mod errors;
@@ -67,6 +68,11 @@ pub fn execute_dxb_sync(
                         slot,
                     )?),
                 );
+            }
+            ExternalExecutionInterrupt::Apply(callee, args) => {
+                let res = handle_apply(&callee, &args)?;
+                interrupt_provider
+                    .provide_result(InterruptResult::ResolvedValue(res));
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -142,13 +148,28 @@ pub async fn execute_dxb(
                     )?),
                 );
             }
-            interrupt => {
-                println!("Error: unhandled interrupt: {:?}", interrupt);
+            ExternalExecutionInterrupt::Apply(callee, args) => {
+                let res = handle_apply(&callee, &args)?;
+                interrupt_provider
+                    .provide_result(InterruptResult::ResolvedValue(res));
             }
         }
     }
 
     unreachable!("Execution loop should always return a result");
+}
+
+fn handle_apply(
+    callee: &ValueContainer,
+    args: &[ValueContainer],
+) -> Result<Option<ValueContainer>, ExecutionError> {
+    // callee is guaranteed to be Some here
+    // apply_single if one arg, apply otherwise
+    Ok(if args.len() == 1 {
+        callee.apply_single(&args[0])?
+    } else {
+        callee.apply(args)?
+    })
 }
 
 fn get_internal_slot_value(
@@ -186,6 +207,7 @@ fn get_pointer_value(
         Err(ExecutionError::RequiresRuntime)
     }
 }
+
 
 fn get_internal_pointer_value(
     address: RawInternalPointerAddress,

@@ -143,7 +143,7 @@ pub enum RegularInstruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
-    AssignToReference(AssignmentOperator),
+    SetReferenceValue(AssignmentOperator),
     Deref,
 
     TypedValue,
@@ -294,8 +294,8 @@ impl Display for RegularInstruction {
             RegularInstruction::SetSlot(address) => {
                 core::write!(f, "SET_SLOT {}", address.0)
             }
-            RegularInstruction::AssignToReference(operator) => {
-                core::write!(f, "ASSIGN_REFERENCE ({})", operator)
+            RegularInstruction::SetReferenceValue(operator) => {
+                core::write!(f, "SET_REFERENCE_VALUE ({})", operator)
             }
             RegularInstruction::Deref => core::write!(f, "DEREF"),
             RegularInstruction::GetRef(address) => {

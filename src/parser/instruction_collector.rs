@@ -151,7 +151,7 @@ pub struct FullUnboundedResultCollector<T> {
 #[derive(Debug)]
 pub struct LastUnboundedResultCollector<T> {
     instruction: Option<Instruction>,
-    last_result: Option<T>,
+    pub(crate) last_result: Option<T>,
 }
 
 impl<T> ResultCollector<T> {
@@ -312,6 +312,10 @@ impl<T> InstructionCollector<T> {
         results
     }
 
+    pub fn last(&self) -> Option<&ResultCollector<T>> {
+        self.result_collectors.last()
+    }
+
     pub fn take_root_result(&mut self) -> Option<T> {
         self.root_result.take()
     }
@@ -387,18 +391,14 @@ impl<T> InstructionCollector<T> {
             }
             RegularInstruction::KeyValueDynamic => {
                 self.collect_full(
-                    Instruction::RegularInstruction(
-                        regular_instruction.clone(),
-                    ),
+                    Instruction::RegularInstruction(regular_instruction),
                     2,
                 );
                 None
             }
             RegularInstruction::KeyValueShortText(_) => {
                 self.collect_full(
-                    Instruction::RegularInstruction(
-                        regular_instruction.clone(),
-                    ),
+                    Instruction::RegularInstruction(regular_instruction),
                     1,
                 );
                 None
@@ -412,11 +412,10 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::Equal
             | RegularInstruction::NotStructuralEqual
             | RegularInstruction::NotEqual
+            | RegularInstruction::Is
             => {
                 self.collect_full(
-                    Instruction::RegularInstruction(
-                        regular_instruction.clone(),
-                    ),
+                    Instruction::RegularInstruction(regular_instruction),
                     2,
                 );
                 None
@@ -427,42 +426,68 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::CreateRef
             | RegularInstruction::CreateRefMut
             | RegularInstruction::Deref
+            | RegularInstruction::GetOrCreateRef(_)
+            | RegularInstruction::GetOrCreateRefMut(_)
             => {
                 self.collect_full(
-                    Instruction::RegularInstruction(
-                        regular_instruction.clone(),
-                    ),
+                    Instruction::RegularInstruction(regular_instruction),
                     1,
                 );
                 None
             }
             RegularInstruction::TypedValue => {
                 self.collect_full(
-                    Instruction::RegularInstruction(
-                        regular_instruction.clone(),
-                    ),
+                    Instruction::RegularInstruction(regular_instruction),
                     2,
                 );
                 None
             },
-            RegularInstruction::Apply(_) => todo!(),
-            RegularInstruction::Is => todo!(),
-            RegularInstruction::AddAssign(_) => todo!(),
-            RegularInstruction::SubtractAssign(_) => todo!(),
-            RegularInstruction::MultiplyAssign(_) => todo!(),
-            RegularInstruction::DivideAssign(_) => todo!(),
-            RegularInstruction::GetRef(_) => todo!(),
-            RegularInstruction::GetLocalRef(_) => todo!(),
-            RegularInstruction::GetInternalRef(_) => todo!(),
-            RegularInstruction::GetOrCreateRef(_) => todo!(),
-            RegularInstruction::GetOrCreateRefMut(_) => todo!(),
-            RegularInstruction::AllocateSlot(_) => todo!(),
-            RegularInstruction::GetSlot(_) => todo!(),
-            RegularInstruction::DropSlot(_) => todo!(),
-            RegularInstruction::SetSlot(_) => todo!(),
-            RegularInstruction::AssignToReference(_) => todo!(),
-            RegularInstruction::TypeExpression => todo!(),
-            RegularInstruction::RemoteExecution(_) => todo!(),
+
+            RegularInstruction::SetSlot(_)
+            | RegularInstruction::AllocateSlot(_)
+            | RegularInstruction::AddAssign(_)
+            | RegularInstruction::SubtractAssign(_)
+            | RegularInstruction::MultiplyAssign(_)
+            | RegularInstruction::DivideAssign(_) => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    1,
+                );
+                None
+            }
+
+            RegularInstruction::SetReferenceValue(_) => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    2,
+                );
+                None
+            }
+
+            RegularInstruction::TypeExpression => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    1,
+                );
+                None
+            }
+
+            RegularInstruction::RemoteExecution(_) => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    1,
+                );
+                None
+            }
+
+            RegularInstruction::Apply(apply_data) => {
+                let count = apply_data.arg_count as u32;
+                self.collect_full(
+                    Instruction::RegularInstruction(RegularInstruction::Apply(apply_data)),
+                    count + 1,
+                );
+                None
+            }
 
             _ => Some(regular_instruction)
         }
@@ -484,7 +509,13 @@ impl<T> InstructionCollector<T> {
                 None
             }
             TypeInstruction::ImplType(impl_type_data) => {
-                todo!("Handle TypeInstruction::ImplType")
+                self.collect_full(
+                    Instruction::TypeInstruction(
+                        TypeInstruction::ImplType(impl_type_data),
+                    ),
+                    1,
+                );
+                None
             }
 
             _ => Some(type_instruction)
