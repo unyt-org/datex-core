@@ -3,7 +3,7 @@ use crate::ast::structs::expression::DatexExpression;
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApplyOperation {
     /// Apply a function to an argument
-    FunctionCall(DatexExpression),
+    FunctionCallSingleArgument(DatexExpression),
 
     // TODO #356: Implement MultiFunctionCall(Vec<DatexExpression>),
     /// Apply a property access to an argument

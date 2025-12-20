@@ -144,7 +144,7 @@ impl<E> VisitableExpression<E> for ApplyChain {
         visitor.visit_datex_expression(&mut self.base)?;
         for operation in &mut self.operations {
             match operation {
-                ApplyOperation::FunctionCall(arg) => {
+                ApplyOperation::FunctionCallSingleArgument(arg) => {
                     visitor.visit_datex_expression(arg)?;
                 }
                 ApplyOperation::GenericAccess(arg) => {

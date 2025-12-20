@@ -565,6 +565,20 @@ pub fn iterate_instructions(
                                 integer_data
                             ))
                         }
+                        TypeInstructionCode::TYPE_LITERAL_TEXT => {
+                            let raw_data = TextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(raw_data).text
+                            ));
+                            TypeInstruction::LiteralText(TextData(text))
+                        }
+                        TypeInstructionCode::TYPE_LITERAL_SHORT_TEXT => {
+                            let raw_data = ShortTextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(raw_data).text
+                            ));
+                            TypeInstruction::LiteralText(TextData(text))
+                        }
                         TypeInstructionCode::TYPE_WITH_IMPLS => {
                             let impl_data = ImplTypeData::read(&mut reader);
                             next_instructions_stack.push_next_type(1);
