@@ -34,6 +34,7 @@ pub enum TypeInstructionCode {
 
     TYPE_LITERAL_INTEGER,
     TYPE_LITERAL_TEXT,
+    TYPE_LITERAL_SHORT_TEXT,
     TYPE_STRUCT,
 
     // TODO #427: Do we need std_type for optimization purpose?

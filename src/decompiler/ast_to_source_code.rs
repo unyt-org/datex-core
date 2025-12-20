@@ -490,7 +490,7 @@ impl AstToSourceCodeConverter {
                 let mut applies_code = vec![];
                 for apply in operations {
                     match apply {
-                        ApplyOperation::FunctionCall(args) => {
+                        ApplyOperation::FunctionCallSingleArgument(args) => {
                             let args_code = self.format(args);
                             // apply()
                             if args_code.starts_with('(')

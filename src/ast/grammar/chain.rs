@@ -149,14 +149,14 @@ pub fn chain<'a>(
                     keyed_parameters(key.clone(), expression.clone()),
                     indexed_parameters(expression.clone()),
                 ))
-                .map(ApplyOperation::FunctionCall),
+                .map(ApplyOperation::FunctionCallSingleArgument),
                 // apply #2: an atomic value (e.g. "text", [1,2,3]) - whitespace or newline required before
                 // print "sdf"
                 just(Token::Whitespace)
                     .repeated()
                     .at_least(1)
                     .ignore_then(atom.padded_by(whitespace()))
-                    .map(ApplyOperation::FunctionCall),
+                    .map(ApplyOperation::FunctionCallSingleArgument),
                 // property access
                 // TODO #357: allow integer index access and ranges in dot access notation
                 /*
