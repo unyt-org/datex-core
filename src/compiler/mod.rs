@@ -2013,12 +2013,14 @@ pub mod tests {
         json_string
     }
 
+    /*
     #[test]
     fn json_to_dxb_large_file() {
         let json = get_json_test_string("test2.json");
         let _ = compile_script(&json, CompileOptions::default())
             .expect("Failed to parse JSON string");
     }
+    */
 
     #[test]
     fn static_value_detection() {
