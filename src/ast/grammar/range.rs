@@ -1,4 +1,5 @@
 use crate::ast::error::error::ParseError;
+use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::DatexExpression;
@@ -20,12 +21,17 @@ pub fn range<'a>(
 ) -> impl DatexParserTrait<'a> {
     inner
         .clone()
-        .then(just(Token::Range).ignore_then(inner).repeated())
+        .then(
+            just(Token::Range)
+                .padded_by(whitespace())
+                .ignore_then(inner),
+        )
         .map_with(|(start, end), e| {
-            let begin = expect_integer(start);
+            let begin = expect_integer(start).unwrap();
+            let ending = expect_integer(end).unwrap();
             DatexExpressionData::Range(Range {
-                start: begin.clone().unwrap(),
-                end: begin.unwrap(),
+                start: begin,
+                end: ending,
             })
             .with_span(e.span())
         })

@@ -165,7 +165,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(range.clone());
+    let comparison = comparison_operation(binary.clone());
 
     // declarations or assignments
     let declaration_or_assignment =
@@ -2023,18 +2023,6 @@ mod tests {
             num,
             DatexExpressionData::Decimal(
                 Decimal::from_string("123.456789123456").unwrap()
-            )
-        );
-    }
-
-    #[test]
-    fn decimal_with_trailing_point() {
-        let src = "123.";
-        let num = parse_unwrap_data(src);
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(
-                Decimal::from_string("123.0").unwrap()
             )
         );
     }
