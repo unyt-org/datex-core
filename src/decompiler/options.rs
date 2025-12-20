@@ -71,10 +71,10 @@ impl FormattingMode {
 
 #[derive(Debug, Clone, Default)]
 pub struct FormattingOptions {
-    pub(crate) mode: FormattingMode,
-    pub(crate) json_compat: bool,
-    pub(crate) colorized: bool,
-    add_variant_suffix: bool,
+    pub mode: FormattingMode,
+    pub json_compat: bool,
+    pub colorized: bool,
+    pub add_variant_suffix: bool,
 }
 
 impl FormattingOptions {
