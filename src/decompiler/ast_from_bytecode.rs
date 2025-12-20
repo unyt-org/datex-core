@@ -13,9 +13,10 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use datex_core::ast::structs::apply_operation::ApplyOperation;
-use datex_core::ast::structs::expression::ApplyChain;
+use datex_core::ast::structs::expression::{ApplyChain, UnboundedStatement};
+use datex_core::parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::global::operators::{BinaryOperator, UnaryOperator};
-use crate::parser::instruction_collector::{CollectedResults, CollectionResultsPopper, InstructionCollector};
+use crate::parser::instruction_collector::{CollectedResults, CollectionResultsPopper, FullOrPartialResult, InstructionCollector};
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -76,7 +77,7 @@ pub fn ast_from_bytecode(
         let result = match instruction {
             // handle regular instructions
             Instruction::RegularInstruction(regular_instruction) => {
-                let regular_instruction = collector.default_regular_instruction_collection(regular_instruction);
+                let regular_instruction = collector.default_regular_instruction_collection(regular_instruction, StatementResultCollectionStrategy::Full);
 
                 let expr: Option<DatexExpression> = if let Some(regular_instruction) = regular_instruction {
                     Some(match regular_instruction {
@@ -214,110 +215,132 @@ pub fn ast_from_bytecode(
         }
 
         // handle collecting nested expressions
-        while let Some((instruction, mut collected_results)) =
+        while let Some(result) =
             collector.try_pop_collected()
         {
-            let expr: CollectedAstResult = match instruction {
-                Instruction::RegularInstruction(
-                    regular_instruction,
-                ) => match regular_instruction {
-                    RegularInstruction::List(_)
-                    | RegularInstruction::ShortList(_) => {
-                        let elements = collected_results.collect_value_results();
-                        DatexExpressionData::List(List::new(elements))
-                            .with_default_span()
-                            .into()
-                    }
-                    RegularInstruction::Map(_)
-                    | RegularInstruction::ShortMap(_) => {
-                        let entries = collected_results.collect_key_value_pair_results();
-                        DatexExpressionData::Map(Map::new(entries))
-                            .with_default_span()
-                            .into()
-                    }
-                    RegularInstruction::Statements(statements_data)
-                    | RegularInstruction::ShortStatements(
-                        statements_data,
-                    ) => {
-                        let statements = collected_results.collect_value_results();
-                        DatexExpressionData::Statements(Statements {
-                            statements,
-                            is_terminated: statements_data.terminated,
-                            unbounded: None,
-                        })
-                            .with_default_span()
-                            .into()
-                    }
+            match result {
+                FullOrPartialResult::Full(instruction, mut collected_results) => {
+                    let expr: CollectedAstResult = match instruction {
+                        Instruction::RegularInstruction(
+                            regular_instruction,
+                        ) => match regular_instruction {
+                            RegularInstruction::List(_)
+                            | RegularInstruction::ShortList(_) => {
+                                let elements = collected_results.collect_value_results();
+                                DatexExpressionData::List(List::new(elements))
+                                    .with_default_span()
+                                    .into()
+                            }
+                            RegularInstruction::Map(_)
+                            | RegularInstruction::ShortMap(_) => {
+                                let entries = collected_results.collect_key_value_pair_results();
+                                DatexExpressionData::Map(Map::new(entries))
+                                    .with_default_span()
+                                    .into()
+                            }
+                            RegularInstruction::Statements(statements_data)
+                            | RegularInstruction::ShortStatements(
+                                statements_data,
+                            ) => {
+                                let statements = collected_results.collect_value_results();
+                                DatexExpressionData::Statements(Statements {
+                                    statements,
+                                    is_terminated: statements_data.terminated,
+                                    unbounded: None,
+                                })
+                                    .with_default_span()
+                                    .into()
+                            }
 
-                    RegularInstruction::KeyValueDynamic => {
-                        let value = collected_results.pop_value_result();
-                        let key = collected_results.pop_value_result();
-                        CollectedAstResult::KeyValuePair((key, value))
-                    }
+                            RegularInstruction::KeyValueDynamic => {
+                                let value = collected_results.pop_value_result();
+                                let key = collected_results.pop_value_result();
+                                CollectedAstResult::KeyValuePair((key, value))
+                            }
 
-                    RegularInstruction::KeyValueShortText(short_text_data) => {
-                        let value = collected_results.pop_value_result();
-                        let key = DatexExpressionData::Text(short_text_data.0)
-                            .with_default_span();
-                        CollectedAstResult::KeyValuePair((key, value))
-                    }
+                            RegularInstruction::KeyValueShortText(short_text_data) => {
+                                let value = collected_results.pop_value_result();
+                                let key = DatexExpressionData::Text(short_text_data.0)
+                                    .with_default_span();
+                                CollectedAstResult::KeyValuePair((key, value))
+                            }
 
-                    RegularInstruction::Add
-                    | RegularInstruction::Subtract
-                    | RegularInstruction::Multiply
-                    | RegularInstruction::Divide
-                    | RegularInstruction::Matches
-                    | RegularInstruction::StructuralEqual
-                    | RegularInstruction::Equal
-                    | RegularInstruction::NotStructuralEqual
-                    | RegularInstruction::NotEqual
-                    => {
-                        let right = collected_results.pop_value_result();
-                        let left = collected_results.pop_value_result();
-                        DatexExpressionData::BinaryOperation(BinaryOperation {
-                            operator: BinaryOperator::from(&regular_instruction),
-                            left: Box::new(left),
-                            right: Box::new(right),
-                            ty: None
-                        }).with_default_span().into()
-                    }
+                            RegularInstruction::Add
+                            | RegularInstruction::Subtract
+                            | RegularInstruction::Multiply
+                            | RegularInstruction::Divide
+                            | RegularInstruction::Matches
+                            | RegularInstruction::StructuralEqual
+                            | RegularInstruction::Equal
+                            | RegularInstruction::NotStructuralEqual
+                            | RegularInstruction::NotEqual
+                            => {
+                                let right = collected_results.pop_value_result();
+                                let left = collected_results.pop_value_result();
+                                DatexExpressionData::BinaryOperation(BinaryOperation {
+                                    operator: BinaryOperator::from(&regular_instruction),
+                                    left: Box::new(left),
+                                    right: Box::new(right),
+                                    ty: None
+                                }).with_default_span().into()
+                            }
 
-                    RegularInstruction::UnaryMinus
-                    | RegularInstruction::UnaryPlus
-                    | RegularInstruction::BitwiseNot
-                    | RegularInstruction::CreateRef
-                    | RegularInstruction::CreateRefMut
-                    | RegularInstruction::Deref
-                    => {
-                        let expr = collected_results.pop_value_result();
-                        DatexExpressionData::UnaryOperation(UnaryOperation {
-                            operator: UnaryOperator::from(&regular_instruction),
-                            expression: Box::new(expr),
-                        }).with_default_span().into()
-                    }
+                            RegularInstruction::UnaryMinus
+                            | RegularInstruction::UnaryPlus
+                            | RegularInstruction::BitwiseNot
+                            | RegularInstruction::CreateRef
+                            | RegularInstruction::CreateRefMut
+                            | RegularInstruction::Deref
+                            => {
+                                let expr = collected_results.pop_value_result();
+                                DatexExpressionData::UnaryOperation(UnaryOperation {
+                                    operator: UnaryOperator::from(&regular_instruction),
+                                    expression: Box::new(expr),
+                                }).with_default_span().into()
+                            }
 
-                    RegularInstruction::TypedValue => {
-                        let expr = collected_results.pop_value_result();
-                        let expr_type = collected_results.pop_type_result();
-                        DatexExpressionData::ApplyChain(ApplyChain {
-                            base: Box::new(DatexExpressionData::TypeExpression(expr_type).with_default_span()),
-                            operations: vec![ApplyOperation::FunctionCallSingleArgument(expr)],
-                        }).with_default_span().into()
-                    }
+                            RegularInstruction::TypedValue => {
+                                let expr = collected_results.pop_value_result();
+                                let expr_type = collected_results.pop_type_result();
+                                DatexExpressionData::ApplyChain(ApplyChain {
+                                    base: Box::new(DatexExpressionData::TypeExpression(expr_type).with_default_span()),
+                                    operations: vec![ApplyOperation::FunctionCallSingleArgument(expr)],
+                                }).with_default_span().into()
+                            }
 
-                    e => {
-                        todo!(
-                            "Unhandled collected regular instruction: {:?}",
-                            e
-                        );
-                    }
-                },
+                            RegularInstruction::UnboundedStatementsEnd(terminated) => {
+                                collected_results.collect_value_results();
+                                let result = collector.try_pop_unbounded().ok_or(DXBParserError::NotInUnboundedRegularScopeError)?;
+                                if let FullOrPartialResult::Full(_, mut results) = result {
+                                    DatexExpressionData::Statements(Statements {
+                                        statements: results.collect_value_results(),
+                                        is_terminated: terminated,
+                                        unbounded: Some(UnboundedStatement {is_first: true, is_last: true}),
+                                    })
+                                        .with_default_span()
+                                        .into()
+                                }
+                                else {
+                                    unreachable!()
+                                }
+                            }
 
-                Instruction::TypeInstruction(data) => {
-                    todo!()
+                            e => {
+                                todo!(
+                                    "Unhandled collected regular instruction: {:?}",
+                                    e
+                                );
+                            }
+                        },
+
+                        Instruction::TypeInstruction(data) => {
+                            todo!()
+                        }
+                    };
+                    collector.push_result(expr);
                 }
-            };
-            collector.push_result(expr);
+                _ => unreachable!()
+            }
         }
 
     }
