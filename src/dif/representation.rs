@@ -102,12 +102,12 @@ impl DIFValueRepresentation {
                 ),
             },
             DIFValueRepresentation::Object(object) => {
-                let mut map = IndexMap::default();
-                for (k, v) in object {
-                    map.insert(
-                        ValueContainer::Value(Value::from(k.clone())),
+                let mut map: Vec<(String, ValueContainer)> = Vec::new();
+                for (k, v) in object.clone() {
+                    map.push((
+                        k,
                         v.to_value_container(memory)?,
-                    );
+                    ));
                 }
                 Value {
                     actual_type: Box::new(get_core_lib_type_definition(
@@ -133,13 +133,13 @@ impl DIFValueRepresentation {
             }
             _ => {
                 core::todo!(
-                    "#388 Other DIFRepresentationValue variants not supported yet"
+                    "#388 Other DIFValueRepresentation variants not supported yet"
                 )
             }
         })
     }
 
-    /// Converts a DIFRepresentationValue into a Value, using the provided type information to guide the conversion.
+    /// Converts a DIFValueRepresentation into a Value, using the provided type information to guide the conversion.
     /// Returns an error if a reference cannot be resolved.
     pub fn to_value_with_type(
         &self,
@@ -156,20 +156,13 @@ impl DIFValueRepresentation {
                             if let DIFValueRepresentation::Object(object) =
                                 self =>
                         {
-                            let mut core_map: IndexMap<
-                                ValueContainer,
-                                ValueContainer,
-                                RandomState,
-                            > = IndexMap::default();
+                            let mut entries: Vec<(String, ValueContainer)> = Vec::new();
                             for (k, v) in object.clone().into_iter() {
-                                core_map.insert(
-                                    Value::from(k).into(),
-                                    v.to_value_container(memory)?,
-                                );
+                                entries.push((k, v.to_value_container(memory)?));
                             }
-                            Some(Value::from(CoreValue::Map(core_map.into())))
+                            Some(Value::from(CoreValue::Map(Map::from(entries))))
                         }
-                        // type map and represented as object -> convert to map
+                        // type map and represented as empty array -> convert to empty map
                         CoreLibPointerId::Map
                             if let DIFValueRepresentation::Array(array) =
                                 self =>

@@ -89,7 +89,7 @@ fn test_compile_and_execute_list() {
 
 #[test]
 fn test_compile_and_execute_map() {
-    let input = ValueContainer::from(Map::from(vec![
+    let input = ValueContainer::from(Map::Structural(vec![
         ("key1".to_string(), ValueContainer::from(Integer::from(1))),
         ("key2".to_string(), ValueContainer::from("value")),
         ("key3".to_string(), ValueContainer::from(true)),
