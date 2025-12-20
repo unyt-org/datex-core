@@ -4,7 +4,7 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::rc::Rc;
-use crate::values::core_values::map::OwnedMapKey;
+use crate::values::core_values::map::MapKey;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 

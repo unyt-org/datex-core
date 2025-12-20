@@ -1,8 +1,6 @@
 pub mod interrupts;
 mod operations;
-pub mod regular_instruction_execution;
 pub mod state;
-pub mod type_instruction_execution;
 
 use crate::global::protocol_structures::instructions::{ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data, Instruction, IntegerData, RawPointerAddress, RegularInstruction, ShortTextData, SlotAddress, TextData, TypeInstruction};
 use crate::parser::body::{DXBParserError, iterate_instructions};
@@ -11,13 +9,12 @@ use crate::runtime::execution::execution_loop::interrupts::{
     InterruptResult,
 };
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::runtime::execution::macros::{interrupt, interrupt_with_maybe_value, interrupt_with_value, next_iter, yield_unwrap};
+use crate::runtime::execution::macros::{interrupt, interrupt_with_maybe_value, interrupt_with_value, yield_unwrap};
 use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
-use crate::ast::structs::expression::{DatexExpressionData, Statements, UnboundedStatement};
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator};
@@ -31,7 +28,7 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::list::List;
-use crate::values::core_values::map::{Map, OwnedMapKey};
+use crate::values::core_values::map::{Map, MapKey};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -43,7 +40,7 @@ enum CollectedExecutionResult {
     /// contains a Type that is intercepted by a consumer of a type value
     Type(Type),
     /// contains a key-value pair that is intercepted by a map construction operation
-    KeyValuePair((OwnedMapKey, Option<ValueContainer>)),
+    KeyValuePair((MapKey, Option<ValueContainer>)),
 }
 
 impl From<Option<ValueContainer>> for CollectedExecutionResult {
@@ -61,14 +58,14 @@ impl From<Type> for CollectedExecutionResult {
         CollectedExecutionResult::Type(value)
     }
 }
-impl From<(OwnedMapKey, Option<ValueContainer>)> for CollectedExecutionResult {
-    fn from(value: (OwnedMapKey, Option<ValueContainer>)) -> Self {
+impl From<(MapKey, Option<ValueContainer>)> for CollectedExecutionResult {
+    fn from(value: (MapKey, Option<ValueContainer>)) -> Self {
         CollectedExecutionResult::KeyValuePair(value)
     }
 }
 
 
-impl CollectionResultsPopper<CollectedExecutionResult, Option<ValueContainer>, OwnedMapKey, Type>
+impl CollectionResultsPopper<CollectedExecutionResult, Option<ValueContainer>, MapKey, Type>
 for CollectedResults<CollectedExecutionResult> {
     fn try_extract_value_result(result: CollectedExecutionResult) -> Option<Option<ValueContainer>> {
         match result {
@@ -84,7 +81,7 @@ for CollectedResults<CollectedExecutionResult> {
         }
     }
 
-    fn try_extract_key_value_pair_result(result: CollectedExecutionResult) -> Option<(OwnedMapKey, Option<ValueContainer>)> {
+    fn try_extract_key_value_pair_result(result: CollectedExecutionResult) -> Option<(MapKey, Option<ValueContainer>)> {
         match result {
             CollectedExecutionResult::KeyValuePair((key, value)) => Some((key, value)),
             _ => None
@@ -111,7 +108,7 @@ impl CollectedResults<CollectedExecutionResult> {
             .ok_or(ExecutionError::InvalidProgram(InvalidProgramError::ExpectedValue))
     }
 
-    fn collect_key_value_pair_results_assert_existing(mut self) -> Result<Vec<(OwnedMapKey, ValueContainer)>, ExecutionError> {
+    fn collect_key_value_pair_results_assert_existing(mut self) -> Result<Vec<(MapKey, ValueContainer)>, ExecutionError> {
         let count = self.len();
         let mut pairs = Vec::with_capacity(count);
         for _ in 0..count {
@@ -501,12 +498,12 @@ pub fn inner_execution_loop(
                                 RegularInstruction::KeyValueDynamic => {
                                     let value = collected_results.pop_value_result();
                                     let key = yield_unwrap!(collected_results.pop_value_result_assert_existing());
-                                    CollectedExecutionResult::KeyValuePair((OwnedMapKey::Value(key), value))
+                                    CollectedExecutionResult::KeyValuePair((MapKey::Value(key), value))
                                 }
 
                                 RegularInstruction::KeyValueShortText(short_text_data) => {
                                     let value = collected_results.pop_value_result();
-                                    let key = OwnedMapKey::Text(short_text_data.0);
+                                    let key = MapKey::Text(short_text_data.0);
                                     CollectedExecutionResult::KeyValuePair((key, value))
                                 }
 

@@ -205,36 +205,36 @@ impl Map {
     }
 }
 
-pub enum MapKey<'a> {
+pub enum BorrowedMapKey<'a> {
     Text(&'a str),
     Value(&'a ValueContainer),
 }
 
-impl<'a> From<MapKey<'a>> for ValueContainer {
-    fn from(key: MapKey) -> Self {
+impl<'a> From<BorrowedMapKey<'a>> for ValueContainer {
+    fn from(key: BorrowedMapKey) -> Self {
         match key {
-            MapKey::Text(text) => ValueContainer::Value(Value::from(text)),
-            MapKey::Value(value) => value.clone(),
+            BorrowedMapKey::Text(text) => ValueContainer::Value(Value::from(text)),
+            BorrowedMapKey::Value(value) => value.clone(),
         }
     }
 }
 
-impl Hash for MapKey<'_> {
+impl Hash for BorrowedMapKey<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            MapKey::Text(text) => text.hash(state),
-            MapKey::Value(value) => value.hash(state),
+            BorrowedMapKey::Text(text) => text.hash(state),
+            BorrowedMapKey::Value(value) => value.hash(state),
         }
     }
 }
 
-impl StructuralEq for MapKey<'_> {
+impl StructuralEq for BorrowedMapKey<'_> {
     fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (MapKey::Text(a), MapKey::Text(b)) => a == b,
-            (MapKey::Value(a), MapKey::Value(b)) => a.structural_eq(b),
-            (MapKey::Text(a), MapKey::Value(b))
-            | (MapKey::Value(b), MapKey::Text(a)) => {
+            (BorrowedMapKey::Text(a), BorrowedMapKey::Text(b)) => a == b,
+            (BorrowedMapKey::Value(a), BorrowedMapKey::Value(b)) => a.structural_eq(b),
+            (BorrowedMapKey::Text(a), BorrowedMapKey::Value(b))
+            | (BorrowedMapKey::Value(b), BorrowedMapKey::Text(a)) => {
                 if let ValueContainer::Value(Value {
                     inner: CoreValue::Text(text),
                     ..
@@ -249,45 +249,45 @@ impl StructuralEq for MapKey<'_> {
     }
 }
 
-impl Display for MapKey<'_> {
+impl Display for BorrowedMapKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             // TODO #331: escape string
-            MapKey::Text(string) => core::write!(f, "\"{}\"", string),
-            MapKey::Value(value) => core::write!(f, "{value}"),
+            BorrowedMapKey::Text(string) => core::write!(f, "\"{}\"", string),
+            BorrowedMapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
 
 #[derive(Debug)]
-pub enum OwnedMapKey {
+pub enum MapKey {
     Text(String),
     Value(ValueContainer),
 }
 
-impl From<OwnedMapKey> for ValueContainer {
-    fn from(key: OwnedMapKey) -> Self {
+impl From<MapKey> for ValueContainer {
+    fn from(key: MapKey) -> Self {
         match key {
-            OwnedMapKey::Text(text) => ValueContainer::Value(Value::from(text)),
-            OwnedMapKey::Value(value) => value,
+            MapKey::Text(text) => ValueContainer::Value(Value::from(text)),
+            MapKey::Value(value) => value,
         }
     }
 }
 
-impl<'a> From<&'a OwnedMapKey> for ValueKey<'a> {
-    fn from(key: &'a OwnedMapKey) -> Self {
+impl<'a> From<&'a MapKey> for ValueKey<'a> {
+    fn from(key: &'a MapKey) -> Self {
         match key {
-            OwnedMapKey::Text(text) => ValueKey::Text(text),
-            OwnedMapKey::Value(value) => ValueKey::Value(value),
+            MapKey::Text(text) => ValueKey::Text(text),
+            MapKey::Value(value) => ValueKey::Value(value),
         }
     }
 }
 
-impl Display for OwnedMapKey {
+impl Display for MapKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OwnedMapKey::Text(text) => core::write!(f, "{text}"),
-            OwnedMapKey::Value(value) => core::write!(f, "{value}"),
+            MapKey::Text(text) => core::write!(f, "{text}"),
+            MapKey::Value(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -298,7 +298,7 @@ pub struct MapIterator<'a> {
 }
 
 impl<'a> Iterator for MapIterator<'a> {
-    type Item = (MapKey<'a>, &'a ValueContainer);
+    type Item = (BorrowedMapKey<'a>, &'a ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.map {
@@ -310,8 +310,8 @@ impl<'a> Iterator for MapIterator<'a> {
                         ValueContainer::Value(Value {
                             inner: CoreValue::Text(text),
                             ..
-                        }) => MapKey::Text(&text.0),
-                        _ => MapKey::Value(k),
+                        }) => BorrowedMapKey::Text(&text.0),
+                        _ => BorrowedMapKey::Value(k),
                     };
                     (key, v)
                 })
@@ -324,8 +324,8 @@ impl<'a> Iterator for MapIterator<'a> {
                         ValueContainer::Value(Value {
                             inner: CoreValue::Text(text),
                             ..
-                        }) => MapKey::Text(&text.0),
-                        _ => MapKey::Value(&item.0),
+                        }) => BorrowedMapKey::Text(&text.0),
+                        _ => BorrowedMapKey::Value(&item.0),
                     };
                     Some((key, &item.1))
                 } else {
@@ -336,7 +336,7 @@ impl<'a> Iterator for MapIterator<'a> {
                 if self.index < vec.len() {
                     let item = &vec[self.index];
                     self.index += 1;
-                    Some((MapKey::Text(&item.0), &item.1))
+                    Some((BorrowedMapKey::Text(&item.0), &item.1))
                 } else {
                     None
                 }
@@ -352,7 +352,7 @@ pub enum MapMutIterator<'a> {
 }
 
 impl<'a> Iterator for MapMutIterator<'a> {
-    type Item = (MapKey<'a>, &'a mut ValueContainer);
+    type Item = (BorrowedMapKey<'a>, &'a mut ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -361,8 +361,8 @@ impl<'a> Iterator for MapMutIterator<'a> {
                     ValueContainer::Value(Value {
                         inner: CoreValue::Text(text),
                         ..
-                    }) => MapKey::Text(&text.0),
-                    _ => MapKey::Value(k),
+                    }) => BorrowedMapKey::Text(&text.0),
+                    _ => BorrowedMapKey::Value(k),
                 };
                 (key, v)
             }),
@@ -371,13 +371,13 @@ impl<'a> Iterator for MapMutIterator<'a> {
                     ValueContainer::Value(Value {
                         inner: CoreValue::Text(text),
                         ..
-                    }) => MapKey::Text(&text.0),
-                    _ => MapKey::Value(k),
+                    }) => BorrowedMapKey::Text(&text.0),
+                    _ => BorrowedMapKey::Value(k),
                 };
                 (key, v)
             }),
             MapMutIterator::Structural(iter) => {
-                iter.next().map(|(k, v)| (MapKey::Text(k.as_str()), v))
+                iter.next().map(|(k, v)| (BorrowedMapKey::Text(k.as_str()), v))
             }
         }
     }
@@ -389,7 +389,7 @@ pub struct IntoMapIterator {
 }
 
 impl Iterator for IntoMapIterator {
-    type Item = (OwnedMapKey, ValueContainer);
+    type Item = (MapKey, ValueContainer);
 
     fn next(&mut self) -> Option<Self::Item> {
         // TODO #332: optimize to avoid cloning keys and values
@@ -402,8 +402,8 @@ impl Iterator for IntoMapIterator {
                         ValueContainer::Value(Value {
                             inner: CoreValue::Text(text),
                             ..
-                        }) => OwnedMapKey::Text(text.0.clone()),
-                        _ => OwnedMapKey::Value(k.clone()),
+                        }) => MapKey::Text(text.0.clone()),
+                        _ => MapKey::Value(k.clone()),
                     };
                     (key, v.clone())
                 })
@@ -416,8 +416,8 @@ impl Iterator for IntoMapIterator {
                         ValueContainer::Value(Value {
                             inner: CoreValue::Text(text),
                             ..
-                        }) => OwnedMapKey::Text(text.0.clone()),
-                        _ => OwnedMapKey::Value(item.0.clone()),
+                        }) => MapKey::Text(text.0.clone()),
+                        _ => MapKey::Value(item.0.clone()),
                     };
                     Some((key, item.1.clone()))
                 } else {
@@ -428,7 +428,7 @@ impl Iterator for IntoMapIterator {
                 if self.index < vec.len() {
                     let item = &vec[self.index];
                     self.index += 1;
-                    Some((OwnedMapKey::Text(item.0.clone()), item.1.clone()))
+                    Some((MapKey::Text(item.0.clone()), item.1.clone()))
                 } else {
                     None
                 }
@@ -490,7 +490,7 @@ where
 }
 
 impl IntoIterator for Map {
-    type Item = (OwnedMapKey, ValueContainer);
+    type Item = (MapKey, ValueContainer);
     type IntoIter = IntoMapIterator;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -502,7 +502,7 @@ impl IntoIterator for Map {
 }
 
 impl<'a> IntoIterator for &'a Map {
-    type Item = (MapKey<'a>, &'a ValueContainer);
+    type Item = (BorrowedMapKey<'a>, &'a ValueContainer);
     type IntoIter = MapIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -514,7 +514,7 @@ impl<'a> IntoIterator for &'a Map {
 }
 
 impl<'a> IntoIterator for &'a mut Map {
-    type Item = (MapKey<'a>, &'a mut ValueContainer);
+    type Item = (BorrowedMapKey<'a>, &'a mut ValueContainer);
     type IntoIter = MapMutIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -544,13 +544,41 @@ impl From<Vec<(String, ValueContainer)>> for Map {
     }
 }
 
-impl From<Vec<(OwnedMapKey, ValueContainer)>> for Map {
-    fn from(vec: Vec<(OwnedMapKey, ValueContainer)>) -> Self {
-        let mut map = Map::default();
-        for (k, v) in vec {
-            map.set(&k, v);
+impl From<Vec<(MapKey, ValueContainer)>> for Map {
+    fn from(vec: Vec<(MapKey, ValueContainer)>) -> Self {
+        let has_only_text_keys = vec
+            .iter()
+            .all(|(k, _)| {
+                matches!(k, MapKey::Text(_)) || matches!(k, MapKey::Value(ValueContainer::Value(Value { inner: CoreValue::Text(_), .. })))
+            });
+        if has_only_text_keys {
+            let mut entries: Vec<(String, ValueContainer)> = Vec::with_capacity(vec.len());
+            for (k, v) in vec {
+                match k {
+                    MapKey::Text(text) => {
+                        entries.push((text, v));
+                    }
+                    MapKey::Value(value) => {
+                        if let ValueContainer::Value(Value {
+                            inner: CoreValue::Text(text),
+                            ..
+                        }) = value
+                        {
+                            entries.push((text.0, v));
+                        } else {
+                            unreachable!(); // already checked above
+                        }
+                    }
+                }
+            }
+            Map::Structural(entries)
+        } else {
+            let mut map = Map::default();
+            for (k, v) in vec {
+                map.set(&k, v);
+            }
+            map
         }
-        map
     }
 }
 

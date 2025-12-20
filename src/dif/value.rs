@@ -10,7 +10,7 @@ use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::map::MapKey;
+use crate::values::core_values::map::{Map, BorrowedMapKey};
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -214,33 +214,53 @@ impl DIFValue {
                 if map.is_empty() {
                     is_empty_map = true;
                 };
-                DIFValueRepresentation::Map(
-                    map.into_iter()
-                        .map(|(k, v)| {
-                            (
-                                match k {
-                                    MapKey::Text(text_key) => {
-                                        DIFValueContainer::Value(
-                                            DIFValueRepresentation::String(
-                                                text_key.to_string(),
-                                            )
-                                            .into(),
-                                        )
-                                    }
-                                    _ => {
+                match map {
+                    Map::Structural(entries) => {
+                        DIFValueRepresentation::Object(
+                            entries
+                                .iter()
+                                .map(|(k, v)| {
+                                    (
+                                        k.clone(),
                                         DIFValueContainer::from_value_container(
-                                            &ValueContainer::from(k),
-                                            memory,
-                                        )
-                                    }
-                                },
-                                DIFValueContainer::from_value_container(
-                                    v, memory,
-                                ),
-                            )
-                        })
-                        .collect(),
-                )
+                                            v, memory,
+                                        ),
+                                    )
+                                })
+                                .collect(),
+                        )
+                    }
+                    _ => {
+                        DIFValueRepresentation::Map(
+                            map.into_iter()
+                                .map(|(k, v)| {
+                                    (
+                                        match k {
+                                            BorrowedMapKey::Text(text_key) => {
+                                                DIFValueContainer::Value(
+                                                    DIFValueRepresentation::String(
+                                                        text_key.to_string(),
+                                                    )
+                                                        .into(),
+                                                )
+                                            }
+                                            _ => {
+                                                DIFValueContainer::from_value_container(
+                                                    &ValueContainer::from(k),
+                                                    memory,
+                                                )
+                                            }
+                                        },
+                                        DIFValueContainer::from_value_container(
+                                            v, memory,
+                                        ),
+                                    )
+                                })
+                                .collect(),
+                        )
+                    }
+                }
+                
             }
         };
 

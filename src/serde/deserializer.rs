@@ -2,7 +2,7 @@ use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
-use crate::values::core_values::map::{Map, OwnedMapKey};
+use crate::values::core_values::map::{Map, MapKey};
 use crate::values::value::Value;
 use crate::{
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
@@ -384,7 +384,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    if let OwnedMapKey::Text(string) = key {
+                    if let MapKey::Text(string) = key {
                         visitor.visit_string(string)
                     } else {
                         Err(DeserializationError::Custom(
@@ -446,7 +446,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 }
 
                 let (variant_name, value) = o.into_iter().next().unwrap();
-                if let OwnedMapKey::Text(variant) = variant_name {
+                if let MapKey::Text(variant) = variant_name {
                     let deserializer = DatexDeserializer::from_value(value);
                     visitor.visit_enum(EnumDeserializer {
                         variant,
