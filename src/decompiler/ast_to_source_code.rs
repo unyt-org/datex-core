@@ -13,10 +13,10 @@ use crate::{
         DatexExpression, DatexExpressionData, FunctionDeclaration,
         VariableAccess, VariableAssignment, VariableDeclaration,
     },
-    decompiler::FormattingMode,
 };
 
 use crate::ast::structs::apply_operation::ApplyOperation;
+use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
 use crate::references::reference::ReferenceMutability;
 
 #[derive(Clone, Default)]
@@ -61,13 +61,7 @@ fn is_alphanumeric_identifier(s: &str) -> bool {
 }
 
 pub struct AstToSourceCodeFormatter {
-    mode: FormattingMode,
-    json_compat: bool,
-    colorized: bool,
-    indent_level: usize,
-    indent_size: usize,
-    use_spaces: bool,
-    add_variant_suffix: bool,
+    options: FormattingOptions,
 }
 
 #[macro_export]
@@ -80,47 +74,39 @@ impl AstToSourceCodeFormatter {
     const MAX_INLINE: usize = 60;
 
     pub fn new(
-        mode: FormattingMode,
-        json_compat: bool,
-        colorized: bool,
+        options: FormattingOptions,
     ) -> Self {
-        let add_variant_suffix = match mode {
-            FormattingMode::Compact => false,
-            FormattingMode::Pretty => !json_compat,
-        };
         Self {
-            mode,
-            json_compat,
-            colorized,
-            indent_level: 0,
-            indent_size: 2,
-            add_variant_suffix,
-            use_spaces: true,
+            options,
         }
     }
 
     /// Whether to add type variant suffixes to typed integers and decimals
     fn add_variant_suffix(&self) -> bool {
-        if self.json_compat {
-            false
-        } else {
-            self.add_variant_suffix
-        }
-    }
-
-    /// Return the character used for indentation
-    fn indent_char(&self) -> &'static char {
-        if self.use_spaces { &' ' } else { &'\t' }
+        !self.options.json_compat
     }
 
     /// Return the indentation as a string
     fn indent(&self) -> String {
-        self.indent_char().to_string().repeat(self.indent_size)
+        match &self.options.mode {
+            FormattingMode::Pretty { indent_type, indent } => {
+                let char = match indent_type {
+                    IndentType::Spaces => &' ',
+                    IndentType::Tabs => &'\t',
+                };
+                char.to_string().repeat(*indent)
+            }
+            FormattingMode::Compact => "".into(),
+        }
+    }
+
+    fn is_compact_mode(&self) -> bool {
+        core::matches!(self.options.mode, FormattingMode::Compact)
     }
 
     /// Return a space or empty string based on formatting mode
     fn space(&self) -> &'static str {
-        if core::matches!(self.mode, FormattingMode::Compact) {
+        if self.is_compact_mode() {
             ""
         } else {
             " "
@@ -129,7 +115,7 @@ impl AstToSourceCodeFormatter {
 
     // Return a newline or empty string based on formatting mode
     fn newline(&self) -> &'static str {
-        if core::matches!(self.mode, FormattingMode::Compact) {
+        if self.is_compact_mode() {
             ""
         } else {
             "\n"
@@ -147,7 +133,7 @@ impl AstToSourceCodeFormatter {
 
     /// Pad the given string with spaces if not in compact mode
     fn pad(&self, s: &str) -> String {
-        if core::matches!(self.mode, FormattingMode::Compact) {
+        if self.is_compact_mode() {
             s.to_string()
         } else {
             format!("{}{}{}", self.space(), s, self.space())
@@ -172,7 +158,7 @@ impl AstToSourceCodeFormatter {
     /// Convert a key (string) to source code, adding quotes if necessary
     fn key_to_string(&self, key: &str) -> String {
         // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
-        if !self.json_compat && is_alphanumeric_identifier(key) {
+        if !self.options.json_compat && is_alphanumeric_identifier(key) {
             key.to_string()
         } else {
             self.text_to_source_code(key)
@@ -326,14 +312,7 @@ impl AstToSourceCodeFormatter {
                         format!(
                             "{}:{}{}",
                             self.key_type_expression_to_source_code(k),
-                            if core::matches!(
-                                self.mode,
-                                FormattingMode::Compact
-                            ) {
-                                ""
-                            } else {
-                                " "
-                            },
+                            self.space(),
                             self.type_expression_to_source_code(v)
                         )
                     })
@@ -366,7 +345,7 @@ impl AstToSourceCodeFormatter {
         let separator = separator.unwrap_or("");
 
         // Compact mode
-        if core::matches!(self.mode, FormattingMode::Compact) {
+        if self.is_compact_mode() {
             return format!(
                 "{}{}{}",
                 brace_style.open(),
@@ -433,11 +412,7 @@ impl AstToSourceCodeFormatter {
                 format!(
                     "{}:{}{}",
                     self.key_expression_to_source_code(k),
-                    if core::matches!(self.mode, FormattingMode::Compact) {
-                        ""
-                    } else {
-                        " "
-                    },
+                    self.space(),
                     self.format(v)
                 )
             })
@@ -737,15 +712,15 @@ mod tests {
     };
 
     fn compact() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingMode::Compact, false, false)
+        AstToSourceCodeFormatter::new(FormattingOptions::compact())
     }
 
     fn pretty() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingMode::Pretty, false, false)
+        AstToSourceCodeFormatter::new(FormattingOptions::pretty())
     }
 
-    fn json() -> AstToSourceCodeFormatter {
-        AstToSourceCodeFormatter::new(FormattingMode::Pretty, true, false)
+    fn json_compat() -> AstToSourceCodeFormatter {
+        AstToSourceCodeFormatter::new(FormattingOptions::json_compat())
     }
 
     fn to_expression(s: &str) -> DatexExpression {
@@ -757,7 +732,7 @@ mod tests {
         let src = to_expression("[1, 2, 3]");
         assert_eq!(compact().format(&src), "[1,2,3]");
         assert_eq!(pretty().format(&src), "[1, 2, 3]");
-        assert_eq!(json().format(&src), "[1, 2, 3]");
+        assert_eq!(json_compat().format(&src), "[1, 2, 3]");
 
         let src = to_expression(
             "[1, [2, 3, 100, 200, 300, 400, 100, 200, 300, 100000000000000000000000000000000], 4]",
@@ -770,20 +745,20 @@ mod tests {
             pretty().format(&src),
             indoc! {
             "[
-			   1,
-			   [
-			     2,
-			     3,
-			     100,
-			     200,
-			     300,
-			     400,
-			     100,
-			     200,
-			     300,
-			     100000000000000000000000000000000
-			   ],
-			   4
+			     1,
+			     [
+			         2,
+			         3,
+			         100,
+			         200,
+			         300,
+			         400,
+			         100,
+			         200,
+			         300,
+			         100000000000000000000000000000000
+			     ],
+			     4
 			 ]"}
         );
 
@@ -798,13 +773,13 @@ mod tests {
             pretty().format(&src),
             indoc! {
             "[
-			   1,
-			   {
-			     a: 42,
-			     b: 100000000000,
-			     c: [1, 2, 3, 1000000000000000000000000000]
-			   },
-			   3
+			     1,
+			     {
+			         a: 42,
+			         b: 100000000000,
+			         c: [1, 2, 3, 1000000000000000000000000000]
+			     },
+			     3
 			 ]"}
         );
     }
@@ -815,7 +790,7 @@ mod tests {
         assert_eq!(compact().format(&int_ast.with_default_span()), "42");
 
         let typed_int_ast = DatexExpressionData::TypedInteger(42i8.into());
-        assert_eq!(compact().format(&typed_int_ast.with_default_span()), "42");
+        assert_eq!(compact().format(&typed_int_ast.with_default_span()), "42i8");
 
         let decimal_ast =
             DatexExpressionData::Decimal(Decimal::from_string("1.23").unwrap());
@@ -887,11 +862,11 @@ mod tests {
             pretty().format(&long_list_ast.with_default_span()),
             indoc! {
             "[
-			   \"This is a long string\",
-			   \"Another long string\",
-			   \"Yet another long string\",
-			   \"More long strings to increase length\",
-			   \"Final long string in the list\"
+			     \"This is a long string\",
+			     \"Another long string\",
+			     \"Yet another long string\",
+			     \"More long strings to increase length\",
+			     \"Final long string in the list\"
 			 ]"}
         );
     }
@@ -929,10 +904,10 @@ mod tests {
             pretty().format(&map_ast),
             indoc! {
             "{
-			   key1: 1,
-			   key2: \"two\",
-			   42: true,
-			   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 42
+			     key1: 1,
+			     key2: \"two\",
+			     42: true,
+			     xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 42
 			 }"}
         );
     }
@@ -996,7 +971,7 @@ mod tests {
             .with_default_span();
         assert_eq!(
             compact().format(&var_decl_ast),
-            "const x:&mut integer/u8=10"
+            "const x:&mut integer/u8=10u8"
         );
         assert_eq!(
             pretty().format(&var_decl_ast),
@@ -1009,12 +984,12 @@ mod tests {
         let typed_int_ast =
             DatexExpressionData::TypedInteger(42i8.into()).with_default_span();
         assert_eq!(pretty().format(&typed_int_ast), "42i8");
-        assert_eq!(json().format(&typed_int_ast), "42");
+        assert_eq!(json_compat().format(&typed_int_ast), "42");
 
         let typed_decimal_ast =
             DatexExpressionData::TypedDecimal(2.71f32.into())
                 .with_default_span();
         assert_eq!(pretty().format(&typed_decimal_ast), "2.71f32");
-        assert_eq!(json().format(&typed_decimal_ast), "2.71");
+        assert_eq!(json_compat().format(&typed_decimal_ast), "2.71");
     }
 }

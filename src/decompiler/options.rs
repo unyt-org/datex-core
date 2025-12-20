@@ -1,56 +1,116 @@
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Formatting {
-    #[default]
-    Compact,
-    Multiline {
-        indent: usize,
-    },
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum FormattingMode {
-    /// compact formatting, no unnecessary spaces or newlines
-    Compact,
-    /// pretty formatting with indentation and newlines
-    #[default]
-    Pretty,
-}
-
-impl Formatting {
-    /// Default multiline formatting with 4 spaces indentation
-    pub fn multiline() -> Self {
-        Formatting::Multiline { indent: 4 }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct DecompileOptions {
-    pub formatting_mode: FormattingMode,
-    pub formatting: Formatting,
-    pub colorized: bool,
+    pub formatting_options: FormattingOptions,
     /// display slots with generated variable names
     pub resolve_slots: bool,
-    /// TODO #224
-    /// when set to true, the output is generated as compatible as possible with JSON, e.g. by
-    /// always adding double quotes around keys
-    pub json_compat: bool,
 }
 
 impl DecompileOptions {
-    pub fn json() -> Self {
+    pub fn json_compat() -> Self {
         DecompileOptions {
-            json_compat: true,
+            formatting_options: FormattingOptions::json_compat(),
             ..DecompileOptions::default()
         }
     }
 
-    /// Fomarts and colorizes the output
+    /// Formats and colorizes the output
     pub fn colorized() -> Self {
         DecompileOptions {
-            colorized: true,
-            formatting: Formatting::Multiline { indent: 4 },
-            resolve_slots: true,
+            formatting_options: FormattingOptions::colorized(),
             ..DecompileOptions::default()
+        }
+    }
+
+    /// No extra spaces or newlines, no colorization
+    pub fn compact() -> Self {
+        DecompileOptions {
+            formatting_options: FormattingOptions::compact(),
+            ..DecompileOptions::default()
+        }
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum IndentType {
+    Spaces,
+    Tabs,
+}
+
+
+#[derive(Debug, Clone)]
+pub enum FormattingMode {
+    /// compact formatting, no unnecessary spaces or newlines
+    Compact,
+    /// pretty formatting with indentation and newlines
+    Pretty {
+        indent: usize,
+        indent_type: IndentType,
+    },
+}
+
+impl Default for FormattingMode {
+    /// Default pretty formatting with 4 spaces indentation
+    fn default() -> Self {
+        FormattingMode::pretty()
+    }
+}
+
+impl FormattingMode {
+    pub fn pretty() -> Self {
+        FormattingMode::Pretty { indent: 4, indent_type: IndentType::Spaces }
+    }
+
+    pub fn compact() -> Self {
+        FormattingMode::Compact
+    }
+
+    pub fn pretty_with_indent(indent: usize, indent_type: IndentType) -> Self {
+        FormattingMode::Pretty { indent, indent_type }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FormattingOptions {
+    pub(crate) mode: FormattingMode,
+    pub(crate) json_compat: bool,
+    pub(crate) colorized: bool,
+    add_variant_suffix: bool,
+}
+
+impl FormattingOptions {
+
+    pub fn colorized() -> Self {
+        FormattingOptions {
+            colorized: true,
+            ..FormattingOptions::default()
+        }
+    }
+
+    pub fn json_compat() -> Self {
+        FormattingOptions {
+            json_compat: true,
+            ..FormattingOptions::default()
+        }
+    }
+
+    pub fn compact() -> Self {
+        FormattingOptions {
+            mode: FormattingMode::Compact,
+            ..FormattingOptions::default()
+        }
+    }
+
+    pub fn pretty() -> Self {
+        FormattingOptions {
+            mode: FormattingMode::pretty(),
+            ..FormattingOptions::default()
+        }
+    }
+
+    pub fn pretty_with_indent(indent: usize, indent_type: IndentType) -> Self {
+        FormattingOptions {
+            mode: FormattingMode::pretty_with_indent(indent, indent_type),
+            ..FormattingOptions::default()
         }
     }
 }

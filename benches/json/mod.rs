@@ -142,7 +142,7 @@ pub fn runtime_value_to_json_baseline_json_syntax(value: &json_syntax::Value) {
 
 pub fn runtime_value_to_json_datex(value: &ValueContainer) {
     let dxb = compile_value_container(value);
-    let string = decompile_body(&dxb, DecompileOptions::json()).unwrap();
+    let string = decompile_body(&dxb, DecompileOptions::json_compat()).unwrap();
     assert!(!string.is_empty(), "Expected DATEX string to be non-empty");
 }
 
@@ -152,6 +152,6 @@ pub fn runtime_value_to_dxb(value: &ValueContainer) {
 }
 
 pub fn dxb_to_json(dxb: &[u8]) {
-    let string = decompile_body(dxb, DecompileOptions::json()).unwrap();
+    let string = decompile_body(dxb, DecompileOptions::json_compat()).unwrap();
     assert!(!string.is_empty(), "Expected DATEX string to be non-empty");
 }

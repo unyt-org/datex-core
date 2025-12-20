@@ -1,6 +1,6 @@
 use datex_core::assert_structural_eq;
 use datex_core::compiler::{CompileOptions, compile_script};
-use datex_core::decompiler::{DecompileOptions, Formatting, decompile_body};
+use datex_core::decompiler::{DecompileOptions, FormattingMode, decompile_body, FormattingOptions};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -99,9 +99,7 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     let decompiled = decompile_body(
         &dxb,
         DecompileOptions {
-            json_compat: true,
-            formatting: Formatting::multiline(),
-            colorized: false,
+            formatting_options: FormattingOptions::pretty(),
             ..DecompileOptions::default()
         },
     )

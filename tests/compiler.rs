@@ -1,6 +1,6 @@
 use datex_core::compiler::{CompileOptions, compile_script};
-use datex_core::decompiler::DecompileOptions;
-use datex_core::decompiler::{Formatting, decompile_body};
+use datex_core::decompiler::{DecompileOptions, FormattingOptions};
+use datex_core::decompiler::{FormattingMode, decompile_body};
 use datex_core::logger::init_logger_debug;
 use log::info;
 
@@ -25,11 +25,8 @@ fn compare_compiled(datex_script: &str, expected: &str) {
     let decompiled_color = decompile_body(
         &dxb_body,
         DecompileOptions {
-            json_compat: false,
-            formatting: Formatting::multiline(),
-            colorized: true,
+            formatting_options: FormattingOptions::compact(),
             resolve_slots: true,
-            ..Default::default()
         },
     )
     .unwrap_or_else(|err| core::panic!("Failed to decompile: {err:?}"));
