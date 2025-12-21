@@ -5,14 +5,12 @@ use crate::ast::structs::expression::{
     DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
     TypeDeclaration, VariantAccess,
 };
+use crate::ast::structs::expression::{
+    DatexExpression, DatexExpressionData, FunctionDeclaration, VariableAccess,
+    VariableAssignment, VariableDeclaration,
+};
 use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
-};
-use crate::{
-    ast::structs::expression::{
-        DatexExpression, DatexExpressionData, FunctionDeclaration,
-        VariableAccess, VariableAssignment, VariableDeclaration,
-    },
 };
 
 use crate::ast::structs::apply_operation::ApplyOperation;
@@ -73,12 +71,8 @@ macro_rules! ast_fmt {
 impl AstToSourceCodeConverter {
     const MAX_INLINE: usize = 60;
 
-    pub fn new(
-        options: FormattingOptions,
-    ) -> Self {
-        Self {
-            options,
-        }
+    pub fn new(options: FormattingOptions) -> Self {
+        Self { options }
     }
 
     /// Whether to add type variant suffixes to typed integers and decimals
@@ -89,7 +83,10 @@ impl AstToSourceCodeConverter {
     /// Return the indentation as a string
     fn indent(&self) -> String {
         match &self.options.mode {
-            FormattingMode::Pretty { indent_type, indent } => {
+            FormattingMode::Pretty {
+                indent_type,
+                indent,
+            } => {
                 let char = match indent_type {
                     IndentType::Spaces => &' ',
                     IndentType::Tabs => &'\t',
@@ -106,20 +103,12 @@ impl AstToSourceCodeConverter {
 
     /// Return a space or empty string based on formatting mode
     fn space(&self) -> &'static str {
-        if self.is_compact_mode() {
-            ""
-        } else {
-            " "
-        }
+        if self.is_compact_mode() { "" } else { " " }
     }
 
     // Return a newline or empty string based on formatting mode
     fn newline(&self) -> &'static str {
-        if self.is_compact_mode() {
-            ""
-        } else {
-            "\n"
-        }
+        if self.is_compact_mode() { "" } else { "\n" }
     }
 
     /// Write formatted output with indentation and optional %s / %n expansion
@@ -531,16 +520,15 @@ impl AstToSourceCodeConverter {
                     .enumerate()
                     .map(|(i, stmt)| {
                         let code = self.format(stmt);
-                        let is_last_statement =  i + 1 == statements.statements.len();
+                        let is_last_statement =
+                            i + 1 == statements.statements.len();
                         if is_last_statement {
                             if terminated {
                                 ast_fmt!(&self, "{};", code)
-                            }
-                            else {
+                            } else {
                                 code
                             }
-                        }
-                        else {
+                        } else {
                             ast_fmt!(&self, "{};%n", code)
                         }
                     })
@@ -796,7 +784,10 @@ mod tests {
         assert_eq!(compact().format(&int_ast.with_default_span()), "42");
 
         let typed_int_ast = DatexExpressionData::TypedInteger(42i8.into());
-        assert_eq!(compact().format(&typed_int_ast.with_default_span()), "42i8");
+        assert_eq!(
+            compact().format(&typed_int_ast.with_default_span()),
+            "42i8"
+        );
 
         let decimal_ast =
             DatexExpressionData::Decimal(Decimal::from_string("1.23").unwrap());

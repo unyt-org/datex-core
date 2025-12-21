@@ -10,7 +10,7 @@ use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
 };
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::map::{Map, BorrowedMapKey};
+use crate::values::core_values::map::{BorrowedMapKey, Map};
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
@@ -210,29 +210,26 @@ impl DIFValue {
                     .map(|v| DIFValueContainer::from_value_container(v, memory))
                     .collect(),
             ),
-            CoreValue::Map(map) => {
-                match map {
-                    Map::Structural(entries) => {
-                        DIFValueRepresentation::Object(
-                            entries
-                                .iter()
-                                .map(|(k, v)| {
-                                    (
-                                        k.clone(),
-                                        DIFValueContainer::from_value_container(
-                                            v, memory,
-                                        ),
-                                    )
-                                })
-                                .collect(),
-                        )
-                    }
-                    _ => {
-                        if map.is_empty() {
-                            is_empty_map = true;
-                        };
+            CoreValue::Map(map) => match map {
+                Map::Structural(entries) => DIFValueRepresentation::Object(
+                    entries
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                DIFValueContainer::from_value_container(
+                                    v, memory,
+                                ),
+                            )
+                        })
+                        .collect(),
+                ),
+                _ => {
+                    if map.is_empty() {
+                        is_empty_map = true;
+                    };
 
-                        DIFValueRepresentation::Map(
+                    DIFValueRepresentation::Map(
                             map.into_iter()
                                 .map(|(k, v)| {
                                     (
@@ -259,10 +256,8 @@ impl DIFValue {
                                 })
                                 .collect(),
                         )
-                    }
                 }
-
-            }
+            },
         };
 
         DIFValue {

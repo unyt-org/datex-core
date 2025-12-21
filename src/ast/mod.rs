@@ -1362,23 +1362,25 @@ mod tests {
                                 )
                                 .with_default_span()
                             ),
-                            operations: vec![ApplyOperation::FunctionCallSingleArgument(
-                                DatexExpressionData::List(List::new(vec![
-                                    DatexExpressionData::Integer(
-                                        Integer::from(1)
-                                    )
-                                    .with_default_span(),
-                                    DatexExpressionData::Integer(
-                                        Integer::from(2)
-                                    )
-                                    .with_default_span(),
-                                    DatexExpressionData::Integer(
-                                        Integer::from(3)
-                                    )
-                                    .with_default_span(),
-                                ]))
-                                .with_default_span()
-                            )]
+                            operations: vec![
+                                ApplyOperation::FunctionCallSingleArgument(
+                                    DatexExpressionData::List(List::new(vec![
+                                        DatexExpressionData::Integer(
+                                            Integer::from(1)
+                                        )
+                                        .with_default_span(),
+                                        DatexExpressionData::Integer(
+                                            Integer::from(2)
+                                        )
+                                        .with_default_span(),
+                                        DatexExpressionData::Integer(
+                                            Integer::from(3)
+                                        )
+                                        .with_default_span(),
+                                    ]))
+                                    .with_default_span()
+                                )
+                            ]
                         })
                         .with_default_span()
                     ),
@@ -1477,10 +1479,12 @@ mod tests {
                             DatexExpressionData::Identifier("User".to_string())
                                 .with_default_span()
                         ),
-                        operations: vec![ApplyOperation::FunctionCallSingleArgument(
-                            DatexExpressionData::Map(Map::new(vec![]))
-                                .with_default_span()
-                        )]
+                        operations: vec![
+                            ApplyOperation::FunctionCallSingleArgument(
+                                DatexExpressionData::Map(Map::new(vec![]))
+                                    .with_default_span()
+                            )
+                        ]
                     })
                     .with_default_span()
                 ),
@@ -3194,15 +3198,19 @@ mod tests {
                                     )
                                     .with_default_span()
                                 ),
-                                operations: vec![ApplyOperation::FunctionCallSingleArgument(
-                                    DatexExpressionData::List(List::new(vec![
-                                        DatexExpressionData::Integer(
-                                            Integer::from(1)
-                                        )
+                                operations: vec![
+                                    ApplyOperation::FunctionCallSingleArgument(
+                                        DatexExpressionData::List(List::new(
+                                            vec![
+                                                DatexExpressionData::Integer(
+                                                    Integer::from(1)
+                                                )
+                                                .with_default_span()
+                                            ]
+                                        ))
                                         .with_default_span()
-                                    ]))
-                                    .with_default_span()
-                                )],
+                                    )
+                                ],
                             })
                             .with_default_span()
                         ),
@@ -3413,13 +3421,15 @@ mod tests {
                         DatexExpressionData::Identifier("myFunc".to_string())
                             .with_default_span()
                     ),
-                    operations: vec![ApplyOperation::FunctionCallSingleArgument(
-                        DatexExpressionData::List(List::new(vec![
-                            DatexExpressionData::Integer(Integer::from(1))
-                                .with_default_span()
-                        ]))
-                        .with_default_span()
-                    )]
+                    operations: vec![
+                        ApplyOperation::FunctionCallSingleArgument(
+                            DatexExpressionData::List(List::new(vec![
+                                DatexExpressionData::Integer(Integer::from(1))
+                                    .with_default_span()
+                            ]))
+                            .with_default_span()
+                        )
+                    ]
                 })
                 .with_default_span()
             ]))

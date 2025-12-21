@@ -63,7 +63,7 @@ pub enum RegularInstruction {
 
     // big integers
     BigInteger(IntegerData),
-    
+
     // default integer
     Integer(IntegerData),
 
@@ -396,7 +396,12 @@ impl Display for TypeInstruction {
                 core::write!(f, "LIST {}", data.element_count)
             }
             TypeInstruction::TypeReference(reference_data) => {
-                core::write!(f, "TYPE_REFERENCE mutability: {}, address: {}", reference_data.metadata.mutability, PointerAddress::from(&reference_data.address))
+                core::write!(
+                    f,
+                    "TYPE_REFERENCE mutability: {}, address: {}",
+                    reference_data.metadata.mutability,
+                    PointerAddress::from(&reference_data.address)
+                )
             }
             TypeInstruction::ImplType(data) => {
                 core::write!(f, "IMPL_TYPE ({} impls)", data.impl_count)
