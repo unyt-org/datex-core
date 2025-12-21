@@ -1,7 +1,7 @@
 {
     "routing_header": {
         "version": 1,
-        "block_size": 89,
+        "block_size": 78,
         "flags": {
             "signature_type": "None",
             "encryption_type": "None",
@@ -12,20 +12,19 @@
         "checksum": null,
         "distance": 0,
         "ttl": 42,
-        "sender": "@@local",
+        "sender": "@sender",
         "receivers_pointer_id": null,
-        "number_of_receivers": 2,
+        "number_of_receivers": 1,
         "receivers": [
-            "@jonas",
-            "@ben"
+            "@jonas"
         ]
     },
     "block_header": {
         "context_id": 0,
         "section_index": 0,
-        "block_number": 42,
+        "block_number": 46,
         "flags_and_timestamp": {
-            "block_type": "Hello",
+            "block_type": "Response",
             "has_side_effects": true,
             "has_only_data": true,
             "is_end_of_section": true,
@@ -48,5 +47,16 @@
         },
         "on_behalf_of": null
     },
-    "body": []
+    "body": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+    ]
 }

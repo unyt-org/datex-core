@@ -1,16 +1,21 @@
 use binrw::{BinRead, BinWrite};
+use chumsky::primitive::End;
 use core::str::FromStr;
-use datex_core::global::{
-    dxb_block::DXBBlock,
-    protocol_structures::{
-        block_header::{BlockHeader, BlockType},
-        encrypted_header::{self, EncryptedHeader},
-        routing_header::{EncryptionType, RoutingHeader},
-        serializable::Serializable,
-    },
-};
 use datex_core::values::core_values::endpoint::{
     Endpoint, EndpointInstance, EndpointType,
+};
+use datex_core::{
+    global::{
+        dxb_block::DXBBlock,
+        protocol_structures::{
+            block_header::{BlockHeader, BlockType},
+            encrypted_header::{self, EncryptedHeader},
+            instructions::RawFullPointerAddress,
+            routing_header::{EncryptionType, RoutingHeader},
+            serializable::Serializable,
+        },
+    },
+    values::pointer::PointerAddress,
 };
 use serde::Serialize;
 use serde_json::ser::{Formatter, PrettyFormatter};
@@ -118,7 +123,7 @@ fn create_dxb_block_artifacts(block: &mut DXBBlock, name: &str) {
 }
 
 #[test]
-#[ignore = "Only run to create artifacts"]
+// #[ignore = "Only run to create artifacts"]
 pub fn dxb_blocks() {
     {
         const NAME: &str = "simple";
@@ -141,7 +146,7 @@ pub fn dxb_blocks() {
         block
             .block_header
             .flags_and_timestamp
-            .set_block_type(BlockType::TraceBack);
+            .set_block_type(BlockType::Hello);
         block
             .block_header
             .flags_and_timestamp
@@ -161,6 +166,94 @@ pub fn dxb_blocks() {
             .block_header
             .flags_and_timestamp
             .set_block_type(BlockType::TraceBack);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "single_receiver_request";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![Endpoint::from_str("@jonas").unwrap()]);
+        block.routing_header = block
+            .routing_header
+            .with_sender(Endpoint::from_str("@sender").unwrap())
+            .to_owned();
+        block.block_header.block_number = 44;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Request);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "no_receivers";
+        let mut block = DXBBlock::default();
+        block.routing_header = block
+            .routing_header
+            .with_sender(Endpoint::from_str("@sender").unwrap())
+            .to_owned();
+        block.block_header.block_number = 45;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Hello);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "with_payload";
+        let mut block = DXBBlock::default();
+        block.set_receivers(vec![Endpoint::from_str("@jonas").unwrap()]);
+        block.routing_header = block
+            .routing_header
+            .with_sender(Endpoint::from_str("@sender").unwrap())
+            .to_owned();
+        block.block_header.block_number = 46;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Response);
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_has_only_data(true);
+        block.body = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        create_dxb_block_artifacts(&mut block, NAME);
+    }
+
+    {
+        const NAME: &str = "receiver_pointer_id";
+        let mut block = DXBBlock::default();
+        let endpoint =
+            hex::encode(Endpoint::from_str("@jonas").unwrap().to_slice());
+        block.set_receivers(
+            RawFullPointerAddress::try_from(
+                PointerAddress::try_from(format!("${}FFFFFFFFFF", endpoint))
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+        block.routing_header = block
+            .routing_header
+            .with_sender(Endpoint::from_str("@sender").unwrap())
+            .to_owned();
+        block.block_header.block_number = 47;
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Request);
         block
             .block_header
             .flags_and_timestamp

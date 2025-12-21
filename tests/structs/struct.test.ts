@@ -1,4 +1,3 @@
-// deno-lint-ignore no-import-prefix
 import dxb from "example-dxb" with {
     type: "json",
 };
