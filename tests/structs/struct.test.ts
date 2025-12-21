@@ -54,7 +54,7 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                     resolvePath(jsonData, difference.p) as [string, number[]] ??
                         [];
                 const { receiver: parsedEndpoint, key: parsedKey } = difference
-                    .v as any;
+                    .v as unknown as { receiver: string; key: string };
                 if (expectedEndpoint !== parsedEndpoint) {
                     throw new Error(
                         `Difference at '${path}': Expected '${expectedEndpoint}', found '${parsedEndpoint}'`,
@@ -67,6 +67,24 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                 if (parsedKey !== hexKey) {
                     errors.push(
                         `Difference at '${path}': Expected key '${hexKey}', found '${parsedKey}'`,
+                    );
+                }
+                continue;
+            } else if (path.startsWith("routing_header.receivers_pointer_id")) {
+                const parsedKey = (resolvePath(
+                    jsonData,
+                    difference.p,
+                ) as unknown as { id: number[] }).id;
+
+                console.log(parsedKey);
+                const hexKey = "$" +
+                    parsedKey.map((ba: number) =>
+                        ba.toString(16).padStart(2, "0")
+                    )
+                        .join("");
+                if (hexKey !== difference.v) {
+                    errors.push(
+                        `Difference at '${path}': Expected key '${difference.v}', found '${hexKey}'`,
                     );
                 }
                 continue;
