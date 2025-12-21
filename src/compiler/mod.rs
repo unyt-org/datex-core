@@ -46,7 +46,7 @@ use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use log::info;
+use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
@@ -339,6 +339,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //         compile_value_container(inserted_values[0]).map(StaticValueOrAst::from)?;
     //     return Ok((result, options.compile_scope));
     // }
+    let parse_start = instant::Instant::now();
     let mut valid_parse_result = parse(datex_script)
         .to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
@@ -363,8 +364,12 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
             })
         )
     };
-
-    precompile_to_rich_ast(
+    debug!(
+        " [parse took {} ms]",
+        parse_start.elapsed().as_millis()
+    );
+    let precompile_start = instant::Instant::now();
+    let res = precompile_to_rich_ast(
         valid_parse_result,
         &mut options.compile_scope,
         PrecompilerOptions {
@@ -378,7 +383,12 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     .inspect(|ast| {
         // store information about termination (last semicolon) in metadata
         ast.metadata.borrow_mut().is_terminated = is_terminated;
-    })
+    });
+    debug!(
+        " [precompile took {} ms]",
+        precompile_start.elapsed().as_millis()
+    );
+    res
 }
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
@@ -425,9 +435,15 @@ pub fn compile_template<'a>(
         inserted_values.to_vec(),
         options.compile_scope.execution_mode,
     );
-    compile_ast(ast, &mut compilation_context, options)
+    let compile_start = instant::Instant::now();
+    let res = compile_ast(ast, &mut compilation_context, options)
         .map(|scope| (compilation_context.buffer, scope))
-        .map_err(SpannedCompilerError::from)
+        .map_err(SpannedCompilerError::from);
+    debug!(
+        " [compile_ast took {} ms]",
+        compile_start.elapsed().as_millis()
+    );
+    res
 }
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
