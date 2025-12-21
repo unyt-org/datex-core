@@ -177,7 +177,7 @@ pub fn append_big_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
 
 pub fn append_endpoint(buffer: &mut Vec<u8>, endpoint: &Endpoint) {
     append_instruction_code(buffer, InstructionCode::ENDPOINT);
-    buffer.extend_from_slice(&endpoint.to_binary());
+    buffer.extend_from_slice(&endpoint.to_slice());
 }
 
 /// Appends a typed integer with explicit type casts

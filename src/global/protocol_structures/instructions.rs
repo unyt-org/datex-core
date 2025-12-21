@@ -11,6 +11,8 @@ use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::values::pointer::PointerAddress;
+use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -556,11 +558,35 @@ pub struct InstructionCloseAndStore {
 #[brw(little)]
 pub struct SlotAddress(pub u32);
 
-#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+// FIXME We shall probably remove endpoint parsing logic from protocol and use &[u8; 26] instead?
+#[derive(
+    BinRead, BinWrite, Clone, Debug, PartialEq, Serialize, Deserialize,
+)]
 #[brw(little)]
 pub struct RawFullPointerAddress {
     pub endpoint: Endpoint,
-    pub id: [u8; 26],
+    pub id: [u8; 5],
+}
+
+// FIXME use proper error handling
+impl TryFrom<PointerAddress> for RawFullPointerAddress {
+    type Error = &'static str;
+    fn try_from(ptr: PointerAddress) -> Result<Self, Self::Error> {
+        match ptr {
+            PointerAddress::Remote(bytes) => {
+                // bin rw
+                let mut cursor = Cursor::new(bytes);
+                let raw: RawFullPointerAddress = BinRead::read_le(&mut cursor)
+                    .map_err(
+                        |_| "Failed to read RawFullPointerAddress from bytes",
+                    )?;
+                Ok(raw)
+            }
+            _ => Err(
+                "PointerAddress must be Remote to convert to RawFullPointerAddress",
+            ),
+        }
+    }
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
