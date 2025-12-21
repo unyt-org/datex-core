@@ -1,6 +1,9 @@
-use crate::compiler::error::SpannedCompilerError;
-use crate::compiler::scope::CompilationScope;
-use crate::compiler::{CompileOptions, compile_template};
+#[cfg(feature = "compiler")]
+use crate::compiler::{
+    error::SpannedCompilerError,
+    scope::CompilationScope,
+    CompileOptions, compile_template
+};
 use crate::runtime::execution::{
     ExecutionError, ExecutionInput, MemoryDump, execute_dxb, execute_dxb_sync,
 };

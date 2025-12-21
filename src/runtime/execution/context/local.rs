@@ -1,3 +1,4 @@
+#[cfg(feature = "compiler")]
 use crate::compiler::scope::CompilationScope;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::ExecutionOptions;

@@ -5,6 +5,7 @@ use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::types::error::IllegalTypeError;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::Display;
+use crate::stdlib::string::String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidProgramError {

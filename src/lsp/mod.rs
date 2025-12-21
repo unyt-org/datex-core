@@ -13,7 +13,7 @@ use crate::lsp::variable_declaration_finder::VariableDeclarationFinder;
 use crate::runtime::Runtime;
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
-use crate::stdlib::collections::HashMap;
+use crate::collections::HashMap;
 use crate::values::core_values::r#type::Type;
 use crate::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};
