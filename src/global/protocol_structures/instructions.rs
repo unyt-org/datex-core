@@ -3,6 +3,7 @@ use crate::global::type_instruction_codes::TypeMutabilityCode;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
+use crate::values::core_values::endpoint::EndpointParsingError;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::{
     decimal::utils::decimal_to_string, endpoint::Endpoint,
@@ -11,6 +12,8 @@ use binrw::{BinRead, BinWrite};
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::values::pointer::PointerAddress;
+use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -302,7 +305,7 @@ impl Display for RegularInstruction {
                 core::write!(
                     f,
                     "GET_REF [{}:{}]",
-                    address.endpoint,
+                    address.endpoint().expect("Invalid endpoint"),
                     hex::encode(address.id)
                 )
             }
@@ -327,8 +330,7 @@ impl Display for RegularInstruction {
             RegularInstruction::GetOrCreateRef(data) => {
                 core::write!(
                     f,
-                    "GET_OR_CREATE_REF [{}:{}, block_size: {}]",
-                    data.address.endpoint,
+                    "GET_OR_CREATE_REF [{}, block_size: {}]",
                     hex::encode(data.address.id),
                     data.create_block_size
                 )
@@ -336,8 +338,7 @@ impl Display for RegularInstruction {
             RegularInstruction::GetOrCreateRefMut(data) => {
                 core::write!(
                     f,
-                    "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]",
-                    data.address.endpoint,
+                    "GET_OR_CREATE_REF_MUT [{}, block_size: {}]",
                     hex::encode(data.address.id),
                     data.create_block_size
                 )
@@ -556,11 +557,34 @@ pub struct InstructionCloseAndStore {
 #[brw(little)]
 pub struct SlotAddress(pub u32);
 
-#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[derive(
+    BinRead, BinWrite, Clone, Debug, PartialEq, Serialize, Deserialize,
+)]
 #[brw(little)]
 pub struct RawFullPointerAddress {
-    pub endpoint: Endpoint,
     pub id: [u8; 26],
+}
+impl RawFullPointerAddress {
+    pub fn endpoint(&self) -> Result<Endpoint, EndpointParsingError> {
+        let mut endpoint = [0u8; 21];
+        endpoint.copy_from_slice(&self.id[0..21]);
+        Endpoint::from_slice(endpoint)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PointerAddressConversionError;
+
+impl TryFrom<PointerAddress> for RawFullPointerAddress {
+    type Error = PointerAddressConversionError;
+    fn try_from(ptr: PointerAddress) -> Result<Self, Self::Error> {
+        match ptr {
+            PointerAddress::Remote(bytes) => {
+                Ok(RawFullPointerAddress { id: bytes })
+            }
+            _ => Err(PointerAddressConversionError),
+        }
+    }
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]

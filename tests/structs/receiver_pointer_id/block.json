@@ -1,31 +1,55 @@
 {
     "routing_header": {
         "version": 1,
-        "block_size": 89,
+        "block_size": 72,
         "flags": {
             "signature_type": "None",
             "encryption_type": "None",
-            "receiver_type": "Receivers",
+            "receiver_type": "Pointer",
             "is_bounce_back": false,
             "has_checksum": false
         },
         "checksum": null,
         "distance": 0,
         "ttl": 42,
-        "sender": "@@local",
-        "receivers_pointer_id": null,
-        "number_of_receivers": 2,
-        "receivers": [
-            "@jonas",
-            "@ben"
-        ]
+        "sender": "@sender",
+        "receivers_pointer_id": {
+            "id": [
+                0,
+                106,
+                111,
+                110,
+                97,
+                115,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                255,
+                255,
+                255,
+                255,
+                255
+            ]
+        }
     },
     "block_header": {
         "context_id": 0,
         "section_index": 0,
-        "block_number": 42,
+        "block_number": 47,
         "flags_and_timestamp": {
-            "block_type": "Hello",
+            "block_type": "Request",
             "has_side_effects": true,
             "has_only_data": true,
             "is_end_of_section": true,

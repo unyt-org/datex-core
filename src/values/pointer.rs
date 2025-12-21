@@ -1,10 +1,12 @@
 use crate::global::protocol_structures::instructions::RawPointerAddress;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use binrw::BinWrite;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
@@ -66,7 +68,14 @@ impl From<&RawPointerAddress> for PointerAddress {
             RawPointerAddress::Internal(bytes) => {
                 PointerAddress::Internal(bytes.id)
             }
-            RawPointerAddress::Full(bytes) => PointerAddress::Remote(bytes.id),
+            RawPointerAddress::Full(bytes) => {
+                let mut writer = Cursor::new(Vec::new());
+                bytes.write_le(&mut writer).unwrap();
+                let written_bytes = writer.into_inner();
+                let mut arr = [0u8; 26];
+                arr.copy_from_slice(&written_bytes);
+                PointerAddress::Remote(arr)
+            }
         }
     }
 }
