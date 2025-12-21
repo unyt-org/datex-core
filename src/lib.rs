@@ -94,6 +94,12 @@ pub mod std_sync {
     pub use std::sync::Mutex;
 }
 
+pub mod time {
+    #[cfg(target_arch = "wasm32")]
+    pub use web_time::*;
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use super::stdlib::time::*;
+}
 pub mod std_random {
     #[cfg(not(feature = "std"))]
     pub use foldhash::fast::RandomState;

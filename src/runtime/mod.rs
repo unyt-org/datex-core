@@ -32,7 +32,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
-use crate::stdlib::time::Instant;
+use crate::time::Instant;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
