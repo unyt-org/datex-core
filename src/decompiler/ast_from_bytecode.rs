@@ -1,8 +1,8 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation};
+use crate::ast::structs::expression::{BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
-use crate::global::operators::{BinaryOperator, UnaryOperator};
+use crate::global::operators::{AssignmentOperator, BinaryOperator, UnaryOperator};
 use crate::global::protocol_structures::instructions::{
     Instruction, RegularInstruction, TypeInstruction,
 };
@@ -20,6 +20,7 @@ use core::cell::RefCell;
 use datex_core::ast::structs::apply_operation::ApplyOperation;
 use datex_core::ast::structs::expression::{ApplyChain, UnboundedStatement};
 use datex_core::parser::instruction_collector::StatementResultCollectionStrategy;
+use crate::stdlib::format;
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -474,6 +475,31 @@ pub fn ast_from_bytecode(
                                     unreachable!()
                                 }
                             }
+
+                            RegularInstruction::AllocateSlot(slot_address) => {
+                                let expr = collected_results.pop_value_result();
+                                DatexExpressionData::VariableDeclaration(VariableDeclaration {
+                                    id: None,
+                                    kind: VariableKind::Var,
+                                    name: format!("_slot_{}", slot_address.0),
+                                    type_annotation: None,
+                                    init_expression: Box::new(expr),
+                                })
+                                    .with_default_span()
+                                    .into()
+                            },
+
+                            RegularInstruction::SetSlot(slot_address) => {
+                                let expr = collected_results.pop_value_result();
+                                DatexExpressionData::VariableAssignment(VariableAssignment {
+                                    id: None,
+                                    name: format!("_slot_{}", slot_address.0),
+                                    operator: AssignmentOperator::Assign,
+                                    expression: Box::new(expr),
+                                })
+                                    .with_default_span()
+                                    .into()
+                            },
 
                             e => {
                                 todo!(
