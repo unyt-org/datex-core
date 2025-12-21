@@ -1,4 +1,4 @@
-use crate::global::protocol_structures::instructions::RawPointerAddress;
+use crate::global::protocol_structures::instructions::{RawInternalPointerAddress, RawPointerAddress};
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use core::fmt::Display;
@@ -7,6 +7,7 @@ use core::result::Result;
 use binrw::BinWrite;
 use serde::{Deserialize, Serialize};
 use binrw::io::Cursor;
+use datex_core::global::protocol_structures::instructions::{RawFullPointerAddress, RawLocalPointerAddress};
 use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -62,6 +63,24 @@ impl From<RawPointerAddress> for PointerAddress {
     }
 }
 
+impl From<&RawLocalPointerAddress> for PointerAddress {
+    fn from(raw: &RawLocalPointerAddress) -> Self {
+        PointerAddress::Local(raw.id)
+    }
+}
+
+impl From<&RawInternalPointerAddress> for PointerAddress {
+    fn from(raw: &RawInternalPointerAddress) -> Self {
+        PointerAddress::Internal(raw.id)
+    }
+}
+
+impl From<&RawFullPointerAddress> for PointerAddress {
+    fn from(raw: &RawFullPointerAddress) -> Self {
+        PointerAddress::Remote(raw.id)
+    }
+}
+
 impl From<&RawPointerAddress> for PointerAddress {
     fn from(raw: &RawPointerAddress) -> Self {
         match raw {
@@ -70,12 +89,7 @@ impl From<&RawPointerAddress> for PointerAddress {
                 PointerAddress::Internal(bytes.id)
             }
             RawPointerAddress::Full(bytes) => {
-                let mut writer = Cursor::new(Vec::new());
-                bytes.write_le(&mut writer).unwrap();
-                let written_bytes = writer.into_inner();
-                let mut arr = [0u8; 26];
-                arr.copy_from_slice(&written_bytes);
-                PointerAddress::Remote(arr)
+                PointerAddress::Remote(bytes.id)
             }
         }
     }

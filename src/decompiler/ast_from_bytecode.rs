@@ -1,7 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
-    BinaryOperation, DatexExpression, List, Map, UnaryOperation,
-};
+use crate::ast::structs::expression::{BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::global::operators::{BinaryOperator, UnaryOperator};
@@ -12,9 +10,6 @@ use crate::parser::body::{DXBParserError, iterate_instructions};
 use crate::parser::instruction_collector::{
     CollectedResults, CollectionResultsPopper, FullOrPartialResult,
     InstructionCollector,
-};
-use crate::runtime::execution::execution_loop::interrupts::{
-    ExecutionInterrupt, ExternalExecutionInterrupt,
 };
 use crate::stdlib::rc::Rc;
 use crate::values::core_values::decimal::Decimal;
@@ -215,14 +210,38 @@ pub fn ast_from_bytecode(
                                     DatexExpressionData::Null
                                 }
 
+                                RegularInstruction::GetRef(raw_address) => {
+                                    DatexExpressionData::GetReference(
+                                        PointerAddress::from(&raw_address),
+                                    )
+                                }
+
+                                RegularInstruction::GetLocalRef(raw_address) => {
+                                    DatexExpressionData::GetReference(
+                                        PointerAddress::from(&raw_address),
+                                    )
+                                }
+
+                                RegularInstruction::GetInternalRef(raw_address) => {
+                                    DatexExpressionData::GetReference(
+                                        PointerAddress::from(&raw_address),
+                                    )
+                                }
+
+                                RegularInstruction::GetSlot(slot_address) => {
+                                    DatexExpressionData::Slot(Slot::Addressed(slot_address.0))
+                                }
+
+                                RegularInstruction::DropSlot(slot_address) => {
+                                    todo!()
+                                }
+
                                 // NOTE: make sure that each possible match case is either implemented in the default collection or here
                                 // If an instruction is implemented in the default collection, it should be marked as unreachable!() here
                                 RegularInstruction::Statements(_)
                                 | RegularInstruction::ShortStatements(_)
                                 | RegularInstruction::UnboundedStatements
-                                | RegularInstruction::UnboundedStatementsEnd(
-                                    _,
-                                )
+                                | RegularInstruction::UnboundedStatementsEnd(_)
                                 | RegularInstruction::List(_)
                                 | RegularInstruction::ShortList(_)
                                 | RegularInstruction::Map(_)
@@ -249,14 +268,9 @@ pub fn ast_from_bytecode(
                                 | RegularInstruction::DivideAssign(_)
                                 | RegularInstruction::CreateRef
                                 | RegularInstruction::CreateRefMut
-                                | RegularInstruction::GetRef(_)
-                                | RegularInstruction::GetLocalRef(_)
-                                | RegularInstruction::GetInternalRef(_)
                                 | RegularInstruction::GetOrCreateRef(_)
                                 | RegularInstruction::GetOrCreateRefMut(_)
                                 | RegularInstruction::AllocateSlot(_)
-                                | RegularInstruction::GetSlot(_)
-                                | RegularInstruction::DropSlot(_)
                                 | RegularInstruction::SetSlot(_)
                                 | RegularInstruction::SetReferenceValue(_)
                                 | RegularInstruction::Deref
