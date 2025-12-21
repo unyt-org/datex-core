@@ -6,7 +6,7 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
+use crate::stdlib::io::Cursor;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
