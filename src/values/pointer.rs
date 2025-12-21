@@ -1,12 +1,12 @@
 use crate::global::protocol_structures::instructions::RawPointerAddress;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
-use binrw::BinWrite;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use binrw::BinWrite;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::io::Cursor;
+use binrw::io::Cursor;
 use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

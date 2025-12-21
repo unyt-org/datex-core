@@ -13,7 +13,6 @@ use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use datex_core::values::pointer::PointerAddress;
 use serde::{Deserialize, Serialize};
-use crate::stdlib::io::Cursor;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
