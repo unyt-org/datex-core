@@ -1,4 +1,5 @@
 use crate::global::protocol_structures::instructions::{Instruction, RegularInstruction, TypeInstruction};
+use crate::stdlib::vec::Vec;
 
 pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
 

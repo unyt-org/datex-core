@@ -136,8 +136,6 @@ impl DIFValue {
     fn from_value(value: &Value, memory: &RefCell<Memory>) -> Self {
         let core_value = &value.inner;
 
-        let mut is_empty_map = false;
-
         let dif_core_value = match core_value {
             CoreValue::Type(ty) => {
                 core::todo!("#382 Type value not supported in DIF")
@@ -211,56 +209,58 @@ impl DIFValue {
                     .collect(),
             ),
             CoreValue::Map(map) => {
+                // always use {} representation for empty maps
                 if map.is_empty() {
-                    is_empty_map = true;
-                };
-                match map {
-                    Map::Structural(entries) => {
-                        DIFValueRepresentation::Object(
-                            entries
-                                .iter()
-                                .map(|(k, v)| {
-                                    (
-                                        k.clone(),
-                                        DIFValueContainer::from_value_container(
-                                            v, memory,
-                                        ),
-                                    )
-                                })
-                                .collect(),
-                        )
-                    }
-                    _ => {
-                        DIFValueRepresentation::Map(
-                            map.into_iter()
-                                .map(|(k, v)| {
-                                    (
-                                        match k {
-                                            BorrowedMapKey::Text(text_key) => {
-                                                DIFValueContainer::Value(
-                                                    DIFValueRepresentation::String(
-                                                        text_key.to_string(),
+                    DIFValueRepresentation::Object(vec![])
+                }
+                else {
+                    match map {
+                        Map::Structural(entries) => {
+                            DIFValueRepresentation::Object(
+                                entries
+                                    .iter()
+                                    .map(|(k, v)| {
+                                        (
+                                            k.clone(),
+                                            DIFValueContainer::from_value_container(
+                                                v, memory,
+                                            ),
+                                        )
+                                    })
+                                    .collect(),
+                            )
+                        }
+                        _ => {
+                            DIFValueRepresentation::Map(
+                                map.into_iter()
+                                    .map(|(k, v)| {
+                                        (
+                                            match k {
+                                                BorrowedMapKey::Text(text_key) => {
+                                                    DIFValueContainer::Value(
+                                                        DIFValueRepresentation::String(
+                                                            text_key.to_string(),
+                                                        )
+                                                            .into(),
                                                     )
-                                                        .into(),
-                                                )
-                                            }
-                                            _ => {
-                                                DIFValueContainer::from_value_container(
-                                                    &ValueContainer::from(k),
-                                                    memory,
-                                                )
-                                            }
-                                        },
-                                        DIFValueContainer::from_value_container(
-                                            v, memory,
-                                        ),
-                                    )
-                                })
-                                .collect(),
-                        )
+                                                }
+                                                _ => {
+                                                    DIFValueContainer::from_value_container(
+                                                        &ValueContainer::from(k),
+                                                        memory,
+                                                    )
+                                                }
+                                            },
+                                            DIFValueContainer::from_value_container(
+                                                v, memory,
+                                            ),
+                                        )
+                                    })
+                                    .collect(),
+                            )
+                        }
                     }
                 }
-                
             }
         };
 
@@ -269,7 +269,6 @@ impl DIFValue {
             ty: get_type_if_non_default(
                 &value.actual_type,
                 memory,
-                is_empty_map,
             ),
         }
     }
@@ -282,11 +281,9 @@ impl DIFValue {
 /// - null
 /// - decimal (f64)
 /// - List
-/// - Map (if not empty, otherwise we cannot distinguish between empty map and empty list since both are represented as [] in DIF)
 fn get_type_if_non_default(
     type_definition: &TypeDefinition,
     memory: &RefCell<Memory>,
-    is_empty_map: bool,
 ) -> Option<DIFTypeDefinition> {
     match type_definition {
         TypeDefinition::Reference(inner) => {
@@ -301,10 +298,9 @@ fn get_type_if_non_default(
                             | CoreLibPointerId::Boolean
                             | CoreLibPointerId::Text
                             | CoreLibPointerId::List
+                            | CoreLibPointerId::Map
                             | CoreLibPointerId::Null
-                    ) ||
-                    // map is default only if not empty
-                    (core::matches!(address, CoreLibPointerId::Map) && !is_empty_map))
+                    ))
             {
                 None
             } else {
