@@ -109,7 +109,6 @@ embassy-executor = { version = "0.9.1", optional = true }
 embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 esp-println = { version = "0.16.1", optional = true }
 hashbrown = { version = "0.16.0", features = ["serde"], optional = true }
-instant = { version = "0.1.13" }
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -232,9 +231,9 @@ tokio_runtime = ["dep:tokio"]
 wasm_runtime = [
     "dep:wasm-bindgen-futures",
     "dep:gloo-timers",
-    "dep:tsify",
-    "instant/wasm-bindgen"
+    "dep:tsify"
 #    "dep:wasm-bindgen",
+
 ]
 embassy_runtime = [
     "dep:embassy-executor",
