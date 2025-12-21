@@ -8,6 +8,7 @@ use crate::runtime::execution::execution_loop::state::{
     ExecutionLoopState, RuntimeExecutionState,
 };
 use crate::stdlib::rc::Rc;
+use crate::stdlib::boxed::Box;
 use core::cell::RefCell;
 
 #[derive(Debug, Clone, Default)]

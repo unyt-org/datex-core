@@ -6,6 +6,7 @@ use crate::stdlib::rc::Rc;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
+use crate::stdlib::boxed::Box;
 
 pub struct ExecutionLoopState {
     pub iterator: Box<
