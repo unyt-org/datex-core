@@ -97,8 +97,10 @@ pub mod std_sync {
 pub mod time {
     #[cfg(target_arch = "wasm32")]
     pub use web_time::*;
-    #[cfg(not(target_arch = "wasm32"))]
-    pub use super::stdlib::time::*;
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "std")))]
+    pub use embedded_time::*;
+    #[cfg(all(not(target_arch = "wasm32"), feature = "std"))]
+    pub use std::time::*;
 }
 pub mod std_random {
     #[cfg(not(feature = "std"))]
