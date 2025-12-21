@@ -1,3 +1,4 @@
+#[cfg(feature = "compiler")]
 use crate::compiler::scope::CompilationScope;
 use crate::global::dxb_block::OutgoingContextId;
 use crate::runtime::execution::context::{ExecutionContext, ExecutionMode};

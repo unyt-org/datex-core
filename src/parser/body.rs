@@ -19,7 +19,7 @@ use crate::parser::next_instructions_stack::{
     NextInstructionType, NotInUnboundedRegularScopeError,
 };
 use crate::runtime::execution::macros::yield_unwrap;
-use crate::stdlib::convert::TryFrom;
+use core::convert::TryFrom;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;

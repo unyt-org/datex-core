@@ -2,6 +2,7 @@ use crate::runtime::execution::execution_loop::state::RuntimeExecutionSlots;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use itertools::Itertools;
+use crate::stdlib::vec::Vec;
 
 pub struct MemoryDump {
     pub slots: Vec<(u32, Option<ValueContainer>)>,
