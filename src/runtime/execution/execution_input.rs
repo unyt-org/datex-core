@@ -7,8 +7,8 @@ use crate::runtime::execution::execution_loop::interrupts::{
 use crate::runtime::execution::execution_loop::state::{
     ExecutionLoopState, RuntimeExecutionState,
 };
-use crate::stdlib::rc::Rc;
 use crate::stdlib::boxed::Box;
+use crate::stdlib::rc::Rc;
 use core::cell::RefCell;
 
 #[derive(Debug, Clone, Default)]

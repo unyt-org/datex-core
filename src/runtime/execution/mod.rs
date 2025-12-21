@@ -9,6 +9,7 @@ use crate::runtime::execution::execution_loop::interrupts::{
     ExternalExecutionInterrupt, InterruptResult,
 };
 use crate::stdlib::rc::Rc;
+use crate::traits::apply::Apply;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use core::prelude::rust_2024::*;
@@ -19,7 +20,6 @@ pub use execution_input::ExecutionInput;
 pub use execution_input::ExecutionOptions;
 pub use memory_dump::*;
 use num_enum::TryFromPrimitive;
-use crate::traits::apply::Apply;
 
 pub mod context;
 mod errors;
@@ -207,7 +207,6 @@ fn get_pointer_value(
         Err(ExecutionError::RequiresRuntime)
     }
 }
-
 
 fn get_internal_pointer_value(
     address: RawInternalPointerAddress,

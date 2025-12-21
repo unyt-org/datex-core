@@ -3,8 +3,8 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::rc::Rc;
-use crate::values::value_container::ValueContainer;
 use crate::stdlib::vec::Vec;
+use crate::values::value_container::ValueContainer;
 
 #[derive(Debug)]
 pub enum ExecutionInterrupt {

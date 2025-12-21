@@ -213,7 +213,9 @@ pub enum BorrowedMapKey<'a> {
 impl<'a> From<BorrowedMapKey<'a>> for ValueContainer {
     fn from(key: BorrowedMapKey) -> Self {
         match key {
-            BorrowedMapKey::Text(text) => ValueContainer::Value(Value::from(text)),
+            BorrowedMapKey::Text(text) => {
+                ValueContainer::Value(Value::from(text))
+            }
             BorrowedMapKey::Value(value) => value.clone(),
         }
     }
@@ -232,7 +234,9 @@ impl StructuralEq for BorrowedMapKey<'_> {
     fn structural_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (BorrowedMapKey::Text(a), BorrowedMapKey::Text(b)) => a == b,
-            (BorrowedMapKey::Value(a), BorrowedMapKey::Value(b)) => a.structural_eq(b),
+            (BorrowedMapKey::Value(a), BorrowedMapKey::Value(b)) => {
+                a.structural_eq(b)
+            }
             (BorrowedMapKey::Text(a), BorrowedMapKey::Value(b))
             | (BorrowedMapKey::Value(b), BorrowedMapKey::Text(a)) => {
                 if let ValueContainer::Value(Value {
@@ -376,9 +380,9 @@ impl<'a> Iterator for MapMutIterator<'a> {
                 };
                 (key, v)
             }),
-            MapMutIterator::Structural(iter) => {
-                iter.next().map(|(k, v)| (BorrowedMapKey::Text(k.as_str()), v))
-            }
+            MapMutIterator::Structural(iter) => iter
+                .next()
+                .map(|(k, v)| (BorrowedMapKey::Text(k.as_str()), v)),
         }
     }
 }
@@ -546,13 +550,19 @@ impl From<Vec<(String, ValueContainer)>> for Map {
 
 impl From<Vec<(MapKey, ValueContainer)>> for Map {
     fn from(vec: Vec<(MapKey, ValueContainer)>) -> Self {
-        let has_only_text_keys = vec
-            .iter()
-            .all(|(k, _)| {
-                matches!(k, MapKey::Text(_)) || matches!(k, MapKey::Value(ValueContainer::Value(Value { inner: CoreValue::Text(_), .. })))
-            });
+        let has_only_text_keys = vec.iter().all(|(k, _)| {
+            matches!(k, MapKey::Text(_))
+                || matches!(
+                    k,
+                    MapKey::Value(ValueContainer::Value(Value {
+                        inner: CoreValue::Text(_),
+                        ..
+                    }))
+                )
+        });
         if has_only_text_keys {
-            let mut entries: Vec<(String, ValueContainer)> = Vec::with_capacity(vec.len());
+            let mut entries: Vec<(String, ValueContainer)> =
+                Vec::with_capacity(vec.len());
             for (k, v) in vec {
                 match k {
                     MapKey::Text(text) => {
@@ -581,7 +591,6 @@ impl From<Vec<(MapKey, ValueContainer)>> for Map {
         }
     }
 }
-
 
 impl<K, V> FromIterator<(K, V)> for Map
 where

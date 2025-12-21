@@ -67,8 +67,8 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             core::todo!("#439 Type value not supported in CompilationContext");
         }
         CoreValue::Integer(integer) => {
-            // NOTE: we might optimize this later, but using INT with big integer encoding 
-            // for all integers for now 
+            // NOTE: we might optimize this later, but using INT with big integer encoding
+            // for all integers for now
             // let integer = integer.to_smallest_fitting();
             // append_encoded_integer(buffer, &integer);
             append_integer(buffer, integer);
@@ -262,7 +262,7 @@ pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
     }
 
     append_f32_or_f64(buffer, decimal);
-    
+
     // TODO: maybe use this in the future, but type casts are necessary to decide which actual type is represented
     // match decimal.as_integer() {
     //     Some(int) => {

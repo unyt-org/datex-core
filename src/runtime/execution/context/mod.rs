@@ -4,13 +4,13 @@ use crate::compiler::{CompileOptions, compile_template};
 use crate::runtime::execution::{
     ExecutionError, ExecutionInput, MemoryDump, execute_dxb, execute_dxb_sync,
 };
+use crate::stdlib::format;
+use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 pub use local::*;
 use log::info;
 pub use remote::*;
 pub use script::*;
-use crate::stdlib::vec::Vec;
-use crate::stdlib::format;
 
 mod local;
 mod remote;

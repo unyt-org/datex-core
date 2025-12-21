@@ -30,7 +30,12 @@ use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 
-use crate::core_compiler::value_compiler::{append_boolean, append_encoded_integer, append_endpoint, append_float_as_i16, append_float_as_i32, append_instruction_code, append_integer, append_text, append_typed_decimal, append_typed_integer, append_value_container, append_decimal};
+use crate::core_compiler::value_compiler::{
+    append_boolean, append_decimal, append_encoded_integer, append_endpoint,
+    append_float_as_i16, append_float_as_i32, append_instruction_code,
+    append_integer, append_text, append_typed_decimal, append_typed_integer,
+    append_value_container,
+};
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::context::ExecutionMode;
@@ -1221,8 +1226,8 @@ pub mod tests {
         global::instruction_codes::InstructionCode, logger::init_logger_debug,
     };
     use datex_core::compiler::error::CompilerError;
-    use log::*;
     use datex_core::values::core_values::integer::typed_integer::TypedInteger;
+    use log::*;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
         init_logger_debug();
@@ -1983,7 +1988,8 @@ pub mod tests {
     #[test]
     fn allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
-        let script = "const a = 42u8; const b = 41u8; (const a = 43u8; a; b); a";
+        let script =
+            "const a = 42u8; const b = 41u8; (const a = 43u8; a; b); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -2096,7 +2102,10 @@ pub mod tests {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
-            &[TypedInteger::from(1u8).into(), TypedInteger::from(2u8).into()],
+            &[
+                TypedInteger::from(1u8).into(),
+                TypedInteger::from(2u8).into(),
+            ],
             CompileOptions::default(),
         );
         assert_eq!(
@@ -2122,7 +2131,8 @@ pub mod tests {
     #[test]
     fn compile_macro_multi() {
         init_logger_debug();
-        let result = compile!("? + ?", TypedInteger::from(1u8), TypedInteger::from(2u8));
+        let result =
+            compile!("? + ?", TypedInteger::from(1u8), TypedInteger::from(2u8));
         assert_eq!(
             result.unwrap().0,
             vec![
@@ -2505,7 +2515,8 @@ pub mod tests {
 
     #[test]
     fn remote_execution_shadow_const() {
-        let script = "const x = 42u8; const y = 69u8; 1u8 :: (const x = 5u8; x + y)";
+        let script =
+            "const x = 42u8; const y = 69u8; 1u8 :: (const x = 5u8; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(

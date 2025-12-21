@@ -1,8 +1,9 @@
-use crate::global::protocol_structures::instructions::{Instruction, RegularInstruction, TypeInstruction};
+use crate::global::protocol_structures::instructions::{
+    Instruction, RegularInstruction, TypeInstruction,
+};
 use crate::stdlib::vec::Vec;
 
 pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
-
     fn try_extract_value_result(result: R) -> Option<V>;
     fn try_extract_type_result(result: R) -> Option<T>;
     fn try_extract_key_value_pair_result(result: R) -> Option<(K, V)>;
@@ -98,10 +99,9 @@ impl<T> Default for CollectedResults<T> {
     }
 }
 
-
 trait GetResults<T> {
     fn get_results(&self) -> &Vec<T>;
-    fn get_results_mut(&mut self) -> &mut Vec<T> ;
+    fn get_results_mut(&mut self) -> &mut Vec<T>;
 }
 
 impl<T> GetResults<T> for CollectedResults<T> {
@@ -112,8 +112,6 @@ impl<T> GetResults<T> for CollectedResults<T> {
         &mut self.results
     }
 }
-
-
 
 #[derive(Debug)]
 pub enum ResultCollector<T> {
@@ -159,20 +157,32 @@ impl<T> ResultCollector<T> {
     pub fn push_result(&mut self, result: impl Into<T>) {
         match self {
             ResultCollector::Full(collector) => {
-                if collector.collected_results.get_results().len() as u32 >= collector.expected_count {
-                    panic!("Collected more results than expected for the instruction");
+                if collector.collected_results.get_results().len() as u32
+                    >= collector.expected_count
+                {
+                    panic!(
+                        "Collected more results than expected for the instruction"
+                    );
                 }
-                collector.collected_results.get_results_mut().push(result.into());
+                collector
+                    .collected_results
+                    .get_results_mut()
+                    .push(result.into());
             }
             ResultCollector::Last(collector) => {
                 if collector.collected_count >= collector.expected_count {
-                    panic!("Collected more results than expected for the instruction");
+                    panic!(
+                        "Collected more results than expected for the instruction"
+                    );
                 }
                 collector.last_result = Some(result.into());
                 collector.collected_count += 1;
             }
             ResultCollector::FullUnbounded(collector) => {
-                collector.collected_results.get_results_mut().push(result.into());
+                collector
+                    .collected_results
+                    .get_results_mut()
+                    .push(result.into());
             }
             ResultCollector::LastUnbounded(collector) => {
                 collector.last_result = Some(result.into());
@@ -180,14 +190,19 @@ impl<T> ResultCollector<T> {
         }
     }
 
-    pub fn try_pop_collected(
-        &mut self,
-    ) -> Option<FullOrPartialResult<T>> {
+    pub fn try_pop_collected(&mut self) -> Option<FullOrPartialResult<T>> {
         match self {
             ResultCollector::Full(collector) => {
-                if collector.collected_results.get_results().len() as u32 == collector.expected_count {
-                    Some(FullOrPartialResult::Full(collector.instruction.take().unwrap(), core::mem::take(&mut collector.collected_results)))
-                } else if collector.collected_results.get_results().len() as u32 > collector.expected_count {
+                if collector.collected_results.get_results().len() as u32
+                    == collector.expected_count
+                {
+                    Some(FullOrPartialResult::Full(
+                        collector.instruction.take().unwrap(),
+                        core::mem::take(&mut collector.collected_results),
+                    ))
+                } else if collector.collected_results.get_results().len() as u32
+                    > collector.expected_count
+                {
                     panic!(
                         "Collected more results than expected for the last instruction"
                     );
@@ -197,7 +212,10 @@ impl<T> ResultCollector<T> {
             }
             ResultCollector::Last(collector) => {
                 if collector.collected_count == collector.expected_count {
-                    Some(FullOrPartialResult::Partial(collector.instruction.take().unwrap(), collector.last_result.take()))
+                    Some(FullOrPartialResult::Partial(
+                        collector.instruction.take().unwrap(),
+                        collector.last_result.take(),
+                    ))
                 } else if collector.collected_count > collector.expected_count {
                     panic!(
                         "Collected more results than expected for the last instruction"
@@ -215,21 +233,26 @@ impl<T> ResultCollector<T> {
     pub fn try_pop_unbounded(&mut self) -> Option<FullOrPartialResult<T>> {
         match self {
             ResultCollector::LastUnbounded(collector) => {
-                Some(FullOrPartialResult::Partial(collector.instruction.take().unwrap(), collector.last_result.take()))
+                Some(FullOrPartialResult::Partial(
+                    collector.instruction.take().unwrap(),
+                    collector.last_result.take(),
+                ))
             }
             ResultCollector::FullUnbounded(collector) => {
-                Some(FullOrPartialResult::Full(collector.instruction.take().unwrap(), core::mem::take(&mut collector.collected_results)))
+                Some(FullOrPartialResult::Full(
+                    collector.instruction.take().unwrap(),
+                    core::mem::take(&mut collector.collected_results),
+                ))
             }
             _ => None,
         }
     }
 }
 
-
 #[derive(Debug)]
 pub struct InstructionCollector<T> {
     result_collectors: Vec<ResultCollector<T>>,
-    root_result: Option<T>
+    root_result: Option<T>,
 }
 
 impl<T> Default for InstructionCollector<T> {
@@ -241,7 +264,6 @@ impl<T> Default for InstructionCollector<T> {
     }
 }
 
-
 #[derive(Debug)]
 pub enum StatementResultCollectionStrategy {
     Full,
@@ -249,35 +271,51 @@ pub enum StatementResultCollectionStrategy {
 }
 
 impl<T> InstructionCollector<T> {
-    pub fn collect_full(&mut self, instruction: Instruction, expected_count: u32) {
-        self.result_collectors.push(ResultCollector::Full(FullResultCollector {
-            instruction: Some(instruction),
-            expected_count,
-            collected_results: CollectedResults::default(),
-        }));
+    pub fn collect_full(
+        &mut self,
+        instruction: Instruction,
+        expected_count: u32,
+    ) {
+        self.result_collectors.push(ResultCollector::Full(
+            FullResultCollector {
+                instruction: Some(instruction),
+                expected_count,
+                collected_results: CollectedResults::default(),
+            },
+        ));
     }
 
-    pub fn collect_last(&mut self, instruction: Instruction, expected_count: u32) {
-        self.result_collectors.push(ResultCollector::Last(LastResultCollector {
-            instruction: Some(instruction),
-            expected_count,
-            collected_count: 0,
-            last_result: None,
-        }));
+    pub fn collect_last(
+        &mut self,
+        instruction: Instruction,
+        expected_count: u32,
+    ) {
+        self.result_collectors.push(ResultCollector::Last(
+            LastResultCollector {
+                instruction: Some(instruction),
+                expected_count,
+                collected_count: 0,
+                last_result: None,
+            },
+        ));
     }
 
     pub fn collect_full_unbounded(&mut self, instruction: Instruction) {
-        self.result_collectors.push(ResultCollector::FullUnbounded(FullUnboundedResultCollector {
-            instruction: Some(instruction),
-            collected_results: CollectedResults::default(),
-        }));
+        self.result_collectors.push(ResultCollector::FullUnbounded(
+            FullUnboundedResultCollector {
+                instruction: Some(instruction),
+                collected_results: CollectedResults::default(),
+            },
+        ));
     }
 
     pub fn collect_last_unbounded(&mut self, instruction: Instruction) {
-        self.result_collectors.push(ResultCollector::LastUnbounded(LastUnboundedResultCollector {
-            instruction: Some(instruction),
-            last_result: None,
-        }));
+        self.result_collectors.push(ResultCollector::LastUnbounded(
+            LastUnboundedResultCollector {
+                instruction: Some(instruction),
+                last_result: None,
+            },
+        ));
     }
 
     pub fn is_collecting(&self) -> bool {
@@ -293,9 +331,7 @@ impl<T> InstructionCollector<T> {
         }
     }
 
-    pub fn try_pop_collected(
-        &mut self,
-    ) -> Option<FullOrPartialResult<T>> {
+    pub fn try_pop_collected(&mut self) -> Option<FullOrPartialResult<T>> {
         let result_collector = self.result_collectors.last_mut()?;
         let results = result_collector.try_pop_collected();
         if results.is_some() {
@@ -327,7 +363,7 @@ impl<T> InstructionCollector<T> {
     pub fn default_regular_instruction_collection(
         &mut self,
         regular_instruction: RegularInstruction,
-        statement_result_collection_strategy: StatementResultCollectionStrategy
+        statement_result_collection_strategy: StatementResultCollectionStrategy,
     ) -> Option<RegularInstruction> {
         match regular_instruction {
             RegularInstruction::Statements(statements_data)
@@ -336,13 +372,17 @@ impl<T> InstructionCollector<T> {
                 match statement_result_collection_strategy {
                     StatementResultCollectionStrategy::Full => {
                         self.collect_full(
-                            Instruction::RegularInstruction(RegularInstruction::Statements(statements_data)),
+                            Instruction::RegularInstruction(
+                                RegularInstruction::Statements(statements_data),
+                            ),
                             count,
                         );
                     }
                     StatementResultCollectionStrategy::Last => {
                         self.collect_last(
-                            Instruction::RegularInstruction(RegularInstruction::Statements(statements_data)),
+                            Instruction::RegularInstruction(
+                                RegularInstruction::Statements(statements_data),
+                            ),
                             count,
                         );
                     }
@@ -354,12 +394,16 @@ impl<T> InstructionCollector<T> {
                 match statement_result_collection_strategy {
                     StatementResultCollectionStrategy::Full => {
                         self.collect_full_unbounded(
-                            Instruction::RegularInstruction(RegularInstruction::UnboundedStatements),
+                            Instruction::RegularInstruction(
+                                RegularInstruction::UnboundedStatements,
+                            ),
                         );
                     }
                     StatementResultCollectionStrategy::Last => {
                         self.collect_last_unbounded(
-                            Instruction::RegularInstruction(RegularInstruction::UnboundedStatements),
+                            Instruction::RegularInstruction(
+                                RegularInstruction::UnboundedStatements,
+                            ),
                         );
                     }
                 }
@@ -367,7 +411,11 @@ impl<T> InstructionCollector<T> {
             }
             RegularInstruction::UnboundedStatementsEnd(statements_end) => {
                 self.collect_full(
-                    Instruction::RegularInstruction(RegularInstruction::UnboundedStatementsEnd(statements_end)),
+                    Instruction::RegularInstruction(
+                        RegularInstruction::UnboundedStatementsEnd(
+                            statements_end,
+                        ),
+                    ),
                     0,
                 );
                 None
@@ -376,7 +424,9 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::ShortList(list_data) => {
                 let count = list_data.element_count;
                 self.collect_full(
-                    Instruction::RegularInstruction(RegularInstruction::List(list_data)),
+                    Instruction::RegularInstruction(RegularInstruction::List(
+                        list_data,
+                    )),
                     count,
                 );
                 None
@@ -385,7 +435,9 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::ShortMap(map_data) => {
                 let count = map_data.element_count;
                 self.collect_full(
-                    Instruction::RegularInstruction(RegularInstruction::Map(map_data)),
+                    Instruction::RegularInstruction(RegularInstruction::Map(
+                        map_data,
+                    )),
                     count,
                 );
                 None
@@ -403,7 +455,7 @@ impl<T> InstructionCollector<T> {
                     1,
                 );
                 None
-            },
+            }
             RegularInstruction::Add
             | RegularInstruction::Subtract
             | RegularInstruction::Multiply
@@ -413,8 +465,7 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::Equal
             | RegularInstruction::NotStructuralEqual
             | RegularInstruction::NotEqual
-            | RegularInstruction::Is
-            => {
+            | RegularInstruction::Is => {
                 self.collect_full(
                     Instruction::RegularInstruction(regular_instruction),
                     2,
@@ -428,8 +479,7 @@ impl<T> InstructionCollector<T> {
             | RegularInstruction::CreateRefMut
             | RegularInstruction::Deref
             | RegularInstruction::GetOrCreateRef(_)
-            | RegularInstruction::GetOrCreateRefMut(_)
-            => {
+            | RegularInstruction::GetOrCreateRefMut(_) => {
                 self.collect_full(
                     Instruction::RegularInstruction(regular_instruction),
                     1,
@@ -442,7 +492,7 @@ impl<T> InstructionCollector<T> {
                     2,
                 );
                 None
-            },
+            }
 
             RegularInstruction::SetSlot(_)
             | RegularInstruction::AllocateSlot(_)
@@ -484,43 +534,45 @@ impl<T> InstructionCollector<T> {
             RegularInstruction::Apply(apply_data) => {
                 let count = apply_data.arg_count as u32;
                 self.collect_full(
-                    Instruction::RegularInstruction(RegularInstruction::Apply(apply_data)),
+                    Instruction::RegularInstruction(RegularInstruction::Apply(
+                        apply_data,
+                    )),
                     count + 1,
                 );
                 None
             }
 
-            _ => Some(regular_instruction)
+            _ => Some(regular_instruction),
         }
     }
 
     /// Processes a type instruction with default behavior for recursive instructions that need to
     /// collect more results.
     /// Returns Some(type_instruction) if the instruction was not handled and should be processed by the caller.
-    pub fn default_type_instruction_collection(&mut self, type_instruction: TypeInstruction) -> Option<TypeInstruction> {
+    pub fn default_type_instruction_collection(
+        &mut self,
+        type_instruction: TypeInstruction,
+    ) -> Option<TypeInstruction> {
         match type_instruction {
             TypeInstruction::List(list) => {
                 let count = list.element_count;
                 self.collect_full(
-                    Instruction::TypeInstruction(
-                        TypeInstruction::List(list),
-                    ),
+                    Instruction::TypeInstruction(TypeInstruction::List(list)),
                     count,
                 );
                 None
             }
             TypeInstruction::ImplType(impl_type_data) => {
                 self.collect_full(
-                    Instruction::TypeInstruction(
-                        TypeInstruction::ImplType(impl_type_data),
-                    ),
+                    Instruction::TypeInstruction(TypeInstruction::ImplType(
+                        impl_type_data,
+                    )),
                     1,
                 );
                 None
             }
 
-            _ => Some(type_instruction)
+            _ => Some(type_instruction),
         }
     }
-
 }

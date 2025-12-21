@@ -104,10 +104,7 @@ impl DIFValueRepresentation {
             DIFValueRepresentation::Object(object) => {
                 let mut map: Vec<(String, ValueContainer)> = Vec::new();
                 for (k, v) in object.clone() {
-                    map.push((
-                        k,
-                        v.to_value_container(memory)?,
-                    ));
+                    map.push((k, v.to_value_container(memory)?));
                 }
                 Value {
                     actual_type: Box::new(get_core_lib_type_definition(
@@ -156,11 +153,15 @@ impl DIFValueRepresentation {
                             if let DIFValueRepresentation::Object(object) =
                                 self =>
                         {
-                            let mut entries: Vec<(String, ValueContainer)> = Vec::new();
+                            let mut entries: Vec<(String, ValueContainer)> =
+                                Vec::new();
                             for (k, v) in object.clone().into_iter() {
-                                entries.push((k, v.to_value_container(memory)?));
+                                entries
+                                    .push((k, v.to_value_container(memory)?));
                             }
-                            Some(Value::from(CoreValue::Map(Map::from(entries))))
+                            Some(Value::from(CoreValue::Map(Map::from(
+                                entries,
+                            ))))
                         }
                         // type map and represented as empty array -> convert to empty map
                         CoreLibPointerId::Map

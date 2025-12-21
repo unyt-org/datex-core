@@ -42,9 +42,7 @@ pub fn decompile_value(
 
 fn format_ast(ast: DatexExpression, options: DecompileOptions) -> String {
     let colorized = options.formatting_options.colorized;
-    let formatter = AstToSourceCodeConverter::new(
-        options.formatting_options,
-    );
+    let formatter = AstToSourceCodeConverter::new(options.formatting_options);
     // convert AST to source code
     let source = formatter.format(&ast);
     if colorized {
