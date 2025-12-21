@@ -32,6 +32,7 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
+use crate::stdlib::time::Instant;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
@@ -151,13 +152,13 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
-        let compile_start = instant::Instant::now();
+        let compile_start = Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
         debug!(
             "[Compilation took {} ms]",
             compile_start.elapsed().as_millis()
         );
-        let execute_start = instant::Instant::now();
+        let execute_start = Instant::now();
         let result = RuntimeInternal::execute_dxb(
             self_rc,
             dxb,
@@ -182,13 +183,13 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
-        let compile_start = instant::Instant::now();
+        let compile_start = Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
         debug!(
             "[Compilation took {} ms]",
             compile_start.elapsed().as_millis()
         );
-        let execute_start = instant::Instant::now();
+        let execute_start = Instant::now();
         let result = RuntimeInternal::execute_dxb_sync(
             self_rc,
             &dxb,

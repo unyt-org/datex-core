@@ -50,6 +50,7 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
+use crate::stdlib::time::Instant
 
 pub mod context;
 pub mod error;
@@ -339,7 +340,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //         compile_value_container(inserted_values[0]).map(StaticValueOrAst::from)?;
     //     return Ok((result, options.compile_scope));
     // }
-    let parse_start = instant::Instant::now();
+    let parse_start = Instant::now();
     let mut valid_parse_result = parse(datex_script)
         .to_result()
         .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
@@ -368,7 +369,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
         " [parse took {} ms]",
         parse_start.elapsed().as_millis()
     );
-    let precompile_start = instant::Instant::now();
+    let precompile_start = Instant::now();
     let res = precompile_to_rich_ast(
         valid_parse_result,
         &mut options.compile_scope,
@@ -435,7 +436,7 @@ pub fn compile_template<'a>(
         inserted_values.to_vec(),
         options.compile_scope.execution_mode,
     );
-    let compile_start = instant::Instant::now();
+    let compile_start = Instant::now();
     let res = compile_ast(ast, &mut compilation_context, options)
         .map(|scope| (compilation_context.buffer, scope))
         .map_err(SpannedCompilerError::from);
