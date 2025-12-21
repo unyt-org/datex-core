@@ -278,7 +278,7 @@ impl ComHub {
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
         info!(
-            "creating interface {interface_type} with setup data: {setup_data:?}"
+            "creating interface {interface_type}"
         );
         let interface_factories = self.interface_factories.borrow();
         if let Some(factory) = interface_factories.get(interface_type) {

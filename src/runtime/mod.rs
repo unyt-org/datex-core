@@ -37,7 +37,7 @@ use execution::context::{
 };
 use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 pub mod dif_interface;
@@ -151,15 +151,26 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
+        let compile_start = instant::Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb(
+        debug!(
+            "[Compilation took {} ms]",
+            compile_start.elapsed().as_millis()
+        );
+        let execute_start = instant::Instant::now();
+        let result = RuntimeInternal::execute_dxb(
             self_rc,
             dxb,
             Some(execution_context),
             true,
         )
         .await
-        .map_err(ScriptExecutionError::from)
+        .map_err(ScriptExecutionError::from);
+        debug!(
+            "[Execution took {} ms]",
+            execute_start.elapsed().as_millis()
+        );
+        result
     }
 
     #[cfg(feature = "compiler")]
@@ -171,14 +182,25 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
+        let compile_start = instant::Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb_sync(
+        debug!(
+            "[Compilation took {} ms]",
+            compile_start.elapsed().as_millis()
+        );
+        let execute_start = instant::Instant::now();
+        let result = RuntimeInternal::execute_dxb_sync(
             self_rc,
             &dxb,
             Some(execution_context),
             true,
         )
-        .map_err(ScriptExecutionError::from)
+        .map_err(ScriptExecutionError::from);
+        debug!(
+            "[Execution took {} ms]",
+            execute_start.elapsed().as_millis()
+        );
+        result
     }
 
     pub fn execute_dxb<'a>(
