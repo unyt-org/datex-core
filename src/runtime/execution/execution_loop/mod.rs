@@ -222,7 +222,7 @@ pub fn execution_loop(
                         ) => {
                             yield Err(
                                 ExecutionError::IntermediateResultWithState(
-                                    active_value.clone(),
+                                    active_value.take(),
                                     None,
                                 ),
                             );
