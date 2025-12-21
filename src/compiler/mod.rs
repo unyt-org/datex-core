@@ -50,7 +50,7 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
-use crate::stdlib::time::Instant;
+use crate::time::Instant;
 
 pub mod context;
 pub mod error;
