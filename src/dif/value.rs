@@ -230,32 +230,32 @@ impl DIFValue {
                     };
 
                     DIFValueRepresentation::Map(
-                            map.into_iter()
-                                .map(|(k, v)| {
-                                    (
-                                        match k {
-                                            BorrowedMapKey::Text(text_key) => {
-                                                DIFValueContainer::Value(
-                                                    DIFValueRepresentation::String(
-                                                        text_key.to_string(),
-                                                    )
-                                                        .into(),
+                        map.into_iter()
+                            .map(|(k, v)| {
+                                (
+                                    match k {
+                                        BorrowedMapKey::Text(text_key) => {
+                                            DIFValueContainer::Value(
+                                                DIFValueRepresentation::String(
+                                                    text_key.to_string(),
                                                 )
-                                            }
-                                            _ => {
-                                                DIFValueContainer::from_value_container(
-                                                    &ValueContainer::from(k),
-                                                    memory,
-                                                )
-                                            }
-                                        },
-                                        DIFValueContainer::from_value_container(
-                                            v, memory,
-                                        ),
-                                    )
-                                })
-                                .collect(),
-                        )
+                                                    .into(),
+                                            )
+                                        }
+                                        _ => {
+                                            DIFValueContainer::from_value_container(
+                                                &ValueContainer::from(k),
+                                                memory,
+                                            )
+                                        }
+                                    },
+                                    DIFValueContainer::from_value_container(
+                                        v, memory,
+                                    ),
+                                )
+                            })
+                            .collect(),
+                    )
                 }
             },
         };
