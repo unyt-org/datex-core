@@ -30,6 +30,8 @@ pub enum Instruction {
     // big integers
     BigInteger(IntegerData),
 
+    Range(RangeData),
+
     Endpoint(Endpoint),
 
     DecimalF32(Float32Data),
@@ -124,6 +126,10 @@ impl Display for Instruction {
             Instruction::UInt64(data) => core::write!(f, "UINT_64 {}", data.0),
             Instruction::UInt128(data) => {
                 core::write!(f, "UINT_128 {}", data.0)
+            }
+
+            Instruction::Range(data) => {
+                core::write!(f, "RANGE {} {}", data.start, data.end)
             }
 
             Instruction::Apply(count) => {
@@ -460,4 +466,11 @@ pub struct ExecutionBlockData {
 #[brw(little)]
 pub struct ApplyData {
     pub arg_count: u16,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct RangeData {
+    pub start: Integer,
+    pub end: Integer,
 }

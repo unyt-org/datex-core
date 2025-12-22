@@ -13,7 +13,7 @@ use core::cell::RefCell;
 use crate::ast::parse_result::ValidDatexParseResult;
 use crate::ast::structs::expression::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
-    DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
+    DerefAssignment, Range, RemoteExecution, Slot, Statements, UnaryOperation,
     VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::{DatexScriptParser, parse};
@@ -491,6 +491,20 @@ fn compile_expression(
             append_encoded_integer(
                 &mut compilation_context.buffer,
                 &int.to_smallest_fitting(),
+            );
+        }
+        DatexExpressionData::Range(range) => {
+            append_instruction_code(
+                &mut compilation_context.buffer,
+                InstructionCode::RANGE,
+            );
+            append_encoded_integer(
+                &mut compilation_context.buffer,
+                &range.start.to_smallest_fitting(),
+            );
+            append_encoded_integer(
+                &mut compilation_context.buffer,
+                &range.end.to_smallest_fitting(),
             );
         }
         DatexExpressionData::TypedInteger(typed_int) => {
@@ -1461,6 +1475,25 @@ pub mod tests {
         let datex_script = format!("{val}"); // 42
         let result = compile_and_log(&datex_script);
         assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
+    }
+
+    #[test]
+    fn range_u8() {
+        init_logger_debug();
+        let start = 11u8;
+        let end = 13u8;
+        let datex_script = format!("{start}..{end}");
+        let result = compile_and_log(&datex_script);
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::RANGE.into(),
+                InstructionCode::INT_8.into(),
+                start,
+                InstructionCode::INT_8.into(),
+                end
+            ]
+        );
     }
 
     // Test for decimal

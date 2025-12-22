@@ -22,13 +22,13 @@ use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
-use core::ops::{Neg, Range};
+use core::{ops, ops::Neg};
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
 pub struct DatexExpression {
     pub data: DatexExpressionData,
-    pub span: Range<usize>,
+    pub span: ops::Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
     pub ty: Option<TypeContainer>,
 }
@@ -46,7 +46,7 @@ impl Default for DatexExpression {
     }
 }
 impl DatexExpression {
-    pub fn new(data: DatexExpressionData, span: Range<usize>) -> Self {
+    pub fn new(data: DatexExpressionData, span: ops::Range<usize>) -> Self {
         DatexExpression {
             data,
             span,
@@ -178,7 +178,7 @@ pub enum DatexExpressionData {
 impl Spanned for DatexExpressionData {
     type Output = DatexExpression;
 
-    fn with_span<T: Into<Range<usize>>>(self, span: T) -> Self::Output {
+    fn with_span<T: Into<ops::Range<usize>>>(self, span: T) -> Self::Output {
         DatexExpression {
             data: self,
             span: span.into(),
@@ -255,10 +255,7 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                 )
             }
             DatexExpressionData::Range(range) => ValueContainer::from(
-                crate::values::core_values::range::Range::new(
-                    range.start.clone(),
-                    range.end.clone(),
-                ),
+                range::Range::new(range.start.clone(), range.end.clone()),
             ),
             _ => Err(())?,
         })
@@ -271,6 +268,12 @@ pub struct BinaryOperation {
     pub left: Box<DatexExpression>,
     pub right: Box<DatexExpression>,
     pub ty: Option<Type>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Range {
+    pub start: Box<DatexExpression>,
+    pub end: Box<DatexExpression>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
