@@ -471,6 +471,6 @@ pub struct ApplyData {
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
 pub struct RangeData {
-    pub start: Integer,
-    pub end: Integer,
+    pub start: u8,
+    pub end: u8,
 }

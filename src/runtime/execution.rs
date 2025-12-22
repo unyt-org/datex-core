@@ -43,6 +43,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::list::List;
 use crate::values::core_values::map::Map;
+use crate::values::core_values::range::Range;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
@@ -772,6 +773,10 @@ fn get_result_value_from_instruction(
 
             // null
             Instruction::Null => Some(Value::null().into()),
+
+            Instruction::Range(range) => {
+                Some(Range::new(range.start.into(), range.end.into()).into())
+            }
 
             // text
             Instruction::ShortText(ShortTextData(text)) => Some(text.into()),

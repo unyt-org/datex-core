@@ -3,10 +3,10 @@ use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, ExecutionBlockData, Float32Data, Float64Data,
     FloatAsInt16Data, FloatAsInt32Data, Instruction, Int8Data, Int16Data,
-    Int32Data, Int64Data, Int128Data, IntegerData, RawFullPointerAddress,
-    RawInternalPointerAddress, ShortTextData, ShortTextDataRaw, SlotAddress,
-    TextData, TextDataRaw, TypeInstruction, UInt8Data, UInt16Data, UInt32Data,
-    UInt64Data, UInt128Data,
+    Int32Data, Int64Data, Int128Data, IntegerData, RangeData,
+    RawFullPointerAddress, RawInternalPointerAddress, ShortTextData,
+    ShortTextDataRaw, SlotAddress, TextData, TextDataRaw, TypeInstruction,
+    UInt8Data, UInt16Data, UInt32Data, UInt64Data, UInt128Data,
 };
 use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
 use crate::stdlib::string::FromUtf8Error;
@@ -160,6 +160,16 @@ pub fn iterate_instructions<'a>(
                             Ok(Instruction::UInt8(data.unwrap()))
                         }
                     }
+
+                    InstructionCode::RANGE => {
+                        let data = RangeData::read(&mut reader);
+                        if let Err(err) = data {
+                            Err(err.into())
+                        } else {
+                            Ok(Instruction::Range(data.unwrap()))
+                        }
+                    }
+
                     InstructionCode::UINT_16 => {
                         let data = UInt16Data::read(&mut reader);
                         if let Err(err) = data {
