@@ -19,8 +19,8 @@ use crate::global::protocol_structures::instructions::UInt64Data;
 use crate::global::protocol_structures::instructions::UInt128Data;
 use crate::global::protocol_structures::instructions::{
     DecimalData, Float32Data, Float64Data, FloatAsInt16Data, FloatAsInt32Data,
-    Instruction, Int8Data, Int16Data, Int32Data, Int64Data, ShortTextData,
-    TextData,
+    Instruction, Int8Data, Int16Data, Int32Data, Int64Data, RangeData,
+    ShortTextData, TextData,
 };
 use crate::parser::body;
 use crate::parser::body::DXBParserError;
@@ -441,6 +441,16 @@ fn decompile_loop(
                     indentation_levels,
                 )?;
                 core::write!(output, "{u128}")?;
+                handle_after_term(state, &mut output, false)?;
+            }
+            Instruction::Range(data) => {
+                handle_before_term(
+                    state,
+                    &mut output,
+                    true,
+                    indentation_levels,
+                )?;
+                core::write!(output, "{}..{}", data.start, data.end)?;
                 handle_after_term(state, &mut output, false)?;
             }
             Instruction::BigInteger(IntegerData(big_int)) => {

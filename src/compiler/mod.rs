@@ -498,13 +498,21 @@ fn compile_expression(
                 &mut compilation_context.buffer,
                 InstructionCode::RANGE,
             );
+            let start = match range.start.data {
+                DatexExpressionData::Integer(int) => int,
+                _ => panic!("CompilerOutRanged"),
+            };
+            let end = match range.end.data {
+                DatexExpressionData::Integer(int) => int,
+                _ => panic!("CompilerOutRanged"),
+            };
             append_encoded_integer(
                 &mut compilation_context.buffer,
-                &range.start.to_smallest_fitting(),
+                &start.to_smallest_fitting(),
             );
             append_encoded_integer(
                 &mut compilation_context.buffer,
-                &range.end.to_smallest_fitting(),
+                &end.to_smallest_fitting(),
             );
         }
         DatexExpressionData::TypedInteger(typed_int) => {

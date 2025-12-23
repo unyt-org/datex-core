@@ -1,4 +1,4 @@
-use core::ops::Range;
+use core::ops;
 
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
@@ -67,7 +67,7 @@ pub enum TypeExpressionData {
 impl Spanned for TypeExpressionData {
     type Output = TypeExpression;
 
-    fn with_span<T: Into<Range<usize>>>(self, span: T) -> Self::Output {
+    fn with_span<T: Into<ops::Range<usize>>>(self, span: T) -> Self::Output {
         TypeExpression {
             data: self,
             span: span.into(),
@@ -90,12 +90,12 @@ impl Spanned for TypeExpressionData {
 /// A type expression in the AST
 pub struct TypeExpression {
     pub data: TypeExpressionData,
-    pub span: Range<usize>,
+    pub span: ops::Range<usize>,
     pub wrapped: Option<usize>, // number of wrapping parentheses
     pub ty: Option<TypeContainer>,
 }
 impl TypeExpression {
-    pub fn new(data: TypeExpressionData, span: Range<usize>) -> Self {
+    pub fn new(data: TypeExpressionData, span: ops::Range<usize>) -> Self {
         Self {
             data,
             span,

@@ -27,11 +27,11 @@ use crate::ast::parse_result::{
     DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
 };
 use crate::ast::structs::expression::{
-    DatexExpression, DatexExpressionData, Statements,
+    DatexExpression, DatexExpressionData, Range, Statements,
 };
 use chumsky::extra::Err;
 use chumsky::prelude::*;
-use core::ops::Range;
+use core::ops;
 use core::result::Result;
 use lexer::Token;
 use logos::Logos;
@@ -150,6 +150,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(list.clone(), map.clone(), wrapped_expression.clone());
+    let range = range(atom.clone());
     let unary = unary(atom.clone());
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
@@ -157,8 +158,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
     let binary = binary_operation(chain);
-
-    let range = range(binary.clone());
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -273,13 +272,15 @@ pub fn parse(mut src: &str) -> DatexParseResult {
 
     // lex the source code
     let tokens = Token::lexer(src);
-    let tokens_spanned_result: Result<Vec<(Token, Range<usize>)>, _> = tokens
-        .spanned()
-        .map(|(tok, span)| {
-            tok.map(|t| (t, span.clone()))
-                .map_err(|_| ParseError::new_unexpected_with_span(None, span))
-        })
-        .collect::<Result<_, _>>();
+    let tokens_spanned_result: Result<Vec<(Token, ops::Range<usize>)>, _> =
+        tokens
+            .spanned()
+            .map(|(tok, span)| {
+                tok.map(|t| (t, span.clone())).map_err(|_| {
+                    ParseError::new_unexpected_with_span(None, span)
+                })
+            })
+            .collect::<Result<_, _>>();
     // return early if lexing failed
     if let Err(err) = &tokens_spanned_result {
         return DatexParseResult::Invalid(InvalidDatexParseResult {
@@ -1849,10 +1850,16 @@ mod tests {
         let range = parse_unwrap_data(src);
         assert_eq!(
             range,
-            DatexExpressionData::Range(range::Range::new(
-                Integer::from(11),
-                Integer::from(13),
-            ))
+            DatexExpressionData::Range(Range {
+                start: Box::new(
+                    DatexExpressionData::Integer(Integer::from(11))
+                        .with_default_span()
+                ),
+                end: Box::new(
+                    DatexExpressionData::Integer(Integer::from(13))
+                        .with_default_span()
+                ),
+            })
         );
     }
 

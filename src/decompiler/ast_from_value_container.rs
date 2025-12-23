@@ -9,6 +9,8 @@ use crate::values::core_value::CoreValue;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
+use crate::ast::structs::expression;
+
 impl From<&ValueContainer> for DatexExpressionData {
     /// Converts a ValueContainer into a DatexExpression AST.
     /// This AST can then be further processed or decompiled into human-readable DATEX code.
@@ -44,7 +46,18 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
         }
         CoreValue::Boolean(boolean) => DatexExpressionData::Boolean(boolean.0),
         CoreValue::Text(text) => DatexExpressionData::Text(text.0.clone()),
-        CoreValue::Range(range) => DatexExpressionData::Range(range.clone()),
+        CoreValue::Range(range) => {
+            DatexExpressionData::Range(expression::Range {
+                start: Box::new(
+                    DatexExpressionData::Integer(range.clone().start)
+                        .with_default_span(),
+                ),
+                end: Box::new(
+                    DatexExpressionData::Integer(range.clone().end)
+                        .with_default_span(),
+                ),
+            })
+        }
         CoreValue::Endpoint(endpoint) => {
             DatexExpressionData::Endpoint(endpoint.clone())
         }
@@ -84,6 +97,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
+    use crate::ast::structs::expression;
     use crate::ast::structs::expression::{DatexExpressionData, List};
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -109,10 +123,16 @@ mod tests {
         let ast = DatexExpressionData::from(&range);
         assert_eq!(
             ast,
-            DatexExpressionData::Range(Range::new(
-                Integer::from(11),
-                Integer::from(13)
-            ))
+            DatexExpressionData::Range(expression::Range {
+                start: Box::new(
+                    DatexExpressionData::Integer(Integer::from(11))
+                        .with_default_span()
+                ),
+                end: Box::new(
+                    DatexExpressionData::Integer(Integer::from(13))
+                        .with_default_span()
+                ),
+            })
         );
     }
 

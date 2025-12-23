@@ -89,7 +89,7 @@ pub enum DatexExpressionData {
     /// Integer, e.g 123456789123456789
     Integer(Integer),
 
-    Range(range::Range),
+    Range(Range),
 
     /// Typed Integer, e.g. 123i8
     TypedInteger(TypedInteger),
@@ -254,9 +254,20 @@ impl TryFrom<&DatexExpressionData> for ValueContainer {
                     crate::values::core_values::map::Map::from(entries),
                 )
             }
-            DatexExpressionData::Range(range) => ValueContainer::from(
-                range::Range::new(range.start.clone(), range.end.clone()),
-            ),
+            DatexExpressionData::Range(range) => {
+                let start = match &range.start.data {
+                    DatexExpressionData::Integer(int) => int,
+                    _ => panic!("OutReachedStart"),
+                };
+                let end = match &range.end.data {
+                    DatexExpressionData::Integer(int) => int,
+                    _ => panic!("OutReachedEnd"),
+                };
+                ValueContainer::from(range::Range::new(
+                    start.clone(),
+                    end.clone(),
+                ))
+            }
             _ => Err(())?,
         })
     }
@@ -274,6 +285,20 @@ pub struct BinaryOperation {
 pub struct Range {
     pub start: Box<DatexExpression>,
     pub end: Box<DatexExpression>,
+}
+
+impl Display for Range {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let start = match &self.start.data {
+            DatexExpressionData::Integer(int) => int.to_string(),
+            _ => panic!("CompilerOutRanged"),
+        };
+        let end = match &self.end.data {
+            DatexExpressionData::Integer(int) => int.to_string(),
+            _ => panic!("CompilerOutRanged"),
+        };
+        core::write!(f, "{}..{}", start, end)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

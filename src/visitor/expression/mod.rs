@@ -1,6 +1,7 @@
 pub mod visitable;
 use core::ops::Range;
 
+use crate::ast::structs::expression;
 use crate::ast::structs::expression::{
     ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
     DatexExpression, DatexExpressionData, Deref, DerefAssignment,
@@ -13,7 +14,6 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::core_values::range;
 use crate::values::pointer::PointerAddress;
 use crate::visitor::VisitAction;
 use crate::visitor::expression::visitable::{
@@ -566,7 +566,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
 
     fn visit_range_definition(
         &mut self,
-        range: &range::Range,
+        range: &expression::Range,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
