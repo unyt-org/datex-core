@@ -100,8 +100,10 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             append_instruction_code(buffer, InstructionCode::RANGE);
             let start = range.start.to_smallest_fitting();
             let end = range.end.to_smallest_fitting();
-            append_encoded_integer(buffer, &start);
-            append_encoded_integer(buffer, &end);
+            let x = start.as_u128().unwrap();
+            let y = end.as_u128().unwrap();
+            append_u128(buffer, x);
+            append_u128(buffer, y);
         }
     }
 }

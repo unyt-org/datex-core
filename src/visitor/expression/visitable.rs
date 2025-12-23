@@ -284,6 +284,8 @@ impl<E> VisitableExpression<E> for DatexExpression {
                 remote_execution.walk_children(visitor)
             }
 
+            DatexExpressionData::Range(range) => range.walk_children(visitor),
+
             DatexExpressionData::Noop
             | DatexExpressionData::VariantAccess(_)
             | DatexExpressionData::PointerAddress(_)
@@ -298,7 +300,6 @@ impl<E> VisitableExpression<E> for DatexExpression {
             | DatexExpressionData::Decimal(_)
             | DatexExpressionData::TypedDecimal(_)
             | DatexExpressionData::Integer(_)
-            | DatexExpressionData::Range(_)
             | DatexExpressionData::TypedInteger(_)
             | DatexExpressionData::Identifier(_)
             | DatexExpressionData::Endpoint(_) => Ok(()),

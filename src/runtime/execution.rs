@@ -775,6 +775,7 @@ fn get_result_value_from_instruction(
             Instruction::Null => Some(Value::null().into()),
 
             Instruction::Range(range) => {
+                info!("RANGE: {:?} .. {:?}", range.start, range.end);
                 Some(Range::new(range.start.into(), range.end.into()).into())
             }
 
@@ -1819,6 +1820,18 @@ mod tests {
         assert_eq!(result, Integer::from(2).into());
         assert_ne!(result, 2_u8.into());
         assert_structural_eq!(result, ValueContainer::from(2_i8));
+    }
+    #[test]
+    fn failing_range() {
+        init_logger_debug();
+        let result = execute_datex_script_debug_with_result("11..13");
+        assert_eq!(
+            result,
+            ValueContainer::from(Range::new(
+                Integer::from(11).into(),
+                Integer::from(13).into()
+            ))
+        );
     }
 
     #[test]
