@@ -150,7 +150,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
     let atom = atom(list.clone(), map.clone(), wrapped_expression.clone());
-    let range = range(atom.clone());
+    // let range = range(atom.clone());
     let unary = unary(atom.clone());
 
     // apply chain: two expressions following each other directly, optionally separated with "." (property access)
@@ -158,6 +158,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         chain(unary.clone(), key.clone(), atom.clone(), expression.clone());
 
     let binary = binary_operation(chain);
+    let range = infix_range(binary.clone());
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());

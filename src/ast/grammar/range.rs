@@ -1,4 +1,4 @@
-use crate::ast::grammar::utils::whitespace;
+use crate::ast::grammar::utils::{operation, whitespace};
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::{DatexParserTrait, structs::expression::DatexExpressionData};
@@ -23,4 +23,25 @@ pub fn range<'a>(
             })
             .with_span(e.span())
         })
+}
+
+pub fn infix_range<'a>(
+    atomic: impl DatexParserTrait<'a>,
+) -> impl DatexParserTrait<'a> {
+    let base = atomic.clone();
+
+    let tail = just(Token::Range)
+        .padded_by(whitespace())
+        .ignore_then(base.clone());
+
+    base.foldl(tail.repeated(), |lhs, rhs| {
+        let start = lhs.span.start.min(rhs.span.start);
+        let end = lhs.span.start.min(rhs.span.end);
+        DatexExpressionData::Range(Range {
+            start: Box::new(lhs),
+            end: Box::new(rhs),
+        })
+        .with_span(SimpleSpan::from(start..end))
+    })
+    .boxed()
 }

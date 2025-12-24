@@ -498,20 +498,18 @@ fn compile_expression(
                 &mut compilation_context.buffer,
                 InstructionCode::RANGE,
             );
-            let start = match range.start.data {
-                DatexExpressionData::Integer(int) => {
-                    int.to_smallest_fitting().as_i64().unwrap()
-                }
-                _ => panic!("CompilerOutRanged"),
-            };
-            let end = match range.end.data {
-                DatexExpressionData::Integer(int) => {
-                    int.to_smallest_fitting().as_i64().unwrap()
-                }
-                _ => panic!("CompilerOutRanged"),
-            };
-            append_i64(&mut compilation_context.buffer, start);
-            append_i64(&mut compilation_context.buffer, end);
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*range.start, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*range.end, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
         DatexExpressionData::TypedInteger(typed_int) => {
             append_typed_integer(&mut compilation_context.buffer, &typed_int);
