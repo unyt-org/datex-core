@@ -1821,7 +1821,7 @@ mod tests {
         assert_structural_eq!(result, ValueContainer::from(2_i8));
     }
     #[test]
-    fn failing_range() {
+    fn runtime_range() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("11..13");
         assert_eq!(

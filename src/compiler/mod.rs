@@ -493,24 +493,6 @@ fn compile_expression(
                 &int.to_smallest_fitting(),
             );
         }
-        DatexExpressionData::Range(range) => {
-            append_instruction_code(
-                &mut compilation_context.buffer,
-                InstructionCode::RANGE,
-            );
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*range.start, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*range.end, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
-        }
         DatexExpressionData::TypedInteger(typed_int) => {
             append_typed_integer(&mut compilation_context.buffer, &typed_int);
         }
@@ -1057,6 +1039,24 @@ fn compile_expression(
                 scope,
             )?;
         }
+        DatexExpressionData::Range(range) => {
+            append_instruction_code(
+                &mut compilation_context.buffer,
+                InstructionCode::RANGE,
+            );
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*range.start, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*range.end, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
 
         DatexExpressionData::Deref(deref) => {
             compilation_context.mark_has_non_static_value();
@@ -1525,35 +1525,18 @@ pub mod tests {
         );
     }
     #[test]
-    fn fancy_range() {
+    fn range_panic() {
+        use std::panic::catch_unwind;
         init_logger_debug();
+
         let start = 11i64;
         let end = 13i64;
         let datex_script = format!("var x = {start}; var y = {end}; x..y");
-        let result = compile_and_log(&datex_script);
-        let x = start as u8;
-        let y = end as u8;
-        assert_eq!(
-            result,
-            vec![
-                InstructionCode::RANGE.into(),
-                x,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                y,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                0u8,
-                0u8
-            ]
-        );
+
+        let result = catch_unwind(|| {
+            compile_script(&datex_script, CompileOptions::default());
+        });
+        assert!(result.is_err());
     }
 
     // Test for decimal

@@ -164,7 +164,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let function_declaration = function(statements.clone());
 
     // comparison (==, !=, is, …)
-    let comparison = comparison_operation(binary.clone());
+    let comparison = comparison_operation(range.clone());
 
     // declarations or assignments
     let declaration_or_assignment =
@@ -235,7 +235,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
             type_expression(),
             if_expression,
             declaration_or_assignment,
-            range,
             function_declaration,
             comparison,
         ))
@@ -1846,7 +1845,7 @@ mod tests {
     }
 
     #[test]
-    fn fail_range() {
+    fn ast_range() {
         let src = "11..13";
         let range = parse_unwrap_data(src);
         assert_eq!(

@@ -37,13 +37,13 @@ pub fn infix_range<'a>(
     base.foldl(tail.repeated(), |lhs, rhs| {
         let _x = match lhs.data {
             DatexExpressionData::Identifier(_) => {
-                panic!("Needs id resolution");
+                todo!("Figure out how to handle identifiers");
             }
             _ => {}
         };
         let _y = match rhs.data {
             DatexExpressionData::Identifier(_) => {
-                panic!("Needs id resolution");
+                panic!("See todo above");
             }
             _ => {}
         };
