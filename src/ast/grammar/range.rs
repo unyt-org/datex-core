@@ -4,7 +4,7 @@ use crate::ast::spanned::Spanned;
 use crate::ast::{DatexParserTrait, structs::expression::DatexExpressionData};
 use chumsky::prelude::*;
 
-use crate::ast::structs::expression::Range;
+use crate::ast::structs::expression::{DatexExpression, Range};
 
 pub fn range<'a>(
     atomic: impl DatexParserTrait<'a>,
@@ -35,8 +35,20 @@ pub fn infix_range<'a>(
         .ignore_then(base.clone());
 
     base.foldl(tail.repeated(), |lhs, rhs| {
+        let _x = match lhs.data {
+            DatexExpressionData::Identifier(_) => {
+                panic!("Needs id resolution");
+            }
+            _ => {}
+        };
+        let _y = match rhs.data {
+            DatexExpressionData::Identifier(_) => {
+                panic!("Needs id resolution");
+            }
+            _ => {}
+        };
         let start = lhs.span.start.min(rhs.span.start);
-        let end = lhs.span.start.min(rhs.span.end);
+        let end = lhs.span.start.max(rhs.span.end);
         DatexExpressionData::Range(Range {
             start: Box::new(lhs),
             end: Box::new(rhs),

@@ -233,9 +233,9 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     inner_expression.define(
         choice((
             type_expression(),
-            range,
             if_expression,
             declaration_or_assignment,
+            range,
             function_declaration,
             comparison,
         ))

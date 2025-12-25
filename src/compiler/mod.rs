@@ -1494,8 +1494,50 @@ pub mod tests {
             result,
             vec![
                 InstructionCode::RANGE.into(),
+                InstructionCode::INT_8.into(),
                 x,
-                0u8,
+                InstructionCode::INT_8.into(),
+                y,
+            ]
+        );
+    }
+    #[test]
+    fn range_i64() {
+        init_logger_debug();
+        let start = -256i64;
+        let end = 256i64;
+        let datex_script = format!("{start}..{end}");
+        let result = compile_and_log(&datex_script);
+        let x = start as u8;
+        let y = end as u8;
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::RANGE.into(),
+                InstructionCode::UNARY_MINUS.into(),
+                InstructionCode::INT_16.into(),
+                x,
+                InstructionCode::CLOSE_AND_STORE.into(),
+                InstructionCode::INT_16.into(),
+                y,
+                InstructionCode::CLOSE_AND_STORE.into(),
+            ]
+        );
+    }
+    #[test]
+    fn fancy_range() {
+        init_logger_debug();
+        let start = 11i64;
+        let end = 13i64;
+        let datex_script = format!("var x = {start}; var y = {end}; x..y");
+        let result = compile_and_log(&datex_script);
+        let x = start as u8;
+        let y = end as u8;
+        assert_eq!(
+            result,
+            vec![
+                InstructionCode::RANGE.into(),
+                x,
                 0u8,
                 0u8,
                 0u8,

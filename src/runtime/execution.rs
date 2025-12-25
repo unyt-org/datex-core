@@ -775,7 +775,6 @@ fn get_result_value_from_instruction(
             Instruction::Null => Some(Value::null().into()),
 
             Instruction::Range(range) => {
-                info!("RANGE: {:?} .. {:?}", range.start, range.end);
                 Some(Range::new(range.start.into(), range.end.into()).into())
             }
 
