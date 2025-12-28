@@ -6,7 +6,7 @@ use core::prelude::rust_2024::*;
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum ComparisonOperator {
     Is,                 // is
-    Matches,            // matches
+    Matches,            // matches FIXME remove from here
     StructuralEqual,    // ==
     NotStructuralEqual, // !=
     Equal,              // ===
