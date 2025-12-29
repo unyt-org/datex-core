@@ -1,13 +1,7 @@
 pub mod visitable;
 use core::ops::Range;
-
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
-    DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, PropertyAssignment, RemoteExecution, Slot,
-    SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
-    VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess,
-};
+use datex_core::ast::structs::expression::GenericInstantiation;
+use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -146,8 +140,14 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::DerefAssignment(deref_assignment) => {
                 self.visit_deref_assignment(deref_assignment, &expr.span)
             }
-            DatexExpressionData::ApplyChain(apply_chain) => {
-                self.visit_apply_chain(apply_chain, &expr.span)
+            DatexExpressionData::Apply(apply_chain) => {
+                self.visit_apply(apply_chain, &expr.span)
+            }
+            DatexExpressionData::PropertyAccess(property_access) => {
+                self.visit_property_access(property_access, &expr.span)
+            }
+            DatexExpressionData::GenericInstantiation(generic_instantiation) => {
+                self.visit_generic_instantiation(generic_instantiation, &expr.span)
             }
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 self.visit_remote_execution(remote_execution, &expr.span)
@@ -308,13 +308,35 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     }
 
     /// Visit apply chain
-    fn visit_apply_chain(
+    fn visit_apply(
         &mut self,
-        apply_chain: &mut ApplyChain,
+        apply: &mut Apply,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
-        let _ = apply_chain;
+        let _ = apply;
+        Ok(VisitAction::VisitChildren)
+    }
+    
+    /// Visit property access
+    fn visit_property_access(
+        &mut self,
+        property_access: &mut PropertyAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_access;
+        Ok(VisitAction::VisitChildren)
+    }
+    
+    /// Visit generic instantiation
+    fn visit_generic_instantiation(
+        &mut self,
+        generic_instantiation: &mut GenericInstantiation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = generic_instantiation;
         Ok(VisitAction::VisitChildren)
     }
 

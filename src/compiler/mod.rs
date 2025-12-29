@@ -836,9 +836,25 @@ fn compile_expression(
         }
 
         // apply
-        DatexExpressionData::ApplyChain(_) => {
+        DatexExpressionData::Apply(apply) => {
             compilation_context.mark_has_non_static_value();
-            // TODO #150
+            let base_expression = apply.base;
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*base_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+            // TODO: apply
+        }
+        
+        DatexExpressionData::PropertyAccess(property_access) => {
+            todo!()
+        }
+        
+        DatexExpressionData::GenericInstantiation(generic_instantiation) => {
+            // NOTE: might already be handled in type compilation
+            todo!()
         }
 
         // variables

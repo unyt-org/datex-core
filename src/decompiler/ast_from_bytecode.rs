@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
+use crate::ast::structs::expression::{Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::global::operators::{AssignmentOperator, BinaryOperator, UnaryOperator};
@@ -17,8 +17,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
-use datex_core::ast::structs::apply_operation::ApplyOperation;
-use datex_core::ast::structs::expression::{ApplyChain, UnboundedStatement};
+use datex_core::ast::structs::expression::{UnboundedStatement};
 use datex_core::parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::stdlib::format;
 
@@ -441,9 +440,9 @@ pub fn ast_from_bytecode(
                                 let expr = collected_results.pop_value_result();
                                 let expr_type =
                                     collected_results.pop_type_result();
-                                DatexExpressionData::ApplyChain(ApplyChain {
+                                DatexExpressionData::Apply(Apply {
                                     base: Box::new(DatexExpressionData::TypeExpression(expr_type).with_default_span()),
-                                    operations: vec![ApplyOperation::FunctionCallSingleArgument(expr)],
+                                    arguments: vec![expr],
                                 }).with_default_span().into()
                             }
 
@@ -726,7 +725,7 @@ mod tests {
         let ast = ast_from_bytecode(&bytecode).unwrap();
         assert_eq!(
             ast,
-            DatexExpressionData::ApplyChain(ApplyChain {
+            DatexExpressionData::Apply(Apply {
                 base: Box::new(
                     DatexExpressionData::TypeExpression(
                         TypeExpressionData::Text("OK".to_string())
@@ -734,10 +733,10 @@ mod tests {
                     )
                     .with_default_span()
                 ),
-                operations: vec![ApplyOperation::FunctionCallSingleArgument(
+                arguments: vec![
                     DatexExpressionData::TypedInteger(TypedInteger::from(43u8))
                         .with_default_span()
-                )],
+                ],
             })
             .with_default_span()
         );

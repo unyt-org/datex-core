@@ -2,7 +2,7 @@ use crate::{
     ast::structs::{
         ResolvedVariable,
         expression::{
-            ApplyChain, ComparisonOperation, Conditional, CreateRef,
+            ComparisonOperation, Conditional, CreateRef,
             DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
             List, Map, PropertyAssignment, RemoteExecution, Slot,
             SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
@@ -63,6 +63,8 @@ use crate::{
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
+use datex_core::ast::structs::expression::Apply;
+use crate::ast::structs::expression::{GenericInstantiation, PropertyAccess};
 
 pub mod error;
 pub mod options;
@@ -587,24 +589,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             property_assignment.access_expression
         );
 
-        if let DatexExpressionData::ApplyChain(apply_chain) =
-            &mut property_assignment.access_expression.data
-        {
-            let lhs = self
-                .infer_expression(&mut property_assignment.access_expression)?;
-            let rhs = self.infer_expression(
-                &mut property_assignment.assigned_expression,
-            )?;
-
-            // TODO access apply chain and check if type matches assigned expression
-            // also make sure that the rhs is casted into the correct type if needed
-            // (e.g. assigning an integer to a typed integer field)
-            mark_type(rhs)
-        } else {
-            panic!(
-                "Expected ApplyChain in PropertyAssignment access_expression"
-            );
-        }
+        todo!()
     }
 
     fn visit_variable_assignment(
@@ -853,11 +838,9 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         mark_structural_type(StructuralTypeDefinition::Map(fields))
     }
 
-    // FIXME for property access we need to implement
-    // apply chain access on type container level for structural types
-    fn visit_apply_chain(
+    fn visit_apply(
         &mut self,
-        apply_chain: &mut ApplyChain,
+        apply_chain: &mut Apply,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         Err(SpannedTypeError {
@@ -867,6 +850,27 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             span: Some(span.clone()),
         })
     }
+
+    // FIXME for property access we need to implement
+    // apply chain access on type container level for structural types
+    fn visit_property_access(&mut self, property_access: &mut PropertyAccess, span: &Range<usize>) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "PropertyAccess type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+
+    fn visit_generic_instantiation(&mut self, generic_instantiation: &mut GenericInstantiation, span: &Range<usize>) -> ExpressionVisitResult<SpannedTypeError> {
+        Err(SpannedTypeError {
+            error: TypeError::Unimplemented(
+                "GenericInstantiation type inference not implemented".into(),
+            ),
+            span: Some(span.clone()),
+        })
+    }
+
     fn visit_comparison_operation(
         &mut self,
         comparison_operation: &mut ComparisonOperation,

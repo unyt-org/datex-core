@@ -2,7 +2,6 @@ use core::fmt::Display;
 
 use crate::values::pointer::PointerAddress;
 
-pub mod apply_operation;
 pub mod expression;
 pub mod r#type;
 
