@@ -1,4 +1,3 @@
-use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{CreateRef, Deref, UnaryOperation};
@@ -23,7 +22,7 @@ pub fn unary<'a>(atom: impl DatexParserTrait<'a>) -> impl DatexParserTrait<'a> {
 
         // references and deref as prefix forms that consume the next unary
         let reference = just(Token::Ampersand)
-            .ignore_then(just(Token::Mutable).or_not().padded_by(whitespace()))
+            .ignore_then(just(Token::Mutable).or_not())
             .then(unary.clone())
             .map_with(|(ref_type, expr), e| {
                 match ref_type {

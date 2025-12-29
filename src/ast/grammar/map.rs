@@ -1,5 +1,4 @@
 use crate::ast::error::pattern::Pattern;
-use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::{DatexExpressionData, DatexParserTrait};
@@ -11,13 +10,12 @@ pub fn map<'a>(
     key: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    key.then_ignore(just(Token::Colon).padded_by(whitespace()))
+    key.then_ignore(just(Token::Colon))
         .then(expression.clone())
-        .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .separated_by(just(Token::Comma))
         .at_least(0)
         .allow_trailing()
         .collect()
-        .padded_by(whitespace())
         .delimited_by(just(Token::LeftCurly), just(Token::RightCurly))
         .map_with(|entries, e| {
             DatexExpressionData::Map(Map::new(entries)).with_span(e.span())

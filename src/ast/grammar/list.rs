@@ -1,5 +1,4 @@
 use crate::ast::error::pattern::Pattern;
-use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::List;
@@ -11,11 +10,10 @@ pub fn list<'a>(
 ) -> impl DatexParserTrait<'a> {
     expression
         .clone()
-        .separated_by(just(Token::Comma).padded_by(whitespace()))
+        .separated_by(just(Token::Comma))
         .at_least(0)
         .allow_trailing()
         .collect()
-        .padded_by(whitespace())
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map_with(|elements, e| {
             DatexExpressionData::List(List::new(elements)).with_span(e.span())

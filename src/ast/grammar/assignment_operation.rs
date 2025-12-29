@@ -1,5 +1,4 @@
 use crate::ast::DatexParserTrait;
-use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::global::operators::AssignmentOperator;
 use chumsky::prelude::*;
@@ -14,5 +13,4 @@ pub fn assignment_operation<'a>()
         Token::DivAssign   => AssignmentOperator::DivideAssign,
         Token::ModAssign   => AssignmentOperator::ModuloAssign,
     }
-    .padded_by(whitespace())
 }
