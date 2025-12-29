@@ -14,8 +14,8 @@ use crate::global::protocol_structures::instructions::{
     RawLocalPointerAddress, StatementsData,
 };
 use crate::global::type_instruction_codes::TypeInstructionCode;
-use crate::parser::next_instructions_stack::NextInstructionsStack;
-use crate::parser::next_instructions_stack::{
+use crate::dxb_parser::next_instructions_stack::NextInstructionsStack;
+use crate::dxb_parser::next_instructions_stack::{
     NextInstructionType, NotInUnboundedRegularScopeError,
 };
 use crate::runtime::execution::macros::yield_unwrap;

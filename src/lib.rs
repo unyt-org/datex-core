@@ -56,6 +56,7 @@ pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod values;
+pub mod dxb_parser;
 
 // reexport macros
 pub use datex_macros as macros;

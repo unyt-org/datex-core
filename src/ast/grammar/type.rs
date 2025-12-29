@@ -18,7 +18,6 @@ use crate::{
         },
         grammar::literal::literal,
         grammar::text::unescape_text,
-        grammar::utils::whitespace,
         lexer::Token,
         structs::expression::TypeDeclaration,
     },
@@ -74,8 +73,8 @@ pub fn integer_to_usize(i: &TypeExpressionData) -> Option<usize> {
 pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
     recursive(|ty| {
         let paren_group = ty.clone().delimited_by(
-            just(Token::LeftParen).padded_by(whitespace()),
-            just(Token::RightParen).padded_by(whitespace()),
+            just(Token::LeftParen),
+            just(Token::RightParen),
         );
 
         // Parse a type reference, e.g. `integer`, `text`, `User` etc.
@@ -124,18 +123,16 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 				decimal(),
                 integer(),
 			))
-			.padded_by(whitespace())
             .map_with(|data, e| data.with_span(e.span()));
 
         let list_inline = ty
             .clone()
-            .padded_by(whitespace())
             .separated_by(just(Token::Comma))
             .allow_trailing()
             .collect()
             .delimited_by(
-                just(Token::LeftBracket).padded_by(whitespace()),
-                just(Token::RightBracket).padded_by(whitespace()),
+                just(Token::LeftBracket),
+                just(Token::RightBracket),
             )
             .map(|elems: Vec<TypeExpression>| {
                 TypeExpressionData::StructuralList(StructuralList(elems))
@@ -144,11 +141,11 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 
         let list_fixed_inline = ty
             .clone()
-            .then_ignore(just(Token::Semicolon).padded_by(whitespace()))
+            .then_ignore(just(Token::Semicolon))
             .then(integer().clone())
             .delimited_by(
-                just(Token::LeftBracket).padded_by(whitespace()),
-                just(Token::RightBracket).padded_by(whitespace()),
+                just(Token::LeftBracket),
+                just(Token::RightBracket),
             )
             .try_map(|(t, size), _| {
                 if let Some(n) = integer_to_usize(&size)
@@ -167,7 +164,7 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             });
 
         let key_ident =
-            select! { Token::Identifier(k) => k }.padded_by(whitespace());
+            select! { Token::Identifier(k) => k };
         // let r#struct = key_ident
         //     .clone()
         //     .then_ignore(just(Token::Colon))
@@ -190,7 +187,7 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         }
         .map_with(|key, e| key.with_span(e.span()))
         .then(just(Token::Placeholder).or_not())
-        .then_ignore(just(Token::Colon).padded_by(whitespace()))
+        .then_ignore(just(Token::Colon))
         .then(ty.clone())
         .map(|((name, opt), typ)| {
             if opt.is_some() {
@@ -201,12 +198,12 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         });
 
         let structural_map = struct_field
-            .separated_by(just(Token::Comma).padded_by(whitespace()))
+            .separated_by(just(Token::Comma))
             .allow_trailing()
             .collect()
             .delimited_by(
-                just(Token::LeftCurly).padded_by(whitespace()),
-                just(Token::RightCurly).padded_by(whitespace()),
+                just(Token::LeftCurly),
+                just(Token::RightCurly),
             )
             .map(|fields: Vec<(TypeExpression, TypeExpression)>| {
                 TypeExpressionData::StructuralMap(StructuralMap(fields))
@@ -216,10 +213,9 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
         let generic = select! { Token::Identifier(name) => name }
             .then(
                 ty.clone()
-                    .separated_by(just(Token::Comma).padded_by(whitespace()))
+                    .separated_by(just(Token::Comma))
                     .allow_trailing()
                     .collect()
-                    .padded_by(whitespace())
                     .delimited_by(
                         just(Token::LeftAngle),
                         just(Token::RightAngle),
@@ -234,16 +230,16 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             });
 
         let func = key_ident
-            .then_ignore(just(Token::Colon).padded_by(whitespace()))
+            .then_ignore(just(Token::Colon))
             .then(ty.clone())
             .separated_by(just(Token::Comma))
             .allow_trailing()
             .collect()
             .delimited_by(
-                just(Token::LeftParen).padded_by(whitespace()),
-                just(Token::RightParen).padded_by(whitespace()),
+                just(Token::LeftParen),
+                just(Token::RightParen),
             )
-            .then_ignore(just(Token::Arrow).padded_by(whitespace()))
+            .then_ignore(just(Token::Arrow))
             .then(ty.clone())
             .map_with(
                 |(params, ret): (
@@ -261,7 +257,6 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
 
         let reference = just(Token::Ampersand)
             .ignore_then(just(Token::Mutable).or_not())
-            .then_ignore(whitespace())
             .then(ty.clone())
             .map_with(
                 |(maybe_mut, inner): (Option<Token>, TypeExpression), e| {
@@ -342,8 +337,7 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             integer().then_ignore(just(Token::RightBracket)).map(Some),
             // Fixed-size alternative: [; 10]
             just(Token::Semicolon)
-                .padded_by(whitespace())
-                .ignore_then(integer().padded_by(whitespace()))
+                .ignore_then(integer())
                 .then_ignore(just(Token::RightBracket))
                 .map(Some),
         )));
@@ -393,7 +387,6 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .then(
                 // parse zero-or-more `& <postfix_array>`
                 just(Token::Ampersand)
-                    .padded_by(whitespace())
                     .ignore_then(array_postfix.clone())
                     .repeated()
                     .collect(),
@@ -414,7 +407,6 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
             .clone()
             .then(
                 just(Token::Pipe)
-                    .padded_by(whitespace())
                     .ignore_then(intersection.clone())
                     .repeated()
                     .collect(),
@@ -450,12 +442,10 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
         });
 
     just(Token::Identifier("type".to_string()))
-        .padded_by(whitespace())
         .ignore_then(name)
         .then(generic)
-        .then_ignore(just(Token::Assign).padded_by(whitespace()))
+        .then_ignore(just(Token::Assign))
         .then(ty())
-        .padded_by(whitespace())
         .map_with(|((name, generic), expr), e| {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: None,
@@ -472,9 +462,8 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
 
 pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
     just(Token::Identifier("typealias".to_string()))
-        .padded_by(whitespace())
         .ignore_then(select! { Token::Identifier(name) => name })
-        .then_ignore(just(Token::Assign).padded_by(whitespace()))
+        .then_ignore(just(Token::Assign))
         .then(ty())
         .map_with(|(name, expr), e| {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
@@ -497,11 +486,9 @@ pub fn type_declaration<'a>() -> impl DatexParserTrait<'a> {
 // structural type expression
 pub fn type_expression<'a>() -> impl DatexParserTrait<'a> {
     just(Token::Identifier("type".to_string()))
-        .padded_by(whitespace())
-        .then_ignore(just(Token::LeftParen).padded_by(whitespace()))
+        .then_ignore(just(Token::LeftParen))
         .ignore_then(ty())
-        .padded_by(whitespace())
-        .then_ignore(just(Token::RightParen).padded_by(whitespace()))
+        .then_ignore(just(Token::RightParen))
         .map_with(|expr, e| DatexExpressionData::Type(expr).with_span(e.span()))
 }
 

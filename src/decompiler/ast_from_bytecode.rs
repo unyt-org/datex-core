@@ -6,8 +6,8 @@ use crate::global::operators::{AssignmentOperator, BinaryOperator, UnaryOperator
 use crate::global::protocol_structures::instructions::{
     Instruction, RegularInstruction, TypeInstruction,
 };
-use crate::parser::body::{DXBParserError, iterate_instructions};
-use crate::parser::instruction_collector::{
+use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
+use crate::dxb_parser::instruction_collector::{
     CollectedResults, CollectionResultsPopper, FullOrPartialResult,
     InstructionCollector,
 };
@@ -17,8 +17,8 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
-use datex_core::ast::structs::expression::{UnboundedStatement};
-use datex_core::parser::instruction_collector::StatementResultCollectionStrategy;
+use crate::ast::structs::expression::{UnboundedStatement};
+use crate::dxb_parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::stdlib::format;
 
 #[derive(Debug)]

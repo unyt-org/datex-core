@@ -13,7 +13,7 @@ pub struct Loc {
     pub span: Range<usize>,
 }
 use strum::IntoEnumIterator;
-
+use crate::ast::error::error::ParseError;
 use crate::values::core_values::{
     decimal::typed_decimal::DecimalTypeVariant,
     integer::typed_integer::IntegerTypeVariant,
@@ -143,7 +143,8 @@ impl From<String> for NumericLiteralParts {
 #[logos(skip r"//[^\n]*")]
 // multiline comments
 #[logos(skip r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/")]
-// #[logos(skip r"[ \n\t\r\f]+")]
+// whitespace
+#[logos(skip r"[ \n\t\r\f]+")]
 #[rustfmt::skip]
 pub enum Token {
     #[regex(r"///[^\n]*", extract_line_doc)]
@@ -271,8 +272,6 @@ pub enum Token {
     // named slots (starting with #, followed by A-Z or a-z)
     #[regex(r"#[_a-zA-Z]+", allocated_string)] NamedSlot(String),
 
-    #[regex(r"[ \t\n\f]")]
-    Whitespace,
 
 
     Error
@@ -333,7 +332,6 @@ impl Token {
             Token::Variable => Some("var"),
             Token::Mutable => Some("mut"),
             Token::Function => Some("function"),
-            Token::Whitespace => Some(" "),
             Token::Error => Some("error"),
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
@@ -370,6 +368,25 @@ impl Token {
         identifier_token.to_string()
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpannedToken {
+    pub token: Token,
+    pub span: Range<usize>,
+}
+
+pub fn get_spanned_tokens_from_source(src: &str) -> Result<Vec<SpannedToken>, ParseError> {
+    let lexer = Token::lexer(src);
+    let tokens_spanned_result: Result<Vec<SpannedToken>, ParseError> = lexer
+        .spanned()
+        .map(|(tok, span)| {
+            tok.map(|token| SpannedToken { token, span: span.clone() })
+                .map_err(|_| ParseError::new_unexpected_with_span(None, span))
+        })
+        .collect::<Result<_, _>>();
+    tokens_spanned_result
+}
+
 
 pub type IntegerLiteral = TypedLiteral<IntegerTypeVariant>;
 pub type DecimalLiteral = TypedLiteral<DecimalTypeVariant>;
@@ -798,9 +815,7 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::DecimalNumericLiteral("1".into()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(lexer.next().unwrap(), Ok(Token::Plus));
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalNumericLiteral("2".into()))
@@ -834,9 +849,7 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::Identifier("a".to_string()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(lexer.next().unwrap(), Ok(Token::StructuralEqual));
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::Identifier("b".to_string()))
@@ -851,9 +864,7 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::Identifier("a".to_string()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(lexer.next().unwrap(), Ok(Token::Is));
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::Identifier("b".to_string()))
@@ -868,9 +879,7 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::Identifier("a".to_string()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(lexer.next().unwrap(), Ok(Token::Matches));
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::Identifier("b".to_string()))
@@ -885,7 +894,6 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::LineDoc(" This is a line doc".to_string()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(
             lexer.next().unwrap(),
             Ok(Token::DecimalNumericLiteral("42".into()))
@@ -900,7 +908,6 @@ mod tests {
             lexer.next().unwrap(),
             Ok(Token::DecimalNumericLiteral("8".into()))
         );
-        assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
         assert_eq!(lexer.next().unwrap(), Ok(Token::Slash));
         assert_eq!(
             lexer.next().unwrap(),

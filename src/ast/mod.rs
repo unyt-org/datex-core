@@ -14,7 +14,7 @@ use crate::ast::grammar::map::*;
 use crate::ast::grammar::unary::*;
 use crate::ast::grammar::utils::*;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::Conditional;
+use crate::ast::structs::expression::{Apply, Conditional, PropertyAccess};
 use crate::ast::structs::expression::RemoteExecution;
 
 use crate::ast::grammar::r#type::type_expression;
@@ -33,8 +33,6 @@ use core::ops::Range;
 use core::result::Result;
 use lexer::Token;
 use logos::Logos;
-use datex_core::ast::grammar::property_access::property_access;
-use crate::ast::grammar::apply::apply;
 
 pub type TokenInput<'a, X = Token> = &'a [X];
 pub trait DatexParserTrait<'a, T = DatexExpression> =
@@ -90,7 +88,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         .clone()
         .then_ignore(
             just(Token::Semicolon)
-                .padded_by(whitespace())
                 .repeated()
                 .at_least(1),
         )
@@ -99,7 +96,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         .then(
             statement
                 .clone()
-                .then(just(Token::Semicolon).padded_by(whitespace()).or_not())
+                .then(just(Token::Semicolon).or_not())
                 .or_not(), // Final expression with optional semicolon
         )
         .map_with(|(statements, last), e| {
@@ -153,16 +150,70 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     let atomic_inner = atom(list.clone(), map.clone(), wrapped_expression.clone());
     let atomic_expression = unary(atomic_inner.clone());
 
-    let property_access = choice((
-        property_access(atomic_expression.clone()),
-        apply(
-            atomic_expression.clone(),
-            atomic_expression.clone(),
-            statement.clone(),
-        ),
-    ));
+    // lhs-recursive chains
 
-    let binary = binary_operation(property_access);
+    // let chains = choice((
+    //     // property_access(chain_lhs.clone(), atomic_inner.clone()),
+    //     apply(
+    //         chain_lhs.clone(),
+    //         atomic_inner.clone(),
+    //         statement.clone(),
+    //     ),
+    // ));
+
+    enum Chain {
+        PropertyAccess(DatexExpression),
+        Apply(Vec<DatexExpression>),
+    }
+
+    let chain = just(Token::Dot)
+        .ignore_then(atomic_inner.clone())
+        .map(Chain::PropertyAccess)
+        .or(
+            choice((
+                // apply #1: function call with multiple arguments
+                // x(1,2,3)
+                statement.clone()
+                    .separated_by(just(Token::Comma))
+                    .at_least(0)
+                    .allow_trailing()
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+                // apply #2: an atomic value (e.g. "text", [1,2,3]) - whitespace or newline required before
+                // print "sdf"
+                // just(Token::Whitespace)
+                //     .repeated()
+                //     .at_least(1)
+                //     .ignore_then(atomic_inner.clone().padded_by(whitespace()))
+                //     .map(|e| vec![e])
+            ))
+            .map_with(|args, e| {
+                Chain::Apply(args)
+            })
+        )
+        .boxed();
+
+    let chains = atomic_expression.clone()
+        .foldl(chain.repeated(), |expr, chain| match chain {
+            Chain::PropertyAccess(field) => {
+                DatexExpressionData::PropertyAccess(
+                    PropertyAccess {
+                        base: Box::new(expr),
+                        property: Box::new(field),
+                    },
+                ).with_default_span()
+            },
+            Chain::Apply(args) => {
+                DatexExpressionData::Apply(Apply {
+                    base: Box::new(expr),
+                    arguments: args,
+                }).with_default_span()
+            },
+        })
+        .boxed();
+
+
+    let binary = binary_operation(atomic_expression.clone());
 
     // FIXME #363 WIP
     let function_declaration = function(statements.clone());
@@ -189,7 +240,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
 
     let if_expression = recursive(|if_rec| {
         just(Token::If)
-            .padded_by(whitespace())
             .ignore_then(condition.clone())
             .then(
                 choice((
@@ -198,12 +248,10 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
                     map.clone(),
                     statements.clone(),
                     atomic_expression.clone(),
-                ))
-                .padded_by(whitespace()),
+                )),
             )
             .then(
                 just(Token::Else)
-                    .padded_by(whitespace())
                     .ignore_then(choice((
                         if_rec.clone(),
                         wrapped_expression.clone(),
@@ -230,7 +278,7 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
     // expression :: expression
     let remote_execution = inner_expression
         .clone()
-        .then_ignore(just(Token::DoubleColon).padded_by(whitespace()))
+        .then_ignore(just(Token::DoubleColon))
         .then(inner_expression.clone())
         .map_with(|(endpoint, expr), e| {
             DatexExpressionData::RemoteExecution(RemoteExecution {
@@ -247,8 +295,8 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
             declaration_or_assignment,
             function_declaration,
             comparison,
-        ))
-        .padded_by(whitespace()),
+            chains,
+        )),
     );
 
     statement.define(choice((remote_execution, inner_expression.clone())));
@@ -258,7 +306,6 @@ pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
         just(Token::Semicolon)
             .repeated()
             .at_least(1)
-            .padded_by(whitespace())
             .map_with(|_, e| {
                 DatexExpressionData::Statements(Statements::empty())
                     .with_span(e.span())

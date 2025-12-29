@@ -2,7 +2,6 @@ use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::grammar::assignment_operation::assignment_operation;
 use crate::ast::grammar::r#type::{ty, type_declaration};
-use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DerefAssignment, VariableAssignment, VariableKind};
@@ -116,7 +115,6 @@ pub fn variable_declaration<'a>(
     union: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let type_annotation = just(Token::Colon)
-        .padded_by(whitespace())
         .ignore_then(ty())
         .or_not();
 
@@ -127,7 +125,6 @@ pub fn variable_declaration<'a>(
     };
 
     keyword
-        .padded_by(whitespace())
         .then(select! { Token::Identifier(s) => s })
         .then(type_annotation)
         .then(assignment_op)

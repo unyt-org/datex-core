@@ -6,9 +6,10 @@ use datex_core::ast::spanned::Spanned;
 
 /// A property access chain, e.g. `a.b.(c).1
 pub fn property_access<'a>(
+    lhs: impl DatexParserTrait<'a>,
     atomic_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
-    atomic_expression
+    lhs
         .clone()
         .then_ignore(just(Token::Dot))
         .then(

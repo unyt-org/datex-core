@@ -12,8 +12,8 @@ use crate::global::protocol_structures::instructions::{
     FloatAsInt32Data, Instruction, IntegerData, RawPointerAddress,
     RegularInstruction, ShortTextData, SlotAddress, TextData, TypeInstruction,
 };
-use crate::parser::body::{DXBParserError, iterate_instructions};
-use crate::parser::instruction_collector::{
+use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
+use crate::dxb_parser::instruction_collector::{
     CollectedResults, CollectionResultsPopper, FullOrPartialResult,
     InstructionCollector, LastUnboundedResultCollector, ResultCollector,
     StatementResultCollectionStrategy,

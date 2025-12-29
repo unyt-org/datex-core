@@ -1,5 +1,5 @@
 use crate::network::com_hub::ResponseError;
-use crate::parser::body::DXBParserError;
+use crate::dxb_parser::body::DXBParserError;
 use crate::references::reference::{AssignmentError, ReferenceCreationError};
 use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::types::error::IllegalTypeError;
