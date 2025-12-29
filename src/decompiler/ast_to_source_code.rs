@@ -1,10 +1,6 @@
 use core::fmt::{self};
-
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional,
-    DerefAssignment, List, Map, RemoteExecution, SlotAssignment,
-    TypeDeclaration, VariantAccess,
-};
+use datex_core::ast::structs::expression::Apply;
+use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List, Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration, VariantAccess};
 use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, FunctionDeclaration, VariableAccess,
     VariableAssignment, VariableDeclaration,
@@ -13,7 +9,6 @@ use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 
-use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
 use crate::references::reference::ReferenceMutability;
 
@@ -472,36 +467,17 @@ impl AstToSourceCodeConverter {
                 let right_code = self.key_expression_to_source_code(right);
                 ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
             }
-            DatexExpressionData::ApplyChain(ApplyChain {
+            DatexExpressionData::Apply(Apply {
                 base,
-                operations,
+                arguments,
             }) => {
-                let mut applies_code = vec![];
-                for apply in operations {
-                    match apply {
-                        ApplyOperation::FunctionCallSingleArgument(args) => {
-                            let args_code = self.format(args);
-                            // apply()
-                            if args_code.starts_with('(')
-                                && args_code.ends_with(')')
-                            {
-                                applies_code.push(args_code);
-                            }
-                            // apply x
-                            else {
-                                applies_code.push(format!(" {}", args_code));
-                            }
-                        }
-                        ApplyOperation::PropertyAccess(prop) => {
-                            applies_code.push(format!(
-                                ".{}",
-                                self.key_expression_to_source_code(prop)
-                            ));
-                        }
-                        _ => core::todo!("#419 Undescribed by author."),
-                    }
+                let mut args_source = vec![];
+
+                for arg in arguments {
+                    args_source.push(self.format(arg));
                 }
-                format!("{}{}", self.format(base), applies_code.join(""))
+                
+                format!("{}({})", self.format(base), args_source.join(""))
             }
             DatexExpressionData::TypeExpression(type_expr) => {
                 format!(
@@ -688,6 +664,17 @@ impl AstToSourceCodeConverter {
             }) => {
                 format!("{}%s::%s{}", self.format(left), self.format(right))
             }
+            DatexExpressionData::PropertyAccess(PropertyAccess {
+                base,
+                property,
+            }) => {
+                format!(
+                    "{}.{}",
+                    self.format(base),
+                    self.key_expression_to_source_code(property)
+                )
+            }
+            DatexExpressionData::GenericInstantiation(_) => {todo!()}
         }
     }
 }

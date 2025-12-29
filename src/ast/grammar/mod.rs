@@ -2,7 +2,6 @@ pub mod assignment_operation;
 pub mod atom;
 pub mod binary_operation;
 pub mod binding;
-pub mod chain;
 pub mod comparison_operation;
 pub mod decimal;
 pub mod endpoint;
@@ -16,3 +15,6 @@ pub mod text;
 pub mod r#type;
 pub mod unary;
 pub mod utils;
+
+pub mod property_access;
+pub mod apply;

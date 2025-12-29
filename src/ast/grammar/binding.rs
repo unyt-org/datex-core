@@ -1,14 +1,11 @@
 use crate::ast::error::error::ParseError;
 use crate::ast::error::pattern::Pattern;
 use crate::ast::grammar::assignment_operation::assignment_operation;
-use crate::ast::grammar::chain::property_access;
 use crate::ast::grammar::r#type::{ty, type_declaration};
 use crate::ast::grammar::utils::whitespace;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
-    DerefAssignment, VariableAssignment, VariableKind,
-};
+use crate::ast::structs::expression::{DerefAssignment, VariableAssignment, VariableKind};
 use crate::ast::structs::expression::{
     PropertyAssignment, VariableDeclaration,
 };
@@ -58,20 +55,24 @@ pub fn variable_assignment<'a>(
 
 /// A variable assignment (e.g. `x.y.0 = 42` or `y.x += 1`)
 pub fn property_assignment<'a>(
-    property_access: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
+    atomic_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     let assignment_op = assignment_operation();
-    property_access
+    atomic_expression
+        .clone()
+        .then_ignore(just(Token::Dot))
+        .then(atomic_expression)
         .then(assignment_op)
         .then(expression)
-        .map_with(|((access_expression, operator), expr), e| {
+        .map_with(|(((access_expr, property_expr), operator), assigned_expression), e| {
             DatexExpressionData::PropertyAssignment(PropertyAssignment {
                 operator,
-                access_expression: Box::new(access_expression),
-                assigned_expression: Box::new(expr),
+                access_expression: Box::new(access_expr),
+                assigned_property: Box::new(property_expr),
+                assigned_expression: Box::new(assigned_expression),
             })
-            .with_span(e.span())
+                .with_span(e.span())
         })
         .labelled(Pattern::Declaration)
         .as_context()
@@ -156,16 +157,16 @@ pub fn variable_declaration<'a>(
 pub fn declaration_or_assignment<'a>(
     key: impl DatexParserTrait<'a>,
     expression: impl DatexParserTrait<'a>,
-    unary: impl DatexParserTrait<'a>,
+    atomic_expression: impl DatexParserTrait<'a>,
 ) -> impl DatexParserTrait<'a> {
     choice((
         property_assignment(
-            property_access(unary.clone(), key, expression.clone()),
             expression.clone(),
+            atomic_expression.clone(),
         ),
         type_declaration(),
         variable_declaration(expression.clone()),
-        deref_assignment(expression.clone(), unary),
+        deref_assignment(expression.clone(), atomic_expression),
         variable_assignment(expression.clone()),
     ))
 }

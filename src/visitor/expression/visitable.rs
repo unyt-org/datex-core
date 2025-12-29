@@ -1,11 +1,5 @@
-use crate::ast::structs::apply_operation::ApplyOperation;
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
-    DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, PropertyAssignment, RemoteExecution,
-    SlotAssignment, Statements, TypeDeclaration, UnaryOperation,
-    VariableAssignment, VariableDeclaration,
-};
+use datex_core::ast::structs::expression::Apply;
+use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
@@ -136,28 +130,45 @@ impl<E> VisitableExpression<E> for DerefAssignment {
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for ApplyChain {
+impl<E> VisitableExpression<E> for Apply {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
         visitor.visit_datex_expression(&mut self.base)?;
-        for operation in &mut self.operations {
-            match operation {
-                ApplyOperation::FunctionCallSingleArgument(arg) => {
-                    visitor.visit_datex_expression(arg)?;
-                }
-                ApplyOperation::GenericAccess(arg) => {
-                    visitor.visit_datex_expression(arg)?;
-                }
-                ApplyOperation::PropertyAccess(prop) => {
-                    visitor.visit_datex_expression(prop)?;
-                }
-            }
+        for arg in &mut self.arguments {
+            visitor.visit_datex_expression(arg)?;
         }
         Ok(())
     }
 }
+
+impl<E> VisitableExpression<E> for PropertyAccess {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
+        visitor.visit_datex_expression(&mut self.base)?;
+        visitor.visit_datex_expression(&mut self.property)?;
+        Ok(())
+    }
+}
+
+
+impl<E> VisitableExpression<E> for GenericInstantiation {
+    fn walk_children(
+        &mut self,
+        visitor: &mut impl ExpressionVisitor<E>,
+    ) -> Result<(), E> {
+        visitor.visit_datex_expression(&mut self.base)?;
+        for arg in &mut self.generic_arguments {
+            visitor.visit_type_expression(arg)?;
+        }
+        Ok(())
+    }
+}
+
+
 impl<E> VisitableExpression<E> for RemoteExecution {
     fn walk_children(
         &mut self,
@@ -280,8 +291,14 @@ impl<E> VisitableExpression<E> for DatexExpression {
             DatexExpressionData::UnaryOperation(unary_operation) => {
                 unary_operation.walk_children(visitor)
             }
-            DatexExpressionData::ApplyChain(apply_chain) => {
+            DatexExpressionData::Apply(apply_chain) => {
                 apply_chain.walk_children(visitor)
+            }
+            DatexExpressionData::PropertyAccess(property_access) => {
+                property_access.walk_children(visitor)
+            }
+            DatexExpressionData::GenericInstantiation(generic_instantiation) => {
+                generic_instantiation.walk_children(visitor)
             }
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 remote_execution.walk_children(visitor)

@@ -1,7 +1,6 @@
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::ResolvedVariable;
 use crate::ast::structs::VariableId;
-use crate::ast::structs::apply_operation::ApplyOperation;
 use crate::ast::structs::r#type::TypeExpression;
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
@@ -162,8 +161,14 @@ pub enum DatexExpressionData {
     /// Unary operation, e.g. -x, !x
     UnaryOperation(UnaryOperation),
 
-    /// apply (e.g. x (1)) or property access
-    ApplyChain(ApplyChain),
+    /// Apply a value to another value, e.g. function call or type cast
+    Apply(Apply),
+
+    /// Apply a property access to an argument
+    PropertyAccess(PropertyAccess),
+
+    /// Generic instantiation, e.g. MyType<u8>
+    GenericInstantiation(GenericInstantiation),
 
     /// The '?' placeholder expression
     Placeholder,
@@ -292,6 +297,7 @@ pub struct DerefAssignment {
 pub struct PropertyAssignment {
     pub operator: AssignmentOperator,
     pub access_expression: Box<DatexExpression>,
+    pub assigned_property: Box<DatexExpression>,
     pub assigned_expression: Box<DatexExpression>,
 }
 
@@ -340,9 +346,21 @@ pub struct UnaryOperation {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ApplyChain {
+pub struct Apply {
     pub base: Box<DatexExpression>,
-    pub operations: Vec<ApplyOperation>,
+    pub arguments: Vec<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct  PropertyAccess {
+    pub base: Box<DatexExpression>,
+    pub property: Box<DatexExpression>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericInstantiation {
+    pub base: Box<DatexExpression>,
+    pub generic_arguments: Vec<TypeExpression>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
