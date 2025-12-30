@@ -1010,7 +1010,6 @@ fn compile_expression(
 
         DatexExpressionData::DerefAssignment(DerefAssignment {
             operator,
-            deref_count,
             deref_expression,
             assigned_expression,
         }) => {
@@ -1021,13 +1020,7 @@ fn compile_expression(
 
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
-
-            // "*x" must not be dereferenced, x is already the relevant reference that is modified
-            for _ in 0..deref_count - 1 {
-                compilation_context
-                    .append_instruction_code(InstructionCode::DEREF);
-            }
-
+            
             // compile deref expression
             scope = compile_expression(
                 compilation_context,

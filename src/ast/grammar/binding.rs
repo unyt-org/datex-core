@@ -98,7 +98,6 @@ pub fn deref_assignment<'a>(
              e| {
                 DatexExpressionData::DerefAssignment(DerefAssignment {
                     operator,
-                    deref_count,
                     deref_expression: Box::new(deref_expression),
                     assigned_expression: Box::new(assigned_expression),
                 })

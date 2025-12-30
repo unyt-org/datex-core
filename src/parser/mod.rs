@@ -165,7 +165,7 @@ impl Parser {
         }
         Ok(next_token)
     }
-    
+
     fn expect_identifier(&mut self) -> Result<String, SpannedParserError> {
         match self.advance()? {
             SpannedToken { token: Token::Identifier(identifier), .. }  => Ok(identifier),

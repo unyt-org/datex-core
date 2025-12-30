@@ -1085,15 +1085,13 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         // FIXME: handle type checking and if deref assignment is valid
         let mut expression_type =
             self.infer_expression(&mut deref_assignment.deref_expression)?;
-        for _ in 0..deref_assignment.deref_count - 1 {
-            if let Some(reference) = expression_type.inner_reference() {
-                expression_type = reference.borrow().type_value.clone();
-            } else {
-                return Err(SpannedTypeError {
-                    error: TypeError::InvalidDerefType(expression_type),
-                    span: Some(span.clone()),
-                });
-            }
+        if let Some(reference) = expression_type.inner_reference() {
+            expression_type = reference.borrow().type_value.clone();
+        } else {
+            return Err(SpannedTypeError {
+                error: TypeError::InvalidDerefType(expression_type),
+                span: Some(span.clone()),
+            });
         }
         let assigned_type =
             self.infer_expression(&mut deref_assignment.assigned_expression)?;
