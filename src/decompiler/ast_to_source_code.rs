@@ -792,7 +792,7 @@ mod tests {
             "-infinity"
         );
 
-        let decimal_ast = DatexExpressionData::Decimal(Decimal::NaN);
+        let decimal_ast = DatexExpressionData::Decimal(Decimal::Nan);
         assert_eq!(compact().format(&decimal_ast.with_default_span()), "nan");
 
         let typed_decimal_ast =
