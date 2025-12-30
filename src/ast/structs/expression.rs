@@ -288,7 +288,6 @@ pub struct ComparisonOperation {
 #[derive(Clone, Debug, PartialEq)]
 pub struct DerefAssignment {
     pub operator: AssignmentOperator,
-    pub deref_count: usize,
     pub deref_expression: Box<DatexExpression>,
     pub assigned_expression: Box<DatexExpression>,
 }

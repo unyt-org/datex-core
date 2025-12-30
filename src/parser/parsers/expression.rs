@@ -1,13 +1,14 @@
 use datex_core::ast::structs::expression::PropertyAccess;
 use crate::ast::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{Apply, BinaryOperation, DatexExpression, DatexExpressionData, RemoteExecution, UnaryOperation};
+use crate::ast::structs::expression::{Apply, BinaryOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
 use crate::global::operators::binary::{ArithmeticOperator, LogicalOperator};
-use crate::global::operators::{ArithmeticUnaryOperator, BinaryOperator, UnaryOperator};
+use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, UnaryOperator};
 use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::Parser;
+use crate::references::reference::ReferenceMutability;
 
-static UNARY_BP: u8 = 16; // weaker than property access and apply
+static UNARY_BP: u8 = 17; // weaker than property access / apply, stronger than all other binary operators
 
 impl Parser {
     pub(crate) fn parse_expression(&mut self, min_bp: u8) -> Result<DatexExpression, SpannedParserError> {
@@ -77,6 +78,16 @@ impl Parser {
                     ty: None,
                 }).with_span(span)
             }
+
+            // assignment (=)
+            Token::Assign |
+            Token::AddAssign |
+            Token::SubAssign |
+            Token::MulAssign |
+            Token::DivAssign => {
+                self.parse_assignment(lhs, op, r_bp)?
+            }
+
             // remote execution operator
             Token::DoubleColon => {
                 self.advance()?; // consume the operator
@@ -98,6 +109,63 @@ impl Parser {
                 }).with_span(span)
             }
         })
+    }
+
+
+    fn parse_assignment(&mut self, lhs: DatexExpression, op: SpannedToken, r_bp: u8) -> Result<DatexExpression, SpannedParserError> {
+        self.advance()?; // consume the operator
+        let rhs = self.parse_expression(r_bp)?;
+        let span = lhs.span.start..rhs.span.end;
+        let assignment_operator = match op.token {
+            Token::Assign => AssignmentOperator::Assign,
+            Token::AddAssign => AssignmentOperator::AddAssign,
+            Token::SubAssign => AssignmentOperator::SubtractAssign,
+            Token::MulAssign => AssignmentOperator::MultiplyAssign,
+            Token::DivAssign => AssignmentOperator::DivideAssign,
+            _ => unreachable!(),
+        };
+
+        // select assignment type based on lhs
+        Ok(match lhs.data {
+            // variable assignment
+            DatexExpressionData::Identifier(name) => {
+                DatexExpressionData::VariableAssignment(VariableAssignment {
+                    id: None,
+                    name,
+                    operator: assignment_operator,
+                    expression: Box::new(rhs),
+                })
+            }
+            // property assignment
+            DatexExpressionData::PropertyAccess(prop_access) => {
+                DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                    operator: assignment_operator,
+                    access_expression: prop_access.base,
+                    assigned_property: prop_access.property,
+                    assigned_expression: Box::new(rhs),
+                })
+            }
+            // deref assignment
+            DatexExpressionData::Deref(deref) => {
+                DatexExpressionData::DerefAssignment(DerefAssignment {
+                    operator: assignment_operator,
+                    deref_expression: deref.expression,
+                    assigned_expression: Box::new(rhs),
+                })
+            }
+            // slot assignment
+            DatexExpressionData::Slot(slot) => {
+                DatexExpressionData::SlotAssignment(SlotAssignment {
+                    slot,
+                    expression: Box::new(rhs),
+                })
+            }
+            // invalid lhs for assignment
+            _ => return Err(SpannedParserError {
+                error: ParserError::InvalidAssignmentTarget,
+                span: lhs.span.clone(),
+            }),
+        }.with_span(span))
     }
 
 
@@ -158,9 +226,10 @@ impl Parser {
         }
     }
 
+
     fn parse_prefix(&mut self) -> Result<DatexExpression, SpannedParserError> {
         match self.peek()?.token {
-            // unary operators
+            // unary operators:
             Token::Minus => {
                 let op = self.advance()?;
                 let rhs = self.parse_expression(UNARY_BP)?;
@@ -170,8 +239,37 @@ impl Parser {
                     expression: Box::new(rhs),
                 }).with_span(span))
             }
+            // ref (&)
+            Token::Ampersand => {
+                let op = self.advance()?;
+                let rhs = self.parse_expression(UNARY_BP)?;
+                let span = op.span.start..rhs.span.end;
+                Ok(DatexExpressionData::CreateRef(CreateRef {
+                    mutability: ReferenceMutability::Immutable,
+                    expression: Box::new(rhs),
+                }).with_span(span))
+            }
+            // mutable ref (&mut)
+            Token::MutRef => {
+                let op = self.advance()?;
+                let rhs = self.parse_expression(UNARY_BP)?;
+                let span = op.span.start..rhs.span.end;
+                Ok(DatexExpressionData::CreateRef(CreateRef {
+                    mutability: ReferenceMutability::Mutable,
+                    expression: Box::new(rhs),
+                }).with_span(span))
+            }
+            // deref (*)
+            Token::Star => {
+                let op = self.advance()?;
+                let rhs = self.parse_expression(UNARY_BP)?;
+                let span = op.span.start..rhs.span.end;
+                Ok(DatexExpressionData::Deref(Deref {
+                    expression: Box::new(rhs),
+                }).with_span(span))
+            }
 
-            // everything else is a value
+            // everything else is an atom
             _ => self.parse_atom(),
         }
     }
@@ -186,16 +284,22 @@ impl Parser {
         match op {
             // remote execution operator
             Token::DoubleColon => Some((1, 2)),
+            // assignment operators
+            Token::Assign |
+            Token::AddAssign |
+            Token::SubAssign |
+            Token::MulAssign |
+            Token::DivAssign => Some((3, 4)),
             // comparison operators
-            Token::Equal | Token::NotEqual => Some((3, 4)),
-            Token::LeftAngle | Token::LessEqual | Token::RightAngle | Token::GreaterEqual => Some((5, 6)),
+            Token::Equal | Token::NotEqual => Some((5, 6)),
+            Token::LeftAngle | Token::LessEqual | Token::RightAngle | Token::GreaterEqual => Some((7, 8)),
             // logical operators
-            Token::Or => Some((7, 8)),
-            Token::And => Some((9, 10)),
+            Token::Or => Some((9, 10)),
+            Token::And => Some((11, 12)),
             // arithmetic operators
-            Token::Plus | Token::Minus => Some((11, 12)),
-            Token::Star | Token::Slash => Some((13, 14)),
-            Token::Dot => Some((17, 18)),
+            Token::Plus | Token::Minus => Some((13, 14)),
+            Token::Star | Token::Slash => Some((15, 16)),
+            Token::Dot => Some((18, 19)),
             // apply (function call, type cast), which has same binding power as member access
             Token::LeftParen |
             Token::LeftCurly |
@@ -212,7 +316,7 @@ impl Parser {
             Token::BinaryIntegerLiteral(_) |
             Token::PointerAddress(_) |
             Token::Endpoint(_)
-            => Some((17, 18)),
+            => Some((18, 19)),
             _ => None,
         }
     }
@@ -222,10 +326,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{Apply, BinaryOperation, DatexExpressionData, PropertyAccess, RemoteExecution, Statements, UnaryOperation};
-    use crate::global::operators::{ArithmeticUnaryOperator, BinaryOperator, UnaryOperator};
+    use crate::ast::structs::expression::{Apply, BinaryOperation, CreateRef, DatexExpressionData, Deref, DerefAssignment, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, UnaryOperation, VariableAssignment};
+    use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, UnaryOperator};
     use crate::global::operators::binary::{ArithmeticOperator, LogicalOperator};
     use crate::parser::tests::parse;
+    use crate::references::reference::ReferenceMutability;
 
     #[test]
     fn parse_simple_binary_expression() {
@@ -445,6 +550,156 @@ mod tests {
                 ty: None,
             }).with_default_span()),
             ty: None,
+        }));
+    }
+
+    #[test]
+    fn parse_immutable_reference() {
+        let expr = parse("&myVar");
+        assert_eq!(expr.data, DatexExpressionData::CreateRef(CreateRef {
+            mutability: ReferenceMutability::Immutable,
+            expression: Box::new(DatexExpressionData::Identifier("myVar".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_mutable_reference() {
+        let expr = parse("&mut myVar");
+        assert_eq!(expr.data, DatexExpressionData::CreateRef(CreateRef {
+            mutability: ReferenceMutability::Mutable,
+            expression: Box::new(DatexExpressionData::Identifier("myVar".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_ref_of_property_access() {
+        let expr = parse("&myObject.myProperty");
+        assert_eq!(expr.data, DatexExpressionData::CreateRef(CreateRef {
+            mutability: ReferenceMutability::Immutable,
+            expression: Box::new(DatexExpressionData::PropertyAccess(PropertyAccess {
+                base: Box::new(DatexExpressionData::Identifier("myObject".to_string()).with_default_span()),
+                property: Box::new(DatexExpressionData::Text("myProperty".to_string()).with_default_span()),
+            }).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_multiple_refs() {
+        let expr = parse("&mut &myVar");
+        assert_eq!(expr.data, DatexExpressionData::CreateRef(CreateRef {
+            mutability: ReferenceMutability::Mutable,
+            expression: Box::new(DatexExpressionData::CreateRef(CreateRef {
+                mutability: ReferenceMutability::Immutable,
+                expression: Box::new(DatexExpressionData::Identifier("myVar".to_string()).with_default_span()),
+            }).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_dereference() {
+        let expr = parse("*myRef");
+        assert_eq!(expr.data, DatexExpressionData::Deref(Deref {
+            expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_dereference_of_reference() {
+        let expr = parse("*&myVar");
+        assert_eq!(expr.data, DatexExpressionData::Deref(Deref {
+            expression: Box::new(DatexExpressionData::CreateRef(CreateRef {
+                mutability: ReferenceMutability::Immutable,
+                expression: Box::new(DatexExpressionData::Identifier("myVar".to_string()).with_default_span()),
+            }).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_multiple_dereferences() {
+        let expr = parse("**myRef");
+        assert_eq!(expr.data, DatexExpressionData::Deref(Deref {
+            expression: Box::new(DatexExpressionData::Deref(Deref {
+                expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
+            }).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_dereference_addition() {
+        let expr = parse("*myRef + *myRef2");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::Deref(Deref {
+                expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
+            }).with_default_span()),
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Add),
+            right: Box::new(DatexExpressionData::Deref(Deref {
+                expression: Box::new(DatexExpressionData::Identifier("myRef2".to_string()).with_default_span()),
+            }).with_default_span()),
+            ty: None,
+        }));
+    }
+
+    #[test]
+    fn parse_variable_assignment() {
+        let expr = parse("x = true");
+        assert_eq!(expr.data, DatexExpressionData::VariableAssignment(VariableAssignment {
+            id: None,
+            name: "x".to_string(),
+            operator: AssignmentOperator::Assign,
+            expression: Box::new(DatexExpressionData::Boolean(true).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_property_assignment() {
+        let expr = parse("obj.prop = true");
+        assert_eq!(expr.data, DatexExpressionData::PropertyAssignment(PropertyAssignment {
+            operator: AssignmentOperator::Assign,
+            access_expression: Box::new(DatexExpressionData::Identifier("obj".to_string()).with_default_span()),
+            assigned_property: Box::new(DatexExpressionData::Text("prop".to_string()).with_default_span()),
+            assigned_expression: Box::new(DatexExpressionData::Boolean(true).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_variable_add_assignment() {
+        let expr = parse("x += 42");
+        assert_eq!(expr.data, DatexExpressionData::VariableAssignment(VariableAssignment {
+            id: None,
+            name: "x".to_string(),
+            operator: AssignmentOperator::AddAssign,
+            expression: Box::new(DatexExpressionData::Integer(42.into()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_slot_assignment() {
+        let expr = parse("#slot1 = 100");
+        assert_eq!(expr.data, DatexExpressionData::SlotAssignment(SlotAssignment {
+            slot: Slot::Named("slot1".to_string()),
+            expression: Box::new(DatexExpressionData::Integer(100.into()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_deref_assignment() {
+        let expr = parse("*myRef = 200");
+        assert_eq!(expr.data, DatexExpressionData::DerefAssignment(DerefAssignment {
+            operator: AssignmentOperator::Assign,
+            deref_expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
+            assigned_expression: Box::new(DatexExpressionData::Integer(200.into()).with_default_span()),
+        }));
+    }
+    
+    #[test]
+    fn parse_nested_deref_assignment() {
+        let expr = parse("**myRef = 300");
+        assert_eq!(expr.data, DatexExpressionData::DerefAssignment(DerefAssignment {
+            operator: AssignmentOperator::Assign,
+            deref_expression: Box::new(DatexExpressionData::Deref(Deref {
+                expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
+            }).with_default_span()),
+            assigned_expression: Box::new(DatexExpressionData::Integer(300.into()).with_default_span()),
         }));
     }
 }

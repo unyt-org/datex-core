@@ -641,11 +641,10 @@ impl AstToSourceCodeConverter {
             }
             DatexExpressionData::DerefAssignment(DerefAssignment {
                 operator,
-                deref_count,
                 deref_expression,
                 assigned_expression,
             }) => {
-                let deref_prefix = "*".repeat(*deref_count);
+                let deref_prefix = "*";
                 ast_fmt!(
                     &self,
                     "{}{}%s{operator}%s{}",
@@ -919,7 +918,6 @@ mod tests {
         let deref_assign_ast =
             DatexExpressionData::DerefAssignment(DerefAssignment {
                 operator: AssignmentOperator::Assign,
-                deref_count: 2,
                 deref_expression: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
