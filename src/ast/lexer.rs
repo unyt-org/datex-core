@@ -195,13 +195,15 @@ pub enum Token {
     #[token("`")] Backtick,
 
     #[token("<=")] LessEqual,
-    // #[token(">=")] GreaterEqual, // can not use because of generic overlap type X<test>= 4;
+    #[token(">=")] GreaterEqual, // can not use because of generic overlap type X<test>= 4;
     #[token("!=")] NotStructuralEqual,
     #[token("!==")] NotEqual,
     #[token("==")] StructuralEqual,
     #[token("===")] Equal,
     #[token("is")] Is,
     #[token("matches")] Matches,
+    #[token("and")] And,
+    #[token("or")] Or,
 
     // Keywords
     #[token("true")] True,
@@ -212,9 +214,14 @@ pub enum Token {
     #[token("const")] Const,
     #[token("var")] Variable,
     #[token("mut")] Mutable,
+    #[token("&mut")] MutRef,
     #[token("function")] Function,
     #[token("if")] If,
     #[token("else")] Else,
+
+    #[token("type")] Type,
+    #[token("typealias")] TypeAlias,
+
 
     #[token(".")]
     Dot,
@@ -316,7 +323,7 @@ impl Token {
             Token::Pipe => Some("|"),
             Token::Backtick => Some("`"),
             Token::LessEqual => Some("<="),
-            // Token::GreaterEqual => Some(">="),
+            Token::GreaterEqual => Some(">="),
             Token::NotStructuralEqual => Some("!="),
             Token::NotEqual => Some("!=="),
             Token::StructuralEqual => Some("=="),
@@ -333,6 +340,11 @@ impl Token {
             Token::Error => Some("error"),
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
+            Token::Type => Some("type"),
+            Token::TypeAlias => Some("typealias"),
+            Token::MutRef => Some("&mut"),
+            Token::And => Some("and"),
+            Token::Or => Some("or"),
             Token::Star => Some("*"),
             Token::Exclamation => Some("!"),
             Token::Caret => Some("^"),

@@ -106,7 +106,7 @@ impl<E> VisitableExpression<E> for TypeDeclaration {
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
-        visitor.visit_type_expression(&mut self.value)?;
+        visitor.visit_type_expression(&mut self.definition)?;
         Ok(())
     }
 }

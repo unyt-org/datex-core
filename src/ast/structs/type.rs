@@ -14,9 +14,13 @@ use crate::values::pointer::PointerAddress;
 #[derive(Clone, Debug, PartialEq)]
 /// The different kinds of type expressions in the AST
 pub enum TypeExpressionData {
+    
+    // used for error recovery
+    Recover,
+    
     Null,
-    // a type name or variable, e.g. integer, string, User, MyType, T
-    Literal(String),
+    // a variable name or generic type identifier, e.g. integer, string, User, MyType, T
+    Identifier(String),
 
     VariableAccess(VariableAccess),
     GetReference(PointerAddress),

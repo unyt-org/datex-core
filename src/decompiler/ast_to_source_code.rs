@@ -207,7 +207,7 @@ impl AstToSourceCodeConverter {
             TypeExpressionData::RefMut(inner) => {
                 format!("&mut {}", self.type_expression_to_source_code(inner,))
             }
-            TypeExpressionData::Literal(literal) => literal.to_string(),
+            TypeExpressionData::Identifier(literal) => literal.to_string(),
             TypeExpressionData::VariableAccess(VariableAccess {
                 name, ..
             }) => name.to_string(),
@@ -302,6 +302,10 @@ impl AstToSourceCodeConverter {
                     })
                     .collect();
                 self.wrap_map_elements(elements)
+            }
+            TypeExpressionData::Recover => {
+                // TODO
+                "/*Recovered Type Expression*/".to_string()
             }
         }
     }
@@ -476,7 +480,7 @@ impl AstToSourceCodeConverter {
                 for arg in arguments {
                     args_source.push(self.format(arg));
                 }
-                
+
                 format!("{}({})", self.format(base), args_source.join(""))
             }
             DatexExpressionData::TypeExpression(type_expr) => {
@@ -559,7 +563,7 @@ impl AstToSourceCodeConverter {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: _,
                 name,
-                value,
+                                                     definition: value,
                 hoisted: _,
                 kind,
             }) => {
@@ -946,7 +950,7 @@ mod tests {
                 ),
                 type_annotation: Some(
                     TypeExpressionData::RefMut(Box::new(
-                        TypeExpressionData::Literal("integer/u8".to_owned())
+                        TypeExpressionData::Identifier("integer/u8".to_owned())
                             .with_default_span(),
                     ))
                     .with_default_span(),

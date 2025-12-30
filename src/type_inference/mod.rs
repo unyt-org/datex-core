@@ -791,7 +791,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
             .expect("TypeDeclaration var_type should be a TypeReference");
 
         let inferred_type_def =
-            self.infer_type_expression(&mut type_declaration.value)?;
+            self.infer_type_expression(&mut type_declaration.definition)?;
 
         if type_declaration.kind.is_nominal() {
             match &inferred_type_def.inner_reference() {

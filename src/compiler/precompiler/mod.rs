@@ -762,7 +762,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "User".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![(
                                 TypeExpressionData::Text("a".to_string())
                                     .with_default_span(),
@@ -893,7 +893,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "User".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![])
                         )
                         .with_default_span(),
@@ -904,7 +904,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(1),
                         name: "User/admin".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![])
                         )
                         .with_default_span(),
@@ -1005,7 +1005,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::Integer(Integer::from(1))
+                    definition: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1057,7 +1057,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::Integer(Integer::from(1))
+                    definition: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1079,7 +1079,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "x".to_string(),
-                    value: TypeExpressionData::VariableAccess(VariableAccess {
+                    definition: TypeExpressionData::VariableAccess(VariableAccess {
                         id: 1,
                         name: "MyInt".to_string()
                     })
@@ -1091,7 +1091,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(1),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::VariableAccess(VariableAccess {
+                    definition: TypeExpressionData::VariableAccess(VariableAccess {
                         id: 0,
                         name: "x".to_string()
                     })
@@ -1126,7 +1126,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "x".to_string(),
-                        value: TypeExpressionData::Integer(
+                        definition: TypeExpressionData::Integer(
                             Integer::from(10).into()
                         )
                         .with_default_span(),
@@ -1142,7 +1142,7 @@ mod tests {
                                 TypeDeclaration {
                                     id: Some(1),
                                     name: "NestedVar".to_string(),
-                                    value: TypeExpressionData::VariableAccess(
+                                    definition: TypeExpressionData::VariableAccess(
                                         VariableAccess {
                                             id: 0,
                                             name: "x".to_string()
@@ -1173,7 +1173,7 @@ mod tests {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),
-                value: TypeExpressionData::GetReference(PointerAddress::from(
+                definition: TypeExpressionData::GetReference(PointerAddress::from(
                     CoreLibPointerId::Integer(None)
                 ))
                 .with_default_span(),
