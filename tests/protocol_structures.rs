@@ -1,5 +1,4 @@
 use binrw::{BinRead, BinWrite};
-use chumsky::primitive::End;
 use core::str::FromStr;
 use datex_core::values::core_values::endpoint::{
     Endpoint, EndpointInstance, EndpointType,
