@@ -59,7 +59,7 @@ impl Parser {
 
     fn parse(&mut self) -> Result<DatexExpression, SpannedParserError> {
         println!("PARSING TOKENS:\n{}", self.tokens.iter().map(|t| &t.token).join("\n"));
-        self.parse_expression(0)
+        self.parse_top_level_statements()
     }
 
 
@@ -102,7 +102,7 @@ impl Parser {
             Ok(&self.tokens[self.pos])
         }
     }
-    
+
     fn has_more_tokens(&self) -> bool {
         self.pos < self.tokens.len()
     }
@@ -118,7 +118,7 @@ impl Parser {
                 },
             });
         }
-        let tok = self.tokens[self.pos].clone();
+        let tok = self.tokens[self.pos].clone(); // TODO: take, don't clone?
         self.pos += 1;
         Ok(tok)
     }
@@ -127,7 +127,10 @@ impl Parser {
         let next_token = self.advance()?;
         if next_token.token != token {
             self.collect_error(SpannedParserError {
-                error: ParserError::ExpectedToken(token),
+                error: ParserError::UnexpectedToken {
+                    expected: vec![token],
+                    found: next_token.token.clone(),
+                },
                 span: self.peek()?.span.clone(),
             })?;
         }

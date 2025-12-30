@@ -5,9 +5,11 @@ use crate::compiler::error::ErrorCollector;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
-    ExpectedToken(Token),
+    UnexpectedToken {
+        expected: Vec<Token>,
+        found: Token,
+    },
     ExpectedMoreTokens,
-    UnexpectedToken, // TODO: add expected tokens info
 }
 
 #[derive(Debug)]

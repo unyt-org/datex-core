@@ -69,7 +69,10 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap().error,
-            ParserError::ExpectedToken(Token::RightBracket)
+            ParserError::UnexpectedToken {
+                expected: vec![Token::RightBracket],
+                found: Token::RightCurly,
+            }
         );
     }
 
