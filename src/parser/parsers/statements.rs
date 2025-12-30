@@ -10,10 +10,10 @@ impl Parser {
         let mut statements_data = self.parse_statements()?;
 
         let end = self.expect(Token::RightParen)?.span.end;
-        Ok(statements_data.with_span(start..end))
+        Ok(statements_data.data.with_span(start..end))
     }
 
-    pub(crate) fn parse_statements(&mut self) -> Result<DatexExpressionData, SpannedParserError> {
+    pub(crate) fn parse_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
         let mut statements = Vec::new();
         let mut is_terminated = false;
 
@@ -33,34 +33,43 @@ impl Parser {
                 }
             }
         }
-
-        Ok(
-            DatexExpressionData::Statements(Statements {
+        
+        // if single statement and not terminated, return that statement directly
+        if statements.len() == 1 && !is_terminated {
+            Ok(statements.remove(0))
+        }
+        // otherwise, return as statements 
+        else {
+            Ok(DatexExpressionData::Statements(Statements {
                 statements,
                 is_terminated,
                 unbounded: None,
-            })
-        )
+            }).with_default_span())
+        }
     }
 
     pub(crate) fn parse_top_level_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
         let statements_data = self.parse_statements()?;
 
-        Ok(match statements_data {
-            // if only a single statement and not terminated, unwrap it
-            DatexExpressionData::Statements(mut stmts) if stmts.statements.len() == 1 && !stmts.is_terminated => {
-                stmts.statements.remove(0)
-            },
-            // otherwise, return as statements
-            _ => {
+        Ok(match statements_data.data {
+            // if statements expression, set span correctly
+            DatexExpressionData::Statements(_) => {
                 let full_token_span = 0..self.tokens.last().map(|i| i.span.end).unwrap_or(0);
-                statements_data.with_span(full_token_span)
+                statements_data.data.with_span(full_token_span)
+            },
+            // otherwise, just return as is
+            _ => {
+                statements_data
             }
         })
     }
 
     fn parse_statement(&mut self) -> Result<DatexExpression, SpannedParserError> {
-        self.parse_expression(0)
+        match self.peek()?.token {
+            Token::Variable | Token::Const => self.parse_variable_declaration(),
+            Token::Type | Token::TypeAlias => self.parse_type_declaration(),
+            _ => self.parse_expression(0)
+        }
     }
 }
 

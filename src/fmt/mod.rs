@@ -138,7 +138,7 @@ impl<'a> Formatter<'a> {
             TypeExpressionData::RefMut(inner) => {
                 a.text("&mut") + a.space() + self.format_type_expression(inner)
             }
-            TypeExpressionData::Literal(lit) => a.text(lit.to_string()),
+            TypeExpressionData::Identifier(lit) => a.text(lit.to_string()),
             TypeExpressionData::VariableAccess(VariableAccess {
                 name, ..
             }) => a.text(name.clone()),
@@ -214,6 +214,8 @@ impl<'a> Formatter<'a> {
                 });
                 self.wrap_collection(pairs, ("{", "}"), ",")
             }
+            
+            TypeExpressionData::Recover => a.text("/*recover*/"),
         }
     }
 

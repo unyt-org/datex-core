@@ -135,8 +135,10 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
             TypeExpressionData::RefMut(type_expression) => {
                 type_expression.walk_children(visitor)
             }
-            TypeExpressionData::Null
-            | TypeExpressionData::Literal(_)
+
+            | TypeExpressionData::Recover
+            | TypeExpressionData::Null
+            | TypeExpressionData::Identifier(_)
             | TypeExpressionData::VariableAccess(_)
             | TypeExpressionData::GetReference(_)
             | TypeExpressionData::Integer(_)

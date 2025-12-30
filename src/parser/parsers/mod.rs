@@ -3,3 +3,7 @@ pub mod atom;
 pub mod expression;
 pub mod statements;
 pub mod map;
+pub mod key;
+pub mod variable_declaration;
+pub mod type_expressions;
+pub mod type_declaration;

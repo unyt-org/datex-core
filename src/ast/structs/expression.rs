@@ -334,7 +334,7 @@ impl TypeDeclarationKind {
 pub struct TypeDeclaration {
     pub id: Option<VariableId>,
     pub name: String,
-    pub value: TypeExpression,
+    pub definition: TypeExpression,
     pub hoisted: bool,
     pub kind: TypeDeclarationKind,
 }

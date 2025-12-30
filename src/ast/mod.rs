@@ -846,7 +846,7 @@ mod tests {
                 name: "myFunction".to_string(),
                 parameters: vec![(
                     "x".to_string(),
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span()
                 )],
                 return_type: None,
@@ -870,12 +870,12 @@ mod tests {
                 parameters: vec![
                     (
                         "x".to_string(),
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span()
                     ),
                     (
                         "y".to_string(),
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span()
                     )
                 ],
@@ -926,14 +926,14 @@ mod tests {
                 name: "myFunction".to_string(),
                 parameters: vec![(
                     "x".to_string(),
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span()
                 ),],
                 return_type: Some(
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span(),
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ]))
                     .with_default_span()
@@ -1578,7 +1578,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
-                    TypeExpressionData::Literal("integer".to_string())
+                    TypeExpressionData::Identifier("integer".to_string())
                         .with_default_span()
                 ),
                 name: "x".to_string(),
@@ -1597,7 +1597,7 @@ mod tests {
                 id: None,
                 kind: VariableKind::Var,
                 type_annotation: Some(
-                    TypeExpressionData::Literal("User".to_string())
+                    TypeExpressionData::Identifier("User".to_string())
                         .with_default_span()
                 ),
                 name: "x".to_string(),
@@ -1649,7 +1649,7 @@ mod tests {
                             variant: "u8".to_owned(),
                         })
                         .with_default_span(),
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ]))
                     .with_default_span()
@@ -1701,7 +1701,7 @@ mod tests {
                 kind: VariableKind::Var,
                 type_annotation: Some(
                     TypeExpressionData::SliceList(SliceList(Box::new(
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span()
                     )))
                     .with_default_span()
@@ -3284,7 +3284,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: None,
                     name: "User".to_string(),
-                    value: TypeExpressionData::StructuralMap(StructuralMap(
+                    definition: TypeExpressionData::StructuralMap(StructuralMap(
                         vec![
                             (
                                 TypeExpressionData::Text("age".to_string())

@@ -3,12 +3,14 @@ use crate::ast::structs::expression::DatexExpression;
 use crate::ast::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpressionData, List};
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
 use crate::parser::errors::{DetailedParserErrorsWithAst, ParserError, SpannedParserError};
 // TODO: move to different module
 
 mod errors;
 mod parsers;
+pub mod utils;
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
@@ -92,6 +94,19 @@ impl Parser {
         })
     }
 
+    /// Collects an error and returns a Recover type expression to continue parsing if
+    /// detailed error collection is enabled,
+    /// or returns the error as Err()
+    fn collect_error_and_continue_with_type_expression(
+        &mut self,
+        error: SpannedParserError,
+    ) -> Result<TypeExpression, SpannedParserError> {
+        let span = error.span.clone();
+        self.collect_error(error).map(|_| {
+            TypeExpressionData::Recover.with_span(span)
+        })
+    }
+
     /// Collects the Err variant of the Result if detailed error collection is enabled,
     /// or returns the Result mapped to a MaybeAction.
     fn collect_result<T>(
@@ -149,6 +164,21 @@ impl Parser {
             })?;
         }
         Ok(next_token)
+    }
+    
+    fn expect_identifier(&mut self) -> Result<String, SpannedParserError> {
+        match self.advance()? {
+            SpannedToken { token: Token::Identifier(identifier), .. }  => Ok(identifier),
+            token => {
+                Err(SpannedParserError {
+                    error: ParserError::UnexpectedToken {
+                        expected: vec![Token::Identifier("identifier".to_string())],
+                        found: token.token.clone(),
+                    },
+                    span: token.span.clone()
+                })
+            }
+        }
     }
 
     fn get_current_source_position(&self) -> usize {

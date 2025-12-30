@@ -110,9 +110,12 @@ pub trait TypeExpressionVisitor<E>: Sized {
             TypeExpressionData::RefMut(type_ref_mut) => {
                 self.visit_ref_mut_type(type_ref_mut, &expr.span)
             }
-            TypeExpressionData::Literal(literal) => {
+            TypeExpressionData::Identifier(literal) => {
                 self.visit_literal_type(literal, &expr.span)
             }
+            TypeExpressionData::Recover => unreachable!(
+                "Recover expression should not be visited"
+            )
         };
         let action = match visit_result {
             Ok(action) => action,

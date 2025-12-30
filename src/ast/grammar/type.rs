@@ -89,7 +89,7 @@ pub fn ty<'a>() -> impl DatexParserTrait<'a, TypeExpression> {
                     .as_deref()
                 {
                     None => {
-                        TypeExpressionData::Literal(base).with_span(e.span())
+                        TypeExpressionData::Identifier(base).with_span(e.span())
                     }
                     Some(variant) => {
                         TypeExpressionData::VariantAccess(TypeVariantAccess {
@@ -450,7 +450,7 @@ pub fn nominal_type_declaration<'a>() -> impl DatexParserTrait<'a> {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: None,
                 name: name.to_string(),
-                value: expr,
+                definition: expr,
                 hoisted: false,
                 kind: TypeDeclarationKind::Nominal,
             })
@@ -469,7 +469,7 @@ pub fn structural_type_definition<'a>() -> impl DatexParserTrait<'a> {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: None,
                 name: name.to_string(),
-                value: expr,
+                definition: expr,
                 hoisted: false,
                 kind: TypeDeclarationKind::Structural,
             })
@@ -527,7 +527,7 @@ mod tests {
     fn parse_type_unwrap(src: &str) -> TypeExpressionData {
         let value = parse_unwrap(format!("type T = {}", src).as_str());
         if let DatexExpressionData::TypeDeclaration(TypeDeclaration {
-            value,
+                                                        definition: value,
             ..
         }) = value
         {
@@ -540,7 +540,7 @@ mod tests {
         {
             match &statements[0].data {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
-                    value,
+                                                         definition: value,
                     ..
                 }) => value.data.clone(),
                 _ => {
@@ -585,7 +585,7 @@ mod tests {
                     TypeExpressionData::Text("name".to_string())
                         .with_default_span(),
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
                         TypeExpressionData::Null.with_default_span()
                     ]))
@@ -595,9 +595,9 @@ mod tests {
                     TypeExpressionData::Text("age".to_string())
                         .with_default_span(),
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span(),
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ]))
                     .with_default_span()
@@ -619,7 +619,7 @@ mod tests {
                     TypeExpressionData::Text("name".to_string())
                         .with_default_span(),
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
                         TypeExpressionData::Null.with_default_span()
                     ]))
@@ -632,7 +632,7 @@ mod tests {
                         base: "List".to_owned(),
                         access: vec![
                             TypeExpressionData::Ref(Box::new(
-                                TypeExpressionData::Literal("text".to_owned())
+                                TypeExpressionData::Identifier("text".to_owned())
                                     .with_default_span()
                             ))
                             .with_default_span()
@@ -656,7 +656,7 @@ mod tests {
                 (
                     TypeExpressionData::Text("name".to_string())
                         .with_default_span(),
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span()
                 ),
                 (
@@ -666,7 +666,7 @@ mod tests {
                         base: "List".to_owned(),
                         access: vec![
                             TypeExpressionData::Ref(Box::new(
-                                TypeExpressionData::Literal("text".to_owned())
+                                TypeExpressionData::Identifier("text".to_owned())
                                     .with_default_span()
                             ))
                             .with_default_span()
@@ -690,14 +690,14 @@ mod tests {
                 (
                     TypeExpressionData::Text("name".to_string())
                         .with_default_span(),
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span()
                 ),
                 (
                     TypeExpressionData::Text("age".to_string())
                         .with_default_span(),
                     TypeExpressionData::RefMut(Box::new(
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ))
                     .with_default_span()
@@ -843,7 +843,7 @@ mod tests {
                     .with_default_span(),
                 TypeExpressionData::Integer(Integer::from(2))
                     .with_default_span(),
-                TypeExpressionData::Literal("text".to_owned())
+                TypeExpressionData::Identifier("text".to_owned())
                     .with_default_span(),
             ]))
         );
@@ -854,9 +854,9 @@ mod tests {
             val,
             TypeExpressionData::StructuralList(StructuralList(vec![
                 TypeExpressionData::Union(Union(vec![
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span(),
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span(),
                 ]))
                 .with_default_span(),
@@ -872,7 +872,7 @@ mod tests {
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
                 ty: Box::new(
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span()
                 ),
                 size: 10
@@ -886,9 +886,9 @@ mod tests {
             TypeExpressionData::FixedSizeList(FixedSizeList {
                 ty: Box::new(
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span(),
-                        TypeExpressionData::Literal("string".to_owned())
+                        TypeExpressionData::Identifier("string".to_owned())
                             .with_default_span(),
                     ]))
                     .with_default_span()
@@ -906,7 +906,7 @@ mod tests {
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
                 ty: Box::new(
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span()
                 ),
                 size: 4
@@ -919,7 +919,7 @@ mod tests {
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
                 ty: Box::new(
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span()
                 ),
                 size: 42
@@ -932,7 +932,7 @@ mod tests {
             val,
             TypeExpressionData::FixedSizeList(FixedSizeList {
                 ty: Box::new(
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span()
                 ),
                 size: 10
@@ -947,7 +947,7 @@ mod tests {
         assert_eq!(
             val,
             TypeExpressionData::SliceList(SliceList(Box::new(
-                TypeExpressionData::Literal("text".to_owned())
+                TypeExpressionData::Identifier("text".to_owned())
                     .with_default_span()
             )))
         );
@@ -959,7 +959,7 @@ mod tests {
             TypeExpressionData::SliceList(SliceList(Box::new(
                 TypeExpressionData::SliceList(SliceList(Box::new(
                     TypeExpressionData::SliceList(SliceList(Box::new(
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span()
                     )))
                     .with_default_span()
@@ -978,7 +978,7 @@ mod tests {
             TypeExpressionData::GenericAccess(GenericAccess {
                 base: "List".to_owned(),
                 access: vec![
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span()
                 ]
             })
@@ -992,9 +992,9 @@ mod tests {
                 base: "List".to_owned(),
                 access: vec![
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span(),
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
                     ]))
                     .with_default_span(),
@@ -1012,9 +1012,9 @@ mod tests {
             TypeExpressionData::GenericAccess(GenericAccess {
                 base: "Map".to_owned(),
                 access: vec![
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span(),
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span(),
                 ],
             })
@@ -1030,9 +1030,9 @@ mod tests {
             TypeExpressionData::GenericAccess(GenericAccess {
                 base: "User".to_owned(),
                 access: vec![
-                    TypeExpressionData::Literal("text".to_owned())
+                    TypeExpressionData::Identifier("text".to_owned())
                         .with_default_span(),
-                    TypeExpressionData::Literal("integer".to_owned())
+                    TypeExpressionData::Identifier("integer".to_owned())
                         .with_default_span(),
                 ],
             })
@@ -1046,9 +1046,9 @@ mod tests {
                 base: "User".to_owned(),
                 access: vec![
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
-                        TypeExpressionData::Literal("integer".to_owned())
+                        TypeExpressionData::Identifier("integer".to_owned())
                             .with_default_span(),
                     ]))
                     .with_default_span(),
@@ -1067,13 +1067,13 @@ mod tests {
                 parameters: vec![
                     (
                         "x".to_string(),
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ),
                     (
                         "y".to_string(),
                         TypeExpressionData::Union(Union(vec![
-                            TypeExpressionData::Literal("text".to_owned())
+                            TypeExpressionData::Identifier("text".to_owned())
                                 .with_default_span(),
                             TypeExpressionData::Decimal(
                                 Decimal::from_string("4.5").unwrap()
@@ -1085,7 +1085,7 @@ mod tests {
                 ],
                 return_type: Box::new(
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
                         TypeExpressionData::Integer(Integer::from(52))
                             .with_default_span()
@@ -1104,7 +1104,7 @@ mod tests {
                     (
                         "x".to_string(),
                         TypeExpressionData::RefMut(Box::new(
-                            TypeExpressionData::Literal("text".to_owned())
+                            TypeExpressionData::Identifier("text".to_owned())
                                 .with_default_span()
                         ))
                         .with_default_span()
@@ -1112,7 +1112,7 @@ mod tests {
                     (
                         "y".to_string(),
                         TypeExpressionData::Union(Union(vec![
-                            TypeExpressionData::Literal("text".to_owned())
+                            TypeExpressionData::Identifier("text".to_owned())
                                 .with_default_span(),
                             TypeExpressionData::Decimal(
                                 Decimal::from_string("4.5").unwrap()
@@ -1124,7 +1124,7 @@ mod tests {
                 ],
                 return_type: Box::new(
                     TypeExpressionData::Union(Union(vec![
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span(),
                         TypeExpressionData::Integer(Integer::from(52))
                             .with_default_span()
@@ -1144,7 +1144,7 @@ mod tests {
             TypeExpressionData::Ref(Box::new(
                 TypeExpressionData::StructuralList(StructuralList(vec![
                     TypeExpressionData::RefMut(Box::new(
-                        TypeExpressionData::Literal("text".to_owned())
+                        TypeExpressionData::Identifier("text".to_owned())
                             .with_default_span()
                     ))
                     .with_default_span(),
