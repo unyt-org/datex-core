@@ -1,9 +1,11 @@
+use std::str::FromStr;
 use crate::values::core_values::decimal::Decimal;
 use crate::ast::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
 use crate::parser::{SpannedParserError, Parser};
 use crate::parser::errors::ParserError;
+use crate::values::core_values::endpoint::Endpoint;
 
 impl Parser {
     pub(crate) fn parse_atom(&mut self) -> Result<DatexExpression, SpannedParserError> {
@@ -40,6 +42,19 @@ impl Parser {
             Token::Nan => {
                 DatexExpressionData::Decimal(Decimal::Nan)
                     .with_span(self.advance()?.span)
+            }
+            Token::Endpoint(endpoint_name) => {
+                let span = self.advance()?.span.clone();
+                match Endpoint::from_str(endpoint_name.as_str()) {
+                    Err(e) => return self
+                        .collect_error_and_continue(SpannedParserError {
+                            error: ParserError::InvalidEndpointName {name: endpoint_name, details: e},
+                            span,
+                        }),
+                    Ok(endpoint) => {
+                        DatexExpressionData::Endpoint(endpoint).with_span(span)
+                    }
+                }
             }
 
             _ => return Err(SpannedParserError {
@@ -167,9 +182,13 @@ fn decode_json_unicode_escapes(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::structs::expression::DatexExpressionData;
-    use crate::parser::tests::parse;
+    use datex_core::parser::tests::try_parse_and_return_on_first_error;
+    use crate::ast::spanned::Spanned;
+    use crate::ast::structs::expression::{DatexExpressionData, Statements};
+    use crate::parser::errors::ParserError;
+    use crate::parser::tests::{parse, try_parse_and_collect_errors};
     use crate::values::core_values::decimal::Decimal;
+    use crate::values::core_values::endpoint::{Endpoint, InvalidEndpointError};
 
     #[test]
     fn parse_boolean_true() {
@@ -214,5 +233,50 @@ mod tests {
     fn parse_nan() {
         let expr = parse("NaN");
         assert_eq!(expr.data, DatexExpressionData::Decimal(Decimal::Nan));
+    }
+
+    #[test]
+    fn parse_endpoint() {
+        let expr = parse("@example");
+        assert_eq!(expr.data, DatexExpressionData::Endpoint(Endpoint::new("@example")));
+    }
+
+    #[test]
+    fn parse_invalid_endpoint() {
+        let result = try_parse_and_return_on_first_error("@x");
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap().error,
+            ParserError::InvalidEndpointName {
+                name: "@x".to_string(),
+                details: InvalidEndpointError::MinLengthNotMet
+            }
+        );
+    }
+    
+    #[test]
+    fn parse_invalid_endpoint_and_continue() {
+        let result = try_parse_and_collect_errors("@x; true");
+        assert!(result.is_err());
+        let result = result.unwrap_err();
+        let ast = result.ast;
+        let errors = result.errors;
+
+        assert_eq!(ast.data, DatexExpressionData::Statements(Statements {
+            statements: vec![
+                DatexExpressionData::Recover.with_default_span(),
+                DatexExpressionData::Boolean(true).with_default_span(),
+            ],
+            is_terminated: false,
+            unbounded: None,
+        }));
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].error,
+            ParserError::InvalidEndpointName {
+                name: "@x".to_string(),
+                details: InvalidEndpointError::MinLengthNotMet
+            }
+        );
     }
 }
