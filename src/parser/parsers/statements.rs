@@ -5,42 +5,62 @@ use crate::parser::errors::SpannedParserError;
 use crate::parser::Parser;
 
 impl Parser {
-    pub(crate) fn parse_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
+    pub(crate) fn parse_parenthesized_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
         let start = self.expect(Token::LeftParen)?.span.start;
+        let mut statements_data = self.parse_statements()?;
+
+        let end = self.expect(Token::RightParen)?.span.end;
+        Ok(statements_data.with_span(start..end))
+    }
+
+    pub(crate) fn parse_statements(&mut self) -> Result<DatexExpressionData, SpannedParserError> {
         let mut statements = Vec::new();
         let mut is_terminated = false;
 
-        while self.peek()?.token != Token::RightParen {
-
-            // semicolons before statement
-            while self.peek()?.token == Token::Semicolon {
-                self.advance()?;
-            }
-
-            // if already at right paren without any statement, break
-            if self.peek()?.token == Token::RightParen {
+        loop {
+            if !self.has_more_tokens() {
                 break;
             }
-
-            // parse statement
-            statements.push(self.parse_expression(0)?);
-
-            // semicolons after statement
-            is_terminated = false;
-            while self.peek()?.token == Token::Semicolon {
-                self.advance()?;
-                is_terminated = true;
+            match self.peek()?.token {
+                Token::Semicolon => {
+                    self.advance()?;
+                    is_terminated = true;
+                },
+                Token::RightParen => break,
+                _ => {
+                    is_terminated = false;
+                    statements.push(self.parse_statement()?);
+                }
             }
         }
 
-        let end = self.expect(Token::RightParen)?.span.end;
         Ok(
             DatexExpressionData::Statements(Statements {
                 statements,
                 is_terminated,
                 unbounded: None,
-            }).with_span(start..end)
+            })
         )
+    }
+
+    pub(crate) fn parse_top_level_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
+        let statements_data = self.parse_statements()?;
+
+        Ok(match statements_data {
+            // if only a single statement and not terminated, unwrap it
+            DatexExpressionData::Statements(mut stmts) if stmts.statements.len() == 1 && !stmts.is_terminated => {
+                stmts.statements.remove(0)
+            },
+            // otherwise, return as statements
+            _ => {
+                let full_token_span = 0..self.tokens.last().map(|i| i.span.end).unwrap_or(0);
+                statements_data.with_span(full_token_span)
+            }
+        })
+    }
+
+    fn parse_statement(&mut self) -> Result<DatexExpression, SpannedParserError> {
+        self.parse_expression(0)
     }
 }
 
@@ -89,7 +109,7 @@ mod tests {
         let expr = parse("(;)");
         assert_eq!(expr.data, DatexExpressionData::Statements(Statements {
             statements: vec![],
-            is_terminated: false,
+            is_terminated: true,
             unbounded: None,
         }));
     }
@@ -114,5 +134,37 @@ mod tests {
 
         let expr = parse("(true; false)");
         assert_eq!(expr.span, 0..13);
+    }
+
+    #[test]
+    fn top_level_statements() {
+        let expr = parse("true; false; null;");
+        assert_eq!(expr.data, DatexExpressionData::Statements(Statements {
+            statements: vec![
+                DatexExpressionData::Boolean(true).with_default_span(),
+                DatexExpressionData::Boolean(false).with_default_span(),
+                DatexExpressionData::Null.with_default_span(),
+            ],
+            is_terminated: true,
+            unbounded: None,
+        }));
+    }
+
+    #[test]
+    fn top_level_single_statement_unterminated() {
+        let expr = parse("true");
+        assert_eq!(expr.data, DatexExpressionData::Boolean(true));
+    }
+    
+    #[test]
+    fn top_level_single_statement_terminated() {
+        let expr = parse("true;");
+        assert_eq!(expr.data, DatexExpressionData::Statements(Statements {
+            statements: vec![
+                DatexExpressionData::Boolean(true).with_default_span(),
+            ],
+            is_terminated: true,
+            unbounded: None,
+        }));
     }
 }

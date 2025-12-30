@@ -11,7 +11,7 @@ impl Parser {
 
             Token::LeftCurly => self.parse_map()?,
             Token::LeftBracket => self.parse_list()?,
-            Token::LeftParen => self.parse_statements()?,
+            Token::LeftParen => self.parse_parenthesized_statements()?,
 
             Token::True => {
                 DatexExpressionData::Boolean(true)
@@ -43,7 +43,21 @@ impl Parser {
             }
 
             _ => return Err(SpannedParserError {
-                error: ParserError::UnexpectedToken,
+                error: ParserError::UnexpectedToken {
+                    expected: vec![
+                        Token::LeftCurly,
+                        Token::LeftBracket,
+                        Token::LeftParen,
+                        Token::True,
+                        Token::False,
+                        Token::Null,
+                        Token::Identifier("<identifier>".to_string()),
+                        Token::StringLiteral("<string>".to_string()),
+                        Token::Infinity,
+                        Token::Nan,
+                    ],
+                    found: self.peek()?.token.clone(),
+                },
                 span: self.peek()?.span.clone()
             })
         })
