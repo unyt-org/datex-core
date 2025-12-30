@@ -681,14 +681,14 @@ mod tests {
     #[test]
     fn test_decimal_nan_value_key() {
         let mut map = Map::default();
-        let nan_value = ValueContainer::from(Decimal::NaN);
+        let nan_value = ValueContainer::from(Decimal::Nan);
         map.set(&nan_value, "value");
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
 
         // new NaN value should also be found
-        let new_nan_value = ValueContainer::from(Decimal::NaN);
+        let new_nan_value = ValueContainer::from(Decimal::Nan);
         assert!(map.has(&new_nan_value));
 
         // adding new_nan_value should not increase size

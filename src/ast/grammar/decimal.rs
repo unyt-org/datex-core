@@ -79,7 +79,7 @@ pub fn decimal<'a>() -> impl DatexParserTrait<'a> {
     choice((
         // special tokens
         select! {
-            Token::Nan => Ok(DatexExpressionData::Decimal(Decimal::NaN)),
+            Token::Nan => Ok(DatexExpressionData::Decimal(Decimal::Nan)),
             Token::Infinity => Ok(DatexExpressionData::Decimal(Decimal::Infinity)),
         },
 

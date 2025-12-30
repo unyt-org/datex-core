@@ -272,9 +272,7 @@ pub enum Token {
     // named slots (starting with #, followed by A-Z or a-z)
     #[regex(r"#[_a-zA-Z]+", allocated_string)] NamedSlot(String),
 
-
-
-    Error
+    Error,
 }
 
 impl Token {

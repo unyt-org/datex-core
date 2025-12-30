@@ -1,11 +1,19 @@
-use datex_core::ast::spanned::Spanned;
-use datex_core::ast::structs::expression::DatexExpression;
+use itertools::Itertools;
+use crate::ast::structs::expression::DatexExpression;
 use crate::ast::lexer::{SpannedToken, Token};
 use crate::ast::structs::expression::{DatexExpressionData, List};
+use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
+use crate::parser::errors::{DetailedParserErrorsWithAst, ParserError, SpannedParserError};
+// TODO: move to different module
+
+mod errors;
+mod parsers;
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
     pos: usize,
+    // when Some, collect all errors instead of returning on first error
+    collected_errors: Option<Vec<SpannedParserError>>
 }
 
 impl Parser {
@@ -14,70 +22,128 @@ impl Parser {
         Self {
             tokens,
             pos: 0,
+            collected_errors: None,
         }
     }
 
-    pub fn parse(&mut self) -> DatexExpression {
-        self.parse_value()
+    /// Parses the tokens and collects all errors, returning them along with the final (possibly partial) AST.
+    pub fn parse_and_collect_errors(&mut self) -> Result<DatexExpression, DetailedParserErrorsWithAst> {
+        self.collected_errors = Some(Vec::new());
+        match self.parse() {
+            Err(_) => {
+                unreachable!()
+            }
+            Ok(ast) => {
+                if let Some(errors) = self.collected_errors.take() {
+                    if errors.is_empty() {
+                        Ok(ast)
+                    } else {
+                        Err(DetailedParserErrorsWithAst {
+                            ast,
+                            errors,
+                        })
+                    }
+                } else {
+                    Ok(ast)
+                }
+            }
+        }
     }
 
-    fn peek(&self) -> &SpannedToken {
-        &self.tokens[self.pos]
+    /// Parses the tokens and returns on the first error encountered.
+    /// If no errors are found, returns the final, complete AST.
+    pub fn parse_and_return_on_first_error(&mut self) -> Result<DatexExpression, SpannedParserError> {
+        self.collected_errors = None;
+        self.parse()
     }
 
-    fn advance(&mut self) -> SpannedToken {
+    fn parse(&mut self) -> Result<DatexExpression, SpannedParserError> {
+        println!("PARSING TOKENS:\n{}", self.tokens.iter().map(|t| &t.token).join("\n"));
+        self.parse_expression(0)
+    }
+
+
+    /// Collects an error if detailed error collection is enabled,
+    /// or returns the error as Err()
+    fn collect_error(
+        &mut self,
+        error: SpannedParserError,
+    ) -> Result<(), SpannedParserError> {
+        match &mut self.collected_errors {
+            Some(collected_errors) => {
+                collected_errors.record_error(error);
+                Ok(())
+            }
+            None => Err(error),
+        }
+    }
+
+    /// Collects the Err variant of the Result if detailed error collection is enabled,
+    /// or returns the Result mapped to a MaybeAction.
+    fn collect_result<T>(
+        &mut self,
+        result: Result<T, SpannedParserError>,
+    ) -> Result<MaybeAction<T>, SpannedParserError> {
+        collect_or_pass_error(&mut self.collected_errors, result)
+    }
+
+
+    fn peek(&self) -> Result<&SpannedToken, SpannedParserError> {
+        if self.pos >= self.tokens.len() {
+            Err(SpannedParserError {
+                error: ParserError::ExpectedMoreTokens,
+                span: if let Some(last) = self.tokens.last() {
+                    last.span.end..last.span.end
+                } else {
+                    0..0
+                },
+            })
+        } else {
+            Ok(&self.tokens[self.pos])
+        }
+    }
+    
+    fn has_more_tokens(&self) -> bool {
+        self.pos < self.tokens.len()
+    }
+
+    fn advance(&mut self) -> Result<SpannedToken, SpannedParserError> {
+        if self.pos >= self.tokens.len() {
+            return Err(SpannedParserError {
+                error: ParserError::ExpectedMoreTokens,
+                span: if let Some(last) = self.tokens.last() {
+                    last.span.end..last.span.end
+                } else {
+                    0..0
+                },
+            });
+        }
         let tok = self.tokens[self.pos].clone();
         self.pos += 1;
-        tok
+        Ok(tok)
     }
 
-    fn expect(&mut self, kind: Token) {
-        if self.advance().token != kind {
-            panic!("Expected {:?}", kind);
+    fn expect(&mut self, token: Token) -> Result<SpannedToken, SpannedParserError> {
+        let next_token = self.advance()?;
+        if next_token.token != token {
+            self.collect_error(SpannedParserError {
+                error: ParserError::ExpectedToken(token),
+                span: self.peek()?.span.clone(),
+            })?;
         }
+        Ok(next_token)
     }
 
-
-    fn parse_value(&mut self) -> DatexExpression {
-        match self.peek().token {
-            Token::LeftCurly => todo!(),
-            Token::LeftBracket => self.parse_list(),
-            Token::True => {
-                let span = self.advance().span;
-                DatexExpressionData::Boolean(true).with_span(span)
-            }
-            Token::False => {
-                let span = self.advance().span;
-                DatexExpressionData::Boolean(false).with_span(span)
-            }
-            Token::Null => {
-                let span = self.advance().span;
-                DatexExpressionData::Null.with_span(span)
-            }
-            _ => self.parse_expr(0),
+    fn get_current_source_position(&self) -> usize {
+        if self.pos == 0 {
+            0
+        } else if self.pos - 1 < self.tokens.len() {
+            self.tokens[self.pos - 1].span.end
+        } else if let Some(last) = self.tokens.last() {
+            last.span.end
+        } else {
+            0
         }
-    }
-
-    fn parse_list(&mut self) -> DatexExpression {
-        self.expect(Token::LeftBracket);
-        let mut items = Vec::new();
-
-        while self.peek().token != Token::RightBracket {
-            items.push(self.parse_value());
-
-            if self.peek().token == Token::Comma {
-                self.advance();
-            }
-        }
-
-        self.expect(Token::RightBracket);
-        DatexExpressionData::List(List {
-            items
-        }).with_default_span()
-    }
-
-    fn parse_expr(&mut self, min_bp: u8) -> DatexExpression {
-        todo!()
     }
 }
 
@@ -85,37 +151,24 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::lexer::get_spanned_tokens_from_source;
+    use crate::ast::spanned::Spanned;
     use super::*;
 
-    fn parse(src: &str) -> DatexExpression {
+    pub fn try_parse_and_return_on_first_error(src: &str) -> Result<DatexExpression, SpannedParserError> {
         let tokens = get_spanned_tokens_from_source(src).unwrap();
-        println!("{:?}", tokens);
         let mut parser = Parser::new(tokens);
-        parser.parse()
+        parser.parse_and_return_on_first_error()
     }
 
-
-    #[test]
-    fn parse_boolean_true() {
-        let expr = parse("true");
-        assert_eq!(expr.data, DatexExpressionData::Boolean(true));
+    pub fn try_parse_and_collect_errors(src: &str) -> Result<DatexExpression, DetailedParserErrorsWithAst> {
+        let tokens = get_spanned_tokens_from_source(src).unwrap();
+        let mut parser = Parser::new(tokens);
+        parser.parse_and_collect_errors()
     }
 
-    #[test]
-    fn parse_boolean_false() {
-        let expr = parse("false");
-        assert_eq!(expr.data, DatexExpressionData::Boolean(false));
-    }
-
-    #[test]
-    fn parse_simple_list() {
-        let expr = parse("[true, false, null]");
-        assert_eq!(expr.data, DatexExpressionData::List(List {
-            items: vec![
-                DatexExpressionData::Boolean(true).with_default_span(),
-                DatexExpressionData::Boolean(false).with_default_span(),
-                DatexExpressionData::Null.with_default_span(),
-            ]
-        }));
+    pub fn parse(src: &str) -> DatexExpression {
+        let tokens = get_spanned_tokens_from_source(src).unwrap();
+        let mut parser = Parser::new(tokens);
+        parser.parse_and_return_on_first_error().unwrap()
     }
 }

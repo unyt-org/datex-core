@@ -3749,11 +3749,11 @@ mod tests {
     fn decimal_nan() {
         let src = "NaN";
         let num = parse_unwrap_data(src);
-        assert_matches!(num, DatexExpressionData::Decimal(Decimal::NaN));
+        assert_matches!(num, DatexExpressionData::Decimal(Decimal::Nan));
 
         let src = "nan";
         let num = parse_unwrap_data(src);
-        assert_matches!(num, DatexExpressionData::Decimal(Decimal::NaN));
+        assert_matches!(num, DatexExpressionData::Decimal(Decimal::Nan));
     }
 
     #[test]

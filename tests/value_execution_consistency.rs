@@ -57,7 +57,7 @@ fn test_compile_and_execute_typed_decimals() {
     let result = compile_and_execute(input.clone());
     assert_eq!(result, input);
 
-    let input = ValueContainer::from(TypedDecimal::Decimal(Decimal::NaN));
+    let input = ValueContainer::from(TypedDecimal::Decimal(Decimal::Nan));
     let result = compile_and_execute(input.clone());
     assert_eq!(result, input);
 }

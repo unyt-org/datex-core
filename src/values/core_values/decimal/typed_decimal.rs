@@ -362,7 +362,7 @@ impl TypedDecimal {
                 Decimal::NegZero => true,
                 Decimal::Infinity => false,
                 Decimal::NegInfinity => false,
-                Decimal::NaN => false,
+                Decimal::Nan => false,
             },
         }
     }
@@ -420,7 +420,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
-            TypedDecimal::Decimal(value) => core::matches!(value, Decimal::NaN),
+            TypedDecimal::Decimal(value) => core::matches!(value, Decimal::Nan),
         }
     }
 
@@ -908,8 +908,8 @@ mod tests {
         let nan_f32_b = TypedDecimal::from(f32::NAN);
         let nan_f64_a = TypedDecimal::from(f64::NAN);
         let nan_f64_b = TypedDecimal::from(f64::NAN);
-        let nan_big_a = TypedDecimal::Decimal(Decimal::NaN);
-        let nan_big_b = TypedDecimal::Decimal(Decimal::NaN);
+        let nan_big_a = TypedDecimal::Decimal(Decimal::Nan);
+        let nan_big_b = TypedDecimal::Decimal(Decimal::Nan);
 
         // Structural equality (always false)
         assert!(!nan_f32_a.structural_eq(&nan_f32_b));
