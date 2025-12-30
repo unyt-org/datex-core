@@ -1,66 +1,82 @@
 use itertools::Itertools;
+use parser_result::ParserResult;
 use crate::ast::structs::expression::DatexExpression;
-use crate::ast::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{DatexExpressionData, List};
+use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
 use crate::parser::errors::{DetailedParserErrorsWithAst, ParserError, SpannedParserError};
+use crate::parser::lexer::{SpannedToken, Token};
+use crate::parser::parser_result::{InvalidDatexParseResult, ValidDatexParseResult};
 // TODO: move to different module
 
-mod errors;
+pub mod errors;
 mod parsers;
 pub mod utils;
+pub mod lexer;
+pub mod parser_result;
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
     pos: usize,
     // when Some, collect all errors instead of returning on first error
-    collected_errors: Option<Vec<SpannedParserError>>
+    collected_errors: Option<Vec<SpannedParserError>>,
 }
 
 impl Parser {
 
-    pub fn new(tokens: Vec<SpannedToken>) -> Self {
-        Self {
-            tokens,
-            pos: 0,
-            collected_errors: None,
-        }
-    }
-
-    /// Parses the tokens and collects all errors, returning them along with the final (possibly partial) AST.
-    pub fn parse_and_collect_errors(&mut self) -> Result<DatexExpression, DetailedParserErrorsWithAst> {
-        self.collected_errors = Some(Vec::new());
-        match self.parse() {
+    /// Parses the given source code.
+    /// Collects all lexing and parsing errors encountered.
+    pub fn parse_collecting(src: &str) -> ParserResult {
+        let (tokens, errors) = lexer::get_spanned_tokens_from_source(src);
+        let mut parser = Self::new_from_tokens(tokens, Some(errors));
+        match parser.parse_root() {
+            // this should never happen when collecting errors
             Err(_) => {
                 unreachable!()
             }
             Ok(ast) => {
-                if let Some(errors) = self.collected_errors.take() {
-                    if errors.is_empty() {
-                        Ok(ast)
-                    } else {
-                        Err(DetailedParserErrorsWithAst {
-                            ast,
-                            errors,
-                        })
-                    }
-                } else {
-                    Ok(ast)
+                // has errors, return invalid result
+                if let Some(errors) = parser.collected_errors && !errors.is_empty() {
+                    ParserResult::Invalid(InvalidDatexParseResult {
+                        ast,
+                        errors,
+                    })
+                }
+                // has no errors, return valid result
+                else {
+                    ParserResult::Valid(ValidDatexParseResult { ast })
                 }
             }
         }
+
     }
 
-    /// Parses the tokens and returns on the first error encountered.
-    /// If no errors are found, returns the final, complete AST.
-    pub fn parse_and_return_on_first_error(&mut self) -> Result<DatexExpression, SpannedParserError> {
-        self.collected_errors = None;
-        self.parse()
+    /// Parses the given source code.
+    /// Aborts on the first lexing or parsing error encountered.
+    pub fn parse(src: &str) -> Result<DatexExpression, SpannedParserError> {
+        let (tokens, errors) = lexer::get_spanned_tokens_from_source(src);
+        // already has lexer errors - aborts early when parsing starts
+        if let Some(first_error) = errors.into_iter().next() {
+            Err(first_error)
+        }
+        // no lexer errors - can proceed with parsing (using early abort mode)
+        else {
+            let mut parser = Self::new_from_tokens(tokens, None);
+            parser.parse_root()
+        }
     }
 
-    fn parse(&mut self) -> Result<DatexExpression, SpannedParserError> {
+    fn new_from_tokens(tokens: Vec<SpannedToken>, collected_errors: Option<Vec<SpannedParserError>>) -> Self {
+        Self {
+            tokens,
+            pos: 0,
+            collected_errors,
+        }
+    }
+
+    /// Entrypoint for parsing a full source file.
+    fn parse_root(&mut self) -> Result<DatexExpression, SpannedParserError> {
         println!("PARSING TOKENS:\n{}", self.tokens.iter().map(|t| &t.token).join("\n"));
         self.parse_top_level_statements()
     }
@@ -197,25 +213,17 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::lexer::get_spanned_tokens_from_source;
-    use crate::ast::spanned::Spanned;
     use super::*;
 
     pub fn try_parse_and_return_on_first_error(src: &str) -> Result<DatexExpression, SpannedParserError> {
-        let tokens = get_spanned_tokens_from_source(src).unwrap();
-        let mut parser = Parser::new(tokens);
-        parser.parse_and_return_on_first_error()
+        Parser::parse(src)
     }
 
-    pub fn try_parse_and_collect_errors(src: &str) -> Result<DatexExpression, DetailedParserErrorsWithAst> {
-        let tokens = get_spanned_tokens_from_source(src).unwrap();
-        let mut parser = Parser::new(tokens);
-        parser.parse_and_collect_errors()
+    pub fn try_parse_and_collect_errors(src: &str) -> ParserResult {
+        Parser::parse_collecting(src)
     }
 
     pub fn parse(src: &str) -> DatexExpression {
-        let tokens = get_spanned_tokens_from_source(src).unwrap();
-        let mut parser = Parser::new(tokens);
-        parser.parse_and_return_on_first_error().unwrap()
+        Parser::parse(src).unwrap()
     }
 }

@@ -1,397 +1,34 @@
 pub mod error;
-mod grammar;
 pub mod structs;
-use crate::ast::error::error::ParseError;
-use crate::ast::error::pattern::Pattern;
-use crate::ast::grammar::atom::*;
-use crate::ast::grammar::binary_operation::*;
-use crate::ast::grammar::binding::*;
-use crate::ast::grammar::comparison_operation::*;
-use crate::ast::grammar::function::*;
-use crate::ast::grammar::key::*;
-use crate::ast::grammar::list::*;
-use crate::ast::grammar::map::*;
-use crate::ast::grammar::unary::*;
-use crate::ast::grammar::utils::*;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{Apply, Conditional, PropertyAccess};
 use crate::ast::structs::expression::RemoteExecution;
 
-use crate::ast::grammar::r#type::type_expression;
-pub mod lexer;
-pub mod parse_result;
 pub mod spanned;
-use crate::ast::parse_result::{
-    DatexParseResult, InvalidDatexParseResult, ValidDatexParseResult,
+use crate::parser::parser_result::{
+    ParserResult, InvalidDatexParseResult, ValidDatexParseResult,
 };
-use crate::ast::structs::expression::{
+pub(crate) use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, Statements,
 };
-use chumsky::extra::Err;
-use chumsky::prelude::*;
-use core::ops::Range;
 use core::result::Result;
-use lexer::Token;
+use crate::parser::lexer::Token;
 use logos::Logos;
-
-pub type TokenInput<'a, X = Token> = &'a [X];
-pub trait DatexParserTrait<'a, T = DatexExpression> =
-    Parser<'a, TokenInput<'a>, T, Err<ParseError>> + Clone + 'a;
-
-pub type DatexScriptParser<'a> =
-    Boxed<'a, 'a, TokenInput<'a>, DatexExpression, Err<ParseError>>;
-
-pub trait ParserRecoverExt<'a, I>:
-    DatexParserTrait<'a, Result<DatexExpression, I>>
-where
-    I: 'a + Into<ParseError>,
-{
-    fn recover_invalid(self) -> impl DatexParserTrait<'a, DatexExpression>
-    where
-        Self: Sized,
-    {
-        self.validate(
-            |item: Result<DatexExpression, I>,
-             ctx,
-             emitter: &mut chumsky::input::Emitter<ParseError>| {
-                match item {
-                    Ok(expr) => expr,
-                    Err(err) => {
-                        let span = ctx.span();
-                        let mut error: ParseError = err.into();
-                        error.set_token_pos(span.start);
-                        emitter.emit(error);
-                        DatexExpressionData::Recover.with_span(span)
-                    }
-                }
-            },
-        )
-    }
-}
-
-impl<'a, I, P> ParserRecoverExt<'a, I> for P
-where
-    I: 'a + Into<ParseError>,
-    P: DatexParserTrait<'a, Result<DatexExpression, I>>,
-{
-}
-
-pub fn create_parser<'a>() -> impl DatexParserTrait<'a, DatexExpression> {
-    // an expression
-    let mut inner_expression = Recursive::declare();
-
-    // an expression or remote execution
-    let mut statement = Recursive::declare();
-
-    // a sequence of expressions, separated by semicolons, optionally terminated with a semicolon
-    let statements = statement
-        .clone()
-        .then_ignore(
-            just(Token::Semicolon)
-                .repeated()
-                .at_least(1),
-        )
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(
-            statement
-                .clone()
-                .then(just(Token::Semicolon).or_not())
-                .or_not(), // Final expression with optional semicolon
-        )
-        .map_with(|(statements, last), e| {
-            // Convert expressions with mandatory semicolon
-            let mut statements: Vec<DatexExpression> = statements;
-            let mut is_terminated = true;
-
-            if let Some((last_statement, last_semi)) = last {
-                // add last_expr to statements
-                statements.push(last_statement);
-                is_terminated = last_semi.is_some();
-            }
-            // if single statement without semicolon, treat it as a single expression
-            if statements.len() == 1 && !is_terminated {
-                statements.remove(0)
-            } else {
-                DatexExpressionData::Statements(Statements {
-                    statements,
-                    is_terminated,
-                    unbounded: None,
-                })
-                .with_span(e.span())
-            }
-        })
-        .boxed()
-        .labelled(Pattern::Custom("statements"));
-
-    // expression wrapped in parentheses
-    let wrapped_expression = statements
-        .clone()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-        .map_with(|inner, _| {
-            let mut expr = inner;
-            expr.wrapped = Some(expr.wrapped.unwrap_or(0).saturating_add(1));
-            expr
-        });
-
-    // a valid map/list key
-    // abc, a, "1", "test", (1 + 2), ...
-    let key = key(wrapped_expression.clone()).labelled(Pattern::Custom("key"));
-
-    // list
-    // 1,2,3
-    // [1,2,3,4,13434,(1),4,5,7,8]
-    let list = list(statement.clone());
-
-    // map
-    let map = map(key.clone(), statement.clone());
-
-    // atomic expression (e.g. 1, "text", (1 + 2), (1;2))
-    let atomic_inner = atom(list.clone(), map.clone(), wrapped_expression.clone());
-    let atomic_expression = unary(atomic_inner.clone());
-
-    // lhs-recursive chains
-
-    // let chains = choice((
-    //     // property_access(chain_lhs.clone(), atomic_inner.clone()),
-    //     apply(
-    //         chain_lhs.clone(),
-    //         atomic_inner.clone(),
-    //         statement.clone(),
-    //     ),
-    // ));
-
-    enum Chain {
-        PropertyAccess(DatexExpression),
-        Apply(Vec<DatexExpression>),
-    }
-
-    let chain = just(Token::Dot)
-        .ignore_then(atomic_inner.clone())
-        .map(Chain::PropertyAccess)
-        .or(
-            choice((
-                // apply #1: function call with multiple arguments
-                // x(1,2,3)
-                statement.clone()
-                    .separated_by(just(Token::Comma))
-                    .at_least(0)
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
-                // apply #2: an atomic value (e.g. "text", [1,2,3]) - whitespace or newline required before
-                // print "sdf"
-                // just(Token::Whitespace)
-                //     .repeated()
-                //     .at_least(1)
-                //     .ignore_then(atomic_inner.clone().padded_by(whitespace()))
-                //     .map(|e| vec![e])
-            ))
-            .map_with(|args, e| {
-                Chain::Apply(args)
-            })
-        )
-        .boxed();
-
-    let chains = atomic_expression.clone()
-        .foldl(chain.repeated(), |expr, chain| match chain {
-            Chain::PropertyAccess(field) => {
-                DatexExpressionData::PropertyAccess(
-                    PropertyAccess {
-                        base: Box::new(expr),
-                        property: Box::new(field),
-                    },
-                ).with_default_span()
-            },
-            Chain::Apply(args) => {
-                DatexExpressionData::Apply(Apply {
-                    base: Box::new(expr),
-                    arguments: args,
-                }).with_default_span()
-            },
-        })
-        .boxed();
-
-
-    let binary = binary_operation(atomic_expression.clone());
-
-    // FIXME #363 WIP
-    let function_declaration = function(statements.clone());
-
-    // comparison (==, !=, is, …)
-    let comparison = comparison_operation(binary.clone());
-
-    // let chain_without_whitespace_apply = chain_without_whitespace_apply(
-    //     atomic_expression.clone(),
-    //     key.clone(),
-    //     statement.clone(),
-    // );
-
-    // declarations or assignments
-    let declaration_or_assignment = declaration_or_assignment(
-        key.clone(),
-        // chain_without_whitespace_apply.clone(),
-        statement.clone(),
-        atomic_expression.clone(),
-    );
-
-    let condition_union = binary_operation(atomic_expression.clone());
-    let condition = comparison_operation(condition_union);
-
-    let if_expression = recursive(|if_rec| {
-        just(Token::If)
-            .ignore_then(condition.clone())
-            .then(
-                choice((
-                    wrapped_expression.clone(),
-                    list.clone(),
-                    map.clone(),
-                    statements.clone(),
-                    atomic_expression.clone(),
-                )),
-            )
-            .then(
-                just(Token::Else)
-                    .ignore_then(choice((
-                        if_rec.clone(),
-                        wrapped_expression.clone(),
-                        list.clone(),
-                        map.clone(),
-                        statements.clone(),
-                        atomic_expression.clone(),
-                    )))
-                    .or_not(),
-            )
-            .map_with(|((cond, then_branch), else_opt), e| {
-                DatexExpressionData::Conditional(Conditional {
-                    condition: Box::new(cond),
-                    then_branch: Box::new(unwrap_single_statement(then_branch)),
-                    else_branch: else_opt
-                        .map(unwrap_single_statement)
-                        .map(Box::new),
-                })
-                .with_span(e.span())
-            })
-            .boxed()
-    });
-
-    // expression :: expression
-    let remote_execution = inner_expression
-        .clone()
-        .then_ignore(just(Token::DoubleColon))
-        .then(inner_expression.clone())
-        .map_with(|(endpoint, expr), e| {
-            DatexExpressionData::RemoteExecution(RemoteExecution {
-                left: Box::new(endpoint),
-                right: Box::new(expr),
-            })
-            .with_span(e.span())
-        });
-
-    inner_expression.define(
-        choice((
-            type_expression(),
-            if_expression,
-            declaration_or_assignment,
-            function_declaration,
-            comparison,
-            chains,
-        )),
-    );
-
-    statement.define(choice((remote_execution, inner_expression.clone())));
-
-    choice((
-        // empty script (0-n semicolons)
-        just(Token::Semicolon)
-            .repeated()
-            .at_least(1)
-            .map_with(|_, e| {
-                DatexExpressionData::Statements(Statements::empty())
-                    .with_span(e.span())
-            }),
-        // statements
-        statements,
-    ))
-}
+use crate::parser::errors::SpannedParserError;
+use crate::parser::Parser;
 
 /// Parse the given source code into a DatexExpression AST.
 /// Returns either the AST and the spans of each token, or a list of parse errors if parsing failed.
 
-pub fn parse(src: &str) -> DatexParseResult {
-    parse_with_parser(src, create_parser())
-}
-pub fn parse_with_parser<'a>(
-    mut src: &'a str,
-    parser: impl DatexParserTrait<'a, DatexExpression>,
-) -> DatexParseResult {
-    // strip shebang at beginning of the source code
-    if src.starts_with("#!") {
-        if let Some(pos) = src.find('\n') {
-            src = &src[pos + 1..];
-        } else {
-            src = "";
-        }
-    }
-
-    // lex the source code
-    let tokens = Token::lexer(src);
-    let tokens_spanned_result: Result<Vec<(Token, Range<usize>)>, _> = tokens
-        .spanned()
-        .map(|(tok, span)| {
-            tok.map(|t| (t, span.clone()))
-                .map_err(|_| ParseError::new_unexpected_with_span(None, span))
-        })
-        .collect::<Result<_, _>>();
-    // return early if lexing failed
-    if let Err(err) = &tokens_spanned_result {
-        return DatexParseResult::Invalid(InvalidDatexParseResult {
-            ast: None,
-            errors: vec![err.clone()],
-            spans: vec![],
-        });
-    }
-    let tokens_spanned = tokens_spanned_result.unwrap();
-
-    let (tokens_vec, spans): (Vec<_>, Vec<_>) =
-        tokens_spanned.into_iter().unzip();
-
-    let tokens_boxed = tokens_vec.into_boxed_slice();
-    let tokens_slice: &'a [Token] = Box::leak(tokens_boxed);
-    let result = parser.parse(tokens_slice);
-
-    if !result.has_errors() {
-        DatexParseResult::Valid(ValidDatexParseResult {
-            ast: result.into_output().unwrap(),
-            spans,
-        })
-    } else {
-        DatexParseResult::Invalid(InvalidDatexParseResult {
-            errors: result
-                .errors()
-                .map(|e| {
-                    let mut owned_error: ParseError = e.clone();
-                    let mut index = owned_error.token_pos().unwrap();
-                    if index >= spans.len() {
-                        // FIXME #364 how to show file end?
-                        index = spans.len() - 1;
-                    }
-                    let span = spans.get(index).unwrap();
-                    owned_error.set_span(span.clone());
-                    owned_error
-                })
-                .collect(),
-            ast: result.into_output(),
-            spans,
-        })
-    }
+pub fn parse(src: &str) -> Result<DatexExpression, SpannedParserError> {
+    Parser::parse(src)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         ast::{
-            error::{error::ErrorKind, pattern::Pattern, src::SrcId},
+            error::src::SrcId,
             structs::{
                 expression::{
                     BinaryOperation, ComparisonOperation,
@@ -405,15 +42,15 @@ mod tests {
             },
         },
         global::operators::{
-            ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator,
-            ComparisonOperator, LogicalUnaryOperator, UnaryOperator,
-            binary::{ArithmeticOperator, BitwiseOperator},
+            binary::{ArithmeticOperator, BitwiseOperator}, ArithmeticUnaryOperator, AssignmentOperator,
+            BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
+            UnaryOperator,
         },
         values::{
             core_values::{
                 decimal::Decimal,
                 endpoint::{Endpoint, InvalidEndpointError},
-                integer::{Integer, typed_integer::TypedInteger},
+                integer::{typed_integer::TypedInteger, Integer},
             },
             pointer::PointerAddress,
             value_container::ValueContainer,
@@ -428,24 +65,14 @@ mod tests {
         vec,
     };
     use datex_core::ast::structs::expression::VariableAssignment;
+    use datex_core::parser::errors::SpannedParserError;
+    use crate::parser::errors::ParserError;
+    use crate::values::core_values::error::NumberParseError;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
-        let res = parse(src);
-        match res {
-            DatexParseResult::Invalid(InvalidDatexParseResult {
-                errors,
-                ..
-            }) => {
-                errors.iter().for_each(|e| {
-                    let cache = ariadne::sources(vec![(src_id, src)]);
-                    e.clone().write(cache, io::stdout());
-                });
-                core::panic!("Parsing errors found");
-            }
-            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => ast,
-        }
+        Parser::parse(src).unwrap()
     }
 
     /// Parse the given source code into a DatexExpressionData AST.
@@ -458,21 +85,21 @@ mod tests {
     /// If there are any parse errors, they will be printed to stdout.
     fn parse_print_error(
         src: &str,
-    ) -> Result<DatexExpression, Vec<ParseError>> {
+    ) -> Result<DatexExpression, Vec<SpannedParserError>> {
         let src_id = SrcId::test();
-        let res = parse(src);
+        let res = Parser::parse_collecting(src);
         match res {
-            DatexParseResult::Invalid(InvalidDatexParseResult {
+            ParserResult::Invalid(InvalidDatexParseResult {
                 errors,
                 ..
             }) => {
-                errors.iter().for_each(|e| {
-                    let cache = ariadne::sources(vec![(src_id, src)]);
-                    e.clone().write(cache, io::stdout());
-                });
+                // errors.iter().for_each(|e| {
+                //     let cache = ariadne::sources(vec![(src_id, src)]);
+                //     e.clone().write(cache, io::stdout());
+                // });
                 Err(errors)
             }
-            DatexParseResult::Valid(ValidDatexParseResult { ast, .. }) => {
+            ParserResult::Valid(ValidDatexParseResult { ast }) => {
                 Ok(ast)
             }
         }
@@ -716,10 +343,13 @@ mod tests {
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_matches!(
-            error.kind(),
-            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+            error.error,
+            ParserError::InvalidEndpointName {
+                name: _,
+                details: InvalidEndpointError::InvalidCharacters,
+            }
         );
-        assert_eq!(error.span(), Some(0..7));
+        assert_eq!(error.span, 0..7);
     }
 
     #[test]
@@ -733,13 +363,13 @@ mod tests {
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_matches!(
-            error.kind(),
-            ErrorKind::Unexpected {
-                found: Some(Pattern::Token(Token::Semicolon)),
-                ..
+            error.error,
+            ParserError::UnexpectedToken {
+                expected: _,
+                found: Token::Semicolon,
             }
         );
-        assert_eq!(error.span(), Some(29..30));
+        assert_eq!(error.span, 29..30);
     }
 
     #[test]
@@ -754,30 +384,36 @@ mod tests {
         assert_eq!(errors.len(), 2);
         let error1 = errors[0].clone();
         assert_matches!(
-            error1.kind(),
-            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+            error1.error,
+            ParserError::InvalidEndpointName {
+                name: _,
+                details: InvalidEndpointError::InvalidCharacters,
+            }
         );
-        assert_eq!(error1.span(), Some(17..24));
+        assert_eq!(error1.span, 17..24);
         let error2 = errors[1].clone();
         assert_matches!(
-            error2.kind(),
-            ErrorKind::InvalidEndpoint(InvalidEndpointError::InvalidCharacters)
+            error2.error,
+            ParserError::InvalidEndpointName {
+                name: _,
+                details: InvalidEndpointError::InvalidCharacters,
+            }
         );
-        assert_eq!(error2.span(), Some(62..69));
+        assert_eq!(error2.span, 62..69);
     }
 
     #[test]
     fn parse_error_invalid_declaration() {
-        let src = "var x = 10; const x += 5;";
+        let src = "var x = 10; x + y = 5;";
         let result = parse_print_error(src);
         let errors = result.err().unwrap();
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_eq!(
-            error.message(),
-            "Cannot use '+=' operator in variable declaration"
+            error.error,
+            ParserError::InvalidAssignmentTarget,
         );
-        assert_eq!(error.span(), Some(12..17));
+        assert_eq!(error.span, 12..17);
     }
 
     #[test]
@@ -788,10 +424,10 @@ mod tests {
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_eq!(
-            error.message(),
-            "The number is out of range for the specified type."
+            error.error,
+            ParserError::NumberParseError(NumberParseError::OutOfRange)
         );
-        assert_eq!(error.span(), Some(8..13));
+        assert_eq!(error.span, 8..13);
     }
 
     #[test]
@@ -804,10 +440,10 @@ mod tests {
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
         assert_eq!(
-            error.message(),
-            "The number is out of range for the specified type."
+            error.error,
+            ParserError::NumberParseError(NumberParseError::OutOfRange)
         );
-        // assert_eq!(error.span(), Some(8..63));
+        // assert_eq!(error.span, 8..63);
     }
 
     #[test]
@@ -1248,7 +884,7 @@ mod tests {
         assert_eq!(parse_unwrap_data("User<integer/u8> {}"), expected);
         assert_eq!(parse_unwrap_data("User< integer/u8 > {}"), expected);
         assert_eq!(parse_unwrap_data("User<integer/u8 > {}"), expected);
-        assert!(!parse("User <integer/u8> {}").is_valid());
+        assert!(Parser::parse("User <integer/u8> {}").is_err());
     }
 
     #[test]
@@ -3898,9 +3534,9 @@ mod tests {
 
         let src = "1;\n#!/usr/bin/env datex\n2";
         // syntax error
-        let res = parse(src);
+        let res = Parser::parse(src);
         assert!(
-            !res.is_valid(),
+            res.is_err(),
             "Expected error when parsing expression with shebang"
         );
     }
@@ -4153,7 +3789,7 @@ mod tests {
         // other lengths are invalid
         let src = "$12";
         let res = parse(src);
-        assert!(!res.is_valid());
+        assert!(res.is_err());
     }
 
     #[test]

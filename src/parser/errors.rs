@@ -1,5 +1,5 @@
 use std::ops::Range;
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::structs::expression::DatexExpression;
 use crate::compiler::error::ErrorCollector;
 use crate::values::core_values::endpoint::InvalidEndpointError;
@@ -7,6 +7,9 @@ use crate::values::core_values::error::NumberParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
+    /// invalid token encountered during lexing
+    InvalidToken,
+    /// unexpected token encountered during parsing
     UnexpectedToken {
         expected: Vec<Token>,
         found: Token,
@@ -26,7 +29,7 @@ pub struct DetailedParserErrorsWithAst {
     pub errors: Vec<SpannedParserError>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SpannedParserError {
     pub error: ParserError,
     pub span: Range<usize>,

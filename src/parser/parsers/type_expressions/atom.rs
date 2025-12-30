@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use crate::values::core_values::decimal::Decimal;
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};

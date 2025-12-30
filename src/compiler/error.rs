@@ -1,4 +1,3 @@
-use crate::ast::error::error::{ParseError, SpanOrToken};
 use crate::ast::structs::expression::DatexExpression;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::serde::error::DeserializationError;
@@ -7,11 +6,11 @@ use crate::type_inference::error::{
 };
 use core::fmt::{Display, Formatter};
 use core::ops::Range;
+use crate::parser::errors::{ParserError, SpannedParserError};
 
 #[derive(Debug, Clone)]
 pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
-    ParseErrors(Vec<ParseError>),
     SerializationError,
     // TODO #478: SerializationError(binrw::Error),? has no clone
     BigDecimalOutOfBoundsError,
@@ -28,7 +27,7 @@ pub enum CompilerError {
     AssignmentToImmutableValue(String),
     OnceScopeUsedMultipleTimes,
     TypeError(TypeError),
-    ParseError(ParseError),
+    ParserError(ParserError),
 }
 
 /// A compiler error that can be linked to a specific span in the source code
@@ -73,14 +72,11 @@ impl From<SpannedTypeError> for SpannedCompilerError {
     }
 }
 
-impl From<ParseError> for SpannedCompilerError {
-    fn from(value: ParseError) -> Self {
+impl From<SpannedParserError> for SpannedCompilerError {
+    fn from(value: SpannedParserError) -> Self {
         SpannedCompilerError {
-            span: match &value.span {
-                SpanOrToken::Span(range) => Some(range.clone()),
-                _ => core::panic!("expected byte range, got token span"),
-            },
-            error: CompilerError::ParseError(value),
+            span: Some(value.span),
+            error: CompilerError::ParserError(value.error),
         }
     }
 }
@@ -233,8 +229,8 @@ impl From<SpannedCompilerError>
     }
 }
 
-impl From<Vec<ParseError>> for DetailedCompilerErrors {
-    fn from(value: Vec<ParseError>) -> Self {
+impl From<Vec<SpannedParserError>> for DetailedCompilerErrors {
+    fn from(value: Vec<SpannedParserError>) -> Self {
         DetailedCompilerErrors {
             errors: value.into_iter().map(SpannedCompilerError::from).collect(),
         }
@@ -264,12 +260,6 @@ impl Display for CompilerError {
             }
             CompilerError::UnexpectedTerm(rule) => {
                 core::write!(f, "Unexpected term: {rule:?}")
-            }
-            CompilerError::ParseErrors(error) => {
-                for e in error {
-                    writeln!(f, "{}", e.message())?;
-                }
-                Ok(())
             }
             CompilerError::SubvariantNotFound(name, variant) => {
                 core::write!(
@@ -319,7 +309,7 @@ impl Display for CompilerError {
             CompilerError::TypeError(err) => {
                 core::write!(f, "{}", err)
             }
-            CompilerError::ParseError(err) => {
+            CompilerError::ParserError(err) => {
                 core::write!(f, "{:?}", err)
             }
         }

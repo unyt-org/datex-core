@@ -4,7 +4,7 @@ mod map;
 mod key;
 mod grouped;
 
-use crate::ast::lexer::{SpannedToken, Token};
+use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::r#type::{Intersection, TypeExpressionData, TypeExpression, Union};
 use crate::parser::errors::{ParserError, SpannedParserError};
@@ -105,16 +105,18 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use datex_core::ast::structs::r#type::TypeExpression;
-    use crate::ast::lexer::get_spanned_tokens_from_source;
+    use crate::parser::lexer::get_spanned_tokens_from_source;
     use crate::ast::spanned::Spanned;
     use crate::ast::structs::r#type::{TypeExpressionData, Intersection};
     use crate::parser::Parser;
-    use crate::parser::tests::parse;
 
 
     pub fn parse_type_expression(src: &str) -> TypeExpression {
-        let tokens = get_spanned_tokens_from_source(src).unwrap();
-        let mut parser = Parser::new(tokens);
+        let (tokens, errors) = get_spanned_tokens_from_source(src);
+        if !errors.is_empty() {
+            panic!("Lexer errors: {:?}", errors);
+        }
+        let mut parser = Parser::new_from_tokens(tokens, None);
         parser.parse_type_expression(0).unwrap()
     }
 

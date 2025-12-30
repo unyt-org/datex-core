@@ -10,14 +10,13 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use core::cell::RefCell;
 
-use crate::ast::parse_result::ValidDatexParseResult;
+use crate::parser::parser_result::ValidDatexParseResult;
 use crate::ast::structs::expression::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
     UnboundedStatement, VariableAccess, VariableAssignment,
     VariableDeclaration, VariableKind,
 };
-use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::error::{
     DetailedCompilerErrorsWithMaybeRichAst,
@@ -50,6 +49,7 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
+use crate::parser::Parser;
 use crate::time::Instant;
 
 pub mod context;
@@ -63,15 +63,13 @@ pub mod precompiler;
 pub mod workspace;
 
 #[derive(Clone, Default)]
-pub struct CompileOptions<'a> {
-    pub parser: Option<&'a DatexScriptParser<'a>>,
+pub struct CompileOptions {
     pub compile_scope: CompilationScope,
 }
 
-impl CompileOptions<'_> {
+impl CompileOptions {
     pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
         CompileOptions {
-            parser: None,
             compile_scope,
         }
     }
@@ -249,9 +247,9 @@ pub fn compile_block(
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script<'a>(
-    datex_script: &'a str,
-    options: CompileOptions<'a>,
+pub fn compile_script(
+    datex_script: &str,
+    options: CompileOptions,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     compile_template(datex_script, &[], options)
 }
@@ -262,10 +260,8 @@ pub fn compile_script<'a>(
 pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, SpannedCompilerError> {
-    let valid_parse_result = parse(datex_script)
-        .to_result()
-        .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
-    extract_static_value_from_ast(&valid_parse_result.ast)
+    let valid_parse_result = Parser::parse(datex_script)?;
+    extract_static_value_from_ast(&valid_parse_result)
         .map(Some)
         .map_err(SpannedCompilerError::from)
 }
@@ -275,7 +271,7 @@ pub fn extract_static_value_from_script(
 /// directly returned instead of the AST.
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
-    mut options: CompileOptions<'a>,
+    mut options: CompileOptions,
 ) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
@@ -326,9 +322,9 @@ fn ensure_statements(
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Only returns the first occurring error
-pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
-    datex_script: &'a str,
-    options: &mut CompileOptions<'a>,
+pub fn parse_datex_script_to_rich_ast_simple_error(
+    datex_script: &str,
+    options: &mut CompileOptions,
 ) -> Result<RichAst, SpannedCompilerError> {
     // TODO #481: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value_container directly
@@ -341,16 +337,14 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //     return Ok((result, options.compile_scope));
     // }
     let parse_start = Instant::now();
-    let mut valid_parse_result = parse(datex_script)
-        .to_result()
-        .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
+    let mut valid_parse_result = Parser::parse(datex_script)?;
 
     // make sure to append a statements block for the first block in ExecutionMode::Unbounded
     let is_terminated = if let ExecutionMode::Unbounded { has_next } =
         options.compile_scope.execution_mode
     {
         ensure_statements(
-            &mut valid_parse_result.ast,
+            &mut valid_parse_result,
             Some(UnboundedStatement {
                 is_first: !options.compile_scope.was_used,
                 is_last: !has_next,
@@ -358,7 +352,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
         )
     } else {
         matches!(
-            valid_parse_result.ast.data,
+            valid_parse_result.data,
             DatexExpressionData::Statements(Statements {
                 is_terminated: true,
                 ..
@@ -394,26 +388,22 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Returns all occurring errors and the AST if one or more errors occur.
-pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
-    datex_script: &'a str,
-    options: &mut CompileOptions<'a>,
+pub fn parse_datex_script_to_rich_ast_detailed_errors(
+    datex_script: &str,
+    options: &mut CompileOptions,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
-    let valid_parse_result =
-        parse(datex_script).to_result().map_err(|errs| {
-            DetailedCompilerErrorsWithMaybeRichAst {
-                errors: DetailedCompilerErrors::from(errs),
-                ast: None,
-            }
-        })?;
+    let (ast, parser_errors) = Parser::parse_collecting(datex_script).into_ast_and_errors();
     precompile_to_rich_ast(
-        valid_parse_result,
+        ast,
         &mut options.compile_scope,
         PrecompilerOptions {
             detailed_errors: true,
         },
     )
     .map_err(|e| match e {
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e) => {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(mut e) => {
+            // append parser errors to detailed errors
+            e.errors.errors.extend(parser_errors.into_iter().map(SpannedCompilerError::from));
             e.into()
         }
         _ => unreachable!(), // because detailed_errors: true
@@ -421,10 +411,10 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
-pub fn compile_template<'a>(
-    datex_script: &'a str,
+pub fn compile_template(
+    datex_script: &str,
     inserted_values: &[ValueContainer],
-    mut options: CompileOptions<'a>,
+    mut options: CompileOptions,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
@@ -448,10 +438,10 @@ pub fn compile_template<'a>(
 }
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
-fn compile_ast<'a>(
+fn compile_ast(
     ast: RichAst,
     compilation_context: &mut CompilationContext,
-    options: CompileOptions<'a>,
+    options: CompileOptions,
 ) -> Result<CompilationScope, CompilerError> {
     let compilation_scope =
         compile_rich_ast(compilation_context, ast, options.compile_scope)?;
@@ -492,7 +482,7 @@ macro_rules! compile {
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
 fn precompile_to_rich_ast(
-    valid_parse_result: ValidDatexParseResult,
+    valid_parse_result: DatexExpression,
     scope: &mut CompilationScope,
     precompiler_options: PrecompilerOptions,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
@@ -520,7 +510,7 @@ fn precompile_to_rich_ast(
         )?
     } else {
         // if no precompiler data, just use the AST with default metadata
-        RichAst::new_without_metadata(valid_parse_result.ast)
+        RichAst::new_without_metadata(valid_parse_result)
     };
 
     Ok(rich_ast)
@@ -847,11 +837,11 @@ fn compile_expression(
             )?;
             // TODO: apply
         }
-        
+
         DatexExpressionData::PropertyAccess(property_access) => {
             todo!()
         }
-        
+
         DatexExpressionData::GenericInstantiation(generic_instantiation) => {
             // NOTE: might already be handled in type compilation
             todo!()
@@ -1020,7 +1010,7 @@ fn compile_expression(
 
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
-            
+
             // compile deref expression
             scope = compile_expression(
                 compilation_context,

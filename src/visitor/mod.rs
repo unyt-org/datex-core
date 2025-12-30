@@ -27,7 +27,6 @@ pub enum VisitAction<T: Sized> {
 #[cfg(test)]
 mod tests {
     use crate::ast::{
-        parse,
         structs::expression::{
             BinaryOperation, DatexExpression, DatexExpressionData, Statements,
         },
@@ -44,6 +43,7 @@ mod tests {
         expression::VariableAccess,
         r#type::{TypeExpression, TypeExpressionData},
     };
+    use crate::parser::Parser;
     use crate::visitor::{
         expression::ExpressionVisitor,
         type_expression::{
@@ -133,14 +133,14 @@ mod tests {
     #[test]
     fn simple_test() {
         let mut ast =
-            parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap().ast;
+            Parser::parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap();
         MyAst.visit_datex_expression(&mut ast).unwrap();
         println!("{:#?}", ast);
     }
 
     #[test]
     fn error() {
-        let mut ast = parse("true + false").unwrap().ast;
+        let mut ast = Parser::parse("true + false").unwrap();
         let mut transformer = MyAst;
         let res = transformer.visit_datex_expression(&mut ast);
         assert!(res.is_err());

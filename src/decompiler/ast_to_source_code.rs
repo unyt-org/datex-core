@@ -708,7 +708,7 @@ mod tests {
     }
 
     fn to_expression(s: &str) -> DatexExpression {
-        parse(s).unwrap().ast
+        parse(s).unwrap()
     }
 
     #[test]

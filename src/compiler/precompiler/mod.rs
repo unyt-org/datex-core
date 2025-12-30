@@ -18,7 +18,6 @@ use crate::types::definition::TypeDefinition;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
     ast::{
-        parse_result::ValidDatexParseResult,
         spanned::Spanned,
         structs::expression::{
             BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
@@ -27,19 +26,19 @@ use crate::{
         },
     },
     compiler::error::{
-        CompilerError, DetailedCompilerErrors,
-        DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
-        SpannedCompilerError, collect_or_pass_error,
+        collect_or_pass_error, CompilerError,
+        DetailedCompilerErrors, DetailedCompilerErrorsWithRichAst, ErrorCollector,
+        MaybeAction,
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst, SpannedCompilerError,
     },
-    global::operators::{BinaryOperator, binary::ArithmeticOperator},
+    global::operators::{binary::ArithmeticOperator, BinaryOperator},
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     values::core_values::r#type::Type,
     visitor::{
-        VisitAction,
-        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
         type_expression::TypeExpressionVisitor,
+        VisitAction,
     },
 };
 use options::PrecompilerOptions;
@@ -48,19 +47,19 @@ use precompiled_ast::RichAst;
 use precompiled_ast::VariableShape;
 use scope::NewScopeType;
 use scope_stack::PrecompilerScopeStack;
+use crate::parser::parser_result::ValidDatexParseResult;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &'a mut PrecompilerScopeStack,
     collected_errors: Option<DetailedCompilerErrors>,
-    spans: Vec<Range<usize>>, // FIXME make this better
     is_first_level_expression: bool,
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Exits early on first error encountered, returning a SpannedCompilerError.
 pub fn precompile_ast_simple_error(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, SpannedCompilerError> {
@@ -85,7 +84,7 @@ pub fn precompile_ast_simple_error(
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Collects all errors encountered, returning a DetailedCompilerErrorsWithRichAst.
 pub fn precompile_ast_detailed_errors(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
@@ -109,7 +108,7 @@ pub fn precompile_ast_detailed_errors(
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 pub fn precompile_ast(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     options: PrecompilerOptions,
@@ -126,7 +125,6 @@ impl<'a> Precompiler<'a> {
             ast_metadata,
             scope_stack,
             collected_errors: None,
-            spans: vec![],
             is_first_level_expression: true,
         }
     }
@@ -168,18 +166,17 @@ impl<'a> Precompiler<'a> {
     /// Precompile the AST by resolving variable references and collecting metadata.
     fn precompile(
         mut self,
-        mut ast: ValidDatexParseResult,
+        mut ast: DatexExpression,
         options: PrecompilerOptions,
     ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     {
         if options.detailed_errors {
             self.collected_errors = Some(DetailedCompilerErrors::default());
         }
-        self.spans = ast.spans.clone(); // FIXME make better
 
         // Hoist top-level type declaration if any
         if let DatexExpressionData::TypeDeclaration(type_declaration) =
-            &mut ast.ast.data
+            &mut ast.data
         {
             self.hoist_variable(type_declaration);
         }
@@ -187,11 +184,11 @@ impl<'a> Precompiler<'a> {
         // visit ast recursively
         // returns Error directly if early exit on first error is enabled
 
-        self.visit_datex_expression(&mut ast.ast)?;
+        self.visit_datex_expression(&mut ast)?;
 
         let mut rich_ast = RichAst {
             metadata: self.ast_metadata,
-            ast: ast.ast,
+            ast,
         };
 
         // type inference - currently only if detailed errors are enabled
@@ -223,22 +220,7 @@ impl<'a> Precompiler<'a> {
             Ok(rich_ast)
         }
     }
-
-    /// Get the full span from start and end token indices
-    /// Returns None if the span is the default (0..0)
-    /// Used to convert token indices to actual spans in the source code
-    fn span(&self, span: &Range<usize>) -> Option<Range<usize>> {
-        // skip if both zero (default span used for testing)
-        // TODO: improve this
-        if span.start != 0 || span.end != 0 {
-            let start_token = self.spans.get(span.start).cloned().unwrap();
-            let end_token = self.spans.get(span.end - 1).cloned().unwrap();
-            Some(start_token.start..end_token.end)
-        } else {
-            None
-        }
-    }
-
+    
     /// Adds a new variable to the current scope and metadata
     /// Returns the new variable ID
     fn add_new_variable(&mut self, name: String, kind: VariableShape) -> usize {
@@ -315,11 +297,6 @@ impl<'a> Precompiler<'a> {
 }
 
 impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
-    fn before_visit_type_expression(&mut self, expr: &mut TypeExpression) {
-        if let Some(new_span) = self.span(&expr.span) {
-            expr.span = new_span;
-        }
-    }
 
     fn visit_literal_type(
         &mut self,
@@ -385,10 +362,6 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
     }
 
     fn before_visit_datex_expression(&mut self, expr: &mut DatexExpression) {
-        if let Some(new_span) = self.span(&expr.span) {
-            expr.span = new_span;
-        }
-
         match self.scope_type_for_expression(expr) {
             NewScopeType::NewScopeWithNewRealm => {
                 self.scope_stack.push_scope();
@@ -629,9 +602,10 @@ mod tests {
     use super::*;
     use crate::ast::error::src::SrcId;
     use crate::ast::parse;
-    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
+    use crate::parser::parser_result::{ParserResult, InvalidDatexParseResult};
     use crate::ast::structs::expression::{CreateRef, Deref};
     use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
+    use crate::parser::Parser;
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::assert_matches::assert_matches;
     use crate::stdlib::io;
@@ -639,7 +613,7 @@ mod tests {
     use crate::values::pointer::PointerAddress;
 
     fn precompile(
-        ast: ValidDatexParseResult,
+        ast: DatexExpression,
         options: PrecompilerOptions,
     ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     {
@@ -709,19 +683,7 @@ mod tests {
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
-        let res = parse(src);
-        if let DatexParseResult::Invalid(InvalidDatexParseResult {
-            errors,
-            ..
-        }) = res
-        {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
-            core::panic!("Parsing errors found");
-        }
-        res.unwrap().ast
+        Parser::parse(src).unwrap()
     }
 
     fn parse_and_precompile_spanned_result(
@@ -729,9 +691,7 @@ mod tests {
     ) -> Result<RichAst, SpannedCompilerError> {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
-        let ast = parse(src)
-            .to_result()
-            .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
+        let ast = parse(src)?;
         precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
     }
 

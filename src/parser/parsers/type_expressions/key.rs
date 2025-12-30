@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, Map};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::parser::{SpannedParserError, Parser};

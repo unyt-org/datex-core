@@ -1,6 +1,5 @@
 use crate::{
     ast::structs::{
-        ResolvedVariable,
         expression::{
             ComparisonOperation, Conditional, CreateRef,
             DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
@@ -11,6 +10,7 @@ use crate::{
             FixedSizeList, FunctionType, GenericAccess, SliceList,
             TypeVariantAccess,
         },
+        ResolvedVariable,
     },
     global::operators::{
         AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
@@ -35,7 +35,7 @@ use crate::{
         },
     },
     compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
-    libs::core::{CoreLibPointerId, get_core_lib_type},
+    libs::core::{get_core_lib_type, CoreLibPointerId},
     type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -46,20 +46,20 @@ use crate::{
     values::{
         core_values::{
             boolean::Boolean,
-            decimal::{Decimal, typed_decimal::TypedDecimal},
+            decimal::{typed_decimal::TypedDecimal, Decimal},
             endpoint::Endpoint,
-            integer::{Integer, typed_integer::TypedInteger},
-            text::Text,
+            integer::{typed_integer::TypedInteger, Integer},
             r#type::Type,
+            text::Text,
         },
         pointer::PointerAddress,
     },
     visitor::{
-        VisitAction,
-        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
         type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
+            visitable::TypeExpressionVisitResult, TypeExpressionVisitor,
         },
+        VisitAction,
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
@@ -1184,29 +1184,22 @@ mod tests {
     use crate::{
         ast::{
             parse,
-            parse_result::ValidDatexParseResult,
             spanned::Spanned,
             structs::expression::{
                 BinaryOperation, DatexExpression, DatexExpressionData, List,
                 Map, VariableDeclaration, VariableKind,
             },
         },
-        compiler::{
-            error::CompilerError,
-            precompiler::{
-                precompile_ast_simple_error,
-                precompiled_ast::{AstMetadata, RichAst},
-                scope_stack::PrecompilerScopeStack,
-            },
+        compiler::precompiler::{
+            precompile_ast_simple_error,
+            precompiled_ast::{AstMetadata, RichAst},
+            scope_stack::PrecompilerScopeStack,
         },
-        global::operators::{BinaryOperator, binary::ArithmeticOperator},
+        global::operators::{binary::ArithmeticOperator, BinaryOperator},
         libs::core::{
-            CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+            get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId,
         },
-        references::{
-            reference::ReferenceMutability,
-            type_reference::{NominalTypeDeclaration, TypeReference},
-        },
+        references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
             error::{SpannedTypeError, TypeError},
             infer_expression_type_detailed_errors,
@@ -1221,16 +1214,17 @@ mod tests {
             core_value::CoreValue,
             core_values::{
                 boolean::Boolean,
-                decimal::{Decimal, typed_decimal::TypedDecimal},
+                decimal::{typed_decimal::TypedDecimal, Decimal},
                 endpoint::Endpoint,
                 integer::{
-                    Integer,
                     typed_integer::{IntegerTypeVariant, TypedInteger},
+                    Integer,
                 },
                 r#type::Type,
             },
         },
     };
+    use crate::parser::parser_result::ValidDatexParseResult;
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
@@ -1254,10 +1248,7 @@ mod tests {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut rich_ast = precompile_ast_simple_error(
-            ValidDatexParseResult {
-                ast: expr.clone(),
-                spans: vec![],
-            },
+            expr.clone(),
             &mut scope_stack,
             ast_metadata,
         )
@@ -1291,10 +1282,7 @@ mod tests {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut rich_ast = precompile_ast_simple_error(
-            ValidDatexParseResult {
-                ast: expr.clone(),
-                spans: vec![],
-            },
+            expr.clone(),
             &mut scope_stack,
             ast_metadata,
         )
@@ -1342,10 +1330,7 @@ mod tests {
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
 
         let mut rich_ast = precompile_ast_simple_error(
-            ValidDatexParseResult {
-                ast: expr.clone(),
-                spans: vec![],
-            },
+            expr.clone(),
             &mut scope_stack,
             ast_metadata,
         )

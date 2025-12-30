@@ -1,4 +1,4 @@
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, Statements};
 use crate::parser::errors::SpannedParserError;

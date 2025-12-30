@@ -1,6 +1,6 @@
 use datex_core::ast::structs::r#type::TypeExpression;
 use crate::ast::spanned::Spanned;
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::structs::expression::{DatexExpressionData, Map};
 use crate::ast::structs::r#type::{StructuralList, StructuralMap, TypeExpressionData};
 use crate::parser::{SpannedParserError, Parser};

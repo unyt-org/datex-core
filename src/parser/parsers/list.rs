@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::lexer::Token;
+use crate::parser::lexer::Token;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, List};
 use crate::parser::{SpannedParserError, Parser};
 
@@ -28,7 +28,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
-    use crate::ast::lexer::Token;
+    use crate::parser::lexer::Token;
     use crate::ast::spanned::Spanned;
     use crate::ast::structs::expression::{DatexExpressionData, List};
     use crate::parser::errors::ParserError;

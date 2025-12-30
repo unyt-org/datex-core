@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use crate::values::core_values::decimal::Decimal;
-use crate::ast::lexer::{IntegerLiteral, DecimalLiteral, Token};
+use crate::parser::lexer::{IntegerLiteral, DecimalLiteral, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, Slot};
 use crate::parser::{SpannedParserError, Parser};
@@ -166,10 +166,12 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use crate::parser::tests::try_parse_and_return_on_first_error;
     use crate::ast::spanned::Spanned;
     use crate::ast::structs::expression::{DatexExpressionData, Slot, Statements};
     use crate::parser::errors::ParserError;
+    use crate::parser::parser_result::ParserResult;
     use crate::parser::tests::{parse, try_parse_and_collect_errors};
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -244,10 +246,9 @@ mod tests {
     #[test]
     fn parse_invalid_endpoint_and_continue() {
         let result = try_parse_and_collect_errors("@x; true");
-        assert!(result.is_err());
-        let result = result.unwrap_err();
-        let ast = result.ast;
-        let errors = result.errors;
+        assert_matches!(result, ParserResult::Invalid { .. });
+        let ast = result.ast();
+        let errors = result.errors().unwrap();
 
         assert_eq!(ast.data, DatexExpressionData::Statements(Statements {
             statements: vec![
