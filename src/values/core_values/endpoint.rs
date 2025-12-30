@@ -137,7 +137,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,

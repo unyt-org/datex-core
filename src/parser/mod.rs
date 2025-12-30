@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use crate::ast::structs::expression::DatexExpression;
 use crate::ast::lexer::{SpannedToken, Token};
+use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpressionData, List};
 use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
 use crate::parser::errors::{DetailedParserErrorsWithAst, ParserError, SpannedParserError};
@@ -76,6 +77,19 @@ impl Parser {
             }
             None => Err(error),
         }
+    }
+
+    /// Collects an error and returns a Recover expression to continue parsing if
+    /// detailed error collection is enabled,
+    /// or returns the error as Err()
+    fn collect_error_and_continue(
+        &mut self,
+        error: SpannedParserError,
+    ) -> Result<DatexExpression, SpannedParserError> {
+        let span = error.span.clone();
+        self.collect_error(error).map(|_| {
+            DatexExpressionData::Recover.with_span(span)
+        })
     }
 
     /// Collects the Err variant of the Result if detailed error collection is enabled,

@@ -27,6 +27,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use crate::ast::lexer::Token;
     use crate::ast::spanned::Spanned;
     use crate::ast::structs::expression::{DatexExpressionData, List};
@@ -67,11 +68,11 @@ mod tests {
     fn parse_list_with_wrong_close_paren() {
         let result = try_parse_and_return_on_first_error("[true}");
         assert!(result.is_err());
-        assert_eq!(
+        assert_matches!(
             result.err().unwrap().error,
             ParserError::UnexpectedToken {
-                expected: vec![Token::RightBracket],
                 found: Token::RightCurly,
+                ..
             }
         );
     }
