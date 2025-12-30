@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::lexer::{SpannedToken, Token};
+use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, TypeDeclaration, TypeDeclarationKind, VariableDeclaration, VariableKind};
 use crate::parser::{SpannedParserError, Parser};
 use crate::parser::errors::ParserError;
@@ -15,7 +15,7 @@ impl Parser {
                     Token::TypeAlias => TypeDeclarationKind::Structural,
                     _ => unreachable!()
                 };
-                
+
                 let name = self.expect_identifier()?;
 
                 // expect equals sign

@@ -317,9 +317,9 @@ mod tests {
     #[test]
     fn ensure_unchanged() {
         let script = "const x = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
-        let ast_original = parse(script).unwrap().ast;
+        let ast_original = parse(script).unwrap();
         let formatted = to_string(script, FormattingOptions::default());
-        let ast_new = parse(&formatted).unwrap().ast;
+        let ast_new = parse(&formatted).unwrap();
         assert_eq!(ast_original, ast_new);
     }
 

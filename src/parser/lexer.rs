@@ -12,11 +12,12 @@ pub struct Loc {
     pub source: SourceId,
     pub span: Range<usize>,
 }
-use crate::ast::error::error::ParseError;
+use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::values::core_values::{
     decimal::typed_decimal::DecimalTypeVariant,
     integer::typed_integer::IntegerTypeVariant,
 };
+use strum::IntoEnumIterator;
 use strum::IntoEnumIterator;
 
 impl Loc {
@@ -222,25 +223,15 @@ pub enum Token {
     #[token("type")] Type,
     #[token("typealias")] TypeAlias,
 
-
     #[token(".")]
     Dot,
     // pointer address (e.g. $1234ab, exactly 3, 5 or 26 bytes)
     #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
 
     // decimal literals (infinity, nan)
+    // TODO: +-
     #[regex(r"[Ii]nfinity")] Infinity,
     #[regex(r"(?:nan|NaN)")] Nan,
-
-    // TODO: remove
-    // decimal part / integer
-    // for handling decimals and integers in decimal
-    // a decimal will consume 3 parts:
-    //  - left of dot (DecimalNumericLiteral)
-    //  - dot (Dot)
-    //  - right of dot (DecimalNumericLiteral)
-    #[regex(r"xyzremove\d+(?:_\d+)*(?:[eE][+-]?\d+(?:_\d+)*)?(?:f32|f64|u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?", numeric_parts)]
-    DecimalNumericLiteral(NumericLiteralParts),
 
     /// Decimal integer with suffix
     /// Includes
@@ -291,8 +282,6 @@ pub enum Token {
 
     // named slots (starting with #, followed by A-Z, a-z, _ and alphanumeric characters)
     #[regex(r"#[_a-zA-Z][_a-zA-Z0-9]*", allocated_string)] NamedSlot(String),
-
-    Error,
 }
 
 impl Token {
@@ -350,7 +339,6 @@ impl Token {
             Token::Variable => Some("var"),
             Token::Mutable => Some("mut"),
             Token::Function => Some("function"),
-            Token::Error => Some("error"),
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
             Token::Type => Some("type"),
@@ -370,7 +358,6 @@ impl Token {
         let identifier_token = match self {
             Token::LineDoc(_) => "line doc",
             // Token::DecimalLiteral(_) => "decimal literal",
-            Token::DecimalNumericLiteral(_) => "decimal integer literal",
             Token::BinaryIntegerLiteral(_) => "binary integer literal",
             Token::OctalIntegerLiteral(_) => "octal integer literal",
             Token::HexadecimalIntegerLiteral(_) => {
@@ -380,7 +367,6 @@ impl Token {
             Token::Endpoint(_) => "endpoint",
             Token::Slot(_) => "slot",
             Token::NamedSlot(_) => "named slot",
-            Token::Error => "error",
             Token::Identifier(s) => s,
             Token::Matches => "matches",
             Token::If => "if",
@@ -400,19 +386,23 @@ pub struct SpannedToken {
 
 pub fn get_spanned_tokens_from_source(
     src: &str,
-) -> Result<Vec<SpannedToken>, ParseError> {
+) -> (Vec<SpannedToken>, Vec<SpannedParserError>) {
     let lexer = Token::lexer(src);
-    let tokens_spanned_result: Result<Vec<SpannedToken>, ParseError> = lexer
+    let (oks, errs): (Vec<_>, Vec<_>) = lexer
         .spanned()
         .map(|(tok, span)| {
-            tok.map(|token| SpannedToken {
-                token,
-                span: span.clone(),
-            })
-            .map_err(|_| ParseError::new_unexpected_with_span(None, span))
+            tok.map(|token| SpannedToken { token, span })
+                .map_err(|span| SpannedParserError {
+                    error: ParserError::InvalidToken,
+                    span,
+                })
         })
-        .collect::<Result<_, _>>();
-    tokens_spanned_result
+        .partition(Result::is_ok);
+
+    let tokens = oks.into_iter().map(Result::unwrap).collect();
+    let errors = errs.into_iter().map(Result::unwrap_err).collect();
+
+    (tokens, errors)
 }
 
 pub type IntegerLiteral = TypedLiteral<IntegerTypeVariant>;
@@ -496,10 +486,7 @@ mod tests {
         let res = lexer.next().unwrap();
         if let Ok(Token::IntegerLiteral(literal)) = res {
             assert_eq!(literal.value, "42");
-            assert_eq!(
-                literal.variant,
-                Some(IntegerTypeVariant::U8)
-            );
+            assert_eq!(literal.variant, Some(IntegerTypeVariant::U8));
             assert_eq!(format!("{}", literal), "42u8".to_string());
         } else {
             core::panic!("Expected DecimalIntegerLiteral with variant U8");

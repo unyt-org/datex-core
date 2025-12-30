@@ -1,5 +1,5 @@
 use datex_core::ast::structs::expression::PropertyAccess;
-use crate::ast::lexer::{SpannedToken, Token};
+use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{Apply, BinaryOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
 use crate::global::operators::binary::{ArithmeticOperator, LogicalOperator};
@@ -311,9 +311,13 @@ impl Parser {
             Token::StringLiteral(_) |
             Token::Infinity |
             Token::Nan |
-            Token::DecimalNumericLiteral(_) |
             Token::HexadecimalIntegerLiteral(_) |
             Token::BinaryIntegerLiteral(_) |
+            Token::OctalIntegerLiteral(_) |
+            Token::IntegerLiteral(_) |
+            Token::DecimalLiteral(_) |
+            Token::PointerAddress(_) |
+            Token::Slot(_) |
             Token::PointerAddress(_) |
             Token::Endpoint(_)
             => Some((18, 19)),
@@ -690,7 +694,7 @@ mod tests {
             assigned_expression: Box::new(DatexExpressionData::Integer(200.into()).with_default_span()),
         }));
     }
-    
+
     #[test]
     fn parse_nested_deref_assignment() {
         let expr = parse("**myRef = 300");
