@@ -7,8 +7,8 @@ use crate::values::core_values::error::NumberParseError;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::core_values::integer::Integer;
 use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
-use std::iter::Peekable;
-use std::str::{Chars, FromStr};
+use core::iter::Peekable;
+use core::str::{Chars, FromStr};
 
 pub enum IntegerOrDecimal {
     Integer(Integer),

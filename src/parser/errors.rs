@@ -4,7 +4,7 @@ use crate::global::operators::UnaryOperator;
 use crate::parser::lexer::Token;
 use crate::values::core_values::endpoint::InvalidEndpointError;
 use crate::values::core_values::error::NumberParseError;
-use std::ops::Range;
+use core::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
