@@ -151,6 +151,10 @@ pub enum Token {
     #[regex(r"///[^\n]*", extract_line_doc)]
     LineDoc(String),
 
+    // shebang
+    #[regex(r"#![^\n]*", allocated_string)]
+    Shebang(String),
+
     // Operators & Separators
     #[token("(")] LeftParen,
     #[token(")")] RightParen,

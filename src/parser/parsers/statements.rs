@@ -1,8 +1,8 @@
-use crate::parser::lexer::Token;
+use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, Statements};
 use crate::parser::errors::SpannedParserError;
-use crate::parser::Parser;
+use crate::parser::{Parser, ParseResult};
 
 impl Parser {
     pub(crate) fn parse_parenthesized_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
@@ -29,16 +29,21 @@ impl Parser {
                 Token::RightParen => break,
                 _ => {
                     is_terminated = false;
-                    statements.push(self.parse_statement()?);
+                    // parse next statement or recover from error
+                    let maybe_statement = self.parse_statement();
+                    match self.recover_on_error(maybe_statement, &[Token::Semicolon, Token::RightParen])? {
+                        ParseResult::Ok(statement) => statements.push(statement),
+                        ParseResult::RecoveredFromError => { /* continue to next iteration */ }
+                    }
                 }
             }
         }
-        
+
         // if single statement and not terminated, return that statement directly
         if statements.len() == 1 && !is_terminated {
             Ok(statements.remove(0))
         }
-        // otherwise, return as statements 
+        // otherwise, return as statements
         else {
             Ok(DatexExpressionData::Statements(Statements {
                 statements,
@@ -49,6 +54,12 @@ impl Parser {
     }
 
     pub(crate) fn parse_top_level_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
+
+        // skip optional shebang line at the start
+        if let Ok(SpannedToken {token: Token::Shebang(_), ..}) = self.peek() {
+            self.advance()?;
+        }
+
         let statements_data = self.parse_statements()?;
 
         Ok(match statements_data.data {
@@ -164,13 +175,26 @@ mod tests {
         let expr = parse("true");
         assert_eq!(expr.data, DatexExpressionData::Boolean(true));
     }
-    
+
     #[test]
     fn top_level_single_statement_terminated() {
         let expr = parse("true;");
         assert_eq!(expr.data, DatexExpressionData::Statements(Statements {
             statements: vec![
                 DatexExpressionData::Boolean(true).with_default_span(),
+            ],
+            is_terminated: true,
+            unbounded: None,
+        }));
+    }
+
+    #[test]
+    fn top_level_statements_with_shebang() {
+        let expr = parse("#!/usr/bin/env datex\ntrue; false;");
+        assert_eq!(expr.data, DatexExpressionData::Statements(Statements {
+            statements: vec![
+                DatexExpressionData::Boolean(true).with_default_span(),
+                DatexExpressionData::Boolean(false).with_default_span(),
             ],
             is_terminated: true,
             unbounded: None,

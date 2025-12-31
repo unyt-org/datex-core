@@ -6,7 +6,7 @@ use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::DatexExpressionData;
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
-use crate::parser::errors::{DetailedParserErrorsWithAst, ParserError, SpannedParserError};
+use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::lexer::{SpannedToken, Token};
 use crate::parser::parser_result::{InvalidDatexParseResult, ValidDatexParseResult};
 // TODO: move to different module
@@ -16,6 +16,13 @@ mod parsers;
 pub mod utils;
 pub mod lexer;
 pub mod parser_result;
+
+
+pub enum ParseResult<T> {
+    RecoveredFromError,
+    Ok(T)
+}
+
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
@@ -33,8 +40,8 @@ impl Parser {
         let mut parser = Self::new_from_tokens(tokens, Some(errors));
         match parser.parse_root() {
             // this should never happen when collecting errors
-            Err(_) => {
-                unreachable!()
+            Err(e) => {
+                unreachable!("An error was not correctly handled during parsing: {:#?}", e);
             }
             Ok(ast) => {
                 // has errors, return invalid result
@@ -147,6 +154,7 @@ impl Parser {
             Ok(&self.tokens[self.pos])
         }
     }
+    
 
     fn has_more_tokens(&self) -> bool {
         self.pos < self.tokens.len()
@@ -198,14 +206,38 @@ impl Parser {
     }
 
     fn get_current_source_position(&self) -> usize {
-        if self.pos == 0 {
-            0
-        } else if self.pos - 1 < self.tokens.len() {
-            self.tokens[self.pos - 1].span.end
-        } else if let Some(last) = self.tokens.last() {
-            last.span.end
+        if let Some(token) = self.tokens.get(self.pos) {
+            token.span.start
+        } else if let Some(last_token) = self.tokens.last() {
+            last_token.span.end
         } else {
             0
+        }
+    }
+
+    /// Attempt to recover from a parsing error by skipping tokens until one of the recovery tokens is found.
+    /// If recovery is successful after an error result was provided, returns `ParseResult::RecoveredFromError`.
+    /// If the result was Ok, returns `RecoverState::Ok` with the parsed value
+    /// If error collection is not enabled in the parser, the error is returned directly in the result and can be bubbled up.
+    fn recover_on_error<T>(
+        &mut self,
+        result: Result<T, SpannedParserError>,
+        recovery_tokens: &[Token],
+    ) -> Result<ParseResult<T>, SpannedParserError> {
+        match result {
+            Ok(statement) => Ok(ParseResult::Ok(statement)),
+            Err(err) => {
+                self.collect_error(err)?;
+                // attempt to recover by skipping to next semicolon or right paren
+                while self.has_more_tokens() {
+                    let token = &self.peek()?.token;
+                    if recovery_tokens.contains(token) {
+                        break;
+                    }
+                    self.advance()?;
+                }
+                Ok(ParseResult::RecoveredFromError)
+            }
         }
     }
 }

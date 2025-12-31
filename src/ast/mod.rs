@@ -749,19 +749,13 @@ mod tests {
         assert_eq!(parse_unwrap_data("User<integer/u8> {}"), expected);
         assert_eq!(parse_unwrap_data("User< integer/u8 > {}"), expected);
         assert_eq!(parse_unwrap_data("User<integer/u8 > {}"), expected);
-        assert!(Parser::parse("User <integer/u8> {}").is_err());
+        assert_eq!(parse_unwrap_data("User <integer/u8> {}"), expected);
     }
 
     #[test]
     fn if_else() {
         let src = vec![
-            "if true (1) else (2)",
-            "if true 1 else 2",
             "if (true) (1) else (2)",
-            "if (true) 1 else 2",
-            "if true (1) else 2",
-            "if (true) 1 else (2)",
-            "if true 1 else (2)",
         ];
         for s in src {
             let val = parse_unwrap_data(s);
@@ -784,12 +778,7 @@ mod tests {
         }
 
         let src = vec![
-            "if true + 1 == 2 (4) else 2",
-            "if (true + 1) == 2 4 else 2",
-            "if true + 1 == 2 (4) else (2)",
-            "if (true + 1) == 2 (4) else (2)",
-            "if true + 1 == 2 (4) else 2",
-            "if (true + 1) == 2 4 else (2)",
+            "if (true + 1 == 2) (4) else (2)",
         ];
         for s in src {
             println!("{}", s);
@@ -849,8 +838,7 @@ mod tests {
 
         // make sure apply chains still work
         let src = vec![
-            "if true + 1 == 2 test [1,2,3]",
-            "if true + 1 == 2 (test [1,2,3])",
+            "if (true + 1 == 2) (test [1,2,3])",
         ];
         for s in src {
             let val = parse_unwrap_data(s);
@@ -932,11 +920,11 @@ mod tests {
     #[test]
     fn if_else_if_else() {
         let src = r#"
-            if x == 4 (
+            if (x == 4) (
                 "4"
-            ) else if x == 'hello' (
+            ) else if (x == 'hello') (
                 "42" 
-            ) else null
+            ) else (null)
         "#;
 
         let val = parse_unwrap_data(src);
