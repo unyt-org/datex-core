@@ -99,7 +99,6 @@ mod tests {
             create_ref: &mut CreateRef,
             span: &Range<usize>,
         ) -> ExpressionVisitResult<MyAstExpressionError> {
-            println!("visit create ref {:?}", create_ref);
             Ok(VisitAction::VisitChildren)
         }
 
