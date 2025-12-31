@@ -19,6 +19,7 @@ impl Parser {
             Token::TypeExpressionStart => self.parse_wrapped_type_expression()?,
             Token::LeftParen => self.parse_parenthesized_statements()?,
             Token::If => self.parse_if_else()?,
+            Token::Function | Token::Procedure => self.parse_callable_definition()?,
 
             Token::Placeholder => self.parse_placeholder()?,
 

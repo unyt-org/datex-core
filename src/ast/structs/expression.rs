@@ -124,8 +124,8 @@ pub enum DatexExpressionData {
     /// Type expression, e.g. type(1 | 2)
     TypeExpression(TypeExpression),
 
-    /// Function declaration, e.g. fn my_function() -> type ( ... )
-    FunctionDeclaration(FunctionDeclaration),
+    /// callable (function/procedure) declaration, e.g. function my_function() -> type ( ... )
+    CallableDeclaration(CallableDeclaration),
 
     // TODO combine
     /// Reference, e.g. &x or &mut x
@@ -425,8 +425,24 @@ pub struct VariableAccess {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct FunctionDeclaration {
+pub enum CallableKind {
+    Function,
+    Procedure,
+}
+
+impl Display for CallableKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            CallableKind::Function => core::write!(f, "function"),
+            CallableKind::Procedure => core::write!(f, "procedure"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CallableDeclaration {
     pub name: String,
+    pub kind: CallableKind,
     pub parameters: Vec<(String, TypeExpression)>,
     pub return_type: Option<TypeExpression>,
     pub body: Box<DatexExpression>,

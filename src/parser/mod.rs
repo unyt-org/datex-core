@@ -18,12 +18,6 @@ pub mod lexer;
 pub mod parser_result;
 
 
-pub enum ParseResult<T> {
-    RecoveredFromError,
-    Ok(T)
-}
-
-
 pub struct Parser {
     tokens: Vec<SpannedToken>,
     pos: usize,
@@ -154,7 +148,7 @@ impl Parser {
             Ok(&self.tokens[self.pos])
         }
     }
-    
+
 
     fn has_more_tokens(&self) -> bool {
         self.pos < self.tokens.len()
@@ -216,16 +210,17 @@ impl Parser {
     }
 
     /// Attempt to recover from a parsing error by skipping tokens until one of the recovery tokens is found.
-    /// If recovery is successful after an error result was provided, returns `ParseResult::RecoveredFromError`.
-    /// If the result was Ok, returns `RecoverState::Ok` with the parsed value
+    /// If recovery is successful after an error result was provided, returns an Ok result containing a Recover expression.
+    /// If the result was Ok, returns the contained expression directly.
     /// If error collection is not enabled in the parser, the error is returned directly in the result and can be bubbled up.
-    fn recover_on_error<T>(
+    /// TODO: set correct span on recovered expression
+    fn recover_on_error(
         &mut self,
-        result: Result<T, SpannedParserError>,
+        result: Result<DatexExpression, SpannedParserError>,
         recovery_tokens: &[Token],
-    ) -> Result<ParseResult<T>, SpannedParserError> {
+    ) -> Result<DatexExpression, SpannedParserError> {
         match result {
-            Ok(statement) => Ok(ParseResult::Ok(statement)),
+            Ok(statement) => Ok(statement),
             Err(err) => {
                 self.collect_error(err)?;
                 // attempt to recover by skipping to next semicolon or right paren
@@ -236,7 +231,7 @@ impl Parser {
                     }
                     self.advance()?;
                 }
-                Ok(ParseResult::RecoveredFromError)
+                Ok(DatexExpressionData::Recover.with_default_span())
             }
         }
     }

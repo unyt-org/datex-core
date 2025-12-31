@@ -220,6 +220,7 @@ pub enum Token {
     #[token("mut")] Mutable,
     #[token("&mut")] MutRef,
     #[token("function")] Function,
+    #[token("procedure")] Procedure,
     #[token("if")] If,
     #[token("else")] Else,
 
@@ -341,6 +342,7 @@ impl Token {
             Token::Variable => Some("var"),
             Token::Mutable => Some("mut"),
             Token::Function => Some("function"),
+            Token::Procedure => Some("procedure"),
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
             Token::TypeDeclaration => Some("type"),

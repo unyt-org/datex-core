@@ -1,7 +1,7 @@
 pub mod visitable;
 use core::ops::Range;
 use datex_core::ast::structs::expression::GenericInstantiation;
-use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess};
+use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, CallableDeclaration, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -104,7 +104,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::TypeExpression(type_expression) => self
                 .visit_type_expression(type_expression)
                 .map(|_| VisitAction::SkipChildren),
-            DatexExpressionData::FunctionDeclaration(function_declaration) => {
+            DatexExpressionData::CallableDeclaration(function_declaration) => {
                 self.visit_function_declaration(
                     function_declaration,
                     &expr.span,
@@ -351,7 +351,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Visit function declaration
     fn visit_function_declaration(
         &mut self,
-        function_declaration: &mut FunctionDeclaration,
+        function_declaration: &mut CallableDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;

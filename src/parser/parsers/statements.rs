@@ -2,7 +2,7 @@ use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData, Statements};
 use crate::parser::errors::SpannedParserError;
-use crate::parser::{Parser, ParseResult};
+use crate::parser::{Parser};
 
 impl Parser {
     pub(crate) fn parse_parenthesized_statements(&mut self) -> Result<DatexExpression, SpannedParserError> {
@@ -31,10 +31,8 @@ impl Parser {
                     is_terminated = false;
                     // parse next statement or recover from error
                     let maybe_statement = self.parse_statement();
-                    match self.recover_on_error(maybe_statement, &[Token::Semicolon, Token::RightParen])? {
-                        ParseResult::Ok(statement) => statements.push(statement),
-                        ParseResult::RecoveredFromError => { /* continue to next iteration */ }
-                    }
+                    let statement = self.recover_on_error(maybe_statement, &[Token::Semicolon, Token::RightParen])?;
+                    statements.push(statement);
                 }
             }
         }

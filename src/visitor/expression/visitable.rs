@@ -1,5 +1,5 @@
 use datex_core::ast::structs::expression::Apply;
-use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration, GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
+use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, CallableDeclaration, GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
@@ -188,7 +188,7 @@ impl<E> VisitableExpression<E> for SlotAssignment {
         Ok(())
     }
 }
-impl<E> VisitableExpression<E> for FunctionDeclaration {
+impl<E> VisitableExpression<E> for CallableDeclaration {
     fn walk_children(
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
@@ -267,7 +267,7 @@ impl<E> VisitableExpression<E> for DatexExpression {
             DatexExpressionData::TypeExpression(type_expression) => {
                 type_expression.walk_children(visitor)
             }
-            DatexExpressionData::FunctionDeclaration(function_declaration) => {
+            DatexExpressionData::CallableDeclaration(function_declaration) => {
                 function_declaration.walk_children(visitor)
             }
             DatexExpressionData::CreateRef(create_ref) => {
