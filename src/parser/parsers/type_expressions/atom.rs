@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use crate::values::core_values::decimal::Decimal;
-use crate::parser::lexer::{DecimalWithVariant, Token};
+use crate::parser::lexer::{DecimalWithVariant, IntegerWithVariant, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
@@ -17,110 +17,26 @@ impl Parser {
             Token::LeftCurly => self.parse_type_map()?,
             Token::LeftBracket => self.parse_type_list()?,
             Token::LeftParen => self.parse_type_grouped()?,
-
-            Token::True => {
-                TypeExpressionData::Boolean(true)
-                    .with_span(self.advance()?.span)
-            }
-            Token::False => {
-                TypeExpressionData::Boolean(false)
-                    .with_span(self.advance()?.span)
-            }
-            Token::Null => {
-                TypeExpressionData::Null
-                    .with_span(self.advance()?.span)
-            }
-            Token::Identifier(name) => {
-                TypeExpressionData::Identifier(name)
-                    .with_span(self.advance()?.span)
-            }
-            Token::StringLiteral(value) => {
-                TypeExpressionData::Text(unescape_text(&value))
-                    .with_span(self.advance()?.span)
-            }
-            Token::Infinity => {
-                TypeExpressionData::Decimal(Decimal::Infinity)
-                    .with_span(self.advance()?.span)
-            }
-            Token::Nan => {
-                TypeExpressionData::Decimal(Decimal::Nan)
-                    .with_span(self.advance()?.span)
-            }
-            Token::Endpoint(endpoint_name) => {
-                let span = self.advance()?.span.clone();
-                match Endpoint::from_str(endpoint_name.as_str()) {
-                    Err(e) => return self
-                        .collect_error_and_continue_with_type_expression(SpannedParserError {
-                            error: ParserError::InvalidEndpointName {name: endpoint_name, details: e},
-                            span,
-                        }),
-                    Ok(endpoint) => {
-                        TypeExpressionData::Endpoint(endpoint).with_span(span)
-                    }
-                }
-            }
-
-            Token::IntegerLiteral(integer_literal) => {
-                let span = self.advance()?.span.clone();
-                match parse_integer_literal(integer_literal) {
-                    Ok(IntegerOrDecimal::Integer(integer)) => TypeExpressionData::Integer(integer),
-                    Ok(IntegerOrDecimal::TypedInteger(typed_integer)) => TypeExpressionData::TypedInteger(typed_integer),
-                    Ok(IntegerOrDecimal::Decimal(decimal)) => TypeExpressionData::Decimal(decimal),
-                    Ok(IntegerOrDecimal::TypedDecimal(typed_decimal)) => TypeExpressionData::TypedDecimal(typed_decimal),
-                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
-                        error: ParserError::NumberParseError(e),
-                        span,
-                    }),
-                }.with_span(span)
-            },
+            
+            Token::True => self.parse_type_true()?,
+            Token::False => self.parse_type_false()?,
+            Token::Null => self.parse_type_null()?,
+            Token::Identifier(name) => self.parse_type_identifier(name)?,
+            Token::StringLiteral(value) => self.parse_type_string_literal(value)?,
+            Token::Infinity => self.parse_type_infinity()?,
+            Token::Nan => self.parse_type_nan()?,
+            Token::Endpoint(endpoint_name) => self.parse_type_endpoint(endpoint_name)?,
+            Token::IntegerLiteral(integer_literal) => self.parse_type_integer_literal(integer_literal)?,
             Token::BinaryIntegerLiteral(integer_with_variant)
             | Token::HexadecimalIntegerLiteral(integer_with_variant)
             | Token::OctalIntegerLiteral(integer_with_variant) => {
-                let token = self.advance()?;
-                let span = token.span.clone();
-
-                match parse_integer_with_variant(integer_with_variant, token.token) {
-                    Ok(IntegerOrTypedInteger::Integer(integer)) => {
-                        TypeExpressionData::Integer(integer)
-                    }
-                    Ok(IntegerOrTypedInteger::TypedInteger(typed_integer)) => {
-                        TypeExpressionData::TypedInteger(typed_integer)
-                    }
-                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
-                        error: ParserError::NumberParseError(e),
-                        span,
-                    }),
-                }.with_span(span)
+                self.parse_type_integer_with_variant(integer_with_variant)?
             },
-
-            Token::DecimalLiteral(DecimalWithVariant { value, variant }) => {
-                let span = self.advance()?.span.clone();
-                let res = match variant {
-                    Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var)
-                        .map(TypeExpressionData::TypedDecimal),
-                    None => Decimal::from_string(&value)
-                        .map(TypeExpressionData::Decimal),
-                };
-                match res {
-                    Ok(expr) => expr.with_span(span),
-                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
-                        error: ParserError::NumberParseError(e),
-                        span,
-                    }),
-                }
-            }
-
+            Token::DecimalLiteral(decimal_with_variant) => {
+                self.parse_type_decimal_literal(decimal_with_variant)?
+            },
             Token::FractionLiteral(fraction) => {
-                let span = self.advance()?.span.clone();
-                // remove all underscores from fraction string
-                let fraction: String = fraction.chars().filter(|&c| c != '_').collect();
-                match Decimal::from_string(&fraction) {
-                    Ok(decimal) => TypeExpressionData::Decimal(decimal).with_span(span),
-                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
-                        error: ParserError::NumberParseError(e),
-                        span,
-                    }),
-                }
+                self.parse_type_fraction_literal(fraction)?
             }
 
             _ => return Err(SpannedParserError {
@@ -143,6 +59,137 @@ impl Parser {
             })
         })
     }
+    
+    pub(crate) fn parse_type_true(&mut self) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Boolean(true)
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_false(&mut self) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Boolean(false)
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_null(&mut self) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Null
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_identifier(&mut self, name: String) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Identifier(name)
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_string_literal(&mut self, value: String) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Text(unescape_text(&value))
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_infinity(&mut self) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Decimal(Decimal::Infinity)
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_nan(&mut self) -> Result<TypeExpression, SpannedParserError> {
+        Ok(
+            TypeExpressionData::Decimal(Decimal::Nan)
+                .with_span(self.advance()?.span)
+        )
+    }
+    
+    pub(crate) fn parse_type_endpoint(&mut self, endpoint_name: String) -> Result<TypeExpression, SpannedParserError> {
+        let span = self.advance()?.span.clone();
+        match Endpoint::from_str(endpoint_name.as_str()) {
+            Err(e) => Err(SpannedParserError {
+                error: ParserError::InvalidEndpointName {name: endpoint_name, details: e},
+                span,
+            }),
+            Ok(endpoint) => Ok(
+                TypeExpressionData::Endpoint(endpoint).with_span(span)
+            )
+        }
+    }
+    
+    pub(crate) fn parse_type_integer_literal(&mut self, integer_literal: String) -> Result<TypeExpression, SpannedParserError> {
+        let span = self.advance()?.span.clone();
+        Ok(
+            match parse_integer_literal(integer_literal) {
+                Ok(IntegerOrDecimal::Integer(integer)) => TypeExpressionData::Integer(integer),
+                Ok(IntegerOrDecimal::TypedInteger(typed_integer)) => TypeExpressionData::TypedInteger(typed_integer),
+                Ok(IntegerOrDecimal::Decimal(decimal)) => TypeExpressionData::Decimal(decimal),
+                Ok(IntegerOrDecimal::TypedDecimal(typed_decimal)) => TypeExpressionData::TypedDecimal(typed_decimal),
+                Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                    error: ParserError::NumberParseError(e),
+                    span,
+                }),
+            }.with_span(span)
+        )
+    }
+    
+    pub(crate) fn parse_type_integer_with_variant(&mut self, integer_with_variant: IntegerWithVariant) -> Result<TypeExpression, SpannedParserError> {
+        let token = self.advance()?;
+        let span = token.span.clone();
+    
+        Ok(
+            match parse_integer_with_variant(integer_with_variant, token.token) {
+                Ok(IntegerOrTypedInteger::Integer(integer)) => {
+                    TypeExpressionData::Integer(integer)
+                }
+                Ok(IntegerOrTypedInteger::TypedInteger(typed_integer)) => {
+                    TypeExpressionData::TypedInteger(typed_integer)
+                }
+                Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                    error: ParserError::NumberParseError(e),
+                    span,
+                }),
+            }.with_span(span)
+        )
+    }
+    
+    pub(crate) fn parse_type_decimal_literal(&mut self, decimal_with_variant: DecimalWithVariant) -> Result<TypeExpression, SpannedParserError> {
+        let DecimalWithVariant { value, variant } = decimal_with_variant;
+        
+        let span = self.advance()?.span.clone();
+        let res = match variant {
+            Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var)
+                .map(TypeExpressionData::TypedDecimal),
+            None => Decimal::from_string(&value)
+                .map(TypeExpressionData::Decimal),
+        };
+        match res {
+            Ok(expr) => Ok(expr.with_span(span)),
+            Err(e) => self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                error: ParserError::NumberParseError(e),
+                span,
+            }),
+        }
+    }
+    
+    pub(crate) fn parse_type_fraction_literal(&mut self, fraction: String) -> Result<TypeExpression, SpannedParserError> {
+        let span = self.advance()?.span.clone();
+        // remove all underscores from fraction string
+        let fraction: String = fraction.chars().filter(|&c| c != '_').collect();
+        match Decimal::from_string(&fraction) {
+            Ok(decimal) => Ok(TypeExpressionData::Decimal(decimal).with_span(span)),
+            Err(e) => self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                error: ParserError::NumberParseError(e),
+                span,
+            }),
+        }
+    }
+    
 }
 
 #[cfg(test)]

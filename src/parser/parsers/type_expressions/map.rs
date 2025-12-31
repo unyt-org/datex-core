@@ -30,9 +30,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use datex_core::ast::structs::r#type::StructuralMap;
+    use crate::ast::DatexExpressionData;
     use crate::ast::spanned::Spanned;
+    use crate::ast::structs::expression::Map;
     use crate::ast::structs::r#type::{Intersection, TypeExpressionData};
     use crate::parser::parsers::type_expressions::tests::parse_type_expression;
+    use crate::parser::tests::parse;
 
     #[test]
     fn parse_empty_map() {
@@ -68,6 +71,16 @@ mod tests {
                 TypeExpressionData::Boolean(false).with_default_span()
             ),
         ])));
+    }
+
+    #[test]
+    fn parse_map_with_reserved_keyword_keys() {
+        let expr = parse_type_expression("{if: true, type: false}");
+        assert_eq!(expr.data, TypeExpressionData::StructuralMap(StructuralMap(vec![
+                (TypeExpressionData::Text("if".to_string()).with_default_span(), TypeExpressionData::Boolean(true).with_default_span()),
+                (TypeExpressionData::Text("type".to_string()).with_default_span(), TypeExpressionData::Boolean(false).with_default_span()),
+            ]
+        )));
     }
 
     #[test]

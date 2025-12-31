@@ -4,18 +4,15 @@ mod map;
 mod key;
 mod grouped;
 
-use crate::ast::DatexExpressionData;
 use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::CreateRef;
 use crate::ast::structs::r#type::{Intersection, TypeExpressionData, TypeExpression, Union, TypeVariantAccess};
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::Parser;
-use crate::references::reference::ReferenceMutability;
 use crate::values::core_values::error::NumberParseError;
 
-static UNARY_BP: u8 = 13;
+static UNARY_BP: u8 = 11; // less binding power than variant access and property access, but more than all other infix operators
 
 impl Parser {
     pub(crate) fn parse_type_expression(&mut self, min_bp: u8) -> Result<TypeExpression, SpannedParserError> {
@@ -54,7 +51,7 @@ impl Parser {
                 TypeExpressionData::Intersection(Intersection(vec![lhs, rhs]))
                     .with_span(span)
             }
-            
+
             // variant access operator (/)
             Token::Slash => {
                 self.advance()?; // consume operator
@@ -174,7 +171,7 @@ impl Parser {
             // interface operator
             Token::Plus => Some((5, 6)),
             // variant operator
-            Token::Slash => Some((7, 8)),
+            Token::Slash => Some((12, 13)),
             // property access
             Token::Dot => Some((14, 15)),
             _ => None,
@@ -211,7 +208,7 @@ mod tests {
             ]
         )));
     }
-    
+
     #[test]
     fn parse_simple_union_expression() {
         let expr = parse_type_expression("a | b");
@@ -234,7 +231,7 @@ mod tests {
             }
         ));
     }
-    
+
     #[test]
     fn parse_ref_type_expression() {
         let expr = parse_type_expression("&MyType");
@@ -242,7 +239,7 @@ mod tests {
             Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
         ));
     }
-    
+
     #[test]
     fn parse_mut_ref_type_expression() {
         let expr = parse_type_expression("&mut MyType");
@@ -250,13 +247,27 @@ mod tests {
             Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
         ));
     }
-    
+
     #[test]
     fn parse_multiple_ref_type_expression() {
         let expr = parse_type_expression("&mut &MyType");
         assert_eq!(expr.data, TypeExpressionData::RefMut(
             Box::new(TypeExpressionData::Ref(
                 Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
+            ).with_default_span())
+        ));
+    }
+
+    #[test]
+    fn parse_mut_keyword_variant_precedence() {
+        let expr = parse_type_expression("&mut integer/u8");
+        assert_eq!(expr.data, TypeExpressionData::RefMut(
+            Box::new(TypeExpressionData::VariantAccess(
+                datex_core::ast::structs::r#type::TypeVariantAccess {
+                    name: "integer".to_string(),
+                    variant: "u8".to_string(),
+                    base: None,
+                }
             ).with_default_span())
         ));
     }

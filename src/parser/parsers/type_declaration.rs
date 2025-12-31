@@ -16,7 +16,25 @@ impl Parser {
                     _ => unreachable!()
                 };
 
-                let (name, _) = self.expect_identifier()?;
+                let (mut name, _) = self.expect_identifier()?;
+                
+                // optional /variant
+                if self.peek()?.token == Token::Slash {
+                    // consume slash
+                    self.advance()?;
+                    let (variant, _) = self.expect_identifier()?;
+                    // append to name
+                    let full_name = format!("{}/{}", name, variant);
+                    name = full_name;
+                }
+                
+                // optional generic parameters
+                // TODO: use generic parameters
+                let _generic_params = if self.peek()?.token == Token::LeftAngle {
+                    Some(self.parse_generic_parameters()?)
+                } else {
+                    None
+                };
 
                 // expect equals sign
                 self.expect(Token::Assign)?;
@@ -74,6 +92,43 @@ mod tests {
             id: None,
             kind: TypeDeclarationKind::Structural,
             name: "myAlias".to_string(),
+            definition: TypeExpressionData::Boolean(false).with_default_span(),
+            hoisted: false,
+        }));
+    }
+    
+    #[test]
+    fn parse_type_declaration_with_variant() {
+        let expr = parse("type myType/variantA = null");
+        assert_eq!(expr.data, DatexExpressionData::TypeDeclaration(TypeDeclaration {
+            id: None,
+            kind: TypeDeclarationKind::Nominal,
+            name: "myType/variantA".to_string(),
+            definition: TypeExpressionData::Null.with_default_span(),
+            hoisted: false,
+        }));
+    }
+
+    // TODO: generic parameters parsing
+    #[test]
+    fn parse_type_declaration_with_generic_parameters() {
+        let expr = parse("type myType<T, U> = true");
+        assert_eq!(expr.data, DatexExpressionData::TypeDeclaration(TypeDeclaration {
+            id: None,
+            kind: TypeDeclarationKind::Nominal,
+            name: "myType".to_string(),
+            definition: TypeExpressionData::Boolean(true).with_default_span(),
+            hoisted: false,
+        }));
+    }
+    
+    #[test]
+    fn parse_type_declaration_with_variant_and_generic_parameters() {
+        let expr = parse("type myType/variantA<T> = false");
+        assert_eq!(expr.data, DatexExpressionData::TypeDeclaration(TypeDeclaration {
+            id: None,
+            kind: TypeDeclarationKind::Nominal,
+            name: "myType/variantA".to_string(),
             definition: TypeExpressionData::Boolean(false).with_default_span(),
             hoisted: false,
         }));

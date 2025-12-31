@@ -1,7 +1,7 @@
 use datex_core::ast::structs::expression::PropertyAccess;
 use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
+use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, GenericInstantiation, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
 use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
 use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, ComparisonOperator, LogicalUnaryOperator, UnaryOperator};
 use crate::parser::errors::{ParserError, SpannedParserError};
@@ -9,7 +9,7 @@ use crate::parser::Parser;
 use crate::references::reference::ReferenceMutability;
 use crate::values::core_values::error::NumberParseError;
 
-static UNARY_BP: u8 = 21; // weaker than property access / apply, stronger than all other binary operators
+static UNARY_BP: u8 = 22; // weaker than property access / apply, stronger than all other binary operators
 
 impl Parser {
     pub(crate) fn parse_expression(&mut self, min_bp: u8) -> Result<DatexExpression, SpannedParserError> {
@@ -35,23 +35,7 @@ impl Parser {
             Token::Dot => {
                 self.advance()?; // consume the dot
 
-                let rhs = match self.peek()?.token {
-                    // treat direct identifier after dot as text property access
-                    Token::Identifier(_) => {
-                        let prop_token = self.advance()?;
-                        if let Token::Identifier(name) = &prop_token.token {
-                            DatexExpressionData::Text(name.clone())
-                                .with_span(prop_token.span)
-                        }
-                        else {
-                            unreachable!() // already checked above
-                        }
-                    }
-                    // default property access
-                    _ => {
-                        self.parse_expression(r_bp)?
-                    }
-                };
+                let rhs = self.parse_key()?;
 
                 let span = lhs.span.start..rhs.span.end;
 
@@ -66,6 +50,7 @@ impl Parser {
             Token::Minus |
             Token::Star |
             Token::Slash |
+            Token::Caret |
             Token::And |
             Token::Or |
             Token::Ampersand |
@@ -88,7 +73,6 @@ impl Parser {
             Token::StructuralEqual |
             Token::NotEqual |
             Token::NotStructuralEqual |
-            Token::LeftAngle |
             Token::LessEqual |
             Token::RightAngle |
             Token::GreaterEqual => {
@@ -101,6 +85,31 @@ impl Parser {
                     operator: Parser::comparison_operator_from_token(&op),
                     right: Box::new(rhs),
                 }).with_span(span)
+            }
+
+            // generic parameters or fall back to less than operator if not generic parameters
+            Token::LeftAngle => {
+                let generic_params = self.try_parse_generic_parameters_or_roll_back();
+                match generic_params {
+                    Ok((params, end_span)) => {
+                        let span = lhs.span.start..end_span.end;
+                        DatexExpressionData::GenericInstantiation(GenericInstantiation {
+                            base: Box::new(lhs),
+                            generic_arguments: params,
+                        }).with_span(span)
+                    }
+                    _ => {
+                        self.advance()?; // consume the operator
+                        let rhs = self.parse_expression(r_bp)?;
+                        let span = lhs.span.start..rhs.span.end;
+
+                        DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                            left: Box::new(lhs),
+                            operator: ComparisonOperator::LessThan,
+                            right: Box::new(rhs),
+                        }).with_span(span)
+                    }
+                }
             }
 
             // assignment (=)
@@ -185,10 +194,10 @@ impl Parser {
                 })
             }
             // invalid lhs for assignment
-            _ => return Err(SpannedParserError {
+            _ => return self.collect_error_and_continue(SpannedParserError {
                 error: ParserError::InvalidAssignmentTarget,
                 span: lhs.span.clone(),
-            }),
+            })
         }.with_span(span))
     }
 
@@ -231,6 +240,7 @@ impl Parser {
             Token::Minus => BinaryOperator::Arithmetic(ArithmeticOperator::Subtract),
             Token::Star => BinaryOperator::Arithmetic(ArithmeticOperator::Multiply),
             Token::Slash => BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
+            Token::Caret => BinaryOperator::Arithmetic(ArithmeticOperator::Power),
             Token::And => BinaryOperator::Logical(LogicalOperator::And),
             Token::Or => BinaryOperator::Logical(LogicalOperator::Or),
             Token::Ampersand => BinaryOperator::Bitwise(BitwiseOperator::And),
@@ -406,11 +416,12 @@ impl Parser {
             // arithmetic operators
             Token::Plus | Token::Minus => Some((13, 14)),
             Token::Star | Token::Slash => Some((15, 16)),
+            Token::Caret => Some((17, 17)), // right associative
             // bitwise operators
-            Token::Pipe => Some((17, 18)),
-            Token::Ampersand => Some((19, 20)),
+            Token::Pipe => Some((18, 19)),
+            Token::Ampersand => Some((20, 21)),
             // property access
-            Token::Dot => Some((22, 23)),
+            Token::Dot => Some((23, 24)),
             // apply (function call, type cast), which has same binding power as member access
             Token::LeftParen |
             Token::LeftCurly |
@@ -431,7 +442,7 @@ impl Parser {
             Token::Slot(_) |
             Token::PointerAddress(_) |
             Token::Endpoint(_)
-            => Some((22, 23)),
+            => Some((23, 24)),
             _ => None,
         }
     }
@@ -441,7 +452,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpressionData, Deref, DerefAssignment, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, UnaryOperation, VariableAssignment};
+    use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpressionData, Deref, DerefAssignment, GenericInstantiation, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, UnaryOperation, VariableAssignment};
+    use crate::ast::structs::r#type::TypeExpressionData;
     use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, ComparisonOperator, LogicalUnaryOperator, UnaryOperator};
     use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
     use crate::parser::errors::ParserError;
@@ -490,6 +502,15 @@ mod tests {
         assert_eq!(expr.data, DatexExpressionData::PropertyAccess(PropertyAccess {
             base: Box::new(DatexExpressionData::Identifier("myObject".to_string()).with_default_span()),
             property: Box::new(DatexExpressionData::Text("myProperty".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_property_access_reserved_keywords() {
+        let expr = parse("myObject.if");
+        assert_eq!(expr.data, DatexExpressionData::PropertyAccess(PropertyAccess {
+            base: Box::new(DatexExpressionData::Identifier("myObject".to_string()).with_default_span()),
+            property: Box::new(DatexExpressionData::Text("if".to_string()).with_default_span()),
         }));
     }
 
@@ -918,6 +939,45 @@ mod tests {
     }
 
     #[test]
+    fn parse_generic_instantiation() {
+        let expr = parse("MyType<Arg1>");
+        assert_eq!(expr.data, DatexExpressionData::GenericInstantiation(GenericInstantiation {
+            base: Box::new(DatexExpressionData::Identifier("MyType".to_string()).with_default_span()),
+            generic_arguments: vec![
+                TypeExpressionData::Identifier("Arg1".to_string()).with_default_span(),
+            ],
+        }));
+    }
+
+    #[test]
+    fn parse_generic_instantiation_multiple_arguments() {
+        let expr = parse("MyType<Arg1, Arg2>");
+        assert_eq!(expr.data, DatexExpressionData::GenericInstantiation(GenericInstantiation {
+            base: Box::new(DatexExpressionData::Identifier("MyType".to_string()).with_default_span()),
+            generic_arguments: vec![
+                TypeExpressionData::Identifier("Arg1".to_string()).with_default_span(),
+                TypeExpressionData::Identifier("Arg2".to_string()).with_default_span(),
+            ],
+        }));
+    }
+
+    #[test]
+    fn parse_generic_instantiation_with_apply() {
+        let expr = parse("MyType<Arg1>(42)");
+        assert_eq!(expr.data, DatexExpressionData::Apply(Apply {
+            base: Box::new(DatexExpressionData::GenericInstantiation(GenericInstantiation {
+                base: Box::new(DatexExpressionData::Identifier("MyType".to_string()).with_default_span()),
+                generic_arguments: vec![
+                    TypeExpressionData::Identifier("Arg1".to_string()).with_default_span(),
+                ],
+            }).with_default_span()),
+            arguments: vec![
+                DatexExpressionData::Integer(42.into()).with_default_span(),
+            ],
+        }));
+    }
+
+    #[test]
     fn parse_greater_than_comparison() {
         let expr = parse("a > b");
         assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
@@ -998,6 +1058,49 @@ mod tests {
         assert_eq!(expr.data, DatexExpressionData::UnaryOperation(UnaryOperation {
             operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
             expression: Box::new(DatexExpressionData::Identifier("x".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_power_expression() {
+        let expr = parse("2 ^ 3");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::Integer(2.into()).with_default_span()),
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Power),
+            right: Box::new(DatexExpressionData::Integer(3.into()).with_default_span()),
+            ty: None,
+        }));
+    }
+
+    #[test]
+    fn parse_power_expression_right_associative() {
+        let expr = parse("2 ^ 3 ^ 4");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::Integer(2.into()).with_default_span()),
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Power),
+            right: Box::new(DatexExpressionData::BinaryOperation(BinaryOperation {
+                left: Box::new(DatexExpressionData::Integer(3.into()).with_default_span()),
+                operator: BinaryOperator::Arithmetic(ArithmeticOperator::Power),
+                right: Box::new(DatexExpressionData::Integer(4.into()).with_default_span()),
+                ty: None,
+            }).with_default_span()),
+            ty: None,
+        }));
+    }
+
+    #[test]
+    fn parse_power_expression_with_parentheses() {
+        let expr = parse("(2 ^ 3) ^ 4");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::BinaryOperation(BinaryOperation {
+                left: Box::new(DatexExpressionData::Integer(2.into()).with_default_span()),
+                operator: BinaryOperator::Arithmetic(ArithmeticOperator::Power),
+                right: Box::new(DatexExpressionData::Integer(3.into()).with_default_span()),
+                ty: None,
+            }).with_default_span()),
+            operator: BinaryOperator::Arithmetic(ArithmeticOperator::Power),
+            right: Box::new(DatexExpressionData::Integer(4.into()).with_default_span()),
+            ty: None,
         }));
     }
 }

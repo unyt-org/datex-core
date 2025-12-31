@@ -329,7 +329,7 @@ impl TypeDeclarationKind {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeDeclaration {
     pub id: Option<VariableId>,
-    pub name: String,
+    pub name: String, // TODO: separate variant from name
     pub definition: TypeExpression,
     pub hoisted: bool,
     pub kind: TypeDeclarationKind,

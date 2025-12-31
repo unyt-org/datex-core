@@ -63,7 +63,18 @@ mod tests {
             ]
         }));
     }
-    
+
+    #[test]
+    fn parse_map_with_reserved_keyword_keys() {
+        let expr = parse("{if: true, type: false}");
+        assert_eq!(expr.data, DatexExpressionData::Map(Map {
+            entries: vec![
+                (DatexExpressionData::Text("if".to_string()).with_default_span(), DatexExpressionData::Boolean(true).with_default_span()),
+                (DatexExpressionData::Text("type".to_string()).with_default_span(), DatexExpressionData::Boolean(false).with_default_span()),
+            ]
+        }));
+    }
+
     #[test]
     fn parse_map_with_dynamic_expression_keys() {
         let expr = parse("{(x): true, (y + true): false}");
