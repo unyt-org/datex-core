@@ -41,6 +41,7 @@ pub mod logger;
 #[cfg(feature = "lsp")]
 pub mod lsp;
 pub mod network;
+#[cfg(feature = "compiler")]
 pub mod parser;
 pub mod references;
 pub mod runtime;
