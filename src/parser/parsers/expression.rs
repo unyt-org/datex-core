@@ -1,14 +1,15 @@
 use datex_core::ast::structs::expression::PropertyAccess;
 use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{Apply, BinaryOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
-use crate::global::operators::binary::{ArithmeticOperator, LogicalOperator};
-use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, UnaryOperator};
+use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation, VariableAssignment};
+use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
+use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, ComparisonOperator, LogicalUnaryOperator, UnaryOperator};
 use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::Parser;
 use crate::references::reference::ReferenceMutability;
+use crate::values::core_values::error::NumberParseError;
 
-static UNARY_BP: u8 = 17; // weaker than property access / apply, stronger than all other binary operators
+static UNARY_BP: u8 = 21; // weaker than property access / apply, stronger than all other binary operators
 
 impl Parser {
     pub(crate) fn parse_expression(&mut self, min_bp: u8) -> Result<DatexExpression, SpannedParserError> {
@@ -66,7 +67,9 @@ impl Parser {
             Token::Star |
             Token::Slash |
             Token::And |
-            Token::Or => {
+            Token::Or |
+            Token::Ampersand |
+            Token::Pipe => {
                 self.advance()?; // consume the operator
                 let rhs = self.parse_expression(r_bp)?;
                 let span = lhs.span.start..rhs.span.end;
@@ -76,6 +79,27 @@ impl Parser {
                     operator: Parser::binary_operator_from_token(&op),
                     right: Box::new(rhs),
                     ty: None,
+                }).with_span(span)
+            }
+
+            // comparison operators
+            Token::Equal |
+            Token::Is |
+            Token::StructuralEqual |
+            Token::NotEqual |
+            Token::NotStructuralEqual |
+            Token::LeftAngle |
+            Token::LessEqual |
+            Token::RightAngle |
+            Token::GreaterEqual => {
+                self.advance()?; // consume the operator
+                let rhs = self.parse_expression(r_bp)?;
+                let span = lhs.span.start..rhs.span.end;
+
+                DatexExpressionData::ComparisonOperation(ComparisonOperation {
+                    left: Box::new(lhs),
+                    operator: Parser::comparison_operator_from_token(&op),
+                    right: Box::new(rhs),
                 }).with_span(span)
             }
 
@@ -209,6 +233,23 @@ impl Parser {
             Token::Slash => BinaryOperator::Arithmetic(ArithmeticOperator::Divide),
             Token::And => BinaryOperator::Logical(LogicalOperator::And),
             Token::Or => BinaryOperator::Logical(LogicalOperator::Or),
+            Token::Ampersand => BinaryOperator::Bitwise(BitwiseOperator::And),
+            Token::Pipe => BinaryOperator::Bitwise(BitwiseOperator::Or),
+            _ => unreachable!(),
+        }
+    }
+
+    fn comparison_operator_from_token(token: &SpannedToken) -> ComparisonOperator {
+        match token.token {
+            Token::Is => ComparisonOperator::Is,
+            Token::Equal => ComparisonOperator::Equal,
+            Token::StructuralEqual => ComparisonOperator::StructuralEqual,
+            Token::NotEqual => ComparisonOperator::NotEqual,
+            Token::NotStructuralEqual => ComparisonOperator::NotStructuralEqual,
+            Token::LeftAngle => ComparisonOperator::LessThan,
+            Token::LessEqual => ComparisonOperator::LessThanOrEqual,
+            Token::RightAngle => ComparisonOperator::GreaterThan,
+            Token::GreaterEqual => ComparisonOperator::GreaterThanOrEqual,
             _ => unreachable!(),
         }
     }
@@ -229,13 +270,78 @@ impl Parser {
 
     fn parse_prefix(&mut self) -> Result<DatexExpression, SpannedParserError> {
         match self.peek()?.token {
-            // unary operators:
+            // minus:
             Token::Minus => {
                 let op = self.advance()?;
                 let rhs = self.parse_expression(UNARY_BP)?;
                 let span = op.span.start..rhs.span.end;
+
+                Ok(
+                    match rhs.data {
+                        // special case: if the rhs is a literal integer/decimal, parse it as negative literal
+                        DatexExpressionData::Integer(value) => {
+                            DatexExpressionData::Integer(-value)
+                        }
+                        DatexExpressionData::Decimal(value) => {
+                            DatexExpressionData::Decimal(-value)
+                        }
+                        DatexExpressionData::TypedInteger(value) => {
+                            match -value {
+                                Ok(neg_value) => DatexExpressionData::TypedInteger(neg_value),
+                                Err(e) => {
+                                    return Err(SpannedParserError {
+                                        error: ParserError::NumberParseError(NumberParseError::OutOfRange),
+                                        span: rhs.span.clone(),
+                                    });
+                                }
+                            }
+                        }
+                        DatexExpressionData::TypedDecimal(value) => {
+                            DatexExpressionData::TypedDecimal(-value)
+                        }
+                        // default case: unary minus operation
+                        _ => DatexExpressionData::UnaryOperation(UnaryOperation {
+                            operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                            expression: Box::new(rhs),
+                        })
+                    }.with_span(span)
+                )
+            }
+            // plus
+            Token::Plus => {
+                let op = self.advance()?;
+                let rhs = self.parse_expression(UNARY_BP)?;
+                let span = op.span.start..rhs.span.end;
+                Ok(
+                    match rhs.data {
+                        // special case: unary plus is a no-op for integer and decimal literals
+                        DatexExpressionData::Integer(value) => {
+                            DatexExpressionData::Integer(value)
+                        }
+                        DatexExpressionData::Decimal(value) => {
+                            DatexExpressionData::Decimal(value)
+                        }
+                        DatexExpressionData::TypedInteger(value) => {
+                            DatexExpressionData::TypedInteger(value)
+                        }
+                        DatexExpressionData::TypedDecimal(value) => {
+                            DatexExpressionData::TypedDecimal(value)
+                        }
+                        // default case: unary plus operation
+                        _ => DatexExpressionData::UnaryOperation(UnaryOperation {
+                            operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
+                            expression: Box::new(rhs),
+                        })
+                    }.with_span(span)
+                )
+            }
+            // negation (!)
+            Token::Exclamation => {
+                let op = self.advance()?;
+                let rhs = self.parse_expression(UNARY_BP)?;
+                let span = op.span.start..rhs.span.end;
                 Ok(DatexExpressionData::UnaryOperation(UnaryOperation {
-                    operator: Parser::unary_operator_from_token(&op)?,
+                    operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
                     expression: Box::new(rhs),
                 }).with_span(span))
             }
@@ -289,9 +395,10 @@ impl Parser {
             Token::AddAssign |
             Token::SubAssign |
             Token::MulAssign |
-            Token::DivAssign => Some((3, 4)),
+            Token::DivAssign => Some((3, 3)),
             // comparison operators
-            Token::Equal | Token::NotEqual => Some((5, 6)),
+            Token::Equal | Token::NotEqual | Token::StructuralEqual | Token::NotStructuralEqual | Token::Is
+                => Some((5, 6)),
             Token::LeftAngle | Token::LessEqual | Token::RightAngle | Token::GreaterEqual => Some((7, 8)),
             // logical operators
             Token::Or => Some((9, 10)),
@@ -299,7 +406,11 @@ impl Parser {
             // arithmetic operators
             Token::Plus | Token::Minus => Some((13, 14)),
             Token::Star | Token::Slash => Some((15, 16)),
-            Token::Dot => Some((18, 19)),
+            // bitwise operators
+            Token::Pipe => Some((17, 18)),
+            Token::Ampersand => Some((19, 20)),
+            // property access
+            Token::Dot => Some((22, 23)),
             // apply (function call, type cast), which has same binding power as member access
             Token::LeftParen |
             Token::LeftCurly |
@@ -320,7 +431,7 @@ impl Parser {
             Token::Slot(_) |
             Token::PointerAddress(_) |
             Token::Endpoint(_)
-            => Some((18, 19)),
+            => Some((22, 23)),
             _ => None,
         }
     }
@@ -330,10 +441,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{Apply, BinaryOperation, CreateRef, DatexExpressionData, Deref, DerefAssignment, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, UnaryOperation, VariableAssignment};
-    use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, UnaryOperator};
-    use crate::global::operators::binary::{ArithmeticOperator, LogicalOperator};
-    use crate::parser::tests::parse;
+    use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpressionData, Deref, DerefAssignment, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, UnaryOperation, VariableAssignment};
+    use crate::global::operators::{ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator, ComparisonOperator, LogicalUnaryOperator, UnaryOperator};
+    use crate::global::operators::binary::{ArithmeticOperator, BitwiseOperator, LogicalOperator};
+    use crate::parser::errors::ParserError;
+    use crate::parser::tests::{parse, try_parse_and_return_on_first_error};
     use crate::references::reference::ReferenceMutability;
 
     #[test]
@@ -542,6 +654,30 @@ mod tests {
     }
 
     #[test]
+    fn parse_bitwise_and() {
+        let expr = parse("1 & 2");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::Integer(1.into()).with_default_span()),
+            operator: BinaryOperator::Bitwise(BitwiseOperator::And),
+            right: Box::new(DatexExpressionData::Integer(2.into()).with_default_span()),
+            ty: None,
+        }));
+    }
+
+    #[test]
+    fn parse_bitwise_or() {
+        let expr = parse("1 | 2");
+        assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
+            left: Box::new(DatexExpressionData::Integer(1.into()).with_default_span()),
+            operator: BinaryOperator::Bitwise(BitwiseOperator::Or),
+            right: Box::new(DatexExpressionData::Integer(2.into()).with_default_span()),
+            ty: None,
+        }));
+    }
+
+
+
+    #[test]
     fn parse_logical_expression_precedence() {
         let expr = parse("true or false and true");
         assert_eq!(expr.data, DatexExpressionData::BinaryOperation(BinaryOperation {
@@ -655,6 +791,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_invalid_variable_assignment() {
+        let result = try_parse_and_return_on_first_error("42 = true");
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap().error, ParserError::InvalidAssignmentTarget);
+    }
+
+    #[test]
+    fn parse_invalid_assignment_with_lhs_expression() {
+        let result = try_parse_and_return_on_first_error("x + y = true");
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap().error, ParserError::InvalidAssignmentTarget);
+    }
+
+    #[test]
     fn parse_property_assignment() {
         let expr = parse("obj.prop = true");
         assert_eq!(expr.data, DatexExpressionData::PropertyAssignment(PropertyAssignment {
@@ -704,6 +854,150 @@ mod tests {
                 expression: Box::new(DatexExpressionData::Identifier("myRef".to_string()).with_default_span()),
             }).with_default_span()),
             assigned_expression: Box::new(DatexExpressionData::Integer(300.into()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_structural_equality_comparison() {
+        let expr = parse("a == b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::StructuralEqual,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_is_comparison() {
+        let expr = parse("a is b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::Is,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_equality_comparison() {
+        let expr = parse("a === b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::Equal,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_structural_inequality_comparison() {
+        let expr = parse("a != b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::NotStructuralEqual,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_inequality_comparison() {
+        let expr = parse("a !== b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::NotEqual,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_less_than_comparison() {
+        let expr = parse("a < b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::LessThan,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_greater_than_comparison() {
+        let expr = parse("a > b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::GreaterThan,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_less_equal_comparison() {
+        let expr = parse("a <= b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::LessThanOrEqual,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_greater_equal_comparison() {
+        let expr = parse("a >= b");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::GreaterThanOrEqual,
+            right: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_comparison_precedence() {
+        let expr = parse("a == b + c");
+        assert_eq!(expr.data, DatexExpressionData::ComparisonOperation(ComparisonOperation {
+            left: Box::new(DatexExpressionData::Identifier("a".to_string()).with_default_span()),
+            operator: ComparisonOperator::StructuralEqual,
+            right: Box::new(DatexExpressionData::BinaryOperation(BinaryOperation {
+                left: Box::new(DatexExpressionData::Identifier("b".to_string()).with_default_span()),
+                operator: BinaryOperator::Arithmetic(ArithmeticOperator::Add),
+                right: Box::new(DatexExpressionData::Identifier("c".to_string()).with_default_span()),
+                ty: None,
+            }).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_negation() {
+        let expr = parse("!true");
+        assert_eq!(expr.data, DatexExpressionData::UnaryOperation(UnaryOperation {
+            operator: UnaryOperator::Logical(LogicalUnaryOperator::Not),
+            expression: Box::new(DatexExpressionData::Boolean(true).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_unary_plus_integer() {
+        let expr = parse("+42");
+        assert_eq!(expr.data, DatexExpressionData::Integer(42.into()));
+    }
+
+    #[test]
+    fn parse_unary_plus_variable() {
+        let expr = parse("+x");
+        assert_eq!(expr.data, DatexExpressionData::UnaryOperation(UnaryOperation {
+            operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus),
+            expression: Box::new(DatexExpressionData::Identifier("x".to_string()).with_default_span()),
+        }));
+    }
+
+    #[test]
+    fn parse_unary_minus_integer() {
+        let expr = parse("-42");
+        assert_eq!(expr.data, DatexExpressionData::Integer((-42).into()));
+    }
+
+    #[test]
+    fn parse_unary_minus_variable() {
+        let expr = parse("-x");
+        assert_eq!(expr.data, DatexExpressionData::UnaryOperation(UnaryOperation {
+            operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+            expression: Box::new(DatexExpressionData::Identifier("x".to_string()).with_default_span()),
         }));
     }
 }

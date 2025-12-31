@@ -156,7 +156,7 @@ pub fn ast_from_bytecode(
                                 RegularInstruction::BigInteger(
                                     integer_data,
                                 ) => DatexExpressionData::TypedInteger(
-                                    TypedInteger::Big(integer_data.0),
+                                    TypedInteger::IBig(integer_data.0),
                                 ),
                                 RegularInstruction::Integer(integer_data) => {
                                     DatexExpressionData::Integer(integer_data.0)

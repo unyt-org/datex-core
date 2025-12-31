@@ -238,7 +238,7 @@ pub fn append_encoded_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
             append_instruction_code(buffer, InstructionCode::UINT_128);
             append_u128(buffer, *val);
         }
-        TypedInteger::Big(val) => {
+        TypedInteger::IBig(val) => {
             append_instruction_code(buffer, InstructionCode::INT_BIG);
             append_big_integer(buffer, val);
         }

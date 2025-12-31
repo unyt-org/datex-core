@@ -3,7 +3,7 @@ use crate::global::protocol_structures::instructions::RegularInstruction;
 use core::fmt::{Display, Formatter};
 use core::prelude::rust_2024::*;
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum UnaryOperator {
     Reference(ReferenceUnaryOperator),
     Arithmetic(ArithmeticUnaryOperator),
@@ -70,7 +70,7 @@ impl Display for UnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum ReferenceUnaryOperator {
     CreateRef,    // &
     CreateRefMut, // &mut
@@ -99,7 +99,7 @@ impl Display for ReferenceUnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum ArithmeticUnaryOperator {
     Increment, // ++
     Decrement, // --
@@ -129,7 +129,7 @@ impl Display for ArithmeticUnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum BitwiseUnaryOperator {
     Not, // ~
 }
@@ -150,7 +150,7 @@ impl Display for BitwiseUnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum LogicalUnaryOperator {
     Not, // !
 }

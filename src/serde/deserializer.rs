@@ -163,7 +163,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::U16(u) => visitor.visit_u16(u),
                     TypedInteger::I8(i) => visitor.visit_i8(i),
                     TypedInteger::U8(u) => visitor.visit_u8(u),
-                    TypedInteger::Big(i) => {
+                    TypedInteger::IBig(i) => {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                     e => core::todo!("#393 Unsupported typed integer: {:?}", e),

@@ -2,6 +2,7 @@ use std::ops::Range;
 use crate::parser::lexer::Token;
 use crate::ast::structs::expression::DatexExpression;
 use crate::compiler::error::ErrorCollector;
+use crate::global::operators::UnaryOperator;
 use crate::values::core_values::endpoint::InvalidEndpointError;
 use crate::values::core_values::error::NumberParseError;
 
@@ -20,7 +21,11 @@ pub enum ParserError {
         details: InvalidEndpointError
     },
     InvalidAssignmentTarget,
-    NumberParseError(NumberParseError)
+    NumberParseError(NumberParseError),
+    InvalidUnaryOperation {
+        operator: UnaryOperator
+    },
+    InvalidTypeVariantAccess,
 }
 
 #[derive(Debug)]

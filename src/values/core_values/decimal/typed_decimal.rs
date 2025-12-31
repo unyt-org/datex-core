@@ -46,7 +46,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 pub enum DecimalTypeVariant {
     F32 = 1, // rationale: We need to start with 1 here, as the core lib pointer id for the base type is using OFFSET_X + variant as index
     F64,
-    Big,
+    DBig,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -262,7 +262,7 @@ impl TypedDecimal {
             .or_else(|_| {
                 TypedDecimal::from_string_and_variant(
                     value,
-                    DecimalTypeVariant::Big,
+                    DecimalTypeVariant::DBig,
                 )
             }),
         }
@@ -281,7 +281,7 @@ impl TypedDecimal {
                 .map(|v| TypedDecimal::F32(OrderedFloat(v))),
             DecimalTypeVariant::F64 => parse_checked_f64(value)
                 .map(|v| TypedDecimal::F64(OrderedFloat(v))),
-            DecimalTypeVariant::Big => {
+            DecimalTypeVariant::DBig => {
                 Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
@@ -304,7 +304,7 @@ impl TypedDecimal {
                 .parse::<f64>()
                 .map(|v| TypedDecimal::F64(OrderedFloat(v)))
                 .map_err(|_: ParseFloatError| NumberParseError::InvalidFormat),
-            DecimalTypeVariant::Big => {
+            DecimalTypeVariant::DBig => {
                 Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
@@ -445,7 +445,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(_) => DecimalTypeVariant::F32,
             TypedDecimal::F64(_) => DecimalTypeVariant::F64,
-            TypedDecimal::Decimal(_) => DecimalTypeVariant::Big,
+            TypedDecimal::Decimal(_) => DecimalTypeVariant::DBig,
         }
     }
 
@@ -455,7 +455,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => format!("{}f32", value.into_inner()),
             TypedDecimal::F64(value) => format!("{}f64", value.into_inner()),
-            TypedDecimal::Decimal(value) => format!("{}big", value),
+            TypedDecimal::Decimal(value) => format!("{}dbig", value),
         }
     }
 }
@@ -864,7 +864,7 @@ mod tests {
 
         let k = TypedDecimal::from_string_and_variant(
             "12345678901234567890.123456789",
-            DecimalTypeVariant::Big,
+            DecimalTypeVariant::DBig,
         )
         .unwrap();
         assert_matches!(k, TypedDecimal::Decimal(_));

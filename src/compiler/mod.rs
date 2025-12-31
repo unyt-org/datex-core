@@ -1152,7 +1152,7 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpressionData::Type(type_expression) => {
+        DatexExpressionData::TypeExpression(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
             scope = compile_type_expression(
@@ -2177,7 +2177,7 @@ pub mod tests {
 
     #[test]
     fn json_to_dxb_large_file() {
-        let json = get_json_test_string("test2.json");
+        let json = get_json_test_string("test3.json");
         let _ = compile_script(&json, CompileOptions::default())
             .expect("Failed to parse JSON string");
     }

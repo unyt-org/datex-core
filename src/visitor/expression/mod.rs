@@ -104,9 +104,6 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::TypeExpression(type_expression) => self
                 .visit_type_expression(type_expression)
                 .map(|_| VisitAction::SkipChildren),
-            DatexExpressionData::Type(type_expression) => self
-                .visit_type_expression(type_expression)
-                .map(|_| VisitAction::SkipChildren),
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 self.visit_function_declaration(
                     function_declaration,

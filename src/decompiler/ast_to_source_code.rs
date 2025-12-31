@@ -575,7 +575,7 @@ impl AstToSourceCodeConverter {
                     self.type_expression_to_source_code(value)
                 )
             }
-            DatexExpressionData::Type(type_expression) => {
+            DatexExpressionData::TypeExpression(type_expression) => {
                 self.type_expression_to_source_code(type_expression)
             }
             DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
@@ -931,7 +931,7 @@ mod tests {
             });
         assert_eq!(
             compact().format(&deref_assign_ast.with_default_span()),
-            "**ptr=42"
+            "*ptr=42"
         );
     }
 

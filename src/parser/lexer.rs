@@ -219,7 +219,8 @@ pub enum Token {
     #[token("if")] If,
     #[token("else")] Else,
 
-    #[token("type")] Type,
+    #[token("type")] TypeDeclaration,
+    #[token("type(")] TypeExpressionStart,
     #[token("typealias")] TypeAlias,
 
     #[token(".")]
@@ -228,44 +229,42 @@ pub enum Token {
     #[regex(r"\$(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{10}|[0-9a-fA-F]{52})", allocated_string)] PointerAddress(String),
 
     // decimal literals (infinity, nan)
-    // TODO: +-
     #[regex(r"[Ii]nfinity")] Infinity,
     #[regex(r"(?:nan|NaN)")] Nan,
 
     /// Decimal integer with suffix
     /// Includes
-    /// - standard decimal integers (e.g. 1234, -5678)
-    /// - integers with integer suffix (e.g. 42u8, 100i32, 999big)
-    /// - integers with exponent (e.g. 12e4, -3E-2) which are treated as decimals
+    /// - standard decimal integers (e.g. 1234)
+    /// - integers with integer suffix (e.g. 42u8, 100i32, 999ibig)
+    /// - integers with exponent (e.g. 12e4, 3E-2) which are treated as decimals
     /// - integers with decimal suffix (e.g. 12f32, 1e4f64) which are treated as decimals
-    #[regex(r"[-+]*\d+[_\d]*(?:[eE][+-]?\d+[_\d]*)?(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big|f32|f64|fbig)?", parse_typed_literal::<IntegerTypeVariant>)]
-    IntegerLiteral(IntegerLiteral),
+    #[regex(r"\d+[_\d]*(?:[eE][+-]?\d+[_\d]*)?(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|ubig|ibig|f32|f64|dbig)?", allocated_string)]
+    IntegerLiteral(String),
 
     #[regex(
-        r"0[bB][01][01_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        r"0[bB][01][01_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|ubig|ibig)?",
         parse_typed_literal::<IntegerTypeVariant>
     )]
-    BinaryIntegerLiteral(IntegerLiteral),
+    BinaryIntegerLiteral(IntegerWithVariant),
 
     #[regex(
-        r"0[oO][0-7][0-7_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        r"0[oO][0-7][0-7_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|ubig|ibig)?",
         parse_typed_literal::<IntegerTypeVariant>
     )]
-    OctalIntegerLiteral(IntegerLiteral),
+    OctalIntegerLiteral(IntegerWithVariant),
 
     #[regex(
-        r"0[xX][0-9a-fA-F][0-9a-fA-F_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|big)?",
+        r"0[xX][0-9a-fA-F][0-9a-fA-F_]*(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|ubig|ibig)?",
         parse_typed_literal::<IntegerTypeVariant>
     )]
-    HexadecimalIntegerLiteral(IntegerLiteral),
+    HexadecimalIntegerLiteral(IntegerWithVariant),
 
     /// Decimal literal (excluding decimals without dot (e.g. 12f32, 1e4) - these are handled by IntegerLiteral)
-    #[regex(r"[-+]*\d+[_\d]*\.[_\d]*(?:[eE][+-]?\d+[_\d]*)?(?:f32|f64|fbig)?", parse_typed_literal::<DecimalTypeVariant>)]
-    DecimalLiteral(TypedLiteral<DecimalTypeVariant>),
+    #[regex(r"\d+[_\d]*\.[_\d]+(?:[eE][+-]?\d+[_\d]*)?(?:f32|f64|dbig)?", parse_typed_literal::<DecimalTypeVariant>)]
+    DecimalLiteral(LiteralWithVariant<DecimalTypeVariant>),
 
-
-    // fraction (e.g. 1/2)
-    #[regex(r"FIXMEREMOVWE\d+/\d+", allocated_string)] 
+    /// Decimal fraction (e.g. 1/2, 3/4)
+    #[regex(r"\d+[_\d]*/\d+[_\d]*", allocated_string)]
     FractionLiteral(String),
 
     #[regex(r#"[a-z0-9]*("(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')"#, allocated_string)] StringLiteral(String),
@@ -340,7 +339,8 @@ impl Token {
             Token::Function => Some("function"),
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
-            Token::Type => Some("type"),
+            Token::TypeDeclaration => Some("type"),
+            Token::TypeExpressionStart => Some("type("),
             Token::TypeAlias => Some("typealias"),
             Token::MutRef => Some("&mut"),
             Token::And => Some("and"),
@@ -404,16 +404,16 @@ pub fn get_spanned_tokens_from_source(src: &str) -> (Vec<SpannedToken>, Vec<Span
 }
 
 
-pub type IntegerLiteral = TypedLiteral<IntegerTypeVariant>;
-pub type DecimalLiteral = TypedLiteral<DecimalTypeVariant>;
+pub type IntegerWithVariant = LiteralWithVariant<IntegerTypeVariant>;
+pub type DecimalWithVariant = LiteralWithVariant<DecimalTypeVariant>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypedLiteral<T> {
+pub struct LiteralWithVariant<T> {
     pub value: String,
     pub variant: Option<T>,
 }
 
-impl Display for TypedLiteral<IntegerTypeVariant> {
+impl Display for LiteralWithVariant<IntegerTypeVariant> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(variant) = &self.variant {
             core::write!(f, "{}{}", self.value, variant.as_ref())
@@ -428,7 +428,7 @@ impl<T> TypeSuffix for T where T: IntoEnumIterator + Copy + AsRef<str> {}
 
 fn parse_typed_literal<T: TypeSuffix>(
     lex: &mut Lexer<Token>,
-) -> TypedLiteral<T> {
+) -> LiteralWithVariant<T> {
     let mut variant = None;
     let mut number_part = lex.slice();
     for suffix in T::iter() {
@@ -439,7 +439,7 @@ fn parse_typed_literal<T: TypeSuffix>(
             break;
         }
     }
-    TypedLiteral {
+    LiteralWithVariant {
         value: number_part.to_string(),
         variant,
     }
@@ -472,10 +472,7 @@ mod tests {
         let mut lexer = Token::lexer("42");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "42".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("42".to_string()))
         );
     }
 
@@ -484,11 +481,7 @@ mod tests {
         let mut lexer = Token::lexer("42u8");
         let res = lexer.next().unwrap();
         if let Ok(Token::IntegerLiteral(literal)) = res {
-            assert_eq!(literal.value, "42");
-            assert_eq!(
-                literal.variant,
-                Some(IntegerTypeVariant::U8)
-            );
+            assert_eq!(literal, "42u8".to_string());
             assert_eq!(format!("{}", literal), "42u8".to_string());
         } else {
             core::panic!("Expected DecimalIntegerLiteral with variant U8");
@@ -497,8 +490,7 @@ mod tests {
         let mut lexer = Token::lexer("42");
         let res = lexer.next().unwrap();
         if let Ok(Token::IntegerLiteral(literal)) = res {
-            assert_eq!(literal.value, "42");
-            assert_eq!(literal.variant, None);
+            assert_eq!(literal, "42".to_string());
         } else {
             core::panic!("Expected DecimalIntegerLiteral with no variant");
         }
@@ -509,28 +501,19 @@ mod tests {
         let mut lexer = Token::lexer("42u8");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "42".to_string(),
-                variant: Some(IntegerTypeVariant::U8)
-            }))
+            Ok(Token::IntegerLiteral("42u8".to_string()))
         );
 
         let mut lexer = Token::lexer("42i32");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "42".to_string(),
-                variant: Some(IntegerTypeVariant::I32)
-            }))
+            Ok(Token::IntegerLiteral("42i32".to_string()))
         );
 
-        let mut lexer = Token::lexer("42big");
+        let mut lexer = Token::lexer("42ibig");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "42".to_string(),
-                variant: Some(IntegerTypeVariant::Big)
-            }))
+            Ok(Token::IntegerLiteral("42ibig".to_string()))
         );
     }
 
@@ -539,7 +522,7 @@ mod tests {
         let mut lexer = Token::lexer("3.14");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "3.14".to_string(),
                 variant: None
             }))
@@ -613,33 +596,33 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn fraction() {
-    //     let mut lexer = Token::lexer("1/2");
-    //     assert_eq!(
-    //         lexer.next().unwrap(),
-    //         Ok(Token::FractionLiteral("1/2".to_string()))
-    //     );
+    #[test]
+    fn fraction() {
+        let mut lexer = Token::lexer("1/2");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::FractionLiteral("1/2".to_string()))
+        );
 
-    //     let mut lexer = Token::lexer("3/4");
-    //     assert_eq!(
-    //         lexer.next().unwrap(),
-    //         Ok(Token::FractionLiteral("3/4".to_string()))
-    //     );
+        let mut lexer = Token::lexer("3/4");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::FractionLiteral("3/4".to_string()))
+        );
 
-    //     let mut lexer = Token::lexer("5111/6");
-    //     assert_eq!(
-    //         lexer.next().unwrap(),
-    //         Ok(Token::FractionLiteral("5111/6".to_string()))
-    //     );
-    // }
+        let mut lexer = Token::lexer("51_11/6");
+        assert_eq!(
+            lexer.next().unwrap(),
+            Ok(Token::FractionLiteral("51_11/6".to_string()))
+        );
+    }
 
     #[test]
     fn hexadecimal_integer() {
         let mut lexer = Token::lexer("0x1A3F");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::HexadecimalIntegerLiteral(IntegerLiteral {
+            Ok(Token::HexadecimalIntegerLiteral(IntegerWithVariant {
                 value: "0x1A3F".to_string(),
                 variant: None
             }))
@@ -648,7 +631,7 @@ mod tests {
         let mut lexer = Token::lexer("0XABC");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::HexadecimalIntegerLiteral(IntegerLiteral {
+            Ok(Token::HexadecimalIntegerLiteral(IntegerWithVariant {
                 value: "0XABC".to_string(),
                 variant: None
             }))
@@ -660,7 +643,7 @@ mod tests {
         let mut lexer = Token::lexer("0b1010");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::BinaryIntegerLiteral(IntegerLiteral {
+            Ok(Token::BinaryIntegerLiteral(IntegerWithVariant {
                 value: "0b1010".to_string(),
                 variant: None
             }))
@@ -669,7 +652,7 @@ mod tests {
         let mut lexer = Token::lexer("0B1101");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::BinaryIntegerLiteral(IntegerLiteral {
+            Ok(Token::BinaryIntegerLiteral(IntegerWithVariant {
                 value: "0B1101".to_string(),
                 variant: None
             }))
@@ -681,7 +664,7 @@ mod tests {
         let mut lexer = Token::lexer("0o755");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::OctalIntegerLiteral(IntegerLiteral {
+            Ok(Token::OctalIntegerLiteral(IntegerWithVariant {
                 value: "0o755".to_string(),
                 variant: None
             }))
@@ -690,7 +673,7 @@ mod tests {
         let mut lexer = Token::lexer("0O644");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::OctalIntegerLiteral(IntegerLiteral {
+            Ok(Token::OctalIntegerLiteral(IntegerWithVariant {
                 value: "0O644".to_string(),
                 variant: None
             }))
@@ -702,16 +685,13 @@ mod tests {
         let mut lexer = Token::lexer("1_000");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "1_000".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("1_000".to_string()))
         );
 
         let mut lexer = Token::lexer("0xFF_FF_FF");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::HexadecimalIntegerLiteral(IntegerLiteral {
+            Ok(Token::HexadecimalIntegerLiteral(IntegerWithVariant {
                 value: "0xFF_FF_FF".to_string(),
                 variant: None
             }))
@@ -720,7 +700,7 @@ mod tests {
         let mut lexer = Token::lexer("0b1010_1010");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::BinaryIntegerLiteral(IntegerLiteral {
+            Ok(Token::BinaryIntegerLiteral(IntegerWithVariant {
                 value: "0b1010_1010".to_string(),
                 variant: None
             }))
@@ -733,7 +713,7 @@ mod tests {
         let mut lexer = Token::lexer("10.234_567e-8f32");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "10.234_567e-8".to_string(),
                 variant: Some(DecimalTypeVariant::F32)
             }))
@@ -743,7 +723,7 @@ mod tests {
         let mut lexer = Token::lexer("10.234_567e-8");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "10.234_567e-8".to_string(),
                 variant: None
             }))
@@ -753,7 +733,7 @@ mod tests {
         let mut lexer = Token::lexer("0.123_456");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "0.123_456".to_string(),
                 variant: None
             }))
@@ -763,7 +743,7 @@ mod tests {
         let mut lexer = Token::lexer("1_000.123_456f32");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "1_000.123_456".to_string(),
                 variant: Some(DecimalTypeVariant::F32)
             }))
@@ -775,18 +755,12 @@ mod tests {
         let mut lexer = Token::lexer("1 + 2");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "1".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("1".to_string()))
         );
         assert_eq!(lexer.next().unwrap(), Ok(Token::Plus));
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "2".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("2".to_string()))
         );
         assert_eq!(lexer.next(), None);
     }
@@ -796,7 +770,7 @@ mod tests {
         let mut lexer = Token::lexer("42.4/3");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::DecimalLiteral(DecimalLiteral {
+            Ok(Token::DecimalLiteral(DecimalWithVariant {
                 value: "42.4".to_string(),
                 variant: None
             }))
@@ -804,10 +778,7 @@ mod tests {
         assert_eq!(lexer.next().unwrap(), Ok(Token::Slash));
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "3".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("3".to_string()))
         );
     }
 
@@ -865,10 +836,7 @@ mod tests {
         );
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "42".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("42".to_string()))
         );
         assert_eq!(lexer.next(), None);
     }
@@ -878,18 +846,12 @@ mod tests {
         let mut lexer = Token::lexer("8 /2");
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "8".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("8".to_string()))
         );
         assert_eq!(lexer.next().unwrap(), Ok(Token::Slash));
         assert_eq!(
             lexer.next().unwrap(),
-            Ok(Token::IntegerLiteral(IntegerLiteral {
-                value: "2".to_string(),
-                variant: None
-            }))
+            Ok(Token::IntegerLiteral("2".to_string()))
         );
         assert_eq!(lexer.next(), None);
     }

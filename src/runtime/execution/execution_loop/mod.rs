@@ -317,7 +317,7 @@ pub fn inner_execution_loop(
 
                             // big integers
                             RegularInstruction::BigInteger(IntegerData(integer)) => {
-                                Some(TypedInteger::Big(integer).into())
+                                Some(TypedInteger::IBig(integer).into())
                             }
 
                             // default integer

@@ -1,12 +1,13 @@
 use std::str::FromStr;
 use crate::values::core_values::decimal::Decimal;
-use crate::parser::lexer::Token;
+use crate::parser::lexer::{DecimalWithVariant, Token};
 use crate::ast::spanned::Spanned;
 use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
 use crate::parser::{SpannedParserError, Parser};
 use crate::parser::errors::ParserError;
-use crate::parser::utils::unescape_text;
+use crate::parser::utils::{parse_integer_literal, parse_integer_with_variant, unescape_text, IntegerOrDecimal, IntegerOrTypedInteger};
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 
 impl Parser {
@@ -59,6 +60,69 @@ impl Parser {
                 }
             }
 
+            Token::IntegerLiteral(integer_literal) => {
+                let span = self.advance()?.span.clone();
+                match parse_integer_literal(integer_literal) {
+                    Ok(IntegerOrDecimal::Integer(integer)) => TypeExpressionData::Integer(integer),
+                    Ok(IntegerOrDecimal::TypedInteger(typed_integer)) => TypeExpressionData::TypedInteger(typed_integer),
+                    Ok(IntegerOrDecimal::Decimal(decimal)) => TypeExpressionData::Decimal(decimal),
+                    Ok(IntegerOrDecimal::TypedDecimal(typed_decimal)) => TypeExpressionData::TypedDecimal(typed_decimal),
+                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                        error: ParserError::NumberParseError(e),
+                        span,
+                    }),
+                }.with_span(span)
+            },
+            Token::BinaryIntegerLiteral(integer_with_variant)
+            | Token::HexadecimalIntegerLiteral(integer_with_variant)
+            | Token::OctalIntegerLiteral(integer_with_variant) => {
+                let token = self.advance()?;
+                let span = token.span.clone();
+
+                match parse_integer_with_variant(integer_with_variant, token.token) {
+                    Ok(IntegerOrTypedInteger::Integer(integer)) => {
+                        TypeExpressionData::Integer(integer)
+                    }
+                    Ok(IntegerOrTypedInteger::TypedInteger(typed_integer)) => {
+                        TypeExpressionData::TypedInteger(typed_integer)
+                    }
+                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                        error: ParserError::NumberParseError(e),
+                        span,
+                    }),
+                }.with_span(span)
+            },
+
+            Token::DecimalLiteral(DecimalWithVariant { value, variant }) => {
+                let span = self.advance()?.span.clone();
+                let res = match variant {
+                    Some(var) => TypedDecimal::from_string_and_variant_in_range(&value, var)
+                        .map(TypeExpressionData::TypedDecimal),
+                    None => Decimal::from_string(&value)
+                        .map(TypeExpressionData::Decimal),
+                };
+                match res {
+                    Ok(expr) => expr.with_span(span),
+                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                        error: ParserError::NumberParseError(e),
+                        span,
+                    }),
+                }
+            }
+
+            Token::FractionLiteral(fraction) => {
+                let span = self.advance()?.span.clone();
+                // remove all underscores from fraction string
+                let fraction: String = fraction.chars().filter(|&c| c != '_').collect();
+                match Decimal::from_string(&fraction) {
+                    Ok(decimal) => TypeExpressionData::Decimal(decimal).with_span(span),
+                    Err(e) => return self.collect_error_and_continue_with_type_expression(SpannedParserError {
+                        error: ParserError::NumberParseError(e),
+                        span,
+                    }),
+                }
+            }
+
             _ => return Err(SpannedParserError {
                 error: ParserError::UnexpectedToken {
                     expected: vec![
@@ -86,7 +150,9 @@ mod tests {
     use datex_core::parser::parsers::type_expressions::tests::parse_type_expression;
     use crate::ast::structs::r#type::TypeExpressionData;
     use crate::values::core_values::decimal::Decimal;
+    use crate::values::core_values::decimal::typed_decimal::{DecimalTypeVariant, TypedDecimal};
     use crate::values::core_values::endpoint::{Endpoint};
+    use crate::values::core_values::integer::typed_integer::{IntegerTypeVariant, TypedInteger};
 
     #[test]
     fn parse_boolean_true() {
@@ -139,4 +205,61 @@ mod tests {
         assert_eq!(expr.data, TypeExpressionData::Endpoint(Endpoint::new("@example")));
     }
 
+    #[test]
+    fn parse_integer_literal() {
+        let expr = parse_type_expression("12345");
+        assert_eq!(expr.data, TypeExpressionData::Integer(12345.into()));
+    }
+
+    #[test]
+    fn parse_typed_integer_literal() {
+        let expr = parse_type_expression("12345u16");
+        assert_eq!(expr.data, TypeExpressionData::TypedInteger(
+            TypedInteger::from_string_with_variant("12345", IntegerTypeVariant::U16).unwrap()
+        ));
+    }
+
+    #[test]
+    fn parse_negative_integer_literal() {
+        let expr = parse_type_expression("-6789");
+        assert_eq!(expr.data, TypeExpressionData::Integer((-6789).into()));
+    }
+
+    #[test]
+    fn parse_hexadecimal_integer_literal() {
+        let expr = parse_type_expression("0x1A3F");
+        assert_eq!(expr.data, TypeExpressionData::Integer(6719.into()));
+    }
+
+    #[test]
+    fn parse_octal_integer_literal() {
+        let expr = parse_type_expression("0o755");
+        assert_eq!(expr.data, TypeExpressionData::Integer(493.into()));
+    }
+
+    #[test]
+    fn parse_binary_integer_literal() {
+        let expr = parse_type_expression("0b1101");
+        assert_eq!(expr.data, TypeExpressionData::Integer(13.into()));
+    }
+
+    #[test]
+    fn parse_decimal_literal() {
+        let expr = parse_type_expression("123.456");
+        assert_eq!(expr.data, TypeExpressionData::Decimal(Decimal::from_string("123.456").unwrap()));
+    }
+
+    #[test]
+    fn parse_typed_decimal_literal() {
+        let expr = parse_type_expression("123.456f32");
+        assert_eq!(expr.data, TypeExpressionData::TypedDecimal(
+            TypedDecimal::from_string_and_variant_in_range("123.456", DecimalTypeVariant::F32).unwrap()
+        ));
+    }
+    
+    #[test]
+    fn parse_fraction_literal() {
+        let expr = parse_type_expression("3/4");
+        assert_eq!(expr.data, TypeExpressionData::Decimal(Decimal::from_string("3/4").unwrap()));
+    }
 }

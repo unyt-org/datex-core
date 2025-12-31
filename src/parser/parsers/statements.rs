@@ -67,7 +67,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<DatexExpression, SpannedParserError> {
         match self.peek()?.token {
             Token::Variable | Token::Const => self.parse_variable_declaration(),
-            Token::Type | Token::TypeAlias => self.parse_type_declaration(),
+            Token::TypeDeclaration | Token::TypeAlias => self.parse_type_declaration(),
             _ => self.parse_expression(0)
         }
     }
