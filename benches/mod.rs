@@ -188,7 +188,7 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
 fn bench_json(c: &mut Criterion) {
     bench_json_file(c, "test1.json");
     bench_json_file(c, "test2.json");
-    bench_json_file(c, "test3.json");
+    // bench_json_file(c, "test3.json");
 }
 
 criterion_group! {
