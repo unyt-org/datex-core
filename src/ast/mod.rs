@@ -32,7 +32,7 @@ mod tests {
             structs::{
                 expression::{
                     BinaryOperation, ComparisonOperation,
-                    FunctionDeclaration, PropertyAssignment, TypeDeclaration,
+                    CallableDeclaration, PropertyAssignment, TypeDeclaration,
                     TypeDeclarationKind,
                 },
                 r#type::{
@@ -58,7 +58,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::structs::expression::{Apply, CreateRef, DatexExpressionData, Deref, GenericInstantiation, List, Map, PropertyAccess, Slot, UnaryOperation, VariableDeclaration, VariableKind};
+    use crate::ast::structs::expression::{Apply, CallableKind, CreateRef, DatexExpressionData, Deref, GenericInstantiation, List, Map, PropertyAccess, Slot, UnaryOperation, VariableDeclaration, VariableKind};
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
@@ -461,8 +461,9 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name: "myFunction".to_string(),
+                kind: CallableKind::Function,
                 parameters: Vec::new(),
                 return_type: None,
                 body: Box::new(
@@ -483,8 +484,9 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name: "myFunction".to_string(),
+                kind: CallableKind::Function,
                 parameters: vec![(
                     "x".to_string(),
                     TypeExpressionData::Identifier("integer".to_owned())
@@ -506,8 +508,9 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name: "myFunction".to_string(),
+                kind: CallableKind::Function,
                 parameters: vec![
                     (
                         "x".to_string(),
@@ -563,8 +566,9 @@ mod tests {
         let val = parse_unwrap_data(src);
         assert_eq!(
             val,
-            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name: "myFunction".to_string(),
+                kind: CallableKind::Function,
                 parameters: vec![(
                     "x".to_string(),
                     TypeExpressionData::Identifier("integer".to_owned())

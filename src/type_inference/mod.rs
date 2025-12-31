@@ -2,7 +2,7 @@ use crate::{
     ast::structs::{
         expression::{
             ComparisonOperation, Conditional, CreateRef,
-            DatexExpressionData, Deref, DerefAssignment, FunctionDeclaration,
+            DatexExpressionData, Deref, DerefAssignment, CallableDeclaration,
             List, Map, PropertyAssignment, RemoteExecution, Slot,
             SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
         },
@@ -584,12 +584,16 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         property_assignment: &mut PropertyAssignment,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        println!(
-            "Inferring type for Property Assignment {:?}",
-            property_assignment.access_expression
-        );
+        let assigned_type =
+            self.infer_expression(&mut property_assignment.assigned_expression)?;
 
-        todo!()
+        match property_assignment.operator {
+            AssignmentOperator::Assign => { }
+            _ => {
+                panic!("Unsupported assignment operator");
+            }
+        }
+        mark_type(assigned_type)
     }
 
     fn visit_variable_assignment(
@@ -932,7 +936,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
     fn visit_function_declaration(
         &mut self,
-        function_declaration: &mut FunctionDeclaration,
+        function_declaration: &mut CallableDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let annotated_return_type =

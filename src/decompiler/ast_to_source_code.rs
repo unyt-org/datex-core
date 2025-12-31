@@ -2,7 +2,7 @@ use core::fmt::{self};
 use datex_core::ast::structs::expression::Apply;
 use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List, Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration, VariantAccess};
 use crate::ast::structs::expression::{
-    DatexExpression, DatexExpressionData, FunctionDeclaration, VariableAccess,
+    DatexExpression, DatexExpressionData, CallableDeclaration, VariableAccess,
     VariableAssignment, VariableDeclaration,
 };
 use crate::ast::structs::r#type::{
@@ -578,8 +578,9 @@ impl AstToSourceCodeConverter {
             DatexExpressionData::TypeExpression(type_expression) => {
                 self.type_expression_to_source_code(type_expression)
             }
-            DatexExpressionData::FunctionDeclaration(FunctionDeclaration {
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name,
+                kind,
                 parameters,
                 return_type,
                 body,
@@ -607,7 +608,8 @@ impl AstToSourceCodeConverter {
                 let body_code = self.format(body);
                 ast_fmt!(
                     &self,
-                    "fn {}({}){}%s(%n{}%n)",
+                    "{} {}({}){}%s(%n{}%n)",
+                    kind,
                     name,
                     params_code.join(", "),
                     return_type_code,
