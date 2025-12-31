@@ -267,9 +267,6 @@ impl<E> VisitableExpression<E> for DatexExpression {
             DatexExpressionData::TypeExpression(type_expression) => {
                 type_expression.walk_children(visitor)
             }
-            DatexExpressionData::Type(type_expression) => {
-                type_expression.walk_children(visitor)
-            }
             DatexExpressionData::FunctionDeclaration(function_declaration) => {
                 function_declaration.walk_children(visitor)
             }

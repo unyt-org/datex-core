@@ -16,7 +16,7 @@ impl Parser {
                     _ => unreachable!()
                 };
 
-                let name = self.expect_identifier()?;
+                let (name, _) = self.expect_identifier()?;
 
                 // optional type annotation if followed by colon
                 let type_annotation = match self.peek()?.token {

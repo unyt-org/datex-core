@@ -132,7 +132,7 @@ impl<'a> Formatter<'a> {
                     + self.operator_with_spaces(a.text("="))
                     + self.format_datex_expression(init_expression)
             }
-            DatexExpressionData::Type(type_expr) => {
+            DatexExpressionData::TypeExpression(type_expr) => {
                 let a = &self.alloc;
                 let inner = self.format_type_expression(type_expr);
                 (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))

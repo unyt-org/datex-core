@@ -121,11 +121,8 @@ pub enum DatexExpressionData {
     /// Type declaration, e.g. type MyType = { x: 42, y: "John" };
     TypeDeclaration(TypeDeclaration),
 
-    /// Type expression, e.g. { x: 42, y: "John" }
+    /// Type expression, e.g. type(1 | 2)
     TypeExpression(TypeExpression),
-
-    /// Type keyword, e.g. type(...)
-    Type(TypeExpression),
 
     /// Function declaration, e.g. fn my_function() -> type ( ... )
     FunctionDeclaration(FunctionDeclaration),

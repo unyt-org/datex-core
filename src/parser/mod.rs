@@ -1,3 +1,4 @@
+use core::ops::Range;
 use itertools::Itertools;
 use parser_result::ParserResult;
 use crate::ast::structs::expression::DatexExpression;
@@ -77,7 +78,6 @@ impl Parser {
 
     /// Entrypoint for parsing a full source file.
     fn parse_root(&mut self) -> Result<DatexExpression, SpannedParserError> {
-        println!("PARSING TOKENS:\n{}", self.tokens.iter().map(|t| &t.token).join("\n"));
         self.parse_top_level_statements()
     }
 
@@ -182,9 +182,9 @@ impl Parser {
         Ok(next_token)
     }
 
-    fn expect_identifier(&mut self) -> Result<String, SpannedParserError> {
+    fn expect_identifier(&mut self) -> Result<(String, Range<usize>), SpannedParserError> {
         match self.advance()? {
-            SpannedToken { token: Token::Identifier(identifier), .. }  => Ok(identifier),
+            SpannedToken { token: Token::Identifier(identifier), span }  => Ok((identifier, span)),
             token => {
                 Err(SpannedParserError {
                     error: ParserError::UnexpectedToken {

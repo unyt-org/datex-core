@@ -545,8 +545,8 @@ mod tests {
         assert_eq!(result, TypedInteger::from(2_u128).into());
         assert_structural_eq!(result, ValueContainer::from(2_u128));
 
-        let result = execute_datex_script_debug_with_result("2big");
-        assert_eq!(result, TypedInteger::Big(Integer::from(2)).into());
+        let result = execute_datex_script_debug_with_result("2ibig");
+        assert_eq!(result, TypedInteger::IBig(Integer::from(2)).into());
         assert_structural_eq!(result, ValueContainer::from(2));
     }
 
@@ -626,14 +626,14 @@ mod tests {
     }
 
     #[test]
-    fn val_assignment() {
+    fn const_declaration() {
         init_logger_debug();
         let result = execute_datex_script_debug_with_result("const x = 42; x");
         assert_eq!(result, Integer::from(42).into());
     }
 
     #[test]
-    fn val_assignment_with_addition() {
+    fn const_declaration_with_addition() {
         init_logger_debug();
         let result =
             execute_datex_script_debug_with_result("const x = 1 + 2; x");
@@ -641,11 +641,10 @@ mod tests {
     }
 
     #[test]
-    fn val_assignment_inside_scope() {
+    fn var_assignment_inside_scope() {
         init_logger_debug();
-        // FIXME #412: This should be probably disallowed (we can not use x in this scope due to hoisting behavior)
         let result =
-            execute_datex_script_debug_with_result("[const x = 42, 2, x]");
+            execute_datex_script_debug_with_result("var x = 0; [x = 42, 2, x]");
         let expected =
             datex_list![Integer::from(42), Integer::from(2), Integer::from(42)];
         assert_eq!(result, expected.into());

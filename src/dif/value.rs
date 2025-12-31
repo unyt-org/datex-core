@@ -181,7 +181,7 @@ impl DIFValue {
                     TypedInteger::U128(u) => {
                         DIFValueRepresentation::String(u.to_string())
                     }
-                    TypedInteger::Big(i) => {
+                    TypedInteger::IBig(i) => {
                         DIFValueRepresentation::String(i.to_string())
                     }
                 }

@@ -61,7 +61,7 @@ impl StructuralEq for CoreValue {
             // Integers + TypedIntegers
             (CoreValue::Integer(a), CoreValue::TypedInteger(b))
             | (CoreValue::TypedInteger(b), CoreValue::Integer(a)) => {
-                TypedInteger::Big(a.clone()).structural_eq(b)
+                TypedInteger::IBig(a.clone()).structural_eq(b)
             }
 
             // Decimals
@@ -346,7 +346,7 @@ impl CoreValue {
                 Some(int.to_smallest_fitting().clone())
             }
             CoreValue::Integer(int) => {
-                Some(TypedInteger::Big(int.clone()).to_smallest_fitting())
+                Some(TypedInteger::IBig(int.clone()).to_smallest_fitting())
             }
             CoreValue::Decimal(decimal) => Some(
                 TypedInteger::from(decimal.into_f64() as i128)

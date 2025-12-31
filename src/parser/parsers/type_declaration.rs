@@ -9,14 +9,14 @@ impl Parser {
         Ok(match self.peek()?.token.clone() {
 
             // handle var and const declarations
-            Token::Type | Token::TypeAlias => {
+            Token::TypeDeclaration | Token::TypeAlias => {
                 let kind = match self.advance()?.token {
-                    Token::Type => TypeDeclarationKind::Nominal,
+                    Token::TypeDeclaration => TypeDeclarationKind::Nominal,
                     Token::TypeAlias => TypeDeclarationKind::Structural,
                     _ => unreachable!()
                 };
 
-                let name = self.expect_identifier()?;
+                let (name, _) = self.expect_identifier()?;
 
                 // expect equals sign
                 self.expect(Token::Assign)?;
