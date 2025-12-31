@@ -1,4 +1,3 @@
-use datex_core::ast::DatexScriptParser;
 use datex_core::compiler::{
     CompileOptions, StaticValueOrDXB, compile_script,
     compile_script_or_return_static_value, extract_static_value_from_script,
@@ -60,12 +59,10 @@ pub fn json_to_runtime_value_baseline_json_syntax(json: &str) {
 
 pub fn json_to_runtime_value_datex<'a>(
     json: &'a str,
-    parser: Option<&'a DatexScriptParser<'a>>,
 ) {
     let (dxb, _) = compile_script(
         json,
         CompileOptions {
-            parser,
             ..CompileOptions::default()
         },
     )
@@ -78,12 +75,10 @@ pub fn json_to_runtime_value_datex<'a>(
 
 pub fn json_to_runtime_value_datex_auto_static_detection<'a>(
     json: &'a str,
-    parser: Option<&'a DatexScriptParser<'a>>,
 ) -> ValueContainer {
     let (dxb, _) = compile_script_or_return_static_value(
         json,
         CompileOptions {
-            parser,
             ..CompileOptions::default()
         },
     )
@@ -104,12 +99,10 @@ pub fn json_to_runtime_value_datex_force_static_value(
 
 pub fn json_to_dxb<'a>(
     json: &'a str,
-    parser: Option<&'a DatexScriptParser<'a>>,
 ) {
     let (dxb, _) = compile_script(
         json,
         CompileOptions {
-            parser,
             ..CompileOptions::default()
         },
     )
