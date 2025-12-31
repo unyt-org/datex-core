@@ -214,7 +214,7 @@ impl<'a> Formatter<'a> {
                 });
                 self.wrap_collection(pairs, ("{", "}"), ",")
             }
-            
+
             TypeExpressionData::Recover => a.text("/*recover*/"),
         }
     }

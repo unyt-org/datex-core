@@ -348,7 +348,7 @@ pub struct Apply {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct  PropertyAccess {
+pub struct PropertyAccess {
     pub base: Box<DatexExpression>,
     pub property: Box<DatexExpression>,
 }

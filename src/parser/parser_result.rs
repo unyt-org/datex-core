@@ -1,6 +1,6 @@
 use crate::ast::DatexExpression;
-use core::ops::Range;
 use crate::parser::errors::{ParserError, SpannedParserError};
+use core::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct ValidDatexParseResult {
@@ -27,8 +27,7 @@ impl ParserResult {
         match self {
             ParserResult::Valid(result) => result,
             ParserResult::Invalid(InvalidDatexParseResult {
-                errors,
-                ..
+                errors, ..
             }) => {
                 core::panic!("Parsing failed with errors: {:?}", errors)
             }
@@ -38,29 +37,26 @@ impl ParserResult {
         match self {
             ParserResult::Valid { .. } => None,
             ParserResult::Invalid(InvalidDatexParseResult {
-                errors,
-                ..
+                errors, ..
             }) => Some(errors),
         }
     }
-    
+
     pub fn ast(&self) -> &DatexExpression {
         match self {
             ParserResult::Valid(result) => &result.ast,
-            ParserResult::Invalid(InvalidDatexParseResult {
-                ast,
-                ..
-            }) => ast,
+            ParserResult::Invalid(InvalidDatexParseResult { ast, .. }) => ast,
         }
     }
-    
-    pub fn into_ast_and_errors(self) -> (DatexExpression, Vec<SpannedParserError>) {
+
+    pub fn into_ast_and_errors(
+        self,
+    ) -> (DatexExpression, Vec<SpannedParserError>) {
         match self {
             ParserResult::Valid(result) => (result.ast, vec![]),
-            ParserResult::Invalid(InvalidDatexParseResult {
-                ast,
-                errors,
-            }) => (ast, errors),
+            ParserResult::Invalid(InvalidDatexParseResult { ast, errors }) => {
+                (ast, errors)
+            }
         }
     }
 
@@ -68,8 +64,7 @@ impl ParserResult {
         match self {
             ParserResult::Valid(result) => Ok(result.ast),
             ParserResult::Invalid(InvalidDatexParseResult {
-                errors,
-                ..
+                errors, ..
             }) => Err(errors),
         }
     }

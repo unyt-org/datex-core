@@ -1,8 +1,7 @@
 #[cfg(feature = "compiler")]
 use crate::compiler::{
-    error::SpannedCompilerError,
+    CompileOptions, compile_template, error::SpannedCompilerError,
     scope::CompilationScope,
-    CompileOptions, compile_template
 };
 use crate::runtime::execution::{
     ExecutionError, ExecutionInput, MemoryDump, execute_dxb, execute_dxb_sync,

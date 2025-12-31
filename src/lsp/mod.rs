@@ -6,6 +6,7 @@ use crate::ast::structs::expression::{
     DatexExpressionData, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };
+use crate::collections::HashMap;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::workspace::CompilerWorkspace;
 use crate::lsp::errors::SpannedLSPCompilerError;
@@ -13,7 +14,6 @@ use crate::lsp::variable_declaration_finder::VariableDeclarationFinder;
 use crate::runtime::Runtime;
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
-use crate::collections::HashMap;
 use crate::values::core_values::r#type::Type;
 use crate::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};

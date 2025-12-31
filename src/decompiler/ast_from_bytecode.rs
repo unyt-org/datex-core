@@ -1,25 +1,30 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation, VariableAssignment, VariableDeclaration, VariableKind};
+use crate::ast::structs::expression::UnboundedStatement;
+use crate::ast::structs::expression::{
+    Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation,
+    VariableAssignment, VariableDeclaration, VariableKind,
+};
 use crate::ast::structs::expression::{DatexExpressionData, Statements};
 use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
-use crate::global::operators::{AssignmentOperator, BinaryOperator, UnaryOperator};
-use crate::global::protocol_structures::instructions::{
-    Instruction, RegularInstruction, TypeInstruction,
-};
 use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
+use crate::dxb_parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::dxb_parser::instruction_collector::{
     CollectedResults, CollectionResultsPopper, FullOrPartialResult,
     InstructionCollector,
 };
+use crate::global::operators::{
+    AssignmentOperator, BinaryOperator, UnaryOperator,
+};
+use crate::global::protocol_structures::instructions::{
+    Instruction, RegularInstruction, TypeInstruction,
+};
+use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
-use crate::ast::structs::expression::{UnboundedStatement};
-use crate::dxb_parser::instruction_collector::StatementResultCollectionStrategy;
-use crate::stdlib::format;
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -216,20 +221,22 @@ pub fn ast_from_bytecode(
                                     )
                                 }
 
-                                RegularInstruction::GetLocalRef(raw_address) => {
-                                    DatexExpressionData::GetReference(
-                                        PointerAddress::from(&raw_address),
-                                    )
-                                }
+                                RegularInstruction::GetLocalRef(
+                                    raw_address,
+                                ) => DatexExpressionData::GetReference(
+                                    PointerAddress::from(&raw_address),
+                                ),
 
-                                RegularInstruction::GetInternalRef(raw_address) => {
-                                    DatexExpressionData::GetReference(
-                                        PointerAddress::from(&raw_address),
-                                    )
-                                }
+                                RegularInstruction::GetInternalRef(
+                                    raw_address,
+                                ) => DatexExpressionData::GetReference(
+                                    PointerAddress::from(&raw_address),
+                                ),
 
                                 RegularInstruction::GetSlot(slot_address) => {
-                                    DatexExpressionData::Slot(Slot::Addressed(slot_address.0))
+                                    DatexExpressionData::Slot(Slot::Addressed(
+                                        slot_address.0,
+                                    ))
                                 }
 
                                 RegularInstruction::DropSlot(slot_address) => {
@@ -241,7 +248,9 @@ pub fn ast_from_bytecode(
                                 RegularInstruction::Statements(_)
                                 | RegularInstruction::ShortStatements(_)
                                 | RegularInstruction::UnboundedStatements
-                                | RegularInstruction::UnboundedStatementsEnd(_)
+                                | RegularInstruction::UnboundedStatementsEnd(
+                                    _,
+                                )
                                 | RegularInstruction::List(_)
                                 | RegularInstruction::ShortList(_)
                                 | RegularInstruction::Map(_)
@@ -441,9 +450,16 @@ pub fn ast_from_bytecode(
                                 let expr_type =
                                     collected_results.pop_type_result();
                                 DatexExpressionData::Apply(Apply {
-                                    base: Box::new(DatexExpressionData::TypeExpression(expr_type).with_default_span()),
+                                    base: Box::new(
+                                        DatexExpressionData::TypeExpression(
+                                            expr_type,
+                                        )
+                                        .with_default_span(),
+                                    ),
                                     arguments: vec![expr],
-                                }).with_default_span().into()
+                                })
+                                .with_default_span()
+                                .into()
                             }
 
                             RegularInstruction::UnboundedStatementsEnd(
@@ -477,28 +493,38 @@ pub fn ast_from_bytecode(
 
                             RegularInstruction::AllocateSlot(slot_address) => {
                                 let expr = collected_results.pop_value_result();
-                                DatexExpressionData::VariableDeclaration(VariableDeclaration {
-                                    id: None,
-                                    kind: VariableKind::Var,
-                                    name: format!("_slot_{}", slot_address.0),
-                                    type_annotation: None,
-                                    init_expression: Box::new(expr),
-                                })
-                                    .with_default_span()
-                                    .into()
-                            },
+                                DatexExpressionData::VariableDeclaration(
+                                    VariableDeclaration {
+                                        id: None,
+                                        kind: VariableKind::Var,
+                                        name: format!(
+                                            "_slot_{}",
+                                            slot_address.0
+                                        ),
+                                        type_annotation: None,
+                                        init_expression: Box::new(expr),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
 
                             RegularInstruction::SetSlot(slot_address) => {
                                 let expr = collected_results.pop_value_result();
-                                DatexExpressionData::VariableAssignment(VariableAssignment {
-                                    id: None,
-                                    name: format!("_slot_{}", slot_address.0),
-                                    operator: AssignmentOperator::Assign,
-                                    expression: Box::new(expr),
-                                })
-                                    .with_default_span()
-                                    .into()
-                            },
+                                DatexExpressionData::VariableAssignment(
+                                    VariableAssignment {
+                                        id: None,
+                                        name: format!(
+                                            "_slot_{}",
+                                            slot_address.0
+                                        ),
+                                        operator: AssignmentOperator::Assign,
+                                        expression: Box::new(expr),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
 
                             e => {
                                 todo!(

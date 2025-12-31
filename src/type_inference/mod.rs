@@ -1,16 +1,16 @@
 use crate::{
     ast::structs::{
+        ResolvedVariable,
         expression::{
-            ComparisonOperation, Conditional, CreateRef,
-            DatexExpressionData, Deref, DerefAssignment, CallableDeclaration,
-            List, Map, PropertyAssignment, RemoteExecution, Slot,
-            SlotAssignment, UnaryOperation, VariableAssignment, VariantAccess,
+            CallableDeclaration, ComparisonOperation, Conditional, CreateRef,
+            DatexExpressionData, Deref, DerefAssignment, List, Map,
+            PropertyAssignment, RemoteExecution, Slot, SlotAssignment,
+            UnaryOperation, VariableAssignment, VariantAccess,
         },
         r#type::{
             FixedSizeList, FunctionType, GenericAccess, SliceList,
             TypeVariantAccess,
         },
-        ResolvedVariable,
     },
     global::operators::{
         AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
@@ -24,6 +24,7 @@ use crate::{
     types::definition::TypeDefinition,
 };
 
+use crate::ast::structs::expression::{GenericInstantiation, PropertyAccess};
 use crate::{
     ast::structs::{
         expression::{
@@ -35,7 +36,7 @@ use crate::{
         },
     },
     compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
-    libs::core::{get_core_lib_type, CoreLibPointerId},
+    libs::core::{CoreLibPointerId, get_core_lib_type},
     type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -46,25 +47,24 @@ use crate::{
     values::{
         core_values::{
             boolean::Boolean,
-            decimal::{typed_decimal::TypedDecimal, Decimal},
+            decimal::{Decimal, typed_decimal::TypedDecimal},
             endpoint::Endpoint,
-            integer::{typed_integer::TypedInteger, Integer},
-            r#type::Type,
+            integer::{Integer, typed_integer::TypedInteger},
             text::Text,
+            r#type::Type,
         },
         pointer::PointerAddress,
     },
     visitor::{
-        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
-        type_expression::{
-            visitable::TypeExpressionVisitResult, TypeExpressionVisitor,
-        },
         VisitAction,
+        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        type_expression::{
+            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
+        },
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
 use datex_core::ast::structs::expression::Apply;
-use crate::ast::structs::expression::{GenericInstantiation, PropertyAccess};
 
 pub mod error;
 pub mod options;
@@ -584,11 +584,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         property_assignment: &mut PropertyAssignment,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        let assigned_type =
-            self.infer_expression(&mut property_assignment.assigned_expression)?;
+        let assigned_type = self
+            .infer_expression(&mut property_assignment.assigned_expression)?;
 
         match property_assignment.operator {
-            AssignmentOperator::Assign => { }
+            AssignmentOperator::Assign => {}
             _ => {
                 panic!("Unsupported assignment operator");
             }
@@ -857,7 +857,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
     // FIXME for property access we need to implement
     // apply chain access on type container level for structural types
-    fn visit_property_access(&mut self, property_access: &mut PropertyAccess, span: &Range<usize>) -> ExpressionVisitResult<SpannedTypeError> {
+    fn visit_property_access(
+        &mut self,
+        property_access: &mut PropertyAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
         Err(SpannedTypeError {
             error: TypeError::Unimplemented(
                 "PropertyAccess type inference not implemented".into(),
@@ -866,7 +870,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         })
     }
 
-    fn visit_generic_instantiation(&mut self, generic_instantiation: &mut GenericInstantiation, span: &Range<usize>) -> ExpressionVisitResult<SpannedTypeError> {
+    fn visit_generic_instantiation(
+        &mut self,
+        generic_instantiation: &mut GenericInstantiation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<SpannedTypeError> {
         Err(SpannedTypeError {
             error: TypeError::Unimplemented(
                 "GenericInstantiation type inference not implemented".into(),
@@ -1185,6 +1193,7 @@ mod tests {
         assert_matches::assert_matches, cell::RefCell, rc::Rc, str::FromStr,
     };
 
+    use crate::parser::parser_result::ValidDatexParseResult;
     use crate::{
         ast::{
             parse,
@@ -1199,9 +1208,9 @@ mod tests {
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
-        global::operators::{binary::ArithmeticOperator, BinaryOperator},
+        global::operators::{BinaryOperator, binary::ArithmeticOperator},
         libs::core::{
-            get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId,
+            CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
         },
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
@@ -1218,17 +1227,16 @@ mod tests {
             core_value::CoreValue,
             core_values::{
                 boolean::Boolean,
-                decimal::{typed_decimal::TypedDecimal, Decimal},
+                decimal::{Decimal, typed_decimal::TypedDecimal},
                 endpoint::Endpoint,
                 integer::{
-                    typed_integer::{IntegerTypeVariant, TypedInteger},
                     Integer,
+                    typed_integer::{IntegerTypeVariant, TypedInteger},
                 },
                 r#type::Type,
             },
         },
     };
-    use crate::parser::parser_result::ValidDatexParseResult;
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.

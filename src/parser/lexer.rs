@@ -18,7 +18,6 @@ use crate::values::core_values::{
     integer::typed_integer::IntegerTypeVariant,
 };
 use strum::IntoEnumIterator;
-use strum::IntoEnumIterator;
 
 impl Loc {
     pub fn new(source: SourceId, span: core::ops::Range<usize>) -> Self {

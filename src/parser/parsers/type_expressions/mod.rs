@@ -1,28 +1,34 @@
 mod atom;
+mod grouped;
+mod key;
 mod list;
 mod map;
-mod key;
-mod grouped;
 
-use crate::parser::lexer::{SpannedToken, Token};
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::r#type::{Intersection, TypeExpressionData, TypeExpression, Union, TypeVariantAccess};
+use crate::ast::structs::r#type::{
+    Intersection, TypeExpression, TypeExpressionData, TypeVariantAccess, Union,
+};
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
-use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::Parser;
+use crate::parser::errors::{ParserError, SpannedParserError};
+use crate::parser::lexer::{SpannedToken, Token};
 use crate::values::core_values::error::NumberParseError;
 
 static UNARY_BP: u8 = 11; // less binding power than variant access and property access, but more than all other infix operators
 
 impl Parser {
-    pub(crate) fn parse_type_expression(&mut self, min_bp: u8) -> Result<TypeExpression, SpannedParserError> {
+    pub(crate) fn parse_type_expression(
+        &mut self,
+        min_bp: u8,
+    ) -> Result<TypeExpression, SpannedParserError> {
         let mut lhs = self.parse_type_prefix()?;
 
         while self.has_more_tokens() {
-            let (_, r_bp) = match Parser::type_infix_binding_power(&self.peek()?.token) {
-                Some(bp) if bp.0 >= min_bp => bp,
-                _ => break,
-            };
+            let (_, r_bp) =
+                match Parser::type_infix_binding_power(&self.peek()?.token) {
+                    Some(bp) if bp.0 >= min_bp => bp,
+                    _ => break,
+                };
 
             let op = self.peek()?.clone();
 
@@ -32,16 +38,19 @@ impl Parser {
         Ok(lhs)
     }
 
-    fn parse_type_binary_operation(&mut self, lhs: TypeExpression, op: SpannedToken, r_bp: u8) -> Result<TypeExpression, SpannedParserError> {
+    fn parse_type_binary_operation(
+        &mut self,
+        lhs: TypeExpression,
+        op: SpannedToken,
+        r_bp: u8,
+    ) -> Result<TypeExpression, SpannedParserError> {
         Ok(match op.token {
-
             // union type operator
             Token::Pipe => {
                 self.advance()?; // consume operator
                 let rhs = self.parse_type_expression(r_bp)?;
                 let span = lhs.span.start..rhs.span.end;
-                TypeExpressionData::Union(Union(vec![lhs, rhs]))
-                    .with_span(span)
+                TypeExpressionData::Union(Union(vec![lhs, rhs])).with_span(span)
             }
             // intersection type operator
             Token::Ampersand => {
@@ -65,36 +74,34 @@ impl Parser {
                             name: identifier,
                             variant: rhs,
                             base: None,
-                        }).with_span(span)
+                        })
+                        .with_span(span)
                     }
-                    _ => {
-                        self.collect_error_and_continue_with_type_expression(
-                            SpannedParserError {
-                                error: ParserError::InvalidTypeVariantAccess,
-                                span: op.span.clone(),
-                            }
-                        )?
-                    }
+                    _ => self.collect_error_and_continue_with_type_expression(
+                        SpannedParserError {
+                            error: ParserError::InvalidTypeVariantAccess,
+                            span: op.span.clone(),
+                        },
+                    )?,
                 }
             }
 
             // invalid operator
-            _ => return Err(SpannedParserError {
-                error: ParserError::UnexpectedToken {
-                    expected: vec![
-                        Token::Plus,
-                        Token::Slash,
-                        Token::Dot,
-                    ],
-                    found: op.token.clone(),
-                },
-                span: op.span.clone(),
-            }),
+            _ => {
+                return Err(SpannedParserError {
+                    error: ParserError::UnexpectedToken {
+                        expected: vec![Token::Plus, Token::Slash, Token::Dot],
+                        found: op.token.clone(),
+                    },
+                    span: op.span.clone(),
+                });
+            }
         })
     }
 
-
-    fn parse_type_prefix(&mut self) -> Result<TypeExpression, SpannedParserError> {
+    fn parse_type_prefix(
+        &mut self,
+    ) -> Result<TypeExpression, SpannedParserError> {
         match self.peek()?.token {
             // unary operators
             Token::Minus => {
@@ -102,38 +109,43 @@ impl Parser {
                 let rhs = self.parse_type_expression(UNARY_BP)?;
                 let span = op.span.start..rhs.span.end;
 
-                Ok(
-                    match rhs.data {
-                        // if the rhs is a literal integer/decimal, parse it as negative literal
-                        TypeExpressionData::Integer(value) => {
-                            TypeExpressionData::Integer(-value)
+                Ok(match rhs.data {
+                    // if the rhs is a literal integer/decimal, parse it as negative literal
+                    TypeExpressionData::Integer(value) => {
+                        TypeExpressionData::Integer(-value)
+                    }
+                    TypeExpressionData::Decimal(value) => {
+                        TypeExpressionData::Decimal(-value)
+                    }
+                    TypeExpressionData::TypedInteger(value) => match -value {
+                        Ok(neg_value) => {
+                            TypeExpressionData::TypedInteger(neg_value)
                         }
-                        TypeExpressionData::Decimal(value) => {
-                            TypeExpressionData::Decimal(-value)
+                        Err(e) => {
+                            return Err(SpannedParserError {
+                                error: ParserError::NumberParseError(
+                                    NumberParseError::OutOfRange,
+                                ),
+                                span: rhs.span.clone(),
+                            });
                         }
-                        TypeExpressionData::TypedInteger(value) => {
-                            match -value {
-                                Ok(neg_value) => TypeExpressionData::TypedInteger(neg_value),
-                                Err(e) => {
-                                    return Err(SpannedParserError {
-                                        error: ParserError::NumberParseError(NumberParseError::OutOfRange),
-                                        span: rhs.span.clone(),
-                                    });
-                                }
-                            }
-                        }
-                        TypeExpressionData::TypedDecimal(value) => {
-                            TypeExpressionData::TypedDecimal(-value)
-                        }
-                        // otherwise not a valid unary operation
-                        _ => return Err(SpannedParserError {
+                    },
+                    TypeExpressionData::TypedDecimal(value) => {
+                        TypeExpressionData::TypedDecimal(-value)
+                    }
+                    // otherwise not a valid unary operation
+                    _ => {
+                        return Err(SpannedParserError {
                             error: ParserError::InvalidUnaryOperation {
-                                operator: UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus),
+                                operator: UnaryOperator::Arithmetic(
+                                    ArithmeticUnaryOperator::Minus,
+                                ),
                             },
                             span: op.span.clone(),
-                        }),
-                    }.with_span(span)
-                )
+                        });
+                    }
+                }
+                .with_span(span))
             }
 
             // ref (&)
@@ -179,15 +191,15 @@ impl Parser {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use datex_core::ast::structs::r#type::TypeExpression;
-    use crate::parser::lexer::get_spanned_tokens_from_source;
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::r#type::{TypeExpressionData, Intersection, Union};
+    use crate::ast::structs::r#type::{
+        Intersection, TypeExpressionData, Union,
+    };
     use crate::parser::Parser;
-
+    use crate::parser::lexer::get_spanned_tokens_from_source;
+    use datex_core::ast::structs::r#type::TypeExpression;
 
     pub fn parse_type_expression(src: &str) -> TypeExpression {
         let (tokens, errors) = get_spanned_tokens_from_source(src);
@@ -201,74 +213,100 @@ mod tests {
     #[test]
     fn parse_simple_intersection_expression() {
         let expr = parse_type_expression("a & b");
-        assert_eq!(expr.data, TypeExpressionData::Intersection(Intersection(
-            vec![
-                TypeExpressionData::Identifier("a".to_string()).with_default_span(),
-                TypeExpressionData::Identifier("b".to_string()).with_default_span()
-            ]
-        )));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::Intersection(Intersection(vec![
+                TypeExpressionData::Identifier("a".to_string())
+                    .with_default_span(),
+                TypeExpressionData::Identifier("b".to_string())
+                    .with_default_span()
+            ]))
+        );
     }
 
     #[test]
     fn parse_simple_union_expression() {
         let expr = parse_type_expression("a | b");
-        assert_eq!(expr.data, TypeExpressionData::Union(Union(
-            vec![
-                TypeExpressionData::Identifier("a".to_string()).with_default_span(),
-                TypeExpressionData::Identifier("b".to_string()).with_default_span()
-            ]
-        )));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::Union(Union(vec![
+                TypeExpressionData::Identifier("a".to_string())
+                    .with_default_span(),
+                TypeExpressionData::Identifier("b".to_string())
+                    .with_default_span()
+            ]))
+        );
     }
 
     #[test]
     fn parse_variant_access_expression() {
         let expr = parse_type_expression("MyType/variant");
-        assert_eq!(expr.data, TypeExpressionData::VariantAccess(
-            datex_core::ast::structs::r#type::TypeVariantAccess {
-                name: "MyType".to_string(),
-                variant: "variant".to_string(),
-                base: None,
-            }
-        ));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::VariantAccess(
+                datex_core::ast::structs::r#type::TypeVariantAccess {
+                    name: "MyType".to_string(),
+                    variant: "variant".to_string(),
+                    base: None,
+                }
+            )
+        );
     }
 
     #[test]
     fn parse_ref_type_expression() {
         let expr = parse_type_expression("&MyType");
-        assert_eq!(expr.data, TypeExpressionData::Ref(
-            Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
-        ));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::Ref(Box::new(
+                TypeExpressionData::Identifier("MyType".to_string())
+                    .with_default_span()
+            ))
+        );
     }
 
     #[test]
     fn parse_mut_ref_type_expression() {
         let expr = parse_type_expression("&mut MyType");
-        assert_eq!(expr.data, TypeExpressionData::RefMut(
-            Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
-        ));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::RefMut(Box::new(
+                TypeExpressionData::Identifier("MyType".to_string())
+                    .with_default_span()
+            ))
+        );
     }
 
     #[test]
     fn parse_multiple_ref_type_expression() {
         let expr = parse_type_expression("&mut &MyType");
-        assert_eq!(expr.data, TypeExpressionData::RefMut(
-            Box::new(TypeExpressionData::Ref(
-                Box::new(TypeExpressionData::Identifier("MyType".to_string()).with_default_span())
-            ).with_default_span())
-        ));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::RefMut(Box::new(
+                TypeExpressionData::Ref(Box::new(
+                    TypeExpressionData::Identifier("MyType".to_string())
+                        .with_default_span()
+                ))
+                .with_default_span()
+            ))
+        );
     }
 
     #[test]
     fn parse_mut_keyword_variant_precedence() {
         let expr = parse_type_expression("&mut integer/u8");
-        assert_eq!(expr.data, TypeExpressionData::RefMut(
-            Box::new(TypeExpressionData::VariantAccess(
-                datex_core::ast::structs::r#type::TypeVariantAccess {
-                    name: "integer".to_string(),
-                    variant: "u8".to_string(),
-                    base: None,
-                }
-            ).with_default_span())
-        ));
+        assert_eq!(
+            expr.data,
+            TypeExpressionData::RefMut(Box::new(
+                TypeExpressionData::VariantAccess(
+                    datex_core::ast::structs::r#type::TypeVariantAccess {
+                        name: "integer".to_string(),
+                        variant: "u8".to_string(),
+                        base: None,
+                    }
+                )
+                .with_default_span()
+            ))
+        );
     }
 }
