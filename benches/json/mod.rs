@@ -57,9 +57,7 @@ pub fn json_to_runtime_value_baseline_json_syntax(json: &str) {
     assert!(json_value.is_object(), "Expected JSON to be an object");
 }
 
-pub fn json_to_runtime_value_datex<'a>(
-    json: &'a str,
-) {
+pub fn json_to_runtime_value_datex<'a>(json: &'a str) {
     let (dxb, _) = compile_script(
         json,
         CompileOptions {
@@ -97,9 +95,7 @@ pub fn json_to_runtime_value_datex_force_static_value(
     dxb.expect("Static Value should not be empty")
 }
 
-pub fn json_to_dxb<'a>(
-    json: &'a str,
-) {
+pub fn json_to_dxb<'a>(json: &'a str) {
     let (dxb, _) = compile_script(
         json,
         CompileOptions {

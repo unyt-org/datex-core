@@ -136,7 +136,7 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
                 type_expression.walk_children(visitor)
             }
 
-            | TypeExpressionData::Recover
+            TypeExpressionData::Recover
             | TypeExpressionData::Null
             | TypeExpressionData::Identifier(_)
             | TypeExpressionData::VariableAccess(_)

@@ -1,14 +1,18 @@
-use crate::global::protocol_structures::instructions::{RawInternalPointerAddress, RawPointerAddress};
+use crate::global::protocol_structures::instructions::{
+    RawInternalPointerAddress, RawPointerAddress,
+};
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+use binrw::BinWrite;
+use binrw::io::Cursor;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use binrw::BinWrite;
+use datex_core::global::protocol_structures::instructions::{
+    RawFullPointerAddress, RawLocalPointerAddress,
+};
 use serde::{Deserialize, Serialize};
-use binrw::io::Cursor;
-use datex_core::global::protocol_structures::instructions::{RawFullPointerAddress, RawLocalPointerAddress};
-use crate::stdlib::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerAddress {
@@ -88,9 +92,7 @@ impl From<&RawPointerAddress> for PointerAddress {
             RawPointerAddress::Internal(bytes) => {
                 PointerAddress::Internal(bytes.id)
             }
-            RawPointerAddress::Full(bytes) => {
-                PointerAddress::Remote(bytes.id)
-            }
+            RawPointerAddress::Full(bytes) => PointerAddress::Remote(bytes.id),
         }
     }
 }

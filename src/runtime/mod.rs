@@ -24,6 +24,7 @@ use crate::stdlib::sync::Arc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use crate::time::Instant;
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
@@ -32,7 +33,6 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
-use crate::time::Instant;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };

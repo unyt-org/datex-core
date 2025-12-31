@@ -3,6 +3,12 @@ mod operations;
 pub mod state;
 
 use crate::core_compiler::value_compiler::compile_value_container;
+use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
+use crate::dxb_parser::instruction_collector::{
+    CollectedResults, CollectionResultsPopper, FullOrPartialResult,
+    InstructionCollector, LastUnboundedResultCollector, ResultCollector,
+    StatementResultCollectionStrategy,
+};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::{
     AssignmentOperator, BinaryOperator, ComparisonOperator, UnaryOperator,
@@ -11,12 +17,6 @@ use crate::global::protocol_structures::instructions::{
     ApplyData, DecimalData, Float32Data, Float64Data, FloatAsInt16Data,
     FloatAsInt32Data, Instruction, IntegerData, RawPointerAddress,
     RegularInstruction, ShortTextData, SlotAddress, TextData, TypeInstruction,
-};
-use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
-use crate::dxb_parser::instruction_collector::{
-    CollectedResults, CollectionResultsPopper, FullOrPartialResult,
-    InstructionCollector, LastUnboundedResultCollector, ResultCollector,
-    StatementResultCollectionStrategy,
 };
 use crate::references::reference::{Reference, ReferenceMutability};
 use crate::runtime::execution::execution_loop::interrupts::{

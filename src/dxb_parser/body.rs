@@ -1,3 +1,7 @@
+use crate::dxb_parser::next_instructions_stack::NextInstructionsStack;
+use crate::dxb_parser::next_instructions_stack::{
+    NextInstructionType, NotInUnboundedRegularScopeError,
+};
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::operators::assignment::AssignmentOperator;
 use crate::global::protocol_structures::instructions::{
@@ -14,12 +18,7 @@ use crate::global::protocol_structures::instructions::{
     RawLocalPointerAddress, StatementsData,
 };
 use crate::global::type_instruction_codes::TypeInstructionCode;
-use crate::dxb_parser::next_instructions_stack::NextInstructionsStack;
-use crate::dxb_parser::next_instructions_stack::{
-    NextInstructionType, NotInUnboundedRegularScopeError,
-};
 use crate::runtime::execution::macros::yield_unwrap;
-use core::convert::TryFrom;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::FromUtf8Error;
 use crate::stdlib::string::String;
@@ -28,6 +27,7 @@ use crate::values::core_values::endpoint::Endpoint;
 use binrw::BinRead;
 use binrw::io::Cursor;
 use core::cell::RefCell;
+use core::convert::TryFrom;
 use core::fmt;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;

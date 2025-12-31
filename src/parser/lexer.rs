@@ -12,12 +12,12 @@ pub struct Loc {
     pub source: SourceId,
     pub span: Range<usize>,
 }
-use strum::IntoEnumIterator;
 use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::values::core_values::{
     decimal::typed_decimal::DecimalTypeVariant,
     integer::typed_integer::IntegerTypeVariant,
 };
+use strum::IntoEnumIterator;
 
 impl Loc {
     pub fn new(source: SourceId, span: core::ops::Range<usize>) -> Self {
@@ -389,16 +389,17 @@ pub struct SpannedToken {
     pub span: Range<usize>,
 }
 
-pub fn get_spanned_tokens_from_source(src: &str) -> (Vec<SpannedToken>, Vec<SpannedParserError>) {
+pub fn get_spanned_tokens_from_source(
+    src: &str,
+) -> (Vec<SpannedToken>, Vec<SpannedParserError>) {
     let lexer = Token::lexer(src);
     let (oks, errs): (Vec<_>, Vec<_>) = lexer
         .spanned()
         .map(|(tok, span)| {
-            tok
-                .map(|token| SpannedToken { token, span })
+            tok.map(|token| SpannedToken { token, span })
                 .map_err(|span| SpannedParserError {
                     error: ParserError::InvalidToken,
-                    span
+                    span,
                 })
         })
         .partition(Result::is_ok);
@@ -408,7 +409,6 @@ pub fn get_spanned_tokens_from_source(src: &str) -> (Vec<SpannedToken>, Vec<Span
 
     (tokens, errors)
 }
-
 
 pub type IntegerWithVariant = LiteralWithVariant<IntegerTypeVariant>;
 pub type DecimalWithVariant = LiteralWithVariant<DecimalTypeVariant>;

@@ -1,13 +1,13 @@
+use crate::collections::HashMap;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
 use crate::runtime::execution::execution_loop::interrupts::InterruptProvider;
 use crate::stdlib::boxed::Box;
-use crate::collections::HashMap;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use crate::stdlib::vec::Vec;
 
 pub struct ExecutionLoopState {
     pub iterator: Box<

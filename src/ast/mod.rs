@@ -1,21 +1,21 @@
 pub mod error;
 pub mod structs;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{Apply, Conditional, PropertyAccess};
 use crate::ast::structs::expression::RemoteExecution;
+use crate::ast::structs::expression::{Apply, Conditional, PropertyAccess};
 
 pub mod spanned;
-use crate::parser::parser_result::{
-    ParserResult, InvalidDatexParseResult, ValidDatexParseResult,
-};
 pub(crate) use crate::ast::structs::expression::{
     DatexExpression, DatexExpressionData, Statements,
 };
-use core::result::Result;
-use crate::parser::lexer::Token;
-use logos::Logos;
-use crate::parser::errors::SpannedParserError;
 use crate::parser::Parser;
+use crate::parser::errors::SpannedParserError;
+use crate::parser::lexer::Token;
+use crate::parser::parser_result::{
+    InvalidDatexParseResult, ParserResult, ValidDatexParseResult,
+};
+use core::result::Result;
+use logos::Logos;
 
 /// Parse the given source code into a DatexExpression AST.
 /// Returns either the AST and the spans of each token, or a list of parse errors if parsing failed.
@@ -31,9 +31,8 @@ mod tests {
             error::src::SrcId,
             structs::{
                 expression::{
-                    BinaryOperation, ComparisonOperation,
-                    CallableDeclaration, PropertyAssignment, TypeDeclaration,
-                    TypeDeclarationKind,
+                    BinaryOperation, CallableDeclaration, ComparisonOperation,
+                    PropertyAssignment, TypeDeclaration, TypeDeclarationKind,
                 },
                 r#type::{
                     Intersection, SliceList, StructuralMap, TypeExpression,
@@ -42,15 +41,15 @@ mod tests {
             },
         },
         global::operators::{
-            binary::{ArithmeticOperator, BitwiseOperator}, ArithmeticUnaryOperator, AssignmentOperator,
-            BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
-            UnaryOperator,
+            ArithmeticUnaryOperator, AssignmentOperator, BinaryOperator,
+            ComparisonOperator, LogicalUnaryOperator, UnaryOperator,
+            binary::{ArithmeticOperator, BitwiseOperator},
         },
         values::{
             core_values::{
                 decimal::Decimal,
                 endpoint::{Endpoint, InvalidEndpointError},
-                integer::{typed_integer::TypedInteger, Integer},
+                integer::{Integer, typed_integer::TypedInteger},
             },
             pointer::PointerAddress,
             value_container::ValueContainer,
@@ -58,17 +57,21 @@ mod tests {
     };
 
     use super::*;
-    use crate::ast::structs::expression::{Apply, CallableKind, CreateRef, DatexExpressionData, Deref, GenericInstantiation, List, Map, PropertyAccess, Slot, UnaryOperation, VariableDeclaration, VariableKind};
+    use crate::ast::structs::expression::{
+        Apply, CallableKind, CreateRef, DatexExpressionData, Deref,
+        GenericInstantiation, List, Map, PropertyAccess, Slot, UnaryOperation,
+        VariableDeclaration, VariableKind,
+    };
+    use crate::ast::structs::r#type::StructuralList;
+    use crate::parser::errors::ParserError;
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::{
         assert_matches::assert_matches, collections::HashMap, io, str::FromStr,
         vec,
     };
+    use crate::values::core_values::error::NumberParseError;
     use datex_core::ast::structs::expression::VariableAssignment;
     use datex_core::parser::errors::SpannedParserError;
-    use crate::ast::structs::r#type::StructuralList;
-    use crate::parser::errors::ParserError;
-    use crate::values::core_values::error::NumberParseError;
 
     /// Parse the given source code into a DatexExpression AST.
     fn parse_unwrap(src: &str) -> DatexExpression {
@@ -91,8 +94,7 @@ mod tests {
         let res = Parser::parse_collecting(src);
         match res {
             ParserResult::Invalid(InvalidDatexParseResult {
-                errors,
-                ..
+                errors, ..
             }) => {
                 // errors.iter().for_each(|e| {
                 //     let cache = ariadne::sources(vec![(src_id, src)]);
@@ -100,9 +102,7 @@ mod tests {
                 // });
                 Err(errors)
             }
-            ParserResult::Valid(ValidDatexParseResult { ast }) => {
-                Ok(ast)
-            }
+            ParserResult::Valid(ValidDatexParseResult { ast }) => Ok(ast),
         }
     }
 
@@ -194,12 +194,15 @@ mod tests {
         let expr = result.unwrap().data;
         assert_eq!(
             expr,
-            DatexExpressionData::TypeExpression(TypeExpressionData::Union(Union(vec![
-                TypeExpressionData::Integer(Integer::from(1))
-                    .with_default_span(),
-                TypeExpressionData::Integer(Integer::from(2))
-                    .with_default_span()
-            ])).with_default_span())
+            DatexExpressionData::TypeExpression(
+                TypeExpressionData::Union(Union(vec![
+                    TypeExpressionData::Integer(Integer::from(1))
+                        .with_default_span(),
+                    TypeExpressionData::Integer(Integer::from(2))
+                        .with_default_span()
+                ]))
+                .with_default_span()
+            )
         );
 
         let src = "var a = type([1,2,3])";
@@ -212,16 +215,17 @@ mod tests {
         {
             assert_eq!(
                 value.data,
-                DatexExpressionData::TypeExpression(TypeExpressionData::StructuralList(
-                    StructuralList (vec![
+                DatexExpressionData::TypeExpression(
+                    TypeExpressionData::StructuralList(StructuralList(vec![
                         TypeExpressionData::Integer(Integer::from(1))
                             .with_default_span(),
                         TypeExpressionData::Integer(Integer::from(2))
                             .with_default_span(),
                         TypeExpressionData::Integer(Integer::from(3))
                             .with_default_span()
-                    ])
-                ).with_default_span())
+                    ]))
+                    .with_default_span()
+                )
             );
         } else {
             core::panic!("Expected VariableDeclaration");
@@ -414,10 +418,7 @@ mod tests {
         let errors = result.err().unwrap();
         assert_eq!(errors.len(), 1);
         let error = errors[0].clone();
-        assert_eq!(
-            error.error,
-            ParserError::InvalidAssignmentTarget,
-        );
+        assert_eq!(error.error, ParserError::InvalidAssignmentTarget,);
         assert_eq!(error.span, 12..17);
     }
 
@@ -730,25 +731,26 @@ mod tests {
 
     #[test]
     fn generic_accessor() {
-        let generic_instantiation = DatexExpressionData::GenericInstantiation(GenericInstantiation {
-            base: Box::new(
-                DatexExpressionData::Identifier("User".to_string())
+        let generic_instantiation =
+            DatexExpressionData::GenericInstantiation(GenericInstantiation {
+                base: Box::new(
+                    DatexExpressionData::Identifier("User".to_string())
+                        .with_default_span(),
+                ),
+                generic_arguments: vec![
+                    TypeExpressionData::VariantAccess(TypeVariantAccess {
+                        base: None,
+                        name: "integer".to_owned(),
+                        variant: "u8".to_owned(),
+                    })
                     .with_default_span(),
-            ),
-            generic_arguments: vec![
-                TypeExpressionData::VariantAccess(TypeVariantAccess {
-                    base: None,
-                    name: "integer".to_owned(),
-                    variant: "u8".to_owned(),
-                })
-                .with_default_span(),
-            ]
-        });
+                ],
+            });
         let expected = DatexExpressionData::Apply(Apply {
             base: Box::new(generic_instantiation.with_default_span()),
             arguments: vec![
-                DatexExpressionData::Map(Map::new(vec![])).with_default_span()
-            ]
+                DatexExpressionData::Map(Map::new(vec![])).with_default_span(),
+            ],
         });
         assert_eq!(parse_unwrap_data("User<integer/u8> {}"), expected);
         assert_eq!(parse_unwrap_data("User< integer/u8 > {}"), expected);
@@ -758,9 +760,7 @@ mod tests {
 
     #[test]
     fn if_else() {
-        let src = vec![
-            "if (true) (1) else (2)",
-        ];
+        let src = vec!["if (true) (1) else (2)"];
         for s in src {
             let val = parse_unwrap_data(s);
             assert_eq!(
@@ -781,9 +781,7 @@ mod tests {
             );
         }
 
-        let src = vec![
-            "if (true + 1 == 2) (4) else (2)",
-        ];
+        let src = vec!["if (true + 1 == 2) (4) else (2)"];
         for s in src {
             println!("{}", s);
             let val = parse_unwrap_data(s);
@@ -841,9 +839,7 @@ mod tests {
         }
 
         // make sure apply chains still work
-        let src = vec![
-            "if (true + 1 == 2) (test [1,2,3])",
-        ];
+        let src = vec!["if (true + 1 == 2) (test [1,2,3])"];
         for s in src {
             let val = parse_unwrap_data(s);
             assert_eq!(
@@ -900,17 +896,17 @@ mod tests {
                                     DatexExpressionData::Integer(
                                         Integer::from(1)
                                     )
-                                        .with_default_span(),
+                                    .with_default_span(),
                                     DatexExpressionData::Integer(
                                         Integer::from(2)
                                     )
-                                        .with_default_span(),
+                                    .with_default_span(),
                                     DatexExpressionData::Integer(
                                         Integer::from(3)
                                     )
-                                        .with_default_span(),
+                                    .with_default_span(),
                                 ]))
-                                    .with_default_span()
+                                .with_default_span()
                             ]
                         })
                         .with_default_span()
@@ -1022,10 +1018,7 @@ mod tests {
 
         let src = "-(5)";
         let val = parse_unwrap_data(src);
-        assert_eq!(
-            val,
-            DatexExpressionData::Integer(Integer::from(-5))
-        );
+        assert_eq!(val, DatexExpressionData::Integer(Integer::from(-5)));
 
         let src = "+-+-myVal";
         let val = parse_unwrap_data(src);
@@ -2356,16 +2349,21 @@ mod tests {
         assert_eq!(
             expr,
             DatexExpressionData::Apply(Apply {
-               base: Box::new(DatexExpressionData::Apply(Apply {
-                    base: Box::new(
-                        DatexExpressionData::Identifier("myFunc".to_string())
+                base: Box::new(
+                    DatexExpressionData::Apply(Apply {
+                        base: Box::new(
+                            DatexExpressionData::Identifier(
+                                "myFunc".to_string()
+                            )
                             .with_default_span()
-                    ),
-                    arguments: vec![
-                         DatexExpressionData::Integer(Integer::from(1))
-                             .with_default_span(),
-                    ],
-                }).with_default_span()),
+                        ),
+                        arguments: vec![
+                            DatexExpressionData::Integer(Integer::from(1))
+                                .with_default_span(),
+                        ],
+                    })
+                    .with_default_span()
+                ),
                 arguments: vec![
                     DatexExpressionData::Integer(Integer::from(2))
                         .with_default_span(),
@@ -2484,7 +2482,9 @@ mod tests {
                             DatexExpressionData::Text("props".to_string())
                                 .with_default_span()
                         ),
-                    }).with_default_span()),
+                    })
+                    .with_default_span()
+                ),
                 assigned_property: Box::new(
                     DatexExpressionData::Integer(Integer::from(0))
                         .with_default_span()
@@ -2619,8 +2619,10 @@ mod tests {
                 base: Box::new(
                     DatexExpressionData::PropertyAccess(PropertyAccess {
                         base: Box::new(
-                            DatexExpressionData::Identifier("myObj".to_string())
-                                .with_default_span()
+                            DatexExpressionData::Identifier(
+                                "myObj".to_string()
+                            )
+                            .with_default_span()
                         ),
                         property: Box::new(
                             DatexExpressionData::Text("myProp".to_string())
@@ -2649,8 +2651,10 @@ mod tests {
                 base: Box::new(
                     DatexExpressionData::Apply(Apply {
                         base: Box::new(
-                            DatexExpressionData::Identifier("myFunc".to_string())
-                                .with_default_span()
+                            DatexExpressionData::Identifier(
+                                "myFunc".to_string()
+                            )
+                            .with_default_span()
                         ),
                         arguments: vec![
                             DatexExpressionData::Integer(Integer::from(1))
@@ -2685,8 +2689,10 @@ mod tests {
                                     .with_default_span()
                                 ),
                                 arguments: vec![
-                                    DatexExpressionData::Integer(Integer::from(1))
-                                        .with_default_span()
+                                    DatexExpressionData::Integer(
+                                        Integer::from(1)
+                                    )
+                                    .with_default_span()
                                 ],
                             })
                             .with_default_span()
@@ -2716,8 +2722,8 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: None,
                     name: "User".to_string(),
-                    definition: TypeExpressionData::StructuralMap(StructuralMap(
-                        vec![
+                    definition: TypeExpressionData::StructuralMap(
+                        StructuralMap(vec![
                             (
                                 TypeExpressionData::Text("age".to_string())
                                     .with_default_span(),
@@ -2730,8 +2736,8 @@ mod tests {
                                 TypeExpressionData::Text("John".to_string())
                                     .with_default_span()
                             ),
-                        ]
-                    ))
+                        ])
+                    )
                     .with_default_span(),
                     hoisted: false,
                     kind: TypeDeclarationKind::Nominal
@@ -3006,18 +3012,21 @@ mod tests {
                 operator: AssignmentOperator::Assign,
                 name: "x".to_string(),
                 expression: Box::new(
-                    DatexExpressionData::VariableAssignment(VariableAssignment {
-                        id: None,
-                        operator: AssignmentOperator::Assign,
-                        name: "y".to_string(),
-                        expression: Box::new(
-                            DatexExpressionData::Integer(Integer::from(42))
-                                .with_default_span()
-                        ),
-                    })
+                    DatexExpressionData::VariableAssignment(
+                        VariableAssignment {
+                            id: None,
+                            operator: AssignmentOperator::Assign,
+                            name: "y".to_string(),
+                            expression: Box::new(
+                                DatexExpressionData::Integer(Integer::from(42))
+                                    .with_default_span()
+                            ),
+                        }
+                    )
                     .with_default_span()
                 ),
-            }).with_default_span()
+            })
+            .with_default_span()
         );
     }
 
@@ -3205,10 +3214,7 @@ mod tests {
 
         let src = "-Infinity";
         let num = parse_unwrap_data(src);
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(Decimal::NegInfinity)
-        );
+        assert_eq!(num, DatexExpressionData::Decimal(Decimal::NegInfinity));
 
         let src = "infinity";
         let num = parse_unwrap_data(src);
@@ -3217,10 +3223,7 @@ mod tests {
         let src = "-infinity";
         let num = parse_unwrap_data(src);
 
-        assert_eq!(
-            num,
-            DatexExpressionData::Decimal(Decimal::NegInfinity)
-        );
+        assert_eq!(num, DatexExpressionData::Decimal(Decimal::NegInfinity));
     }
 
     #[test]

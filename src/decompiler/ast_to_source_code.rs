@@ -1,13 +1,17 @@
-use core::fmt::{self};
-use datex_core::ast::structs::expression::Apply;
-use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List, Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration, VariantAccess};
 use crate::ast::structs::expression::{
-    DatexExpression, DatexExpressionData, CallableDeclaration, VariableAccess,
+    BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
+    Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration,
+    VariantAccess,
+};
+use crate::ast::structs::expression::{
+    CallableDeclaration, DatexExpression, DatexExpressionData, VariableAccess,
     VariableAssignment, VariableDeclaration,
 };
 use crate::ast::structs::r#type::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
+use core::fmt::{self};
+use datex_core::ast::structs::expression::Apply;
 
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
 use crate::references::reference::ReferenceMutability;
@@ -471,10 +475,7 @@ impl AstToSourceCodeConverter {
                 let right_code = self.key_expression_to_source_code(right);
                 ast_fmt!(&self, "{}%s{}%s{}", left_code, operator, right_code)
             }
-            DatexExpressionData::Apply(Apply {
-                base,
-                arguments,
-            }) => {
+            DatexExpressionData::Apply(Apply { base, arguments }) => {
                 let mut args_source = vec![];
 
                 for arg in arguments {
@@ -563,7 +564,7 @@ impl AstToSourceCodeConverter {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: _,
                 name,
-                                                     definition: value,
+                definition: value,
                 hoisted: _,
                 kind,
             }) => {
@@ -679,7 +680,9 @@ impl AstToSourceCodeConverter {
                     self.key_expression_to_source_code(property)
                 )
             }
-            DatexExpressionData::GenericInstantiation(_) => {todo!()}
+            DatexExpressionData::GenericInstantiation(_) => {
+                todo!()
+            }
         }
     }
 }

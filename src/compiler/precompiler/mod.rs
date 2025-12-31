@@ -14,6 +14,7 @@ use crate::ast::structs::expression::{
 use crate::ast::structs::r#type::{
     TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
+use crate::parser::parser_result::ValidDatexParseResult;
 use crate::types::definition::TypeDefinition;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
@@ -26,19 +27,19 @@ use crate::{
         },
     },
     compiler::error::{
-        collect_or_pass_error, CompilerError,
-        DetailedCompilerErrors, DetailedCompilerErrorsWithRichAst, ErrorCollector,
-        MaybeAction,
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst, SpannedCompilerError,
+        CompilerError, DetailedCompilerErrors,
+        DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
+        SpannedCompilerError, collect_or_pass_error,
     },
-    global::operators::{binary::ArithmeticOperator, BinaryOperator},
+    global::operators::{BinaryOperator, binary::ArithmeticOperator},
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     values::core_values::r#type::Type,
     visitor::{
-        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
-        type_expression::TypeExpressionVisitor,
         VisitAction,
+        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        type_expression::TypeExpressionVisitor,
     },
 };
 use options::PrecompilerOptions;
@@ -47,7 +48,6 @@ use precompiled_ast::RichAst;
 use precompiled_ast::VariableShape;
 use scope::NewScopeType;
 use scope_stack::PrecompilerScopeStack;
-use crate::parser::parser_result::ValidDatexParseResult;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
@@ -220,7 +220,7 @@ impl<'a> Precompiler<'a> {
             Ok(rich_ast)
         }
     }
-    
+
     /// Adds a new variable to the current scope and metadata
     /// Returns the new variable ID
     fn add_new_variable(&mut self, name: String, kind: VariableShape) -> usize {
@@ -297,7 +297,6 @@ impl<'a> Precompiler<'a> {
 }
 
 impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
-
     fn visit_literal_type(
         &mut self,
         literal: &mut String,
@@ -602,10 +601,10 @@ mod tests {
     use super::*;
     use crate::ast::error::src::SrcId;
     use crate::ast::parse;
-    use crate::parser::parser_result::{ParserResult, InvalidDatexParseResult};
     use crate::ast::structs::expression::{CreateRef, Deref};
     use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
     use crate::parser::Parser;
+    use crate::parser::parser_result::{InvalidDatexParseResult, ParserResult};
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::assert_matches::assert_matches;
     use crate::stdlib::io;
@@ -1039,10 +1038,12 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "x".to_string(),
-                    definition: TypeExpressionData::VariableAccess(VariableAccess {
-                        id: 1,
-                        name: "MyInt".to_string()
-                    })
+                    definition: TypeExpressionData::VariableAccess(
+                        VariableAccess {
+                            id: 1,
+                            name: "MyInt".to_string()
+                        }
+                    )
                     .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1051,10 +1052,12 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(1),
                     name: "MyInt".to_string(),
-                    definition: TypeExpressionData::VariableAccess(VariableAccess {
-                        id: 0,
-                        name: "x".to_string()
-                    })
+                    definition: TypeExpressionData::VariableAccess(
+                        VariableAccess {
+                            id: 0,
+                            name: "x".to_string()
+                        }
+                    )
                     .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1102,13 +1105,14 @@ mod tests {
                                 TypeDeclaration {
                                     id: Some(1),
                                     name: "NestedVar".to_string(),
-                                    definition: TypeExpressionData::VariableAccess(
-                                        VariableAccess {
-                                            id: 0,
-                                            name: "x".to_string()
-                                        }
-                                    )
-                                    .with_default_span(),
+                                    definition:
+                                        TypeExpressionData::VariableAccess(
+                                            VariableAccess {
+                                                id: 0,
+                                                name: "x".to_string()
+                                            }
+                                        )
+                                        .with_default_span(),
                                     hoisted: true,
                                     kind: TypeDeclarationKind::Nominal
                                 }
@@ -1133,9 +1137,9 @@ mod tests {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),
-                definition: TypeExpressionData::GetReference(PointerAddress::from(
-                    CoreLibPointerId::Integer(None)
-                ))
+                definition: TypeExpressionData::GetReference(
+                    PointerAddress::from(CoreLibPointerId::Integer(None))
+                )
                 .with_default_span(),
                 hoisted: true,
                 kind: TypeDeclarationKind::Nominal

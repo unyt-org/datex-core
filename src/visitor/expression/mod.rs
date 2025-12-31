@@ -1,7 +1,12 @@
 pub mod visitable;
-use core::ops::Range;
-use datex_core::ast::structs::expression::GenericInstantiation;
-use crate::ast::structs::expression::{Apply, BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, CallableDeclaration, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration, VariantAccess};
+use crate::ast::structs::expression::{
+    Apply, BinaryOperation, CallableDeclaration, ComparisonOperation,
+    Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref,
+    DerefAssignment, List, Map, PropertyAccess, PropertyAssignment,
+    RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration,
+    UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration,
+    VariantAccess,
+};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -13,6 +18,8 @@ use crate::visitor::expression::visitable::{
     ExpressionVisitResult, VisitableExpression,
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
+use core::ops::Range;
+use datex_core::ast::structs::expression::GenericInstantiation;
 
 pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Handle expression error
@@ -143,9 +150,10 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::PropertyAccess(property_access) => {
                 self.visit_property_access(property_access, &expr.span)
             }
-            DatexExpressionData::GenericInstantiation(generic_instantiation) => {
-                self.visit_generic_instantiation(generic_instantiation, &expr.span)
-            }
+            DatexExpressionData::GenericInstantiation(
+                generic_instantiation,
+            ) => self
+                .visit_generic_instantiation(generic_instantiation, &expr.span),
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 self.visit_remote_execution(remote_execution, &expr.span)
             }
@@ -314,7 +322,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         let _ = apply;
         Ok(VisitAction::VisitChildren)
     }
-    
+
     /// Visit property access
     fn visit_property_access(
         &mut self,
@@ -325,7 +333,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         let _ = property_access;
         Ok(VisitAction::VisitChildren)
     }
-    
+
     /// Visit generic instantiation
     fn visit_generic_instantiation(
         &mut self,

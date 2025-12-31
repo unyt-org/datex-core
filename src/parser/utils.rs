@@ -1,12 +1,14 @@
-use std::iter::Peekable;
-use std::str::{Chars, FromStr};
-use datex_core::values::core_values::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::parser::lexer::{IntegerWithVariant, Token};
 use crate::values::core_values::decimal::Decimal;
-use crate::values::core_values::decimal::typed_decimal::{DecimalTypeVariant, TypedDecimal};
+use crate::values::core_values::decimal::typed_decimal::{
+    DecimalTypeVariant, TypedDecimal,
+};
 use crate::values::core_values::error::NumberParseError;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
+use datex_core::values::core_values::integer::Integer;
+use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
+use std::iter::Peekable;
+use std::str::{Chars, FromStr};
 
 pub enum IntegerOrDecimal {
     Integer(Integer),
@@ -15,7 +17,6 @@ pub enum IntegerOrDecimal {
     TypedDecimal(TypedDecimal),
 }
 
-
 pub enum IntegerOrTypedInteger {
     Integer(Integer),
     TypedInteger(TypedInteger),
@@ -23,7 +24,9 @@ pub enum IntegerOrTypedInteger {
 
 /// Parses an integer literal with an integer part, an optional exponent part, and an optional variant suffix.
 /// Returns either an Integer or a Decimal value.
-pub fn parse_integer_literal(lit: String) -> Result<IntegerOrDecimal, NumberParseError> {
+pub fn parse_integer_literal(
+    lit: String,
+) -> Result<IntegerOrDecimal, NumberParseError> {
     // first consume all digits for the integer part, skipping underscores
     let mut chars = lit.chars().peekable();
     let integer_part = consume_digits_with_underscores(&mut chars);
@@ -55,26 +58,34 @@ pub fn parse_integer_literal(lit: String) -> Result<IntegerOrDecimal, NumberPars
         // no variant and no exponent -> plain integer
         if variant_part.is_empty() {
             Integer::from_string(&integer_part).map(IntegerOrDecimal::Integer)
-        } 
+        }
         // variant -> distinguish between integer and decimal type variants
         else {
             // try to get integer type variant from variant part
-            if let Ok(integer_variant) = IntegerTypeVariant::from_str(&variant_part) {
-                TypedInteger::from_string_with_variant(&integer_part, integer_variant)
-                    .map(IntegerOrDecimal::TypedInteger)
+            if let Ok(integer_variant) =
+                IntegerTypeVariant::from_str(&variant_part)
+            {
+                TypedInteger::from_string_with_variant(
+                    &integer_part,
+                    integer_variant,
+                )
+                .map(IntegerOrDecimal::TypedInteger)
             }
             // otherwise try to parse as typed decimal
-            else if let Ok(decimal_variant) = DecimalTypeVariant::from_str(&variant_part) {
-                TypedDecimal::from_string_and_variant(&integer_part, decimal_variant)
-                    .map(IntegerOrDecimal::TypedDecimal)
-            }
-            else {
+            else if let Ok(decimal_variant) =
+                DecimalTypeVariant::from_str(&variant_part)
+            {
+                TypedDecimal::from_string_and_variant(
+                    &integer_part,
+                    decimal_variant,
+                )
+                .map(IntegerOrDecimal::TypedDecimal)
+            } else {
                 // should not happen if valid string literal is passed in
                 unreachable!()
             }
         }
     }
-    
     // decimal if exponent part is present
     else {
         let full_number = format!("{}e{}", integer_part, exponent_part);
@@ -83,7 +94,9 @@ pub fn parse_integer_literal(lit: String) -> Result<IntegerOrDecimal, NumberPars
             Decimal::from_string(&full_number).map(IntegerOrDecimal::Decimal)
         }
         // decimal variant -> typed decimal with exponent
-        else if let Ok(decimal_variant) = DecimalTypeVariant::from_str(&variant_part) {
+        else if let Ok(decimal_variant) =
+            DecimalTypeVariant::from_str(&variant_part)
+        {
             TypedDecimal::from_string_and_variant(&full_number, decimal_variant)
                 .map(IntegerOrDecimal::TypedDecimal)
         }
@@ -110,7 +123,10 @@ fn consume_digits_with_underscores(chars: &mut Peekable<Chars>) -> String {
     part
 }
 
-pub fn parse_integer_with_variant(integer_with_variant: IntegerWithVariant, token: Token) -> Result<IntegerOrTypedInteger, NumberParseError> {
+pub fn parse_integer_with_variant(
+    integer_with_variant: IntegerWithVariant,
+    token: Token,
+) -> Result<IntegerOrTypedInteger, NumberParseError> {
     let radix = match token {
         Token::BinaryIntegerLiteral(_) => 2,
         Token::OctalIntegerLiteral(_) => 8,
@@ -118,13 +134,18 @@ pub fn parse_integer_with_variant(integer_with_variant: IntegerWithVariant, toke
         _ => unreachable!(),
     };
     match integer_with_variant.variant {
-        Some(var) => TypedInteger::from_string_radix_with_variant(&integer_with_variant.value[2..], radix, var)
-            .map(IntegerOrTypedInteger::TypedInteger),
-        None => Integer::from_string_radix(&integer_with_variant.value[2..], radix)
-            .map(IntegerOrTypedInteger::Integer),
+        Some(var) => TypedInteger::from_string_radix_with_variant(
+            &integer_with_variant.value[2..],
+            radix,
+            var,
+        )
+        .map(IntegerOrTypedInteger::TypedInteger),
+        None => {
+            Integer::from_string_radix(&integer_with_variant.value[2..], radix)
+                .map(IntegerOrTypedInteger::Integer)
+        }
     }
 }
-
 
 /// Takes a literal text string input, e.g. ""Hello, world!"" or "'Hello, world!' or ""x\"""
 /// and returns the unescaped text, e.g. "Hello, world!" or 'Hello, world!' or "x\""

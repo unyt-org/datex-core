@@ -48,7 +48,9 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
         &json,
         |b, json| {
             b.iter(|| {
-                json::json_to_runtime_value_datex_auto_static_detection(black_box(json));
+                json::json_to_runtime_value_datex_auto_static_detection(
+                    black_box(json),
+                );
                 black_box(());
             })
         },

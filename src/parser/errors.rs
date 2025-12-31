@@ -1,10 +1,10 @@
-use std::ops::Range;
-use crate::parser::lexer::Token;
 use crate::ast::structs::expression::DatexExpression;
 use crate::compiler::error::ErrorCollector;
 use crate::global::operators::UnaryOperator;
+use crate::parser::lexer::Token;
 use crate::values::core_values::endpoint::InvalidEndpointError;
 use crate::values::core_values::error::NumberParseError;
+use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
@@ -18,12 +18,12 @@ pub enum ParserError {
     ExpectedMoreTokens,
     InvalidEndpointName {
         name: String,
-        details: InvalidEndpointError
+        details: InvalidEndpointError,
     },
     InvalidAssignmentTarget,
     NumberParseError(NumberParseError),
     InvalidUnaryOperation {
-        operator: UnaryOperator
+        operator: UnaryOperator,
     },
     InvalidTypeVariantAccess,
     // used in internal parser logic to indicate a failed parse attempt that lead to a rollback

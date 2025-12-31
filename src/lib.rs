@@ -50,13 +50,13 @@ pub mod type_inference;
 pub mod visitor;
 
 pub mod core_compiler;
+pub mod dxb_parser;
 pub mod serde;
 pub mod task;
 pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod values;
-pub mod dxb_parser;
 
 // reexport macros
 pub use datex_macros as macros;
@@ -96,12 +96,12 @@ pub mod std_sync {
 }
 
 pub mod time {
-    #[cfg(target_arch = "wasm32")]
-    pub use web_time::*;
     #[cfg(all(not(target_arch = "wasm32"), not(feature = "std")))]
     pub use embedded_time::*;
     #[cfg(all(not(target_arch = "wasm32"), feature = "std"))]
     pub use std::time::*;
+    #[cfg(target_arch = "wasm32")]
+    pub use web_time::*;
 }
 pub mod std_random {
     #[cfg(not(feature = "std"))]

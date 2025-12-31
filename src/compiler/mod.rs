@@ -10,7 +10,6 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use core::cell::RefCell;
 
-use crate::parser::parser_result::ValidDatexParseResult;
 use crate::ast::structs::expression::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
@@ -28,6 +27,7 @@ use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
+use crate::parser::parser_result::ValidDatexParseResult;
 
 use crate::core_compiler::value_compiler::{
     append_boolean, append_decimal, append_encoded_integer, append_endpoint,
@@ -36,10 +36,12 @@ use crate::core_compiler::value_compiler::{
     append_value_container,
 };
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
+use crate::parser::Parser;
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
+use crate::time::Instant;
 use crate::utils::buffers::append_u8;
 use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
@@ -49,8 +51,6 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
-use crate::parser::Parser;
-use crate::time::Instant;
 
 pub mod context;
 pub mod error;
@@ -69,9 +69,7 @@ pub struct CompileOptions {
 
 impl CompileOptions {
     pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
-        CompileOptions {
-            compile_scope,
-        }
+        CompileOptions { compile_scope }
     }
 }
 
@@ -359,10 +357,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error(
             })
         )
     };
-    debug!(
-        " [parse took {} ms]",
-        parse_start.elapsed().as_millis()
-    );
+    debug!(" [parse took {} ms]", parse_start.elapsed().as_millis());
     let precompile_start = Instant::now();
     let res = precompile_to_rich_ast(
         valid_parse_result,
@@ -392,7 +387,8 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors(
     datex_script: &str,
     options: &mut CompileOptions,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
-    let (ast, parser_errors) = Parser::parse_collecting(datex_script).into_ast_and_errors();
+    let (ast, parser_errors) =
+        Parser::parse_collecting(datex_script).into_ast_and_errors();
     precompile_to_rich_ast(
         ast,
         &mut options.compile_scope,
@@ -401,9 +397,13 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors(
         },
     )
     .map_err(|e| match e {
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(mut e) => {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+            mut e,
+        ) => {
             // append parser errors to detailed errors
-            e.errors.errors.extend(parser_errors.into_iter().map(SpannedCompilerError::from));
+            e.errors.errors.extend(
+                parser_errors.into_iter().map(SpannedCompilerError::from),
+            );
             e.into()
         }
         _ => unreachable!(), // because detailed_errors: true

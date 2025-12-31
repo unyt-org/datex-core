@@ -1,22 +1,25 @@
+use crate::ast::spanned::Spanned;
+use crate::ast::structs::expression::DatexExpression;
+use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
+use crate::compiler::error::{
+    ErrorCollector, MaybeAction, collect_or_pass_error,
+};
+use crate::parser::errors::{ParserError, SpannedParserError};
+use crate::parser::lexer::{SpannedToken, Token};
+use crate::parser::parser_result::{
+    InvalidDatexParseResult, ValidDatexParseResult,
+};
 use core::ops::Range;
 use itertools::Itertools;
 use parser_result::ParserResult;
-use crate::ast::structs::expression::DatexExpression;
-use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::DatexExpressionData;
-use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
-use crate::compiler::error::{collect_or_pass_error, ErrorCollector, MaybeAction};
-use crate::parser::errors::{ParserError, SpannedParserError};
-use crate::parser::lexer::{SpannedToken, Token};
-use crate::parser::parser_result::{InvalidDatexParseResult, ValidDatexParseResult};
 // TODO: move to different module
 
 pub mod errors;
-mod parsers;
-pub mod utils;
 pub mod lexer;
 pub mod parser_result;
-
+mod parsers;
+pub mod utils;
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
@@ -26,7 +29,6 @@ pub struct Parser {
 }
 
 impl Parser {
-
     /// Parses the given source code.
     /// Collects all lexing and parsing errors encountered.
     pub fn parse_collecting(src: &str) -> ParserResult {
@@ -35,11 +37,16 @@ impl Parser {
         match parser.parse_root() {
             // this should never happen when collecting errors
             Err(e) => {
-                unreachable!("An error was not correctly handled during parsing: {:#?}", e);
+                unreachable!(
+                    "An error was not correctly handled during parsing: {:#?}",
+                    e
+                );
             }
             Ok(ast) => {
                 // has errors, return invalid result
-                if let Some(errors) = parser.collected_errors && !errors.is_empty() {
+                if let Some(errors) = parser.collected_errors
+                    && !errors.is_empty()
+                {
                     ParserResult::Invalid(InvalidDatexParseResult {
                         ast,
                         errors,
@@ -51,7 +58,6 @@ impl Parser {
                 }
             }
         }
-
     }
 
     /// Parses the given source code.
@@ -69,7 +75,10 @@ impl Parser {
         }
     }
 
-    fn new_from_tokens(tokens: Vec<SpannedToken>, collected_errors: Option<Vec<SpannedParserError>>) -> Self {
+    fn new_from_tokens(
+        tokens: Vec<SpannedToken>,
+        collected_errors: Option<Vec<SpannedParserError>>,
+    ) -> Self {
         Self {
             tokens,
             pos: 0,
@@ -81,7 +90,6 @@ impl Parser {
     fn parse_root(&mut self) -> Result<DatexExpression, SpannedParserError> {
         self.parse_top_level_statements()
     }
-
 
     /// Collects an error if detailed error collection is enabled,
     /// or returns the error as Err()
@@ -106,9 +114,8 @@ impl Parser {
         error: SpannedParserError,
     ) -> Result<DatexExpression, SpannedParserError> {
         let span = error.span.clone();
-        self.collect_error(error).map(|_| {
-            DatexExpressionData::Recover.with_span(span)
-        })
+        self.collect_error(error)
+            .map(|_| DatexExpressionData::Recover.with_span(span))
     }
 
     /// Collects an error and returns a Recover type expression to continue parsing if
@@ -119,9 +126,8 @@ impl Parser {
         error: SpannedParserError,
     ) -> Result<TypeExpression, SpannedParserError> {
         let span = error.span.clone();
-        self.collect_error(error).map(|_| {
-            TypeExpressionData::Recover.with_span(span)
-        })
+        self.collect_error(error)
+            .map(|_| TypeExpressionData::Recover.with_span(span))
     }
 
     /// Collects the Err variant of the Result if detailed error collection is enabled,
@@ -132,7 +138,6 @@ impl Parser {
     ) -> Result<MaybeAction<T>, SpannedParserError> {
         collect_or_pass_error(&mut self.collected_errors, result)
     }
-
 
     fn peek(&self) -> Result<&SpannedToken, SpannedParserError> {
         if self.pos >= self.tokens.len() {
@@ -148,7 +153,6 @@ impl Parser {
             Ok(&self.tokens[self.pos])
         }
     }
-
 
     fn has_more_tokens(&self) -> bool {
         self.pos < self.tokens.len()
@@ -170,7 +174,10 @@ impl Parser {
         Ok(tok)
     }
 
-    fn expect(&mut self, token: Token) -> Result<SpannedToken, SpannedParserError> {
+    fn expect(
+        &mut self,
+        token: Token,
+    ) -> Result<SpannedToken, SpannedParserError> {
         let next_token = self.advance()?;
         if next_token.token != token {
             self.collect_error(SpannedParserError {
@@ -184,18 +191,21 @@ impl Parser {
         Ok(next_token)
     }
 
-    fn expect_identifier(&mut self) -> Result<(String, Range<usize>), SpannedParserError> {
+    fn expect_identifier(
+        &mut self,
+    ) -> Result<(String, Range<usize>), SpannedParserError> {
         match self.advance()? {
-            SpannedToken { token: Token::Identifier(identifier), span }  => Ok((identifier, span)),
-            token => {
-                Err(SpannedParserError {
-                    error: ParserError::UnexpectedToken {
-                        expected: vec![Token::Identifier("identifier".to_string())],
-                        found: token.token.clone(),
-                    },
-                    span: token.span.clone()
-                })
-            }
+            SpannedToken {
+                token: Token::Identifier(identifier),
+                span,
+            } => Ok((identifier, span)),
+            token => Err(SpannedParserError {
+                error: ParserError::UnexpectedToken {
+                    expected: vec![Token::Identifier("identifier".to_string())],
+                    found: token.token.clone(),
+                },
+                span: token.span.clone(),
+            }),
         }
     }
 
@@ -237,12 +247,13 @@ impl Parser {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    pub fn try_parse_and_return_on_first_error(src: &str) -> Result<DatexExpression, SpannedParserError> {
+    pub fn try_parse_and_return_on_first_error(
+        src: &str,
+    ) -> Result<DatexExpression, SpannedParserError> {
         Parser::parse(src)
     }
 

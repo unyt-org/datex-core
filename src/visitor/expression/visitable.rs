@@ -1,8 +1,14 @@
-use datex_core::ast::structs::expression::Apply;
-use crate::ast::structs::expression::{BinaryOperation, ComparisonOperation, Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment, CallableDeclaration, GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment, RemoteExecution, SlotAssignment, Statements, TypeDeclaration, UnaryOperation, VariableAssignment, VariableDeclaration};
+use crate::ast::structs::expression::{
+    BinaryOperation, CallableDeclaration, ComparisonOperation, Conditional,
+    CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment,
+    GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment,
+    RemoteExecution, SlotAssignment, Statements, TypeDeclaration,
+    UnaryOperation, VariableAssignment, VariableDeclaration,
+};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
+use datex_core::ast::structs::expression::Apply;
 
 pub type ExpressionVisitResult<E> = Result<VisitAction<DatexExpression>, E>;
 
@@ -154,7 +160,6 @@ impl<E> VisitableExpression<E> for PropertyAccess {
     }
 }
 
-
 impl<E> VisitableExpression<E> for GenericInstantiation {
     fn walk_children(
         &mut self,
@@ -167,7 +172,6 @@ impl<E> VisitableExpression<E> for GenericInstantiation {
         Ok(())
     }
 }
-
 
 impl<E> VisitableExpression<E> for RemoteExecution {
     fn walk_children(
@@ -294,9 +298,9 @@ impl<E> VisitableExpression<E> for DatexExpression {
             DatexExpressionData::PropertyAccess(property_access) => {
                 property_access.walk_children(visitor)
             }
-            DatexExpressionData::GenericInstantiation(generic_instantiation) => {
-                generic_instantiation.walk_children(visitor)
-            }
+            DatexExpressionData::GenericInstantiation(
+                generic_instantiation,
+            ) => generic_instantiation.walk_children(visitor),
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 remote_execution.walk_children(visitor)
             }

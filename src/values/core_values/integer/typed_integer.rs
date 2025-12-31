@@ -515,7 +515,9 @@ impl Add for TypedInteger {
 
     fn add(self, rhs: Self) -> Self::Output {
         Some(match self {
-            TypedInteger::IBig(v1) => TypedInteger::IBig(v1 + Integer::from(rhs)),
+            TypedInteger::IBig(v1) => {
+                TypedInteger::IBig(v1 + Integer::from(rhs))
+            }
             TypedInteger::I8(v1) => TypedInteger::I8(match rhs {
                 TypedInteger::I8(v2) => v1.checked_add(v2)?,
                 TypedInteger::I16(v2) => {
