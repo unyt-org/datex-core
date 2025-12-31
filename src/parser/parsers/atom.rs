@@ -13,7 +13,7 @@ use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::pointer::PointerAddress;
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl Parser {
     pub(crate) fn parse_atom(
@@ -335,7 +335,7 @@ mod tests {
     use crate::values::core_values::integer::typed_integer::TypedInteger;
     use crate::values::pointer::PointerAddress;
     use datex_core::ast::structs::r#type::TypeExpressionData;
-    use std::assert_matches::assert_matches;
+    use core::assert_matches::assert_matches;
 
     #[test]
     fn parse_boolean_true() {

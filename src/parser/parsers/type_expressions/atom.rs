@@ -11,7 +11,7 @@ use crate::parser::{Parser, SpannedParserError};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl Parser {
     pub(crate) fn parse_type_atom(
