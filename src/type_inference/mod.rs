@@ -608,10 +608,10 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         };
 
         let var = self.variable_type(id).expect("Variable must be present");
-        println!(
-            "Inferring type for Variable Assignment of variable {:?} with annotated type {:?}",
-            variable_assignment.name, var
-        );
+        // println!(
+        //     "Inferring type for Variable Assignment of variable {:?} with annotated type {:?}",
+        //     variable_assignment.name, var
+        // );
 
         let assigned_type =
             self.infer_expression(&mut variable_assignment.expression)?;
@@ -741,11 +741,11 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let left_type = self.infer_expression(&mut binary_operation.left)?;
         let right_type = self.infer_expression(&mut binary_operation.right)?;
 
-        println!(
-            "base types: left: {:?}, right: {:?}",
-            left_type.base_type_reference(),
-            right_type.base_type_reference()
-        );
+        // println!(
+        //     "base types: left: {:?}, right: {:?}",
+        //     left_type.base_type_reference(),
+        //     right_type.base_type_reference()
+        // );
 
         match binary_operation.operator {
             BinaryOperator::Arithmetic(op) => {
