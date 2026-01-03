@@ -1,7 +1,5 @@
+use crate::ast::expressions::{DatexExpression, DatexExpressionData, Slot};
 use crate::ast::spanned::Spanned;
-use crate::ast::expressions::{
-    DatexExpression, DatexExpressionData, Slot,
-};
 use crate::parser::errors::ParserError;
 use crate::parser::lexer::{DecimalWithVariant, IntegerWithVariant, Token};
 use crate::parser::utils::{
@@ -318,10 +316,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::expressions::{DatexExpressionData, Slot, Statements};
     use crate::ast::spanned::Spanned;
-    use crate::ast::expressions::{
-        DatexExpressionData, Slot, Statements,
-    };
+    use crate::ast::type_expressions::TypeExpressionData;
     use crate::ast::type_expressions::{TypeExpression, Union};
     use crate::parser::errors::ParserError;
     use crate::parser::parser_result::ParserResult;
@@ -334,7 +331,6 @@ mod tests {
     };
     use crate::values::core_values::integer::typed_integer::TypedInteger;
     use crate::values::pointer::PointerAddress;
-    use crate::ast::type_expressions::TypeExpressionData;
     use core::assert_matches::assert_matches;
 
     #[test]

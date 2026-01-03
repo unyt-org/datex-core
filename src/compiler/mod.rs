@@ -28,6 +28,7 @@ use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
 use crate::parser::parser_result::ValidDatexParseResult;
 
+use crate::ast::resolved_variable::VariableId;
 use crate::core_compiler::value_compiler::{
     append_boolean, append_decimal, append_encoded_integer, append_endpoint,
     append_float_as_i16, append_float_as_i32, append_instruction_code,
@@ -50,7 +51,6 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
-use crate::ast::resolved_variable::VariableId;
 
 pub mod context;
 pub mod error;

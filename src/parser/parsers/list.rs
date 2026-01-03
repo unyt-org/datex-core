@@ -1,7 +1,5 @@
+use crate::ast::expressions::{DatexExpression, DatexExpressionData, List};
 use crate::ast::spanned::Spanned;
-use crate::ast::expressions::{
-    DatexExpression, DatexExpressionData, List,
-};
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
 
@@ -32,8 +30,8 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::spanned::Spanned;
     use crate::ast::expressions::{DatexExpressionData, List};
+    use crate::ast::spanned::Spanned;
     use crate::parser::errors::ParserError;
     use crate::parser::lexer::Token;
     use crate::parser::parser_result::ParserResult;

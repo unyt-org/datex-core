@@ -1,3 +1,4 @@
+use crate::ast::expressions::Apply;
 use crate::ast::expressions::{
     BinaryOperation, CallableDeclaration, ComparisonOperation, Conditional,
     CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment,
@@ -8,7 +9,6 @@ use crate::ast::expressions::{
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
-use crate::ast::expressions::Apply;
 
 pub type ExpressionVisitResult<E> = Result<VisitAction<DatexExpression>, E>;
 

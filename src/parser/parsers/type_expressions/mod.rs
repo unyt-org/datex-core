@@ -194,12 +194,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
+    use crate::ast::type_expressions::TypeExpression;
     use crate::ast::type_expressions::{
         Intersection, TypeExpressionData, Union,
     };
     use crate::parser::Parser;
     use crate::parser::lexer::get_spanned_tokens_from_source;
-    use crate::ast::type_expressions::TypeExpression;
 
     pub fn parse_type_expression(src: &str) -> TypeExpression {
         let (tokens, errors) = get_spanned_tokens_from_source(src);

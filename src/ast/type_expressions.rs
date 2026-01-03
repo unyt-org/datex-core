@@ -1,8 +1,8 @@
 use core::ops::Range;
 
-use crate::ast::spanned::Spanned;
 use crate::ast::expressions::VariableAccess;
 use crate::ast::resolved_variable::ResolvedVariable;
+use crate::ast::spanned::Spanned;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;

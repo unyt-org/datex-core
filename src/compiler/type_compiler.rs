@@ -3,9 +3,7 @@ use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
 use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 use crate::compiler::scope::CompilationScope;
-use crate::core_compiler::value_compiler::{
-    append_big_integer,
-};
+use crate::core_compiler::value_compiler::append_big_integer;
 use crate::global::type_instruction_codes::TypeInstructionCode;
 use crate::stdlib::rc::Rc;
 use crate::utils::buffers::{append_u8, append_u32};

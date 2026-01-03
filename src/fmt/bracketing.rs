@@ -1,17 +1,17 @@
+use crate::ast::expressions::{
+    BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
+    UnaryOperation,
+};
 use crate::{
     fmt::{
-        options::BracketStyle, Assoc, Format, Formatter, Operation,
-        ParentContext,
+        Assoc, Format, Formatter, Operation, ParentContext,
+        options::BracketStyle,
     },
     global::operators::{
-        binary::{ArithmeticOperator, LogicalOperator}, BinaryOperator, ComparisonOperator,
-        LogicalUnaryOperator,
+        BinaryOperator, ComparisonOperator, LogicalUnaryOperator,
         UnaryOperator,
+        binary::{ArithmeticOperator, LogicalOperator},
     },
-};
-use crate::ast::expressions::{
-    BinaryOperation, ComparisonOperation, DatexExpression,
-    DatexExpressionData, UnaryOperation,
 };
 
 impl<'a> Formatter<'a> {
@@ -253,9 +253,7 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::fmt::options::{
-        BracketStyle, FormattingOptions,
-    };
+    use crate::fmt::options::{BracketStyle, FormattingOptions};
 
     use super::*;
 

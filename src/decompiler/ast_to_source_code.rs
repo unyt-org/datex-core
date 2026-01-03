@@ -1,3 +1,4 @@
+use crate::ast::expressions::Apply;
 use crate::ast::expressions::{
     BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
     Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration,
@@ -11,7 +12,6 @@ use crate::ast::type_expressions::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 use core::fmt::{self};
-use crate::ast::expressions::Apply;
 
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
 use crate::references::reference::ReferenceMutability;
@@ -694,12 +694,8 @@ mod tests {
     use super::*;
     use crate::ast::expressions::{Deref, VariableKind};
     use crate::global::operators::assignment::AssignmentOperator;
-    use crate::{
-        ast::spanned::Spanned
-        ,
-        values::core_values::decimal::Decimal,
-    };
     use crate::parser::Parser;
+    use crate::{ast::spanned::Spanned, values::core_values::decimal::Decimal};
 
     fn compact() -> AstToSourceCodeConverter {
         AstToSourceCodeConverter::new(FormattingOptions::compact())

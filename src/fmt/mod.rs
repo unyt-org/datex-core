@@ -1,17 +1,17 @@
 use core::ops::Range;
 
+use crate::ast::expressions::{DatexExpression, VariableAccess};
+use crate::ast::type_expressions::{
+    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
+};
 use crate::{
     compiler::precompiler::precompiled_ast::RichAst,
-    compiler::{parse_datex_script_to_rich_ast_simple_error, CompileOptions},
+    compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
     global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
     libs::core::CoreLibPointerId,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
-use crate::ast::type_expressions::{
-    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
-};
-use crate::ast::expressions::{DatexExpression, VariableAccess};
 
 mod bracketing;
 mod formatting;
@@ -311,8 +311,8 @@ mod tests {
     use crate::fmt::options::VariantFormatting;
 
     use super::*;
-    use indoc::indoc;
     use crate::parser::Parser;
+    use indoc::indoc;
 
     #[test]
     fn ensure_unchanged() {
