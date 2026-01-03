@@ -1,4 +1,4 @@
-use crate::ast::structs::r#type::{
+use crate::ast::type_expressions::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
 };

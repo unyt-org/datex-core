@@ -1,9 +1,6 @@
-use crate::ast::DatexExpressionData;
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
-    CallableDeclaration, CallableKind, DatexExpression,
-};
-use crate::ast::structs::r#type::TypeExpression;
+use crate::ast::expressions::{CallableDeclaration, CallableKind, DatexExpression, DatexExpressionData};
+use crate::ast::type_expressions::TypeExpression;
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
 
@@ -83,11 +80,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{
-        BinaryOperation, CallableDeclaration, CallableKind,
-    };
-    use crate::ast::structs::r#type::TypeExpressionData;
-    use crate::ast::{DatexExpressionData, Statements};
+    use crate::ast::expressions::{BinaryOperation, CallableDeclaration, CallableKind, DatexExpressionData, Statements};
+    use crate::ast::type_expressions::TypeExpressionData;
     use crate::global::operators::BinaryOperator;
     use crate::global::operators::binary::ArithmeticOperator;
     use crate::parser::tests::parse;

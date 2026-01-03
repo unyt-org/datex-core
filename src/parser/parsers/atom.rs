@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, Slot,
 };
 use crate::parser::errors::ParserError;
@@ -319,10 +319,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{
+    use crate::ast::expressions::{
         DatexExpressionData, Slot, Statements,
     };
-    use crate::ast::structs::r#type::{TypeExpression, Union};
+    use crate::ast::type_expressions::{TypeExpression, Union};
     use crate::parser::errors::ParserError;
     use crate::parser::parser_result::ParserResult;
     use crate::parser::tests::try_parse_and_return_on_first_error;
@@ -334,7 +334,7 @@ mod tests {
     };
     use crate::values::core_values::integer::typed_integer::TypedInteger;
     use crate::values::pointer::PointerAddress;
-    use datex_core::ast::structs::r#type::TypeExpressionData;
+    use crate::ast::type_expressions::TypeExpressionData;
     use core::assert_matches::assert_matches;
 
     #[test]

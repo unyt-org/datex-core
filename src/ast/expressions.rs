@@ -1,7 +1,4 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::ResolvedVariable;
-use crate::ast::structs::VariableId;
-use crate::ast::structs::r#type::TypeExpression;
 use crate::global::operators::BinaryOperator;
 use crate::global::operators::ComparisonOperator;
 use crate::global::operators::assignment::AssignmentOperator;
@@ -20,6 +17,8 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::ops::{Neg, Range};
+use crate::ast::type_expressions::TypeExpression;
+use crate::ast::resolved_variable::{ResolvedVariable, VariableId};
 
 #[derive(Clone, Debug)]
 /// An expression in the AST

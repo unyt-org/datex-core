@@ -1,17 +1,5 @@
 use crate::{
-    ast::structs::{
-        ResolvedVariable,
-        expression::{
-            CallableDeclaration, ComparisonOperation, Conditional, CreateRef,
-            DatexExpressionData, Deref, DerefAssignment, List, Map,
-            PropertyAssignment, RemoteExecution, Slot, SlotAssignment,
-            UnaryOperation, VariableAssignment, VariantAccess,
-        },
-        r#type::{
-            FixedSizeList, FunctionType, GenericAccess, SliceList,
-            TypeVariantAccess,
-        },
-    },
+    ast::resolved_variable::ResolvedVariable,
     global::operators::{
         AssignmentOperator, BinaryOperator, LogicalUnaryOperator, UnaryOperator,
     },
@@ -24,19 +12,10 @@ use crate::{
     types::definition::TypeDefinition,
 };
 
-use crate::ast::structs::expression::{GenericInstantiation, PropertyAccess};
+use crate::ast::expressions::{GenericInstantiation, PropertyAccess};
 use crate::{
-    ast::structs::{
-        expression::{
-            BinaryOperation, DatexExpression, Statements, TypeDeclaration,
-            VariableAccess, VariableDeclaration,
-        },
-        r#type::{
-            Intersection, StructuralList, StructuralMap, TypeExpression, Union,
-        },
-    },
     compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
-    libs::core::{CoreLibPointerId, get_core_lib_type},
+    libs::core::{get_core_lib_type, CoreLibPointerId},
     type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -47,24 +26,41 @@ use crate::{
     values::{
         core_values::{
             boolean::Boolean,
-            decimal::{Decimal, typed_decimal::TypedDecimal},
+            decimal::{typed_decimal::TypedDecimal, Decimal},
             endpoint::Endpoint,
-            integer::{Integer, typed_integer::TypedInteger},
-            text::Text,
+            integer::{typed_integer::TypedInteger, Integer},
             r#type::Type,
+            text::Text,
         },
         pointer::PointerAddress,
     },
     visitor::{
-        VisitAction,
-        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
         type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
+            visitable::TypeExpressionVisitResult, TypeExpressionVisitor,
         },
+        VisitAction,
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
-use datex_core::ast::structs::expression::Apply;
+use crate::ast::expressions::Apply;
+use crate::ast::type_expressions::{
+    Intersection, StructuralList, StructuralMap, TypeExpression, Union,
+};
+use crate::ast::type_expressions::{
+    FixedSizeList, FunctionType, GenericAccess, SliceList,
+    TypeVariantAccess,
+};
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpression, Statements, TypeDeclaration,
+    VariableAccess, VariableDeclaration,
+};
+use crate::ast::expressions::{
+    CallableDeclaration, ComparisonOperation, Conditional, CreateRef,
+    DatexExpressionData, Deref, DerefAssignment, List, Map,
+    PropertyAssignment, RemoteExecution, Slot, SlotAssignment,
+    UnaryOperation, VariableAssignment, VariantAccess,
+};
 
 pub mod error;
 pub mod options;
@@ -1193,24 +1189,16 @@ mod tests {
         assert_matches::assert_matches, cell::RefCell, rc::Rc, str::FromStr,
     };
 
-    use crate::parser::parser_result::ValidDatexParseResult;
     use crate::{
-        ast::{
-            parse,
-            spanned::Spanned,
-            structs::expression::{
-                BinaryOperation, DatexExpression, DatexExpressionData, List,
-                Map, VariableDeclaration, VariableKind,
-            },
-        },
+        ast::spanned::Spanned,
         compiler::precompiler::{
             precompile_ast_simple_error,
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
-        global::operators::{BinaryOperator, binary::ArithmeticOperator},
+        global::operators::{binary::ArithmeticOperator, BinaryOperator},
         libs::core::{
-            CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
+            get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId,
         },
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
@@ -1227,21 +1215,26 @@ mod tests {
             core_value::CoreValue,
             core_values::{
                 boolean::Boolean,
-                decimal::{Decimal, typed_decimal::TypedDecimal},
+                decimal::{typed_decimal::TypedDecimal, Decimal},
                 endpoint::Endpoint,
                 integer::{
-                    Integer,
                     typed_integer::{IntegerTypeVariant, TypedInteger},
+                    Integer,
                 },
                 r#type::Type,
             },
         },
     };
+    use crate::ast::expressions::{
+        BinaryOperation, DatexExpression, DatexExpressionData, List,
+        Map, VariableDeclaration, VariableKind,
+    };
+    use crate::parser::Parser;
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
     fn errors_for_script(src: &str) -> Vec<SpannedTypeError> {
-        let ast = parse(src).unwrap();
+        let ast = Parser::parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =
@@ -1274,7 +1267,7 @@ mod tests {
     /// Panics if parsing, precompilation or type inference fails.
     /// Returns the RichAst containing the inferred types.
     fn ast_for_script(src: &str) -> RichAst {
-        let ast = parse(src).unwrap();
+        let ast = Parser::parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =
@@ -1311,7 +1304,7 @@ mod tests {
     /// For "var x = 42;", it returns the never type, as the statement is terminated.
     /// For "10 + 32", it returns the type of the binary operation.
     fn infer_from_script(src: &str) -> Type {
-        let ast = parse(src).unwrap();
+        let ast = Parser::parse(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =

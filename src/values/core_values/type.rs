@@ -1,5 +1,5 @@
 #[cfg(feature = "compiler")]
-use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::expressions::DatexExpressionData;
 use crate::libs::core::CoreLibPointerId;
 use crate::libs::core::get_core_lib_type;
 use crate::libs::core::get_core_lib_type_reference;

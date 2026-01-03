@@ -1,17 +1,17 @@
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
     Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration,
     VariantAccess,
 };
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     CallableDeclaration, DatexExpression, DatexExpressionData, VariableAccess,
     VariableAssignment, VariableDeclaration,
 };
-use crate::ast::structs::r#type::{
+use crate::ast::type_expressions::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
 use core::fmt::{self};
-use datex_core::ast::structs::expression::Apply;
+use crate::ast::expressions::Apply;
 
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
 use crate::references::reference::ReferenceMutability;
@@ -692,13 +692,14 @@ mod tests {
     use indoc::indoc;
 
     use super::*;
-    use crate::ast::structs::expression::Deref;
+    use crate::ast::expressions::{Deref, VariableKind};
     use crate::global::operators::assignment::AssignmentOperator;
     use crate::{
-        ast::spanned::Spanned,
-        ast::{parse, structs::expression::VariableKind},
+        ast::spanned::Spanned
+        ,
         values::core_values::decimal::Decimal,
     };
+    use crate::parser::Parser;
 
     fn compact() -> AstToSourceCodeConverter {
         AstToSourceCodeConverter::new(FormattingOptions::compact())
@@ -713,7 +714,7 @@ mod tests {
     }
 
     fn to_expression(s: &str) -> DatexExpression {
-        parse(s).unwrap()
+        Parser::parse(s).unwrap()
     }
 
     #[test]

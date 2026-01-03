@@ -1,11 +1,10 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{DatexExpressionData, Map};
-use crate::ast::structs::r#type::{
+use crate::ast::type_expressions::{
     StructuralList, StructuralMap, TypeExpressionData,
 };
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
-use datex_core::ast::structs::r#type::TypeExpression;
+use crate::ast::type_expressions::TypeExpression;
 
 impl Parser {
     pub fn parse_type_map(
@@ -32,13 +31,10 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::DatexExpressionData;
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::Map;
-    use crate::ast::structs::r#type::{Intersection, TypeExpressionData};
+    use crate::ast::type_expressions::{Intersection, TypeExpressionData};
     use crate::parser::parsers::type_expressions::tests::parse_type_expression;
-    use crate::parser::tests::parse;
-    use datex_core::ast::structs::r#type::StructuralMap;
+    use crate::ast::type_expressions::StructuralMap;
 
     #[test]
     fn parse_empty_map() {

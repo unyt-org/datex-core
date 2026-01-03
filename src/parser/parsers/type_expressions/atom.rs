@@ -1,6 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{DatexExpression, DatexExpressionData};
-use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::parser::errors::ParserError;
 use crate::parser::lexer::{DecimalWithVariant, IntegerWithVariant, Token};
 use crate::parser::utils::{
@@ -251,7 +250,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::structs::r#type::TypeExpressionData;
+    use crate::ast::type_expressions::TypeExpressionData;
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::{
         DecimalTypeVariant, TypedDecimal,

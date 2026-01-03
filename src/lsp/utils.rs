@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, List, Map, Statements,
     VariableAccess, VariableAssignment, VariableDeclaration,
 };

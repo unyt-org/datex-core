@@ -26,11 +26,11 @@ extern crate num_integer;
 pub mod crypto;
 pub mod dif;
 
-#[cfg(feature = "compiler")]
+#[cfg(feature = "ast")]
 pub mod ast;
 #[cfg(feature = "compiler")]
 pub mod compiler;
-#[cfg(feature = "compiler")]
+#[cfg(feature = "decompiler")]
 pub mod decompiler;
 #[cfg(feature = "compiler")]
 pub mod fmt;

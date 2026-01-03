@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     Apply, BinaryOperation, ComparisonOperation, CreateRef, DatexExpression,
     DatexExpressionData, Deref, DerefAssignment, GenericInstantiation,
     PropertyAssignment, RemoteExecution, SlotAssignment, UnaryOperation,
@@ -17,7 +17,7 @@ use crate::parser::errors::{ParserError, SpannedParserError};
 use crate::parser::lexer::{SpannedToken, Token};
 use crate::references::reference::ReferenceMutability;
 use crate::values::core_values::error::NumberParseError;
-use datex_core::ast::structs::expression::PropertyAccess;
+use crate::ast::expressions::PropertyAccess;
 
 static UNARY_BP: u8 = 22; // weaker than property access / apply, stronger than all other binary operators
 
@@ -511,13 +511,13 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{
+    use crate::ast::expressions::{
         Apply, BinaryOperation, ComparisonOperation, CreateRef,
         DatexExpressionData, Deref, DerefAssignment, GenericInstantiation,
         PropertyAccess, PropertyAssignment, RemoteExecution, Slot,
         SlotAssignment, Statements, UnaryOperation, VariableAssignment,
     };
-    use crate::ast::structs::r#type::TypeExpressionData;
+    use crate::ast::type_expressions::TypeExpressionData;
     use crate::global::operators::binary::{
         ArithmeticOperator, BitwiseOperator, LogicalOperator,
     };

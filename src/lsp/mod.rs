@@ -2,7 +2,7 @@ mod errors;
 mod type_hint_collector;
 mod utils;
 mod variable_declaration_finder;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpressionData, VariableAccess, VariableAssignment,
     VariableDeclaration,
 };

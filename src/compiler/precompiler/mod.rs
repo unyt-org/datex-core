@@ -7,39 +7,30 @@ pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
-use crate::ast::structs::ResolvedVariable;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, RemoteExecution, TypeDeclarationKind, VariantAccess,
 };
-use crate::ast::structs::r#type::{
-    TypeExpression, TypeExpressionData, TypeVariantAccess,
+use crate::ast::type_expressions::{
+    TypeExpressionData, TypeVariantAccess,
 };
-use crate::parser::parser_result::ValidDatexParseResult;
 use crate::types::definition::TypeDefinition;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
-    ast::{
-        spanned::Spanned,
-        structs::expression::{
-            BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
-            VariableAccess, VariableAssignment, VariableDeclaration,
-            VariableKind,
-        },
-    },
+    ast::spanned::Spanned,
     compiler::error::{
-        CompilerError, DetailedCompilerErrors,
-        DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst,
-        SpannedCompilerError, collect_or_pass_error,
+        collect_or_pass_error, CompilerError,
+        DetailedCompilerErrors, DetailedCompilerErrorsWithRichAst, ErrorCollector,
+        MaybeAction,
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst, SpannedCompilerError,
     },
-    global::operators::{BinaryOperator, binary::ArithmeticOperator},
+    global::operators::{binary::ArithmeticOperator, BinaryOperator},
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
     values::core_values::r#type::Type,
     visitor::{
-        VisitAction,
-        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
         type_expression::TypeExpressionVisitor,
+        VisitAction,
     },
 };
 use options::PrecompilerOptions;
@@ -48,6 +39,12 @@ use precompiled_ast::RichAst;
 use precompiled_ast::VariableShape;
 use scope::NewScopeType;
 use scope_stack::PrecompilerScopeStack;
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
+    VariableAccess, VariableAssignment, VariableDeclaration,
+    VariableKind,
+};
+use crate::ast::resolved_variable::ResolvedVariable;
 
 pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
@@ -599,15 +596,13 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::error::src::SrcId;
-    use crate::ast::parse;
-    use crate::ast::structs::expression::{CreateRef, Deref};
-    use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
+    use crate::ast::src_id::SrcId;
+    use crate::ast::expressions::{CreateRef, Deref};
+    use crate::ast::type_expressions::{StructuralMap, TypeExpressionData};
+    use crate::ast::resolved_variable::ResolvedVariable;
     use crate::parser::Parser;
-    use crate::parser::parser_result::{InvalidDatexParseResult, ParserResult};
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::assert_matches::assert_matches;
-    use crate::stdlib::io;
     use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
 
@@ -625,7 +620,7 @@ mod tests {
     #[test]
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
-        let ast = parse("var x: integer = 34; var y = 10; x + y").unwrap();
+        let ast = Parser::parse("var x: integer = 34; var y = 10; x + y").unwrap();
         let res = precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
     }
@@ -633,14 +628,14 @@ mod tests {
     #[test]
     fn property_access() {
         let options = PrecompilerOptions::default();
-        let ast = parse("var x = {a: 1}; x.a").unwrap();
+        let ast = Parser::parse("var x = {a: 1}; x.a").unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
     #[test]
     fn property_access_assignment() {
         let options = PrecompilerOptions::default();
-        let ast = parse("var x = {a: 1}; x.a = 2;").unwrap();
+        let ast = Parser::parse("var x = {a: 1}; x.a = 2;").unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
@@ -649,7 +644,7 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: true,
         };
-        let ast = parse("x + 10").unwrap();
+        let ast = Parser::parse("x + 10").unwrap();
         let result = precompile(ast, options);
         println!("{:#?}", result);
         assert!(result.is_err());
@@ -660,7 +655,7 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: false,
         };
-        let ast = parse("var x = 1; var x = 2;").unwrap();
+        let ast = Parser::parse("var x = 1; var x = 2;").unwrap();
         let result = precompile(ast, options);
         assert_matches!(result.unwrap_err(), SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})  if name == "x");
     }
@@ -671,7 +666,7 @@ mod tests {
         type A = integer;
         type A = text; // redeclaration error
         "#;
-        let ast = parse(src).unwrap();
+        let ast = Parser::parse(src).unwrap();
         let result = precompile(ast, PrecompilerOptions::default());
         assert!(result.is_err());
         assert_matches!(
@@ -690,7 +685,7 @@ mod tests {
     ) -> Result<RichAst, SpannedCompilerError> {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
-        let ast = parse(src)?;
+        let ast = Parser::parse(src)?;
         precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
     }
 

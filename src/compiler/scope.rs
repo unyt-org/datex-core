@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::VariableKind;
+use crate::ast::expressions::VariableKind;
 use crate::collections::HashMap;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;

@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::{DatexExpression, VariableDeclaration};
+use crate::ast::expressions::{DatexExpression, VariableDeclaration};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::TypeExpressionVisitor;

@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, Map,
 };
 use crate::parser::lexer::Token;
@@ -28,11 +28,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{DatexExpressionData, Map};
+    use crate::ast::expressions::{DatexExpressionData, Map};
     use crate::global::operators::BinaryOperator;
     use crate::global::operators::binary::ArithmeticOperator;
     use crate::parser::tests::{parse, try_parse_and_return_on_first_error};
-    use datex_core::ast::structs::expression::BinaryOperation;
+    use crate::ast::expressions::BinaryOperation;
 
     #[test]
     fn parse_empty_map() {

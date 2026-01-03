@@ -26,26 +26,20 @@ pub enum VisitAction<T: Sized> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::structs::expression::{
-        BinaryOperation, DatexExpression, DatexExpressionData, Statements,
-    };
+    use crate::ast::expressions::{BinaryOperation, DatexExpression, DatexExpressionData, Statements, VariableAccess};
     use crate::global::operators::BinaryOperator;
     use crate::global::operators::binary::ArithmeticOperator;
     use crate::visitor::{
-        VisitAction, expression::visitable::ExpressionVisitResult,
+        expression::visitable::ExpressionVisitResult, VisitAction,
     };
     use core::ops::Range;
-
-    use crate::ast::structs::expression::CreateRef;
-    use crate::ast::structs::{
-        expression::VariableAccess,
-        r#type::{TypeExpression, TypeExpressionData},
-    };
+    use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
+    use crate::ast::expressions::CreateRef;
     use crate::parser::Parser;
     use crate::visitor::{
         expression::ExpressionVisitor,
         type_expression::{
-            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
+            visitable::TypeExpressionVisitResult, TypeExpressionVisitor,
         },
     };
 

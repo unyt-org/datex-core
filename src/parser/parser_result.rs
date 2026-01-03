@@ -1,6 +1,5 @@
-use crate::ast::DatexExpression;
-use crate::parser::errors::{ParserError, SpannedParserError};
-use core::ops::Range;
+use crate::parser::errors::{SpannedParserError};
+use crate::ast::expressions::DatexExpression;
 
 #[derive(Debug, Clone)]
 pub struct ValidDatexParseResult {

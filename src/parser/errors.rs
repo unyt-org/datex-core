@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::DatexExpression;
+use crate::ast::expressions::DatexExpression;
 use crate::compiler::error::ErrorCollector;
 use crate::global::operators::UnaryOperator;
 use crate::parser::lexer::Token;

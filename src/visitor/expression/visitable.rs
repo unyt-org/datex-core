@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     BinaryOperation, CallableDeclaration, ComparisonOperation, Conditional,
     CreateRef, DatexExpression, DatexExpressionData, Deref, DerefAssignment,
     GenericInstantiation, List, Map, PropertyAccess, PropertyAssignment,
@@ -8,7 +8,7 @@ use crate::ast::structs::expression::{
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::visitable::VisitableTypeExpression;
-use datex_core::ast::structs::expression::Apply;
+use crate::ast::expressions::Apply;
 
 pub type ExpressionVisitResult<E> = Result<VisitAction<DatexExpression>, E>;
 

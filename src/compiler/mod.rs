@@ -1,4 +1,3 @@
-use crate::ast::structs::VariableId;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
@@ -10,7 +9,7 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use core::cell::RefCell;
 
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
     UnboundedStatement, VariableAccess, VariableAssignment,
@@ -51,6 +50,7 @@ use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
+use crate::ast::resolved_variable::VariableId;
 
 pub mod context;
 pub mod error;
