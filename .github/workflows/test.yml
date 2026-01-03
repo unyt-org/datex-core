@@ -11,6 +11,7 @@ jobs:
         env:
             PROJECT_NAME_UNDERSCORE: datex_core
             CARGO_INCREMENTAL: 0
+            RUSTFLAGS: -Awarnings
         steps:
             - uses: actions/checkout@v5
 
@@ -71,7 +72,8 @@ jobs:
         concurrency:
             group: ${{ github.workflow }}-${{ github.ref }}-test-embedded
             cancel-in-progress: true
-
+        env:
+            RUSTFLAGS: -Awarnings
         steps:
             - uses: actions/checkout@v5
 
