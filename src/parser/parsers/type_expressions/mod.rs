@@ -198,7 +198,7 @@ mod tests {
     use crate::ast::type_expressions::{
         Intersection, TypeExpressionData, Union,
     };
-    use crate::parser::Parser;
+    use crate::parser::{Parser, ParserOptions};
     use crate::parser::lexer::get_spanned_tokens_from_source;
 
     pub fn parse_type_expression(src: &str) -> TypeExpression {
@@ -206,7 +206,7 @@ mod tests {
         if !errors.is_empty() {
             panic!("Lexer errors: {:?}", errors);
         }
-        let mut parser = Parser::new_from_tokens(tokens, None);
+        let mut parser = Parser::new_from_tokens(tokens, None, ParserOptions::default());
         parser.parse_type_expression(0).unwrap()
     }
 

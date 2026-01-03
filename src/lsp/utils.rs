@@ -271,7 +271,6 @@ impl LanguageServerBackend {
             finder.found_expr.map(|e| DatexExpression {
                 span: e.1,
                 data: e.0,
-                wrapped: None,
                 ty: None,
             })
         } else {

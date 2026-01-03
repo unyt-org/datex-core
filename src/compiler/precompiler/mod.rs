@@ -618,7 +618,7 @@ mod tests {
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
         let ast =
-            Parser::parse("var x: integer = 34; var y = 10; x + y").unwrap();
+            Parser::parse_with_default_options("var x: integer = 34; var y = 10; x + y").unwrap();
         let res = precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
     }
@@ -626,14 +626,14 @@ mod tests {
     #[test]
     fn property_access() {
         let options = PrecompilerOptions::default();
-        let ast = Parser::parse("var x = {a: 1}; x.a").unwrap();
+        let ast = Parser::parse_with_default_options("var x = {a: 1}; x.a").unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
     #[test]
     fn property_access_assignment() {
         let options = PrecompilerOptions::default();
-        let ast = Parser::parse("var x = {a: 1}; x.a = 2;").unwrap();
+        let ast = Parser::parse_with_default_options("var x = {a: 1}; x.a = 2;").unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
@@ -642,7 +642,7 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: true,
         };
-        let ast = Parser::parse("x + 10").unwrap();
+        let ast = Parser::parse_with_default_options("x + 10").unwrap();
         let result = precompile(ast, options);
         println!("{:#?}", result);
         assert!(result.is_err());
@@ -653,7 +653,7 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: false,
         };
-        let ast = Parser::parse("var x = 1; var x = 2;").unwrap();
+        let ast = Parser::parse_with_default_options("var x = 1; var x = 2;").unwrap();
         let result = precompile(ast, options);
         assert_matches!(result.unwrap_err(), SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})  if name == "x");
     }
@@ -664,7 +664,7 @@ mod tests {
         type A = integer;
         type A = text; // redeclaration error
         "#;
-        let ast = Parser::parse(src).unwrap();
+        let ast = Parser::parse_with_default_options(src).unwrap();
         let result = precompile(ast, PrecompilerOptions::default());
         assert!(result.is_err());
         assert_matches!(
@@ -675,7 +675,7 @@ mod tests {
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
-        Parser::parse(src).unwrap()
+        Parser::parse_with_default_options(src).unwrap()
     }
 
     fn parse_and_precompile_spanned_result(
@@ -683,7 +683,7 @@ mod tests {
     ) -> Result<RichAst, SpannedCompilerError> {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
-        let ast = Parser::parse(src)?;
+        let ast = Parser::parse_with_default_options(src)?;
         precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
     }
 

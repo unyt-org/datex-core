@@ -21,19 +21,27 @@ pub mod parser_result;
 mod parsers;
 pub mod utils;
 
+
+#[derive(Debug, Clone, Default)]
+pub struct ParserOptions {
+    // does not collapse grouped statements, even if there is only a single statement inside
+    pub(crate) preserve_scoping: bool
+}
+
 pub struct Parser {
     tokens: Vec<SpannedToken>,
     pos: usize,
     // when Some, collect all errors instead of returning on first error
     collected_errors: Option<Vec<SpannedParserError>>,
+    options: ParserOptions,
 }
 
 impl Parser {
     /// Parses the given source code.
     /// Collects all lexing and parsing errors encountered.
-    pub fn parse_collecting(src: &str) -> ParserResult {
+    pub fn parse_collecting(src: &str, options: ParserOptions) -> ParserResult {
         let (tokens, errors) = lexer::get_spanned_tokens_from_source(src);
-        let mut parser = Self::new_from_tokens(tokens, Some(errors));
+        let mut parser = Self::new_from_tokens(tokens, Some(errors), options);
         match parser.parse_root() {
             // this should never happen when collecting errors
             Err(e) => {
@@ -62,7 +70,7 @@ impl Parser {
 
     /// Parses the given source code.
     /// Aborts on the first lexing or parsing error encountered.
-    pub fn parse(src: &str) -> Result<DatexExpression, SpannedParserError> {
+    pub fn parse(src: &str, options: ParserOptions) -> Result<DatexExpression, SpannedParserError> {
         let (tokens, errors) = lexer::get_spanned_tokens_from_source(src);
         // already has lexer errors - aborts early when parsing starts
         if let Some(first_error) = errors.into_iter().next() {
@@ -70,19 +78,39 @@ impl Parser {
         }
         // no lexer errors - can proceed with parsing (using early abort mode)
         else {
-            let mut parser = Self::new_from_tokens(tokens, None);
+            let mut parser = Self::new_from_tokens(tokens, None, options);
             parser.parse_root()
         }
+    }
+
+    /// Parses the given source code.
+    /// Aborts on the first lexing or parsing error encountered.
+    /// Uses default parser options.
+    pub fn parse_with_default_options(
+        src: &str,
+    ) -> Result<DatexExpression, SpannedParserError> {
+        Self::parse(src, ParserOptions::default())
+    }
+
+    /// Parses the given source code.
+    /// Collects all lexing and parsing errors encountered.
+    /// Uses default parser options.
+    pub fn parse_collecting_with_default_options(
+        src: &str,
+    ) -> ParserResult {
+        Self::parse_collecting(src, ParserOptions::default())
     }
 
     fn new_from_tokens(
         tokens: Vec<SpannedToken>,
         collected_errors: Option<Vec<SpannedParserError>>,
+        options: ParserOptions,
     ) -> Self {
         Self {
             tokens,
             pos: 0,
             collected_errors,
+            options,
         }
     }
 
@@ -254,14 +282,14 @@ mod tests {
     pub fn try_parse_and_return_on_first_error(
         src: &str,
     ) -> Result<DatexExpression, SpannedParserError> {
-        Parser::parse(src)
+        Parser::parse_with_default_options(src)
     }
 
     pub fn try_parse_and_collect_errors(src: &str) -> ParserResult {
-        Parser::parse_collecting(src)
+        Parser::parse_collecting_with_default_options(src)
     }
 
     pub fn parse(src: &str) -> DatexExpression {
-        Parser::parse(src).unwrap()
+        Parser::parse_with_default_options(src).unwrap()
     }
 }

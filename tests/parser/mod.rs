@@ -48,7 +48,7 @@ use datex_core::values::core_values::error::NumberParseError;
 /// Parse the given source code into a DatexExpression AST.
 fn parse_unwrap(src: &str) -> DatexExpression {
     let src_id = SrcId::test();
-    Parser::parse(src).unwrap()
+    Parser::parse_with_default_options(src).unwrap()
 }
 
 /// Parse the given source code into a DatexExpressionData AST.
@@ -63,7 +63,7 @@ fn parse_print_error(
     src: &str,
 ) -> Result<DatexExpression, Vec<SpannedParserError>> {
     let src_id = SrcId::test();
-    let res = Parser::parse_collecting(src);
+    let res = Parser::parse_collecting_with_default_options(src);
     match res {
         ParserResult::Invalid(InvalidDatexParseResult { errors, .. }) => {
             // errors.iter().for_each(|e| {
@@ -3193,7 +3193,7 @@ fn shebang() {
 
     let src = "1;\n#!/usr/bin/env datex\n2";
     // syntax error
-    let res = Parser::parse(src);
+    let res = Parser::parse_with_default_options(src);
     assert!(
         res.is_err(),
         "Expected error when parsing expression with shebang"
@@ -3434,7 +3434,7 @@ fn pointer_address() {
 
     // other lengths are invalid
     let src = "$12";
-    let res = Parser::parse(src);
+    let res = Parser::parse_with_default_options(src);
     assert!(res.is_err());
 }
 
