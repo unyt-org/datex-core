@@ -74,7 +74,6 @@ impl Spanned for TypeExpressionData {
         TypeExpression {
             data: self,
             span: span.into(),
-            wrapped: None,
             ty: None,
         }
     }
@@ -83,7 +82,6 @@ impl Spanned for TypeExpressionData {
         TypeExpression {
             data: self,
             span: 0..0,
-            wrapped: None,
             ty: None,
         }
     }
@@ -94,7 +92,6 @@ impl Spanned for TypeExpressionData {
 pub struct TypeExpression {
     pub data: TypeExpressionData,
     pub span: Range<usize>,
-    pub wrapped: Option<usize>, // number of wrapping parentheses
     pub ty: Option<Type>,
 }
 impl TypeExpression {
@@ -102,7 +99,6 @@ impl TypeExpression {
         Self {
             data,
             span,
-            wrapped: None,
             ty: None,
         }
     }

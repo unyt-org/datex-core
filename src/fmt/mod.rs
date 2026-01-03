@@ -12,6 +12,7 @@ use crate::{
     libs::core::CoreLibPointerId,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
+use crate::parser::ParserOptions;
 
 mod bracketing;
 mod formatting;
@@ -32,6 +33,7 @@ pub enum Operation<'a> {
     Binary(&'a BinaryOperator),
     Comparison(&'a ComparisonOperator),
     Unary(&'a UnaryOperator),
+    Statements,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +53,13 @@ impl<'a> Formatter<'a> {
     pub fn new(script: &'a str, options: FormattingOptions) -> Self {
         let ast = parse_datex_script_to_rich_ast_simple_error(
             script,
-            &mut CompileOptions::default(),
+            &mut CompileOptions {
+                // Preserve scoping information for accurate formatting
+                parser_options: ParserOptions {
+                    preserve_scoping: true
+                },
+                ..Default::default()
+            },
         )
         .expect("Failed to parse Datex script");
         Self {
@@ -317,9 +325,9 @@ mod tests {
     #[test]
     fn ensure_unchanged() {
         let script = "const x = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
-        let ast_original = Parser::parse(script).unwrap();
+        let ast_original = Parser::parse_with_default_options(script).unwrap();
         let formatted = to_string(script, FormattingOptions::default());
-        let ast_new = Parser::parse(&formatted).unwrap();
+        let ast_new = Parser::parse_with_default_options(&formatted).unwrap();
         assert_eq!(ast_original, ast_new);
     }
 

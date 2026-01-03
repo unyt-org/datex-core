@@ -17,6 +17,7 @@ use crate::{
         integer::typed_integer::TypedInteger,
     },
 };
+use crate::fmt::Assoc;
 
 impl<'a> Formatter<'a> {
     pub fn datex_expression_to_source_code(
@@ -90,7 +91,11 @@ impl<'a> Formatter<'a> {
                     .iter()
                     .enumerate()
                     .map(|(i, stmt)| {
-                        self.format_datex_expression(stmt)
+                        self.format_datex_expression_with_parent(stmt, Some(ParentContext {
+                            precedence: 0,
+                            associativity: Assoc::None,
+                            operation: Operation::Statements,
+                        }), false)
                             + (if is_terminated
                                 || i < statements.statements.len() - 1
                             {

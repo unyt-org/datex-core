@@ -110,7 +110,6 @@ mod tests {
                     name: identifier.clone(),
                 }),
                 span: span.clone(),
-                wrapped: None,
                 ty: None,
             }))
         }
@@ -127,14 +126,14 @@ mod tests {
     #[test]
     fn simple_test() {
         let mut ast =
-            Parser::parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap();
+            Parser::parse_with_default_options("var x: integer/u8 = 42; x; ((42 + x))").unwrap();
         MyAst.visit_datex_expression(&mut ast).unwrap();
         println!("{:#?}", ast);
     }
 
     #[test]
     fn error() {
-        let mut ast = Parser::parse("true + false").unwrap();
+        let mut ast = Parser::parse_with_default_options("true + false").unwrap();
         let mut transformer = MyAst;
         let res = transformer.visit_datex_expression(&mut ast);
         assert!(res.is_err());
@@ -155,7 +154,6 @@ mod tests {
                                     "x".to_string(),
                                 ),
                                 span: 0..1,
-                                wrapped: None,
                                 ty: None,
                             }),
                             right: Box::new(DatexExpression {
@@ -163,13 +161,11 @@ mod tests {
                                     "y".to_string(),
                                 ),
                                 span: 2..3,
-                                wrapped: None,
                                 ty: None,
                             }),
                             ty: None,
                         },
                     ),
-                    wrapped: None,
                     span: 0..3,
                     ty: None,
                 }],
@@ -177,7 +173,6 @@ mod tests {
                 unbounded: None,
             }),
             span: 1..2,
-            wrapped: None,
             ty: None,
         };
         let transformer = &mut MyAst;

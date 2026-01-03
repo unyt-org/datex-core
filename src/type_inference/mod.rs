@@ -1233,7 +1233,7 @@ mod tests {
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
     fn errors_for_script(src: &str) -> Vec<SpannedTypeError> {
-        let ast = Parser::parse(src).unwrap();
+        let ast = Parser::parse_with_default_options(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =
@@ -1266,7 +1266,7 @@ mod tests {
     /// Panics if parsing, precompilation or type inference fails.
     /// Returns the RichAst containing the inferred types.
     fn ast_for_script(src: &str) -> RichAst {
-        let ast = Parser::parse(src).unwrap();
+        let ast = Parser::parse_with_default_options(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =
@@ -1303,7 +1303,7 @@ mod tests {
     /// For "var x = 42;", it returns the never type, as the statement is terminated.
     /// For "10 + 32", it returns the type of the binary operation.
     fn infer_from_script(src: &str) -> Type {
-        let ast = Parser::parse(src).unwrap();
+        let ast = Parser::parse_with_default_options(src).unwrap();
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
         let mut res =

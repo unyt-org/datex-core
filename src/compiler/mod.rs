@@ -36,7 +36,7 @@ use crate::core_compiler::value_compiler::{
     append_value_container,
 };
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
-use crate::parser::Parser;
+use crate::parser::{Parser, ParserOptions};
 use crate::references::reference::ReferenceMutability;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
@@ -65,11 +65,12 @@ pub mod workspace;
 #[derive(Clone, Default)]
 pub struct CompileOptions {
     pub compile_scope: CompilationScope,
+    pub parser_options: ParserOptions
 }
 
 impl CompileOptions {
     pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
-        CompileOptions { compile_scope }
+        CompileOptions { compile_scope, parser_options: ParserOptions::default() }
     }
 }
 
@@ -258,7 +259,7 @@ pub fn compile_script(
 pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, SpannedCompilerError> {
-    let valid_parse_result = Parser::parse(datex_script)?;
+    let valid_parse_result = Parser::parse_with_default_options(datex_script)?;
     extract_static_value_from_ast(&valid_parse_result)
         .map(Some)
         .map_err(SpannedCompilerError::from)
@@ -335,7 +336,7 @@ pub fn parse_datex_script_to_rich_ast_simple_error(
     //     return Ok((result, options.compile_scope));
     // }
     let parse_start = Instant::now();
-    let mut valid_parse_result = Parser::parse(datex_script)?;
+    let mut valid_parse_result = Parser::parse(datex_script, options.parser_options.clone())?;
 
     // make sure to append a statements block for the first block in ExecutionMode::Unbounded
     let is_terminated = if let ExecutionMode::Unbounded { has_next } =
@@ -388,7 +389,7 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors(
     options: &mut CompileOptions,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
     let (ast, parser_errors) =
-        Parser::parse_collecting(datex_script).into_ast_and_errors();
+        Parser::parse_collecting_with_default_options(datex_script).into_ast_and_errors();
     precompile_to_rich_ast(
         ast,
         &mut options.compile_scope,

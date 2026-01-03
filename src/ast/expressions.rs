@@ -25,7 +25,6 @@ use core::ops::{Neg, Range};
 pub struct DatexExpression {
     pub data: DatexExpressionData,
     pub span: Range<usize>,
-    pub wrapped: Option<usize>, // number of wrapping parentheses
     pub ty: Option<Type>,
 }
 impl Default for DatexExpression {
@@ -37,7 +36,6 @@ impl Default for DatexExpression {
                 unbounded: None,
             }),
             span: 0..0,
-            wrapped: None,
             ty: None,
         }
     }
@@ -47,7 +45,6 @@ impl DatexExpression {
         DatexExpression {
             data,
             span,
-            wrapped: None,
             ty: None,
         }
     }
@@ -183,7 +180,6 @@ impl Spanned for DatexExpressionData {
         DatexExpression {
             data: self,
             span: span.into(),
-            wrapped: None,
             ty: None,
         }
     }
@@ -192,7 +188,6 @@ impl Spanned for DatexExpressionData {
         DatexExpression {
             data: self,
             span: (0..0),
-            wrapped: None,
             ty: None,
         }
     }

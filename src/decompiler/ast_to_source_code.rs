@@ -710,7 +710,7 @@ mod tests {
     }
 
     fn to_expression(s: &str) -> DatexExpression {
-        Parser::parse(s).unwrap()
+        Parser::parse_with_default_options(s).unwrap()
     }
 
     #[test]
