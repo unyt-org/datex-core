@@ -1,5 +1,5 @@
 use crate::values::pointer::PointerAddress;
-use std::fmt::Display;
+use core::fmt::Display;
 
 pub type VariableId = usize;
 
