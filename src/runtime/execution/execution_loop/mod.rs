@@ -851,11 +851,11 @@ pub fn inner_execution_loop(
                                 RegularInstruction::SetPropertyText(
                                     property_data,
                                 ) => {
-                                    let value = yield_unwrap!(
+                                    let target = yield_unwrap!(
                                         collected_results
                                             .pop_value_result_assert_existing()
                                     );
-                                    let target = yield_unwrap!(
+                                    let value = yield_unwrap!(
                                         collected_results
                                             .pop_value_result_assert_existing()
                                     );
@@ -865,20 +865,20 @@ pub fn inner_execution_loop(
                                         ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
                                             target,
                                             key: OwnedValueKey::Text(property_name),
-                                            value: value.clone()
+                                            value,
                                         })
                                     );
-                                    value.into()
+                                    None.into()
                                 }
-                                
+
                                 RegularInstruction::SetPropertyIndex(
                                     property_data,
                                 ) => {
-                                    let value = yield_unwrap!(
+                                    let target = yield_unwrap!(
                                         collected_results
                                             .pop_value_result_assert_existing()
                                     );
-                                    let target = yield_unwrap!(
+                                    let value = yield_unwrap!(
                                         collected_results
                                             .pop_value_result_assert_existing()
                                     );
@@ -888,13 +888,17 @@ pub fn inner_execution_loop(
                                         ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
                                             target,
                                             key: OwnedValueKey::Index(property_index as i64),
-                                            value: value.clone()
+                                            value
                                         })
                                     );
-                                    value.into()
+                                    None.into()
                                 }
-                                
+
                                 RegularInstruction::SetPropertyDynamic => {
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
                                     let value = yield_unwrap!(
                                         collected_results
                                             .pop_value_result_assert_existing()
@@ -903,19 +907,16 @@ pub fn inner_execution_loop(
                                         collected_results
                                             .pop_value_result_assert_existing()
                                     );
-                                    let target = yield_unwrap!(
-                                        collected_results
-                                            .pop_value_result_assert_existing()
-                                    );
+
                                     interrupt!(
                                         interrupt_provider,
                                         ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
                                             target,
                                             key: OwnedValueKey::Value(key),
-                                            value: value.clone()
+                                            value
                                         })
                                     );
-                                    value.into()
+                                    None.into()
                                 }
 
                                 RegularInstruction::RemoteExecution(

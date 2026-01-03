@@ -1,4 +1,4 @@
-use crate::ast::expressions::Apply;
+use crate::ast::expressions::{Apply, PropertyAssignment};
 use crate::ast::expressions::{
     BinaryOperation, ComparisonOperation, Conditional, DerefAssignment, List,
     Map, PropertyAccess, RemoteExecution, SlotAssignment, TypeDeclaration,
@@ -421,9 +421,21 @@ impl AstToSourceCodeConverter {
 
     pub fn format(&self, ast: &DatexExpression) -> String {
         match &ast.data {
-            DatexExpressionData::PropertyAssignment(_) => todo!(
-                "Property assignment not yet implemented in AST to source code"
-            ),
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                operator,
+                base,
+                assigned_expression,
+                property,
+            }) => {
+                ast_fmt!(
+                    &self,
+                    "{}.{}{}%s{operator}%s{}",
+                    self.format(base),
+                    self.key_expression_to_source_code(property),
+                    self.space(),
+                    self.format(assigned_expression)
+                )
+            }
             DatexExpressionData::VariantAccess(VariantAccess {
                 name,
                 variant,

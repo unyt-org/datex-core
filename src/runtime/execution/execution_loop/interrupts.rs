@@ -29,7 +29,7 @@ pub enum ExternalExecutionInterrupt {
     RemoteExecution(ValueContainer, Vec<u8>),
     Apply(ValueContainer, Vec<ValueContainer>),
     SetProperty {
-        target: ValueContainer,
+        target: ValueContainer, // TODO: move value containers by reference to allow modification on plain value containers (no cloning!)
         key: OwnedValueKey,
         value: ValueContainer,
     }
