@@ -13,6 +13,7 @@ use core::fmt::{self, Display};
 use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use crate::stdlib::borrow::Cow;
 use indexmap::IndexMap;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -281,8 +282,8 @@ impl From<MapKey> for ValueContainer {
 impl<'a> From<&'a MapKey> for ValueKey<'a> {
     fn from(key: &'a MapKey) -> Self {
         match key {
-            MapKey::Text(text) => ValueKey::Text(text),
-            MapKey::Value(value) => ValueKey::Value(value),
+            MapKey::Text(text) => ValueKey::Text(Cow::Borrowed(text)),
+            MapKey::Value(value) => ValueKey::Value(Cow::Borrowed(value)),
         }
     }
 }

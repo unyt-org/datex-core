@@ -707,33 +707,7 @@ impl Reference {
         key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, AccessError> {
         self.with_value(|value| {
-            match value.inner {
-                CoreValue::Map(ref mut map) => {
-                    // If the value is a map, get the property
-                    Ok(map.get(key)?.clone())
-                }
-                CoreValue::List(ref mut list) => {
-                    if let Some(index) = key.into().try_as_index() {
-                        Ok(list.get(index)?.clone())
-                    } else {
-                        Err(AccessError::InvalidIndexKey)
-                    }
-                }
-                CoreValue::Text(ref text) => {
-                    if let Some(index) = key.into().try_as_index() {
-                        let char = text.char_at(index)?;
-                        Ok(ValueContainer::from(char.to_string()))
-                    } else {
-                        Err(AccessError::InvalidIndexKey)
-                    }
-                }
-                _ => {
-                    // If the value is not an map, we cannot get a property
-                    Err(AccessError::InvalidOperation(
-                        "Cannot get property".to_string(),
-                    ))
-                }
-            }
+            value.try_get_property(key)
         })
         .unwrap_or(Err(AccessError::InvalidOperation(
             "Cannot get property on invalid reference".to_string(),

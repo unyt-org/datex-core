@@ -79,51 +79,7 @@ impl Reference {
         };
 
         self.with_value_unchecked(|value| {
-            match value.inner {
-                CoreValue::Map(ref mut map) => {
-                    // If the value is an map, set the property
-                    map.try_set(key, val)?;
-                }
-                CoreValue::List(ref mut list) => {
-                    if let Some(index) = key.try_as_index() {
-                        list.set(index, val).map_err(|err| {
-                            AccessError::IndexOutOfBounds(err)
-                        })?;
-                    } else {
-                        return Err(AccessError::InvalidIndexKey);
-                    }
-                }
-                CoreValue::Text(ref mut text) => {
-                    if let Some(index) = key.try_as_index() {
-                        if let ValueContainer::Value(v) = &val
-                            && let CoreValue::Text(new_char) = &v.inner
-                            && new_char.0.len() == 1
-                        {
-                            let char =
-                                new_char.0.chars().next().unwrap_or('\0');
-                            text.set_char_at(index, char).map_err(|err| {
-                                AccessError::IndexOutOfBounds(err)
-                            })?;
-                        } else {
-                            return Err(AccessError::InvalidOperation(
-                                "Can only set char character in text"
-                                    .to_string(),
-                            ));
-                        }
-                    } else {
-                        return Err(AccessError::InvalidIndexKey);
-                    }
-                }
-                _ => {
-                    // If the value is not an map, we cannot set a property
-                    return Err(AccessError::InvalidOperation(format!(
-                        "Cannot set property '{}' on non-map value: {:?}",
-                        key, value
-                    )));
-                }
-            }
-
-            Ok(())
+            value.try_set_property(key, val.clone())
         })?;
 
         self.notify_observers(&dif_update.with_source(source_id));

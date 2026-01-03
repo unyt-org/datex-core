@@ -4,7 +4,8 @@ use crate::global::protocol_structures::instructions::{
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
-use crate::values::value_container::ValueContainer;
+use crate::values::core_values::map::MapKey;
+use crate::values::value_container::{OwnedValueKey, ValueContainer};
 
 #[derive(Debug)]
 pub enum ExecutionInterrupt {
@@ -27,6 +28,11 @@ pub enum ExternalExecutionInterrupt {
     GetInternalSlotValue(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Apply(ValueContainer, Vec<ValueContainer>),
+    SetProperty {
+        target: ValueContainer,
+        key: OwnedValueKey,
+        value: ValueContainer,
+    }
 }
 
 #[derive(Debug)]
