@@ -42,7 +42,7 @@ use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::time::Instant;
-use crate::utils::buffers::append_u8;
+use crate::utils::buffers::{append_u16, append_u8};
 use crate::utils::buffers::append_u32;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
@@ -828,23 +828,124 @@ fn compile_expression(
         // apply
         DatexExpressionData::Apply(apply) => {
             compilation_context.mark_has_non_static_value();
-            let base_expression = apply.base;
+
+            // append apply instruction code
+            let len = apply.arguments.len();
+            match len {
+                0 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY_ZERO);
+                }
+                1 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY_SINGLE);
+                }
+                // u16 argument count
+                2..=65_535 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY);
+                    // add argument count
+                    append_u16(
+                        &mut compilation_context.buffer,
+                        apply.arguments.len() as u16
+                    );
+                }
+                _ => return Err(CompilerError::TooManyApplyArguments),
+            }
+
+            // compile arguments
+            for argument in apply.arguments.iter() {
+                scope = compile_expression(
+                    compilation_context,
+                    RichAst::new(argument.clone(), &metadata),
+                    CompileMetadata::default(),
+                    scope,
+                )?;
+            }
+
+            // compile function expression
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*base_expression, &metadata),
+                RichAst::new(*apply.base, &metadata),
                 CompileMetadata::default(),
                 scope,
             )?;
-            // TODO: apply
+
         }
 
         DatexExpressionData::PropertyAccess(property_access) => {
-            todo!()
+            compilation_context.mark_has_non_static_value();
+
+            // depending on the key, handle different property accesses
+            match &property_access.property.data {
+                // simple text key if length fits in u8
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    compile_text_property_access(compilation_context, key)
+                }
+                // index access if integer fits in u32
+                DatexExpressionData::Integer(index) if let Some(index) = index.as_u32() => {
+                    compile_index_property_access(compilation_context, index)
+                }
+                _ => {
+                    scope = compile_dynamic_property_access(
+                        compilation_context,
+                        &property_access.property,
+                        scope,
+                    )?;
+                }
+            }
+
+            // compile base expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*property_access.base, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         DatexExpressionData::GenericInstantiation(generic_instantiation) => {
             // NOTE: might already be handled in type compilation
             todo!()
+        }
+
+        DatexExpressionData::PropertyAssignment(property_assignment) => {
+            compilation_context.mark_has_non_static_value();
+
+            // depending on the key, handle different property assignments
+            match &property_assignment.property.data {
+                // simple text key if length fits in u8
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    compile_text_property_assignment(compilation_context, key)
+                }
+                // index access if integer fits in u32
+                DatexExpressionData::Integer(index) if let Some(index) = index.as_u32() => {
+                    compile_index_property_assignment(compilation_context, index)
+                }
+                _ => {
+                    scope = compile_dynamic_property_assignment(
+                        compilation_context,
+                        &property_assignment.property,
+                        scope,
+                    )?;
+                }
+            }
+
+            // compile assigned expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*property_assignment.assigned_expression, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            // compile base expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*property_assignment.base, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         // variables
@@ -1184,7 +1285,7 @@ fn compile_expression(
 }
 
 fn compile_key_value_entry(
-    compilation_scope: &mut CompilationContext,
+    compilation_context: &mut CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
     metadata: &Rc<RefCell<AstMetadata>>,
@@ -1193,14 +1294,14 @@ fn compile_key_value_entry(
     match key.data {
         // text -> insert key string
         DatexExpressionData::Text(text) => {
-            append_key_string(&mut compilation_scope.buffer, &text);
+            append_key_string(&mut compilation_context.buffer, &text);
         }
         // other -> insert key as dynamic
         _ => {
-            compilation_scope
+            compilation_context
                 .append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 RichAst::new(key, metadata),
                 CompileMetadata::default(),
                 scope,
@@ -1209,13 +1310,86 @@ fn compile_key_value_entry(
     };
     // insert value
     scope = compile_expression(
-        compilation_scope,
+        compilation_context,
         RichAst::new(value, metadata),
         CompileMetadata::default(),
         scope,
     )?;
     Ok(scope)
 }
+
+fn compile_text_property_access(
+    compilation_context: &mut CompilationContext,
+    key: &str
+) {
+    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_TEXT);
+    // append key length as u8
+    append_u8(&mut compilation_context.buffer, key.len() as u8);
+    // append key bytes
+    compilation_context
+        .buffer
+        .extend_from_slice(key.as_bytes());
+}
+
+fn compile_text_property_assignment(
+    compilation_context: &mut CompilationContext,
+    key: &str
+) {
+    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_TEXT);
+    // append key length as u8
+    append_u8(&mut compilation_context.buffer, key.len() as u8);
+    // append key bytes
+    compilation_context
+        .buffer
+        .extend_from_slice(key.as_bytes());
+}
+
+fn compile_index_property_access(
+    compilation_context: &mut CompilationContext,
+    index: u32,
+) {
+    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_INDEX);
+    append_u32(&mut compilation_context.buffer, index);
+}
+
+fn compile_index_property_assignment(
+    compilation_context: &mut CompilationContext,
+    index: u32,
+) {
+    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_INDEX);
+    append_u32(&mut compilation_context.buffer, index);
+}
+
+fn compile_dynamic_property_access(
+    compilation_context: &mut CompilationContext,
+    key_expression: &DatexExpression,
+    scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_DYNAMIC);
+    // compile key expression
+    compile_expression(
+        compilation_context,
+        RichAst::new(key_expression.clone(), &Rc::new(RefCell::new(AstMetadata::default()))),
+        CompileMetadata::default(),
+        scope,
+    )
+}
+
+fn compile_dynamic_property_assignment(
+    compilation_context: &mut CompilationContext,
+    key_expression: &DatexExpression,
+    scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_DYNAMIC);
+    // compile key expression
+    compile_expression(
+        compilation_context,
+        RichAst::new(key_expression.clone(), &Rc::new(RefCell::new(AstMetadata::default()))),
+        CompileMetadata::default(),
+        scope,
+    )
+}
+
 
 #[cfg(test)]
 pub mod tests {
@@ -2940,5 +3114,255 @@ pub mod tests {
         ];
 
         assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn test_get_property_text() {
+        init_logger_debug();
+        let datex_script = "'test'.example";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+
+    #[test]
+    fn test_get_property_text_quoted() {
+        init_logger_debug();
+        let datex_script = "'test'.'example'";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_get_property_index() {
+        init_logger_debug();
+        let datex_script = "'test'.42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_INDEX.into(),
+            // u32 index 42
+            42,
+            0,
+            0,
+            0,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_get_property_dynamic() {
+        init_logger_debug();
+        let datex_script = "'test'.(1u8 + 2u8)";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_DYNAMIC.into(),
+            // property expression: 1 + 2
+            InstructionCode::ADD.into(),
+            InstructionCode::UINT_8.into(),
+            1,
+            InstructionCode::UINT_8.into(),
+            2,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_text() {
+        init_logger_debug();
+        let datex_script = "'test'.example = 42u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // value to set
+            InstructionCode::UINT_8.into(),
+            42,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_index() {
+        init_logger_debug();
+        let datex_script = "'test'.42 = 43u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_INDEX.into(),
+            // u32 index 42
+            42,
+            0,
+            0,
+            0,
+            // value to set
+            InstructionCode::UINT_8.into(),
+            43,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_dynamic() {
+        init_logger_debug();
+        let datex_script = "'test'.(1u8 + 2u8) = 43u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_DYNAMIC.into(),
+            // property expression: 1 + 2
+            InstructionCode::ADD.into(),
+            InstructionCode::UINT_8.into(),
+            1,
+            InstructionCode::UINT_8.into(),
+            2,
+            // value to set
+            InstructionCode::UINT_8.into(),
+            43,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_no_arguments() {
+        init_logger_debug();
+        let datex_script = "'test'()";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY_ZERO.into(),
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_one_argument() {
+        init_logger_debug();
+        let datex_script = "'test' 42u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY_SINGLE.into(),
+            // argument
+            InstructionCode::UINT_8.into(),
+            42,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_multiple_arguments() {
+        init_logger_debug();
+        let datex_script = "'test'(1u8, 2u8, 3u8)";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY.into(),
+            3, // number of arguments
+            0,
+            // argument 1
+            InstructionCode::UINT_8.into(),
+            1,
+            // argument 2
+            InstructionCode::UINT_8.into(),
+            2,
+            // argument 3
+            InstructionCode::UINT_8.into(),
+            3,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
     }
 }

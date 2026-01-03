@@ -541,7 +541,41 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-
+            
+            RegularInstruction::GetPropertyText(_)
+            | RegularInstruction::GetPropertyIndex(_) => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    1,
+                );
+                None
+            }
+            
+            RegularInstruction::GetPropertyDynamic => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    2,
+                );
+                None
+            }
+            
+            RegularInstruction::SetPropertyText(_)
+            | RegularInstruction::SetPropertyIndex(_) => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    2,
+                );
+                None
+            }
+            
+            RegularInstruction::SetPropertyDynamic => {
+                self.collect_full(
+                    Instruction::RegularInstruction(regular_instruction),
+                    3,
+                );
+                None
+            }
+            
             _ => Some(regular_instruction),
         }
     }

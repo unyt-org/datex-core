@@ -1,4 +1,4 @@
-use crate::ast::expressions::UnboundedStatement;
+use crate::ast::expressions::{PropertyAssignment, UnboundedStatement};
 use crate::ast::expressions::{
     Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
@@ -25,6 +25,7 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
+use crate::values::core_values::integer::Integer;
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -265,6 +266,12 @@ pub fn ast_from_bytecode(
                                 | RegularInstruction::UnaryPlus
                                 | RegularInstruction::BitwiseNot
                                 | RegularInstruction::Apply(_)
+                                | RegularInstruction::GetPropertyText(_)
+                                | RegularInstruction::GetPropertyIndex(_)
+                                | RegularInstruction::GetPropertyDynamic
+                                | RegularInstruction::SetPropertyText(_)
+                                | RegularInstruction::SetPropertyIndex(_)
+                                | RegularInstruction::SetPropertyDynamic
                                 | RegularInstruction::Is
                                 | RegularInstruction::Matches
                                 | RegularInstruction::StructuralEqual
@@ -526,6 +533,134 @@ pub fn ast_from_bytecode(
                                 .into()
                             }
 
+                            RegularInstruction::Apply(_) => {
+                                let mut arguments =
+                                    collected_results.collect_value_results();
+                                // base is the last collected argument
+                                let base = arguments
+                                    .remove(arguments.len() - 1);
+                                DatexExpressionData::Apply(Apply {
+                                    base: Box::new(base),
+                                    arguments,
+                                })
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::GetPropertyIndex(index_data) => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAccess(
+                                    crate::ast::expressions::PropertyAccess {
+                                        base: Box::new(base),
+                                        property: Box::new(
+                                            DatexExpressionData::Integer(Integer::from(index_data.0))
+                                                .with_default_span()
+                                        ),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::GetPropertyText(
+                                text_data,
+                            ) => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAccess(
+                                    crate::ast::expressions::PropertyAccess {
+                                        base: Box::new(base),
+                                        property: Box::new(
+                                            DatexExpressionData::Text(
+                                                text_data.0,
+                                            )
+                                            .with_default_span(),
+                                        ),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::GetPropertyDynamic => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                let property =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAccess(
+                                    crate::ast::expressions::PropertyAccess {
+                                        base: Box::new(base),
+                                        property: Box::new(property),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::SetPropertyIndex(index_data) => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                let value =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAssignment(
+                                    PropertyAssignment {
+                                        base: Box::new(base),
+                                        property: Box::new(
+                                            DatexExpressionData::Integer(Integer::from(index_data.0))
+                                                .with_default_span()
+                                        ),
+                                        operator: AssignmentOperator::Assign,
+                                        assigned_expression: Box::new(value),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::SetPropertyText(
+                                text_data,
+                            ) => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                let value =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAssignment(
+                                    PropertyAssignment {
+                                        base: Box::new(base),
+                                        property: Box::new(
+                                            DatexExpressionData::Text(
+                                                text_data.0,
+                                            )
+                                            .with_default_span(),
+                                        ),
+                                        operator: AssignmentOperator::Assign,
+                                        assigned_expression: Box::new(value),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
+                            RegularInstruction::SetPropertyDynamic => {
+                                let base =
+                                    collected_results.pop_value_result();
+                                let value =
+                                    collected_results.pop_value_result();
+                                let property =
+                                    collected_results.pop_value_result();
+                                DatexExpressionData::PropertyAssignment(
+                                    PropertyAssignment {
+                                        base: Box::new(base),
+                                        property: Box::new(property),
+                                        operator: AssignmentOperator::Assign,
+                                        assigned_expression: Box::new(value),
+                                    },
+                                )
+                                .with_default_span()
+                                .into()
+                            }
+
                             e => {
                                 todo!(
                                     "Unhandled collected regular instruction: {:?}",
@@ -563,6 +698,7 @@ mod tests {
     use crate::{
         ast::spanned::Spanned, global::instruction_codes::InstructionCode,
     };
+    use crate::ast::expressions::PropertyAccess;
 
     #[test]
     fn ast_from_bytecode_simple_integer() {
@@ -796,6 +932,292 @@ mod tests {
                 }),
             })
             .with_default_span()
+        );
+    }
+
+    #[test]
+    fn apply_zero_arguments() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::APPLY_ZERO as u8,
+            InstructionCode::SHORT_TEXT as u8,
+            4, // length 4
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Apply(Apply {
+                base: Box::new(
+                    DatexExpressionData::Text("test".to_string())
+                        .with_default_span()
+                ),
+                arguments: vec![],
+            })
+            .with_default_span()
+        );
+    }
+
+    #[test]
+    fn apply_single_argument() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::APPLY_SINGLE as u8,
+            InstructionCode::UINT_8 as u8,
+            0, // argument 0
+            InstructionCode::SHORT_TEXT as u8,
+            3, // length 3
+            b's',
+            b'i',
+            b'n',
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Apply(Apply {
+                base: Box::new(
+                    DatexExpressionData::Text("sin".to_string())
+                        .with_default_span()
+                ),
+                arguments: vec![
+                    DatexExpressionData::TypedInteger(TypedInteger::from(0u8))
+                    .with_default_span()
+                ],
+            })
+            .with_default_span()
+        );
+    }
+
+    #[test]
+    fn apply_multiple_arguments() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::APPLY as u8,
+            2, // 2 arguments
+            0,
+            InstructionCode::UINT_8 as u8,
+            1, // argument 1
+            InstructionCode::UINT_8 as u8,
+            2, // argument 2
+            InstructionCode::SHORT_TEXT as u8,
+            3, // length 3
+            b'a',
+            b'd',
+            b'd',
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast,
+            DatexExpressionData::Apply(Apply {
+                base: Box::new(
+                    DatexExpressionData::Text("add".to_string())
+                        .with_default_span()
+                ),
+                arguments: vec![
+                    DatexExpressionData::TypedInteger(TypedInteger::from(1u8))
+                    .with_default_span(),
+                    DatexExpressionData::TypedInteger(TypedInteger::from(2u8))
+                    .with_default_span(),
+                ],
+            })
+            .with_default_span()
+        );
+    }
+
+    #[test]
+    fn get_text_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::GET_PROPERTY_TEXT as u8,
+            3, // length 3
+            b'a',
+            b'b',
+            b'c',
+            // value
+            InstructionCode::UINT_8 as u8,
+            42,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAccess(PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(42u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Text("abc".to_string())
+                        .with_default_span()
+                ),
+            })
+        );
+    }
+
+    #[test]
+    fn set_text_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::SET_PROPERTY_TEXT as u8,
+            3, // length 3
+            b'x',
+            b'y',
+            b'z',
+            // value
+            InstructionCode::UINT_8 as u8,
+            100,
+            // base
+            InstructionCode::UINT_8 as u8,
+            200,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(200u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Text("xyz".to_string())
+                        .with_default_span()
+                ),
+                operator: AssignmentOperator::Assign,
+                assigned_expression: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(100u8))
+                        .with_default_span(),
+                ),
+            })
+        );
+    }
+
+    #[test]
+    fn get_index_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::GET_PROPERTY_INDEX as u8,
+            5, // index 5
+            0,
+            0,
+            0,
+            // value
+            InstructionCode::UINT_8 as u8,
+            42,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAccess(PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(42u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Integer(Integer::from(5u8))
+                        .with_default_span()
+                ),
+            })
+        );
+    }
+
+    #[test]
+    fn set_index_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::SET_PROPERTY_INDEX as u8,
+            10, // index 10
+            0,
+            0,
+            0,
+            // value
+            InstructionCode::UINT_8 as u8,
+            150,
+            // base
+            InstructionCode::UINT_8 as u8,
+            250,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(250u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Integer(Integer::from(10u8))
+                        .with_default_span()
+                ),
+                operator: AssignmentOperator::Assign,
+                assigned_expression: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(150u8))
+                        .with_default_span(),
+                ),
+            })
+        );
+    }
+
+    #[test]
+    fn get_dynamic_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::GET_PROPERTY_DYNAMIC as u8,
+            // property
+            InstructionCode::SHORT_TEXT as u8,
+            4, // length 4
+            b'n',
+            b'a',
+            b'm',
+            b'e',
+            // value
+            InstructionCode::UINT_8 as u8,
+            42,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAccess(PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(42u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Text("name".to_string())
+                        .with_default_span()
+                ),
+            })
+        );
+    }
+
+    #[test]
+    fn set_dynamic_property() {
+        let bytecode: Vec<u8> = vec![
+            InstructionCode::SET_PROPERTY_DYNAMIC as u8,
+            // property
+            InstructionCode::SHORT_TEXT as u8,
+            3, // length 3
+            b'a',
+            b'g',
+            b'e',
+            // value
+            InstructionCode::UINT_8 as u8,
+            30,
+            // base
+            InstructionCode::UINT_8 as u8,
+            100,
+        ];
+        let ast = ast_from_bytecode(&bytecode).unwrap();
+        assert_eq!(
+            ast.data,
+            DatexExpressionData::PropertyAssignment(PropertyAssignment {
+                base: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(100u8))
+                        .with_default_span()
+                ),
+                property: Box::new(
+                    DatexExpressionData::Text("age".to_string())
+                        .with_default_span()
+                ),
+                operator: AssignmentOperator::Assign,
+                assigned_expression: Box::new(
+                    DatexExpressionData::TypedInteger(TypedInteger::from(30u8))
+                        .with_default_span(),
+                ),
+            })
         );
     }
 }

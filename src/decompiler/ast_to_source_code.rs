@@ -482,7 +482,7 @@ impl AstToSourceCodeConverter {
                     args_source.push(self.format(arg));
                 }
 
-                format!("{}({})", self.format(base), args_source.join(""))
+                format!("{}({})", self.format(base), args_source.join(","))
             }
             DatexExpressionData::TypeExpression(type_expr) => {
                 format!(
@@ -979,5 +979,140 @@ mod tests {
                 .with_default_span();
         assert_eq!(pretty().format(&typed_decimal_ast), "2.71f32");
         assert_eq!(json_compat().format(&typed_decimal_ast), "2.71");
+    }
+
+    #[test]
+    fn property_access_text_key() {
+        let prop_access_ast = DatexExpressionData::PropertyAccess(
+            PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "obj".to_string(),
+                    })
+                    .with_default_span(),
+                ),
+                property: Box::new(
+                    DatexExpressionData::Text("myProp".to_string())
+                        .with_default_span(),
+                ),
+            },
+        )
+        .with_default_span();
+        assert_eq!(
+            compact().format(&prop_access_ast),
+            "obj.myProp"
+        );
+        assert_eq!(
+            pretty().format(&prop_access_ast),
+            "obj.myProp"
+        );
+    }
+
+    #[test]
+    fn property_access_boolean_key() {
+        let prop_access_ast = DatexExpressionData::PropertyAccess(
+            PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "obj".to_string(),
+                    })
+                    .with_default_span(),
+                ),
+                property: Box::new(
+                    DatexExpressionData::Boolean(true)
+                        .with_default_span(),
+                ),
+            },
+        )
+        .with_default_span();
+        assert_eq!(
+            compact().format(&prop_access_ast),
+            "obj.(true)"
+        );
+        assert_eq!(
+            pretty().format(&prop_access_ast),
+            "obj.(true)"
+        );
+    }
+
+    #[test]
+    fn property_access_integer_key() {
+        let prop_access_ast = DatexExpressionData::PropertyAccess(
+            PropertyAccess {
+                base: Box::new(
+                    DatexExpressionData::VariableAccess(VariableAccess {
+                        id: 0,
+                        name: "obj".to_string(),
+                    })
+                    .with_default_span(),
+                ),
+                property: Box::new(
+                    DatexExpressionData::Integer(42.into())
+                        .with_default_span(),
+                ),
+            },
+        )
+        .with_default_span();
+        assert_eq!(
+            compact().format(&prop_access_ast),
+            "obj.42"
+        );
+        assert_eq!(
+            pretty().format(&prop_access_ast),
+            "obj.42"
+        );
+    }
+
+    #[test]
+    fn apply_single_argument() {
+        let apply_ast = DatexExpressionData::Apply(Apply {
+            base: Box::new(
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 0,
+                    name: "func".to_string(),
+                })
+                .with_default_span(),
+            ),
+            arguments: vec![
+                DatexExpressionData::Integer(10.into()).with_default_span(),
+            ],
+        })
+        .with_default_span();
+        assert_eq!(
+            compact().format(&apply_ast),
+            "func(10)"
+        );
+        assert_eq!(
+            pretty().format(&apply_ast),
+            "func(10)"
+        );
+    }
+
+    #[test]
+    fn apply_multiple_arguments() {
+        let apply_ast = DatexExpressionData::Apply(Apply {
+            base: Box::new(
+                DatexExpressionData::VariableAccess(VariableAccess {
+                    id: 0,
+                    name: "func".to_string(),
+                })
+                .with_default_span(),
+            ),
+            arguments: vec![
+                DatexExpressionData::Integer(10.into()).with_default_span(),
+                DatexExpressionData::Text("arg".to_string()).with_default_span(),
+            ],
+        })
+        .with_default_span();
+        assert_eq!(
+            compact().format(&apply_ast),
+            "func(10,\"arg\")"
+        );
+        assert_eq!(
+            pretty().format(&apply_ast),
+            "func(10,\"arg\")"
+        );
     }
 }

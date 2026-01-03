@@ -113,6 +113,14 @@ pub enum RegularInstruction {
 
     Apply(ApplyData),
 
+    GetPropertyText(ShortTextData),
+    SetPropertyText(ShortTextData),
+    SetPropertyDynamic,
+
+    GetPropertyIndex(UInt32Data),
+    SetPropertyIndex(UInt32Data),
+    GetPropertyDynamic,
+
     // comparison operator
     Is,
     Matches,
@@ -368,6 +376,24 @@ impl Display for RegularInstruction {
             RegularInstruction::TypedValue => core::write!(f, "TYPED_VALUE"),
             RegularInstruction::TypeExpression => {
                 core::write!(f, "TYPE_EXPRESSION")
+            }
+            RegularInstruction::GetPropertyIndex(uint_32_data) => {
+                core::write!(f, "GET_PROPERTY_INDEX {}", uint_32_data.0)
+            }
+            RegularInstruction::SetPropertyIndex(uint_32_data) => {
+                core::write!(f, "SET_PROPERTY_INDEX {}", uint_32_data.0)
+            }
+            RegularInstruction::GetPropertyText(short_text_data) => {
+                core::write!(f, "GET_PROPERTY_TEXT {}", short_text_data.0)
+            }
+            RegularInstruction::SetPropertyText(short_text_data) => {
+                core::write!(f, "SET_PROPERTY_TEXT {}", short_text_data.0)
+            }
+            RegularInstruction::GetPropertyDynamic => {
+                core::write!(f, "GET_PROPERTY_DYNAMIC")
+            }
+            RegularInstruction::SetPropertyDynamic => {
+                core::write!(f, "SET_PROPERTY_DYNAMIC")
             }
         }
     }

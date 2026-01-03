@@ -346,12 +346,13 @@ pub fn iterate_instructions(
                         }
 
                         InstructionCode::APPLY_ZERO => {
+                            next_instructions_stack.push_next_regular(1);
                             RegularInstruction::Apply(ApplyData {
                                 arg_count: 0,
                             })
                         }
                         InstructionCode::APPLY_SINGLE => {
-                            next_instructions_stack.push_next_regular(1);
+                            next_instructions_stack.push_next_regular(2);
                             RegularInstruction::Apply(ApplyData {
                                 arg_count: 1,
                             })
@@ -360,9 +361,58 @@ pub fn iterate_instructions(
                         InstructionCode::APPLY => {
                             let apply_data =
                                 yield_unwrap!(ApplyData::read(&mut reader));
+                            // each argument is at least one instruction, plus the base to apply to
                             next_instructions_stack
-                                .push_next_regular(apply_data.arg_count as u32); // each argument is at least one instruction
+                                .push_next_regular(apply_data.arg_count as u32 + 1);
                             RegularInstruction::Apply(apply_data)
+                        }
+
+                        InstructionCode::GET_PROPERTY_TEXT => {
+                            next_instructions_stack.push_next_regular(1);
+                            let text_data = ShortTextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(text_data).text
+                            ));
+                            RegularInstruction::GetPropertyText(ShortTextData(
+                                text,
+                            ))
+                        }
+
+                        InstructionCode::GET_PROPERTY_INDEX => {
+                            next_instructions_stack.push_next_regular(1);
+                            let index_data = UInt32Data::read(&mut reader);
+                            RegularInstruction::GetPropertyIndex(
+                                yield_unwrap!(index_data),
+                            )
+                        }
+
+                        InstructionCode::GET_PROPERTY_DYNAMIC => {
+                            next_instructions_stack.push_next_regular(2);
+                            RegularInstruction::GetPropertyDynamic
+                        }
+
+                        InstructionCode::SET_PROPERTY_TEXT => {
+                            next_instructions_stack.push_next_regular(2);
+                            let text_data = ShortTextDataRaw::read(&mut reader);
+                            let text = yield_unwrap!(String::from_utf8(
+                                yield_unwrap!(text_data).text
+                            ));
+                            RegularInstruction::SetPropertyText(ShortTextData(
+                                text,
+                            ))
+                        }
+
+                        InstructionCode::SET_PROPERTY_INDEX => {
+                            next_instructions_stack.push_next_regular(2);
+                            let index_data = UInt32Data::read(&mut reader);
+                            RegularInstruction::SetPropertyIndex(
+                                yield_unwrap!(index_data),
+                            )
+                        }
+
+                        InstructionCode::SET_PROPERTY_DYNAMIC => {
+                            next_instructions_stack.push_next_regular(3);
+                            RegularInstruction::SetPropertyDynamic
                         }
 
                         InstructionCode::DEREF => {
