@@ -1,6 +1,6 @@
 use crate::dxb_parser::body::DXBParserError;
 use crate::network::com_hub::ResponseError;
-use crate::references::reference::{AssignmentError, ReferenceCreationError};
+use crate::references::reference::{AccessError, AssignmentError, ReferenceCreationError};
 use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::stdlib::string::String;
 use crate::types::error::IllegalTypeError;
@@ -52,6 +52,7 @@ pub enum ExecutionError {
     DXBParserError(DXBParserError),
     ValueError(ValueError),
     InvalidProgram(InvalidProgramError),
+    AccessError(AccessError),
     Unknown,
     NotImplemented(String),
     SlotNotAllocated(u32),
@@ -74,6 +75,12 @@ pub enum ExecutionError {
 impl From<ReferenceCreationError> for ExecutionError {
     fn from(error: ReferenceCreationError) -> Self {
         ExecutionError::ReferenceFromValueContainerError(error)
+    }
+}
+
+impl From<AccessError> for ExecutionError {
+    fn from(error: AccessError) -> Self {
+        ExecutionError::AccessError(error)
     }
 }
 
@@ -172,6 +179,9 @@ impl Display for ExecutionError {
             }
             ExecutionError::ExpectedTypeValue => {
                 core::write!(f, "Expected a type value")
+            }
+            ExecutionError::AccessError(err) => {
+                core::write!(f, "Access error: {err}")
             }
             ExecutionError::IntermediateResultWithState(
                 value_opt,

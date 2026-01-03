@@ -47,7 +47,7 @@ use crate::values::core_values::map::{Map, MapKey};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{OwnedValueKey, ValueContainer, ValueKey};
 use core::cell::RefCell;
 
 #[derive(Debug)]
@@ -806,6 +806,114 @@ pub fn inner_execution_loop(
                                             address,
                                             value.clone()
                                         )
+                                    );
+                                    value.into()
+                                }
+
+                                RegularInstruction::GetPropertyText(
+                                    property_data,
+                                ) => {
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let property_name = property_data.0;
+                                    let res = target.try_get_property(&property_name);
+                                    yield_unwrap!(res).into()
+                                }
+
+                                RegularInstruction::GetPropertyIndex(
+                                    property_data,
+                                ) => {
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let property_index = property_data.0;
+
+                                    let res = target.try_get_property(property_index);
+                                    yield_unwrap!(res).into()
+                                }
+
+                                RegularInstruction::GetPropertyDynamic => {
+                                    let key = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let res = target.try_get_property(&key);
+                                    yield_unwrap!(res).into()
+                                }
+
+                                RegularInstruction::SetPropertyText(
+                                    property_data,
+                                ) => {
+                                    let value = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let property_name = property_data.0;
+                                    interrupt!(
+                                        interrupt_provider,
+                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+                                            target,
+                                            key: OwnedValueKey::Text(property_name),
+                                            value: value.clone()
+                                        })
+                                    );
+                                    value.into()
+                                }
+                                
+                                RegularInstruction::SetPropertyIndex(
+                                    property_data,
+                                ) => {
+                                    let value = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let property_index = property_data.0;
+                                    interrupt!(
+                                        interrupt_provider,
+                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+                                            target,
+                                            key: OwnedValueKey::Index(property_index as i64),
+                                            value: value.clone()
+                                        })
+                                    );
+                                    value.into()
+                                }
+                                
+                                RegularInstruction::SetPropertyDynamic => {
+                                    let value = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let key = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    let target = yield_unwrap!(
+                                        collected_results
+                                            .pop_value_result_assert_existing()
+                                    );
+                                    interrupt!(
+                                        interrupt_provider,
+                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+                                            target,
+                                            key: OwnedValueKey::Value(key),
+                                            value: value.clone()
+                                        })
                                     );
                                     value.into()
                                 }

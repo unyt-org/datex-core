@@ -6,12 +6,17 @@ use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::value_container::ValueError;
+use crate::values::value_container::{ValueContainer, ValueError, ValueKey};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
+use crate::dif::update::{DIFKey, DIFUpdateData};
+use crate::dif::value::DIFValueContainer;
+use crate::references::mutations::DIFUpdateDataOrMemory;
+use crate::references::observers::TransceiverId;
+use crate::references::reference::AccessError;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -113,6 +118,95 @@ impl Value {
         } else {
             false
         }
+    }
+
+    /// Gets a property on the value if applicable (e.g. for map and structs)
+    pub fn try_get_property<'a>(
+        &self,
+        key: impl Into<ValueKey<'a>>,
+    ) -> Result<ValueContainer, AccessError> {
+        match self.inner {
+            CoreValue::Map(ref map) => {
+                // If the value is a map, get the property
+                Ok(map.get(key)?.clone())
+            }
+            CoreValue::List(ref list) => {
+                if let Some(index) = key.into().try_as_index() {
+                    Ok(list.get(index)?.clone())
+                } else {
+                    Err(AccessError::InvalidIndexKey)
+                }
+            }
+            CoreValue::Text(ref text) => {
+                if let Some(index) = key.into().try_as_index() {
+                    let char = text.char_at(index)?;
+                    Ok(ValueContainer::from(char.to_string()))
+                } else {
+                    Err(AccessError::InvalidIndexKey)
+                }
+            }
+            _ => {
+                // If the value is not an map, we cannot get a property
+                Err(AccessError::InvalidOperation(
+                    "Cannot get property".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Sets a property on the value if applicable (e.g. for maps)
+    pub fn try_set_property<'a>(
+        &mut self,
+        key: impl Into<ValueKey<'a>>,
+        val: ValueContainer,
+    ) -> Result<(), AccessError> {
+        let key = key.into();
+
+        match self.inner {
+            CoreValue::Map(ref mut map) => {
+                // If the value is an map, set the property
+                map.try_set(key, val)?;
+            }
+            CoreValue::List(ref mut list) => {
+                if let Some(index) = key.try_as_index() {
+                    list.set(index, val).map_err(|err| {
+                        AccessError::IndexOutOfBounds(err)
+                    })?;
+                } else {
+                    return Err(AccessError::InvalidIndexKey);
+                }
+            }
+            CoreValue::Text(ref mut text) => {
+                if let Some(index) = key.try_as_index() {
+                    if let ValueContainer::Value(v) = &val
+                        && let CoreValue::Text(new_char) = &v.inner
+                        && new_char.0.len() == 1
+                    {
+                        let char =
+                            new_char.0.chars().next().unwrap_or('\0');
+                        text.set_char_at(index, char).map_err(|err| {
+                            AccessError::IndexOutOfBounds(err)
+                        })?;
+                    } else {
+                        return Err(AccessError::InvalidOperation(
+                            "Can only set char character in text"
+                                .to_string(),
+                        ));
+                    }
+                } else {
+                    return Err(AccessError::InvalidIndexKey);
+                }
+            }
+            _ => {
+                // If the value is not an map, we cannot set a property
+                return Err(AccessError::InvalidOperation(format!(
+                    "Cannot set property '{}' on non-map value: {:?}",
+                    key, self
+                )));
+            }
+        }
+
+        Ok(())
     }
 }
 

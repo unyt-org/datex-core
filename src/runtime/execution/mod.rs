@@ -5,9 +5,7 @@ use crate::references::reference::Reference;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::runtime::execution::context::RemoteExecutionContext;
-use crate::runtime::execution::execution_loop::interrupts::{
-    ExternalExecutionInterrupt, InterruptResult,
-};
+use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptResult};
 use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::values::pointer::PointerAddress;
@@ -152,6 +150,24 @@ pub async fn execute_dxb(
                 let res = handle_apply(&callee, &args)?;
                 interrupt_provider
                     .provide_result(InterruptResult::ResolvedValue(res));
+            }
+            ExternalExecutionInterrupt::SetProperty {
+                mut target,
+                key,
+                value,
+            } => {
+                if let Some(runtime) = &runtime_internal {
+                    target.try_set_property(
+                        0, // TODO: set correct source id
+                        &runtime.memory,
+                        key,
+                        value
+                    )?;
+                }
+                else {
+                    return Err(ExecutionError::RequiresRuntime);
+                }
+                
             }
         }
     }
