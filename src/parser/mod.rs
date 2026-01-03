@@ -1,6 +1,6 @@
-use crate::ast::spanned::Spanned;
 use crate::ast::expressions::DatexExpression;
 use crate::ast::expressions::DatexExpressionData;
+use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::compiler::error::{
     ErrorCollector, MaybeAction, collect_or_pass_error,

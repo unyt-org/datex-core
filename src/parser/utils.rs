@@ -5,10 +5,10 @@ use crate::values::core_values::decimal::typed_decimal::{
 };
 use crate::values::core_values::error::NumberParseError;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use datex_core::values::core_values::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use core::iter::Peekable;
 use core::str::{Chars, FromStr};
+use datex_core::values::core_values::integer::Integer;
+use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
 
 pub enum IntegerOrDecimal {
     Integer(Integer),

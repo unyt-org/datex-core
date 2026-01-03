@@ -7,8 +7,8 @@ pub use options::*;
 use binrw::io::Cursor;
 use core::fmt::Write;
 
-use crate::ast::spanned::Spanned;
 use crate::ast::expressions::{DatexExpression, DatexExpressionData};
+use crate::ast::spanned::Spanned;
 use crate::decompiler::ast_to_source_code::AstToSourceCodeConverter;
 
 use crate::decompiler::ast_from_bytecode::ast_from_bytecode;

@@ -1,4 +1,5 @@
 pub mod visitable;
+use crate::ast::expressions::GenericInstantiation;
 use crate::ast::expressions::{
     Apply, BinaryOperation, CallableDeclaration, ComparisonOperation,
     Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref,
@@ -19,7 +20,6 @@ use crate::visitor::expression::visitable::{
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
 use core::ops::Range;
-use crate::ast::expressions::GenericInstantiation;
 
 pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Handle expression error

@@ -12,10 +12,27 @@ use crate::{
     types::definition::TypeDefinition,
 };
 
+use crate::ast::expressions::Apply;
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpression, Statements, TypeDeclaration,
+    VariableAccess, VariableDeclaration,
+};
+use crate::ast::expressions::{
+    CallableDeclaration, ComparisonOperation, Conditional, CreateRef,
+    DatexExpressionData, Deref, DerefAssignment, List, Map, PropertyAssignment,
+    RemoteExecution, Slot, SlotAssignment, UnaryOperation, VariableAssignment,
+    VariantAccess,
+};
 use crate::ast::expressions::{GenericInstantiation, PropertyAccess};
+use crate::ast::type_expressions::{
+    FixedSizeList, FunctionType, GenericAccess, SliceList, TypeVariantAccess,
+};
+use crate::ast::type_expressions::{
+    Intersection, StructuralList, StructuralMap, TypeExpression, Union,
+};
 use crate::{
     compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
-    libs::core::{get_core_lib_type, CoreLibPointerId},
+    libs::core::{CoreLibPointerId, get_core_lib_type},
     type_inference::{
         error::{
             DetailedTypeErrors, SimpleOrDetailedTypeError, SpannedTypeError,
@@ -26,41 +43,23 @@ use crate::{
     values::{
         core_values::{
             boolean::Boolean,
-            decimal::{typed_decimal::TypedDecimal, Decimal},
+            decimal::{Decimal, typed_decimal::TypedDecimal},
             endpoint::Endpoint,
-            integer::{typed_integer::TypedInteger, Integer},
-            r#type::Type,
+            integer::{Integer, typed_integer::TypedInteger},
             text::Text,
+            r#type::Type,
         },
         pointer::PointerAddress,
     },
     visitor::{
-        expression::{visitable::ExpressionVisitResult, ExpressionVisitor},
-        type_expression::{
-            visitable::TypeExpressionVisitResult, TypeExpressionVisitor,
-        },
         VisitAction,
+        expression::{ExpressionVisitor, visitable::ExpressionVisitResult},
+        type_expression::{
+            TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
+        },
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
-use crate::ast::expressions::Apply;
-use crate::ast::type_expressions::{
-    Intersection, StructuralList, StructuralMap, TypeExpression, Union,
-};
-use crate::ast::type_expressions::{
-    FixedSizeList, FunctionType, GenericAccess, SliceList,
-    TypeVariantAccess,
-};
-use crate::ast::expressions::{
-    BinaryOperation, DatexExpression, Statements, TypeDeclaration,
-    VariableAccess, VariableDeclaration,
-};
-use crate::ast::expressions::{
-    CallableDeclaration, ComparisonOperation, Conditional, CreateRef,
-    DatexExpressionData, Deref, DerefAssignment, List, Map,
-    PropertyAssignment, RemoteExecution, Slot, SlotAssignment,
-    UnaryOperation, VariableAssignment, VariantAccess,
-};
 
 pub mod error;
 pub mod options;
@@ -1189,6 +1188,11 @@ mod tests {
         assert_matches::assert_matches, cell::RefCell, rc::Rc, str::FromStr,
     };
 
+    use crate::ast::expressions::{
+        BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
+        VariableDeclaration, VariableKind,
+    };
+    use crate::parser::Parser;
     use crate::{
         ast::spanned::Spanned,
         compiler::precompiler::{
@@ -1196,9 +1200,9 @@ mod tests {
             precompiled_ast::{AstMetadata, RichAst},
             scope_stack::PrecompilerScopeStack,
         },
-        global::operators::{binary::ArithmeticOperator, BinaryOperator},
+        global::operators::{BinaryOperator, binary::ArithmeticOperator},
         libs::core::{
-            get_core_lib_type, get_core_lib_type_reference, CoreLibPointerId,
+            CoreLibPointerId, get_core_lib_type, get_core_lib_type_reference,
         },
         references::type_reference::{NominalTypeDeclaration, TypeReference},
         type_inference::{
@@ -1215,21 +1219,16 @@ mod tests {
             core_value::CoreValue,
             core_values::{
                 boolean::Boolean,
-                decimal::{typed_decimal::TypedDecimal, Decimal},
+                decimal::{Decimal, typed_decimal::TypedDecimal},
                 endpoint::Endpoint,
                 integer::{
-                    typed_integer::{IntegerTypeVariant, TypedInteger},
                     Integer,
+                    typed_integer::{IntegerTypeVariant, TypedInteger},
                 },
                 r#type::Type,
             },
         },
     };
-    use crate::ast::expressions::{
-        BinaryOperation, DatexExpression, DatexExpressionData, List,
-        Map, VariableDeclaration, VariableKind,
-    };
-    use crate::parser::Parser;
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
