@@ -17,6 +17,8 @@ use crate::dif::value::DIFValueContainer;
 use crate::references::mutations::DIFUpdateDataOrMemory;
 use crate::references::observers::TransceiverId;
 use crate::references::reference::AccessError;
+use crate::stdlib::string::ToString;
+use crate::stdlib::fmt::format;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
