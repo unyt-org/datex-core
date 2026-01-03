@@ -419,7 +419,7 @@ impl ValueContainer {
     ) -> Result<(), AccessError> {
         match self {
             ValueContainer::Value(v) => {
-                v.try_set_property(source_id, val)
+                v.try_set_property(key, val)
             }
             ValueContainer::Reference(r) => {
                 r.try_set_property(source_id, dif_update_data_or_memory, key, val)
