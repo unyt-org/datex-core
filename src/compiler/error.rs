@@ -16,6 +16,7 @@ pub enum CompilerError {
     BigDecimalOutOfBoundsError,
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
+    TooManyApplyArguments, // more than 255 arguments
     NonStaticValue,
     UndeclaredVariable(String),
     InvalidRedeclaration(String),
@@ -311,6 +312,9 @@ impl Display for CompilerError {
             }
             CompilerError::ParserError(err) => {
                 core::write!(f, "{:?}", err)
+            }
+            CompilerError::TooManyApplyArguments => {
+                core::write!(f, "Apply has too many arguments (max 255 allowed)")
             }
         }
     }

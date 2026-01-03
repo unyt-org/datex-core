@@ -2360,7 +2360,7 @@ fn property_access_assignment() {
         expr,
         DatexExpressionData::PropertyAssignment(PropertyAssignment {
             operator: AssignmentOperator::Assign,
-            access_expression: Box::new(
+            base: Box::new(
                 DatexExpressionData::PropertyAccess(PropertyAccess {
                     base: Box::new(
                         DatexExpressionData::Identifier("user".to_string())
@@ -2373,7 +2373,7 @@ fn property_access_assignment() {
                 })
                 .with_default_span()
             ),
-            assigned_property: Box::new(
+            property: Box::new(
                 DatexExpressionData::Integer(Integer::from(0))
                     .with_default_span()
             ),

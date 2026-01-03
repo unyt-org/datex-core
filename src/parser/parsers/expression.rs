@@ -205,8 +205,8 @@ impl Parser {
             DatexExpressionData::PropertyAccess(prop_access) => {
                 DatexExpressionData::PropertyAssignment(PropertyAssignment {
                     operator: assignment_operator,
-                    access_expression: prop_access.base,
-                    assigned_property: prop_access.property,
+                    base: prop_access.base,
+                    property: prop_access.property,
                     assigned_expression: Box::new(rhs),
                 })
             }
@@ -1236,11 +1236,11 @@ mod tests {
             expr.data,
             DatexExpressionData::PropertyAssignment(PropertyAssignment {
                 operator: AssignmentOperator::Assign,
-                access_expression: Box::new(
+                base: Box::new(
                     DatexExpressionData::Identifier("obj".to_string())
                         .with_default_span()
                 ),
-                assigned_property: Box::new(
+                property: Box::new(
                     DatexExpressionData::Text("prop".to_string())
                         .with_default_span()
                 ),

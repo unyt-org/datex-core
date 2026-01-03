@@ -291,8 +291,8 @@ pub struct DerefAssignment {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertyAssignment {
     pub operator: AssignmentOperator,
-    pub access_expression: Box<DatexExpression>,
-    pub assigned_property: Box<DatexExpression>,
+    pub base: Box<DatexExpression>,
+    pub property: Box<DatexExpression>,
     pub assigned_expression: Box<DatexExpression>,
 }
 

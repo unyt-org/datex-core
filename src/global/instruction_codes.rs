@@ -70,6 +70,14 @@ pub enum InstructionCode {
     APPLY_SINGLE,
     APPLY,
 
+    GET_PROPERTY_DYNAMIC, // get property with arbitrary key value
+    GET_PROPERTY_INDEX, // get property with integer index
+    GET_PROPERTY_TEXT, // get property with text key
+
+    SET_PROPERTY_DYNAMIC, // set property with arbitrary key value
+    SET_PROPERTY_INDEX, // set property with integer index
+    SET_PROPERTY_TEXT, // set property with text key
+
     // runtime commands 0x50 - 0x7f
     RETURN,         // return
     TEMPLATE,       // template

@@ -233,7 +233,8 @@ impl<E> VisitableExpression<E> for PropertyAssignment {
         &mut self,
         visitor: &mut impl ExpressionVisitor<E>,
     ) -> Result<(), E> {
-        visitor.visit_datex_expression(&mut self.access_expression)?;
+        visitor.visit_datex_expression(&mut self.base)?;
+        visitor.visit_datex_expression(&mut self.property)?;
         visitor.visit_datex_expression(&mut self.assigned_expression)?;
         Ok(())
     }

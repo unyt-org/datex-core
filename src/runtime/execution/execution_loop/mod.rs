@@ -422,6 +422,12 @@ pub fn inner_execution_loop(
                             RegularInstruction::UnaryPlus |
                             RegularInstruction::BitwiseNot |
                             RegularInstruction::Apply(_) |
+                            RegularInstruction::GetPropertyText(_) |
+                            RegularInstruction::GetPropertyIndex(_) |
+                            RegularInstruction::GetPropertyDynamic |
+                            RegularInstruction::SetPropertyText(_) |
+                            RegularInstruction::SetPropertyIndex(_) |
+                            RegularInstruction::SetPropertyDynamic |
                             RegularInstruction::Is |
                             RegularInstruction::Matches |
                             RegularInstruction::StructuralEqual |
