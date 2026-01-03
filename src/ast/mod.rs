@@ -1,5 +1,5 @@
-pub mod spanned;
 pub mod expressions;
-pub mod type_expressions;
 pub mod resolved_variable;
+pub mod spanned;
 pub mod src_id;
+pub mod type_expressions;
