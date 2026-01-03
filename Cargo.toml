@@ -178,6 +178,7 @@ default = [
     "flexi_logger",
     "tokio_runtime",
     "compiler",
+    "decompiler",
     "syntax_highlighting_legacy",
     "com_http",
     "com_tcp",
@@ -295,10 +296,18 @@ compiler = [
     "std",
     "dep:ariadne",
     "dep:pretty",
-
     "dep:logos",
     "dep:internment",
+    "ast",
 ]
+
+# decompiler
+decompiler = [
+    "ast",
+]
+
+# ast structures, needed by compiler, decompiler, and lsp
+ast = []
 
 lsp = ["dep:realhydroper-lsp"]
 

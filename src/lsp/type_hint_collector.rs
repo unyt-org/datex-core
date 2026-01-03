@@ -1,9 +1,9 @@
-use crate::ast::structs::VariableId;
-use crate::ast::structs::expression::{DatexExpression, VariableDeclaration};
+use crate::ast::expressions::{DatexExpression, VariableDeclaration};
 use crate::visitor::VisitAction;
 use crate::visitor::expression::ExpressionVisitor;
 use crate::visitor::type_expression::TypeExpressionVisitor;
 use core::ops::Range;
+use crate::ast::resolved_variable::VariableId;
 
 #[derive(Default)]
 pub struct TypeHintCollector {

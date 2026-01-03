@@ -1,8 +1,8 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     CreateRef, DatexExpressionData, List, Map,
 };
-use crate::ast::structs::r#type::TypeExpressionData;
+use crate::ast::type_expressions::TypeExpressionData;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
@@ -91,7 +91,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{DatexExpressionData, List};
+    use crate::ast::expressions::{DatexExpressionData, List};
     use crate::values::core_values::decimal::Decimal;
     use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
     use crate::values::core_values::integer::Integer;

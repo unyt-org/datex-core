@@ -1,4 +1,4 @@
-use crate::ast::structs::expression::{DatexExpression, VariableKind};
+use crate::ast::expressions::{DatexExpression, VariableKind};
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::values::core_values::r#type::Type;
 use core::fmt::Display;

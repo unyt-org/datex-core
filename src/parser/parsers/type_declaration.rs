@@ -1,5 +1,5 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, TypeDeclaration, TypeDeclarationKind,
     VariableDeclaration, VariableKind,
 };
@@ -73,11 +73,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::expression::{
+    use crate::ast::expressions::{
         DatexExpressionData, TypeDeclaration, TypeDeclarationKind,
         VariableDeclaration, VariableKind,
     };
-    use crate::ast::structs::r#type::TypeExpressionData;
+    use crate::ast::type_expressions::TypeExpressionData;
     use crate::parser::tests::{parse, try_parse_and_return_on_first_error};
 
     #[test]

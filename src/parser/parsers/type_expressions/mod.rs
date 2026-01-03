@@ -5,7 +5,7 @@ mod list;
 mod map;
 
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::r#type::{
+use crate::ast::type_expressions::{
     Intersection, TypeExpression, TypeExpressionData, TypeVariantAccess, Union,
 };
 use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
@@ -194,12 +194,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::r#type::{
+    use crate::ast::type_expressions::{
         Intersection, TypeExpressionData, Union,
     };
     use crate::parser::Parser;
     use crate::parser::lexer::get_spanned_tokens_from_source;
-    use datex_core::ast::structs::r#type::TypeExpression;
+    use crate::ast::type_expressions::TypeExpression;
 
     pub fn parse_type_expression(src: &str) -> TypeExpression {
         let (tokens, errors) = get_spanned_tokens_from_source(src);
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(
             expr.data,
             TypeExpressionData::VariantAccess(
-                datex_core::ast::structs::r#type::TypeVariantAccess {
+                crate::ast::type_expressions::TypeVariantAccess {
                     name: "MyType".to_string(),
                     variant: "variant".to_string(),
                     base: None,
@@ -299,7 +299,7 @@ mod tests {
             expr.data,
             TypeExpressionData::RefMut(Box::new(
                 TypeExpressionData::VariantAccess(
-                    datex_core::ast::structs::r#type::TypeVariantAccess {
+                    crate::ast::type_expressions::TypeVariantAccess {
                         name: "integer".to_string(),
                         variant: "u8".to_string(),
                         base: None,

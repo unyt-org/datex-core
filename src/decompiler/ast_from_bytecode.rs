@@ -1,11 +1,11 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::UnboundedStatement;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::UnboundedStatement;
+use crate::ast::expressions::{
     Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
-use crate::ast::structs::expression::{DatexExpressionData, Statements};
-use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::expressions::{DatexExpressionData, Statements};
+use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
 use crate::dxb_parser::instruction_collector::StatementResultCollectionStrategy;
 use crate::dxb_parser::instruction_collector::{

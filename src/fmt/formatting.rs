@@ -4,18 +4,18 @@ use pretty::DocAllocator;
 
 use crate::references::reference::ReferenceMutability;
 use crate::{
-    ast::structs::expression::{
-        BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
-        VariableAccess, VariableDeclaration,
-    },
     fmt::{
-        Format, Formatter, Operation, ParentContext,
-        options::{StatementFormatting, VariantFormatting},
+        options::{StatementFormatting, VariantFormatting}, Format, Formatter, Operation,
+        ParentContext,
     },
     values::core_values::{
         decimal::typed_decimal::TypedDecimal,
         integer::typed_integer::TypedInteger,
     },
+};
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
+    VariableAccess, VariableDeclaration,
 };
 
 impl<'a> Formatter<'a> {

@@ -1,8 +1,8 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, Map,
 };
-use crate::ast::structs::r#type::{TypeExpression, TypeExpressionData};
+use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
 

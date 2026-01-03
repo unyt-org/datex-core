@@ -1,8 +1,8 @@
 use crate::ast::spanned::Spanned;
-use crate::ast::structs::r#type::{StructuralList, TypeExpressionData};
+use crate::ast::type_expressions::{StructuralList, TypeExpressionData};
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
-use datex_core::ast::structs::r#type::TypeExpression;
+use crate::ast::type_expressions::TypeExpression;
 
 impl Parser {
     pub fn parse_type_list(
@@ -28,9 +28,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::ast::spanned::Spanned;
-    use crate::ast::structs::r#type::StructuralList;
+    use crate::ast::type_expressions::StructuralList;
     use crate::parser::parsers::type_expressions::tests::parse_type_expression;
-    use datex_core::ast::structs::r#type::TypeExpressionData;
+    use crate::ast::type_expressions::TypeExpressionData;
 
     #[test]
     fn parse_empty_list() {

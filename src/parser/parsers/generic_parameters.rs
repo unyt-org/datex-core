@@ -1,4 +1,4 @@
-use crate::ast::structs::r#type::TypeExpression;
+use crate::ast::type_expressions::TypeExpression;
 use crate::parser::errors::ParserError;
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};

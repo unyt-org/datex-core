@@ -1,7 +1,7 @@
 use core::ops::Range;
 
-use crate::ast::structs::expression::VariableAccess;
-use crate::ast::structs::r#type::{
+use crate::ast::expressions::VariableAccess;
+use crate::ast::type_expressions::{
     FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
     StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
     TypeVariantAccess, Union,
