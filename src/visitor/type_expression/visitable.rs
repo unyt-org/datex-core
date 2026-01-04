@@ -138,6 +138,7 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
 
             TypeExpressionData::Recover
             | TypeExpressionData::Null
+            | TypeExpressionData::Unit
             | TypeExpressionData::Identifier(_)
             | TypeExpressionData::VariableAccess(_)
             | TypeExpressionData::GetReference(_)

@@ -23,26 +23,22 @@ impl Parser {
             Token::Identifier(name) => {
                 DatexExpressionData::Text(name).with_span(self.advance()?.span)
             }
+
             // map reserved keywords to text keys
-            Token::True => DatexExpressionData::Text("true".to_string())
-                .with_span(self.advance()?.span),
-            Token::False => DatexExpressionData::Text("false".to_string())
-                .with_span(self.advance()?.span),
-            Token::TypeDeclaration => {
-                DatexExpressionData::Text("type".to_string())
+            // TODO: add more keywords as needed
+            t @ Token::True |
+            t @ Token::False |
+            t @ Token::TypeDeclaration |
+            t @ Token::If |
+            t @ Token::Else |
+            t @ Token::Is |
+            t @ Token::Matches |
+            t @ Token::And |
+            t @ Token::Or => {
+                DatexExpressionData::Text(t.as_const_str().unwrap().to_string())
                     .with_span(self.advance()?.span)
             }
-            Token::If => DatexExpressionData::Text("if".to_string())
-                .with_span(self.advance()?.span),
-            Token::Else => DatexExpressionData::Text("else".to_string())
-                .with_span(self.advance()?.span),
-            Token::Is => DatexExpressionData::Text("is".to_string())
-                .with_span(self.advance()?.span),
-            Token::And => DatexExpressionData::Text("and".to_string())
-                .with_span(self.advance()?.span),
-            Token::Or => DatexExpressionData::Text("or".to_string())
-                .with_span(self.advance()?.span),
-            // TODO: add more keywords as needed
+
             _ => {
                 return Err(SpannedParserError {
                     error: ParserError::UnexpectedToken {

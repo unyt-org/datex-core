@@ -1,3 +1,4 @@
+use crate::ast::expressions::DatexExpressionData;
 use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::parser::errors::ParserError;
@@ -26,25 +27,20 @@ impl Parser {
                 TypeExpressionData::Text(name).with_span(self.advance()?.span)
             }
             // map reserved keywords to text keys
-            Token::True => TypeExpressionData::Text("true".to_string())
-                .with_span(self.advance()?.span),
-            Token::False => TypeExpressionData::Text("false".to_string())
-                .with_span(self.advance()?.span),
-            Token::TypeDeclaration => {
-                TypeExpressionData::Text("type".to_string())
+            // TODO: add more keywords as needed
+            t @ Token::True |
+            t @ Token::False |
+            t @ Token::TypeDeclaration |
+            t @ Token::If |
+            t @ Token::Else |
+            t @ Token::Is |
+            t @ Token::Matches |
+            t @ Token::And |
+            t @ Token::Or => {
+                TypeExpressionData::Text(t.as_const_str().unwrap().to_string())
                     .with_span(self.advance()?.span)
             }
-            Token::If => TypeExpressionData::Text("if".to_string())
-                .with_span(self.advance()?.span),
-            Token::Else => TypeExpressionData::Text("else".to_string())
-                .with_span(self.advance()?.span),
-            Token::Is => TypeExpressionData::Text("is".to_string())
-                .with_span(self.advance()?.span),
-            Token::And => TypeExpressionData::Text("and".to_string())
-                .with_span(self.advance()?.span),
-            Token::Or => TypeExpressionData::Text("or".to_string())
-                .with_span(self.advance()?.span),
-            // TODO: add more keywords as needed
+            
             _ => {
                 return Err(SpannedParserError {
                     error: ParserError::UnexpectedToken {

@@ -225,7 +225,7 @@ pub enum Token {
     #[token("else")] Else,
 
     #[token("type")] TypeDeclaration,
-    #[token("type(")] TypeExpressionStart,
+    #[token("type<")] TypeExpressionStart,
     #[token("typealias")] TypeAlias,
 
     #[token(".")]
@@ -288,8 +288,8 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn as_string(&self) -> String {
-        let literal_token = match self {
+    pub fn as_const_str(&self) -> Option<&str> {
+        match self {
             Token::LeftParen => Some("("),
             Token::RightParen => Some(")"),
             Token::LeftBracket => Some("["),
@@ -346,7 +346,7 @@ impl Token {
             Token::Infinity => Some("infinity"),
             Token::Nan => Some("nan"),
             Token::TypeDeclaration => Some("type"),
-            Token::TypeExpressionStart => Some("type("),
+            Token::TypeExpressionStart => Some("type<"),
             Token::TypeAlias => Some("typealias"),
             Token::MutRef => Some("&mut"),
             Token::And => Some("and"),
@@ -354,32 +354,11 @@ impl Token {
             Token::Star => Some("*"),
             Token::Exclamation => Some("!"),
             Token::Caret => Some("^"),
+            Token::Matches => Some("matches"),
+            Token::If => Some("if"),
+            Token::Else => Some("else"),
             _ => None,
-        };
-        if let Some(token) = literal_token {
-            return format!("'{}'", token);
         }
-
-        let identifier_token = match self {
-            Token::LineDoc(_) => "line doc",
-            // Token::DecimalLiteral(_) => "decimal literal",
-            Token::BinaryIntegerLiteral(_) => "binary integer literal",
-            Token::OctalIntegerLiteral(_) => "octal integer literal",
-            Token::HexadecimalIntegerLiteral(_) => {
-                "hexadecimal integer literal"
-            }
-            Token::StringLiteral(_) => "string literal",
-            Token::Endpoint(_) => "endpoint",
-            Token::Slot(_) => "slot",
-            Token::NamedSlot(_) => "named slot",
-            Token::Identifier(s) => s,
-            Token::Matches => "matches",
-            Token::If => "if",
-            Token::Else => "else",
-            e => core::todo!("#367 Unhandled token in as_string: {:?}", e),
-        };
-
-        identifier_token.to_string()
     }
 }
 

@@ -159,7 +159,7 @@ fn json() {
 
 #[test]
 fn type_expression() {
-    let src = "type(1 | 2)";
+    let src = "type<1 | 2>";
     let result = parse_print_error(src);
     let expr = result.unwrap().data;
     assert_eq!(
@@ -175,7 +175,7 @@ fn type_expression() {
         )
     );
 
-    let src = "var a = type([1,2,3])";
+    let src = "var a = type<[1,2,3]>";
     let result = parse_print_error(src);
     let expr = result.unwrap().data;
     if let DatexExpressionData::VariableDeclaration(VariableDeclaration {

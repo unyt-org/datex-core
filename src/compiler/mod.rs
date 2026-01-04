@@ -3033,7 +3033,7 @@ pub mod tests {
 
     #[test]
     fn type_literal_integer() {
-        let script = "type(1)";
+        let script = "type<1>";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
