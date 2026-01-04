@@ -10,6 +10,7 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use datex_core::ast::expressions::CallableDeclaration;
+use datex_core::libs::core::CoreLibPointerId;
 
 impl From<&ValueContainer> for DatexExpressionData {
     /// Converts a ValueContainer into a DatexExpression AST.
@@ -106,8 +107,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                     .as_ref()
                     .map(|ty| type_to_type_expression(ty)),
                 body: Box::new(
-                    DatexExpressionData::Text("[[ native ]]".to_string())
-                        .with_default_span(),
+                    DatexExpressionData::NativeImplementationIndicator.with_default_span(),
                 ),
             })
         }
@@ -167,11 +167,26 @@ fn type_to_type_expression(type_value: &Type) -> TypeExpression {
             .with_default_span()
         }
         TypeDefinition::Unit => TypeExpressionData::Unit.with_default_span(),
+        TypeDefinition::Reference(type_reference) => {
+            // try to resolve to core lib value
+            if let Some(address) = &type_reference.borrow().pointer_address {
+                if let Ok(core_lib_type) = CoreLibPointerId::try_from(address) {
+                    TypeExpressionData::Identifier(core_lib_type.to_string())
+                        .with_default_span()
+                }
+                else {
+                    todo!("Handle non-core-lib type references in decompiler");
+                }
+            }
+            else {
+                panic!("Unresolved type reference in decompiler"); // TODO: how to handle properly?
+            }
+        }
         _ => TypeExpressionData::Text(format!(
-            "[[TYPE {:?}]]",
-            type_value.type_definition
-        ))
-        .with_default_span(),
+                "[[TYPE {:?}]]",
+                type_value.type_definition
+            ))
+            .with_default_span(),
     }
 }
 

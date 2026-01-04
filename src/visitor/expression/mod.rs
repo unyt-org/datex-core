@@ -169,6 +169,7 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
                 )
             }
             DatexExpressionData::Noop => Ok(VisitAction::SkipChildren),
+            DatexExpressionData::NativeImplementationIndicator => Ok(VisitAction::SkipChildren),
         };
 
         let action = match visit_result {

@@ -651,7 +651,7 @@ impl AstToSourceCodeConverter {
                 if let Some((param_name, param_type)) = rest_parameter {
                     params_code.push(ast_fmt!(
                         &self,
-                        "...{}:%s{}",
+                        "...{}:%s{}[]",
                         param_name,
                         self.type_expression_to_source_code(param_type)
                     ));
@@ -674,16 +674,21 @@ impl AstToSourceCodeConverter {
                     None => "".to_string(),
                 };
 
-                let body_code = self.format(body);
+                // indented function body
+                let body_code = self.format(body).replace(
+                    "\n",
+                    &format!("\n{}", self.indent()),
+                );
 
                 ast_fmt!(
                     &self,
-                    "{} {}({}){}{}%s(%n{}%n)",
+                    "{} {}({}){}{}%s(%n{}{}%n)",
                     kind,
                     name.clone().unwrap_or_else(|| "".to_string()),
                     params_code.join(&ast_fmt!(&self, ",%s")),
                     return_type_code,
                     yeet_type_code,
+                    self.indent(),
                     body_code
                 )
             }
@@ -749,6 +754,9 @@ impl AstToSourceCodeConverter {
                     self.format(base),
                     self.key_expression_to_source_code(property)
                 )
+            }
+            DatexExpressionData::NativeImplementationIndicator { .. } => {
+                "[[ native code ]]".to_string()
             }
             DatexExpressionData::GenericInstantiation(_) => {
                 todo!()
