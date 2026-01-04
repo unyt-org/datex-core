@@ -69,7 +69,7 @@ bs58 = { version = "0.5.1", default-features = false }
 strum_macros = { version = "0.27.1" }
 cfg-if = "1.0.1"
 async-trait = "0.1.87"
-datex_macros = { path = "./macros", version = "0.1.1" }
+datex_macros = { path = "./macros", version = "0.1.2" }
 
 # optional dependencies
 tokio = { version = "1.43.0", optional = true, features = [
@@ -234,7 +234,7 @@ wasm_runtime = [
     "dep:gloo-timers",
     "dep:tsify",
     "dep:web-time",
-#    "dep:wasm-bindgen",
+    #    "dep:wasm-bindgen",
 
 ]
 embassy_runtime = [
@@ -303,9 +303,7 @@ compiler = [
 ]
 
 # decompiler
-decompiler = [
-    "ast",
-]
+decompiler = ["ast"]
 
 # ast structures, needed by compiler, decompiler, and lsp
 ast = []
