@@ -1,8 +1,17 @@
+use crate::global::protocol_structures::instructions::{
+    RawInternalPointerAddress, RawPointerAddress,
+};
 use crate::stdlib::format;
 use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
+use binrw::BinWrite;
+use binrw::io::Cursor;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use datex_core::global::protocol_structures::instructions::{
+    RawFullPointerAddress, RawLocalPointerAddress,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -15,6 +24,7 @@ pub enum PointerAddress {
     // globally unique internal pointer, e.g. for #core, #std
     Internal([u8; 3]), // TODO #312 shrink down to 2 bytes?
 }
+
 impl TryFrom<String> for PointerAddress {
     type Error = &'static str;
     fn try_from(s: String) -> Result<Self, Self::Error> {
@@ -47,6 +57,42 @@ impl TryFrom<&str> for PointerAddress {
                 Ok(PointerAddress::Internal(arr))
             }
             _ => Err("PointerAddress must be 5, 26 or 3 bytes long"),
+        }
+    }
+}
+
+impl From<RawPointerAddress> for PointerAddress {
+    fn from(raw: RawPointerAddress) -> Self {
+        PointerAddress::from(&raw)
+    }
+}
+
+impl From<&RawLocalPointerAddress> for PointerAddress {
+    fn from(raw: &RawLocalPointerAddress) -> Self {
+        PointerAddress::Local(raw.id)
+    }
+}
+
+impl From<&RawInternalPointerAddress> for PointerAddress {
+    fn from(raw: &RawInternalPointerAddress) -> Self {
+        PointerAddress::Internal(raw.id)
+    }
+}
+
+impl From<&RawFullPointerAddress> for PointerAddress {
+    fn from(raw: &RawFullPointerAddress) -> Self {
+        PointerAddress::Remote(raw.id)
+    }
+}
+
+impl From<&RawPointerAddress> for PointerAddress {
+    fn from(raw: &RawPointerAddress) -> Self {
+        match raw {
+            RawPointerAddress::Local(bytes) => PointerAddress::Local(bytes.id),
+            RawPointerAddress::Internal(bytes) => {
+                PointerAddress::Internal(bytes.id)
+            }
+            RawPointerAddress::Full(bytes) => PointerAddress::Remote(bytes.id),
         }
     }
 }

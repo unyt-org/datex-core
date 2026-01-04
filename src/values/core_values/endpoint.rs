@@ -85,6 +85,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
         Err(ValueError::TypeConversionError)
     }
 }
+
 // also for ref
 // impl<T: Into<ValueContainer>> TryFrom<&Option<T>> for Endpoint {
 //     type Error = ValueError;
@@ -136,7 +137,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
@@ -372,7 +373,7 @@ impl Endpoint {
     }
 
     // parse endpoint from binary
-    pub fn from_binary(
+    pub fn from_slice(
         binary: [u8; 21],
     ) -> Result<Endpoint, EndpointParsingError> {
         let mut reader = Cursor::new(binary);
@@ -487,7 +488,7 @@ impl Endpoint {
         }
     }
 
-    pub fn to_binary(&self) -> [u8; 21] {
+    pub fn to_slice(&self) -> [u8; 21] {
         let mut writer = Cursor::new(Vec::new());
         self.write(&mut writer).unwrap();
         writer.into_inner().try_into().unwrap()
@@ -857,7 +858,7 @@ mod tests {
             0x00,
             0x00,
         ];
-        let endpoint = Endpoint::from_binary(binary);
+        let endpoint = Endpoint::from_slice(binary);
         assert_eq!(endpoint, Ok(Endpoint::ANY));
     }
 

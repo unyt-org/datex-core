@@ -1,8 +1,9 @@
 use crate::global::instruction_codes::InstructionCode;
+use crate::global::protocol_structures::instructions::RegularInstruction;
 use core::fmt::{Display, Formatter};
 use core::prelude::rust_2024::*;
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum UnaryOperator {
     Reference(ReferenceUnaryOperator),
     Arithmetic(ArithmeticUnaryOperator),
@@ -21,6 +22,43 @@ impl From<&UnaryOperator> for InstructionCode {
     }
 }
 
+impl From<&RegularInstruction> for UnaryOperator {
+    fn from(instruction: &RegularInstruction) -> Self {
+        match instruction {
+            RegularInstruction::UnaryPlus => {
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Plus)
+            }
+            RegularInstruction::UnaryMinus => {
+                UnaryOperator::Arithmetic(ArithmeticUnaryOperator::Minus)
+            }
+            RegularInstruction::BitwiseNot => {
+                UnaryOperator::Bitwise(BitwiseUnaryOperator::Not)
+            }
+            RegularInstruction::CreateRef => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::CreateRef)
+            }
+            RegularInstruction::CreateRefMut => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::CreateRefMut)
+            }
+            RegularInstruction::Deref => {
+                UnaryOperator::Reference(ReferenceUnaryOperator::Deref)
+            }
+            _ => {
+                core::todo!(
+                    "Unary operator for instruction {:?} not implemented",
+                    instruction
+                );
+            }
+        }
+    }
+}
+
+impl From<RegularInstruction> for UnaryOperator {
+    fn from(instruction: RegularInstruction) -> Self {
+        UnaryOperator::from(&instruction)
+    }
+}
+
 impl Display for UnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
@@ -32,7 +70,7 @@ impl Display for UnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum ReferenceUnaryOperator {
     CreateRef,    // &
     CreateRefMut, // &mut
@@ -61,7 +99,7 @@ impl Display for ReferenceUnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum ArithmeticUnaryOperator {
     Increment, // ++
     Decrement, // --
@@ -91,15 +129,15 @@ impl Display for ArithmeticUnaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum BitwiseUnaryOperator {
-    Negation, // ~
+    Not, // ~
 }
 
 impl From<&BitwiseUnaryOperator> for InstructionCode {
     fn from(op: &BitwiseUnaryOperator) -> Self {
         match op {
-            BitwiseUnaryOperator::Negation => InstructionCode::BITWISE_NOT,
+            BitwiseUnaryOperator::Not => InstructionCode::BITWISE_NOT,
         }
     }
 }
@@ -107,12 +145,12 @@ impl From<&BitwiseUnaryOperator> for InstructionCode {
 impl Display for BitwiseUnaryOperator {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self {
-            BitwiseUnaryOperator::Negation => core::write!(f, "~"),
+            BitwiseUnaryOperator::Not => core::write!(f, "~"),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq)]
 pub enum LogicalUnaryOperator {
     Not, // !
 }

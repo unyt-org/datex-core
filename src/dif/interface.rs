@@ -1,5 +1,7 @@
-use crate::dif::r#type::DIFTypeContainer;
+use crate::dif::reference::DIFReference;
+use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::update::DIFUpdateData;
+use crate::dif::value::DIFReferenceNotFoundError;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{
     ObserveOptions, ObserverError, TransceiverId,
@@ -14,9 +16,6 @@ use crate::values::pointer::PointerAddress;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::dif::reference::DIFReference;
-use datex_core::dif::update::DIFUpdate;
-use datex_core::dif::value::DIFReferenceNotFoundError;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -162,7 +161,7 @@ pub trait DIFInterface {
         &self,
         source_id: TransceiverId,
         address: PointerAddress,
-        update: DIFUpdateData,
+        update: &DIFUpdateData,
     ) -> Result<(), DIFUpdateError>;
 
     /// Executes an apply operation, applying the `value` to the `callee`.
@@ -177,7 +176,7 @@ pub trait DIFInterface {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
+        allowed_type: Option<DIFTypeDefinition>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError>;
 
@@ -197,12 +196,12 @@ pub trait DIFInterface {
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.
-    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
+    fn observe_pointer(
         &self,
         transceiver_id: TransceiverId,
         address: PointerAddress,
         options: ObserveOptions,
-        observer: F,
+        observer: impl Fn(&DIFUpdateData, TransceiverId) + 'static,
     ) -> Result<u32, DIFObserveError>;
 
     /// Updates the options for an existing observer on the pointer at the given address.

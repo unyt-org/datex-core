@@ -34,9 +34,7 @@ fn is_operator() {
         lexer.next().unwrap(),
         Ok(Token::Identifier("a".to_string()))
     );
-    assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
     assert_eq!(lexer.next().unwrap(), Ok(Token::Is));
-    assert_eq!(lexer.next().unwrap(), Ok(Token::Whitespace));
     assert_eq!(
         lexer.next().unwrap(),
         Ok(Token::Identifier("b".to_string()))
@@ -199,7 +197,6 @@ When you introduce a new operator:
 | **Tuple**                              | `(a, b)`, `(key: v, …)`                                        | `tuple_entry`                                                         | Three variants ensure **(i)** at least two items, **(ii)** single value plus comma, **(iii)** single `key: value`.                                                         |
 | **Key** (for objects/tuples)           | Text, numeric, identifier, or expression                       | `key` selector                                                        | Supports dynamic keys via `(expr)`.                                                                                                                                        |
 | **Integer / Decimal / Text / Literal** | Primitive constants                                            | token selectors                                                       | Each maps the raw token into the corresponding `DatexExpression` variant.                                                                                                  |
-| **Whitespace**                         | Ignorable gaps                                                 | `Token::Whitespace`                                                   | Centralised so every combinator can use `.padded_by(whitespace.clone())`.                                                                                                  |
 
 The pipeline top-down looks something like this:
 

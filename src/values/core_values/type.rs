@@ -1,9 +1,10 @@
 #[cfg(feature = "compiler")]
-use crate::ast::structs::expression::DatexExpressionData;
+use crate::ast::expressions::DatexExpressionData;
+use crate::libs::core::CoreLibPointerId;
+use crate::libs::core::get_core_lib_type;
 use crate::libs::core::get_core_lib_type_reference;
 use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
-use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
@@ -12,11 +13,14 @@ use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::callable::CallableSignature;
+use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
+use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::text::Text;
+use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Display;
@@ -32,6 +36,8 @@ pub struct Type {
     pub reference_mutability: Option<ReferenceMutability>,
 }
 
+// x: &User; Type {reference: }
+
 impl Hash for Type {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.type_definition.hash(state);
@@ -44,8 +50,41 @@ impl Hash for Type {
 }
 
 impl Type {
-    pub fn as_type_container(self) -> TypeContainer {
-        TypeContainer::Type(self)
+    pub fn unit() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unit)
+    }
+    pub fn null() -> Self {
+        get_core_lib_type(CoreLibPointerId::Null)
+    }
+    pub fn never() -> Self {
+        get_core_lib_type(CoreLibPointerId::Never)
+    }
+    pub fn unknown() -> Self {
+        get_core_lib_type(CoreLibPointerId::Unknown)
+    }
+    pub fn text() -> Self {
+        get_core_lib_type(CoreLibPointerId::Text)
+    }
+    pub fn integer() -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(None))
+    }
+    pub fn typed_integer(variant: IntegerTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Integer(Some(variant)))
+    }
+    pub fn decimal() -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(None))
+    }
+    pub fn typed_decimal(variant: DecimalTypeVariant) -> Self {
+        get_core_lib_type(CoreLibPointerId::Decimal(Some(variant)))
+    }
+    pub fn boolean() -> Self {
+        get_core_lib_type(CoreLibPointerId::Boolean)
+    }
+    pub fn endpoint() -> Self {
+        get_core_lib_type(CoreLibPointerId::Endpoint)
+    }
+    pub fn ty() -> Self {
+        get_core_lib_type(CoreLibPointerId::Type)
     }
 }
 
@@ -67,86 +106,106 @@ impl Type {
     pub fn is_reference(&self) -> bool {
         core::matches!(self.type_definition, TypeDefinition::Reference(_))
     }
-    pub fn structural_type(&self) -> Option<&StructuralTypeDefinition> {
+    pub fn inner_reference(&self) -> Option<Rc<RefCell<TypeReference>>> {
+        if let TypeDefinition::Reference(reference) = &self.type_definition {
+            Some(reference.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn structural_type_definition(
+        &self,
+    ) -> Option<&StructuralTypeDefinition> {
         if let TypeDefinition::Structural(s) = &self.type_definition {
             Some(s)
         } else {
             None
         }
     }
+    pub fn reference_mutability(&self) -> Option<ReferenceMutability> {
+        self.reference_mutability.clone()
+    }
+
+    pub fn is_reference_type(&self) -> bool {
+        self.reference_mutability.is_some()
+    }
 }
 
 impl Type {
-    /// Creates a new structural type.
+    /// Creates a new Type with the given TypeDefinition and optional ReferenceMutability
+    /// FIXME: If the TypeDefinition is a Reference, the ReferenceMutability must be Some,
+    /// otherwise it must be None.
+    pub fn new(
+        type_definition: TypeDefinition,
+        reference_mutability: Option<ReferenceMutability>,
+    ) -> Self {
+        Type {
+            type_definition,
+            base_type: None,
+            reference_mutability,
+        }
+    }
+
+    /// Creates a reference type pointing to the given TypeReference with the specified mutability
+    pub fn reference(
+        type_definition: Rc<RefCell<TypeReference>>,
+        reference_mutability: ReferenceMutability,
+    ) -> Self {
+        Type {
+            type_definition: TypeDefinition::Reference(type_definition),
+            base_type: None,
+            reference_mutability: Some(reference_mutability),
+        }
+    }
+
+    /// Creates a structural type from the given structural type definition
     pub fn structural(
         structural_type: impl Into<StructuralTypeDefinition>,
     ) -> Self {
         Type {
-            type_definition: TypeDefinition::Structural(structural_type.into()),
+            type_definition: TypeDefinition::structural(structural_type),
             base_type: None,
             reference_mutability: None,
         }
     }
 
-    /// Creates a new structural list type.
-    pub fn list(element_types: Vec<TypeContainer>) -> Self {
-        Type {
-            type_definition: TypeDefinition::Structural(
-                StructuralTypeDefinition::List(element_types),
-            ),
-            base_type: None,
-            reference_mutability: None,
-        }
-    }
-
-    /// Creates a new union type.
+    /// Creates a union type from the given member types
     pub fn union<T>(types: Vec<T>) -> Self
     where
-        T: Into<TypeContainer>,
+        T: Into<Type>,
     {
-        let types = types.into_iter().map(|t| t.into()).collect();
         Type {
-            type_definition: TypeDefinition::Union(types),
+            type_definition: TypeDefinition::union(types),
             base_type: None,
             reference_mutability: None,
         }
     }
 
-    /// Creates a new intersection type.
-    pub fn intersection<T>(types: Vec<T>) -> Self
-    where
-        T: Into<TypeContainer>,
-    {
-        let types = types.into_iter().map(|t| t.into()).collect();
+    /// Creates an intersection type from the given member types
+    pub fn intersection<T: Into<Type>>(members: Vec<T>) -> Self {
         Type {
-            type_definition: TypeDefinition::Intersection(types),
+            type_definition: TypeDefinition::intersection(members),
             base_type: None,
             reference_mutability: None,
         }
     }
 
-    /// Creates a new reference type.
-    pub fn reference(
-        reference: impl Into<Rc<RefCell<TypeReference>>>,
-        mutability: Option<ReferenceMutability>,
-    ) -> Self {
+    /// Creates a function type from the given parameter types and return type
+    pub fn callable(signature: CallableSignature) -> Self {
         Type {
-            type_definition: TypeDefinition::Reference(reference.into()),
+            type_definition: TypeDefinition::callable(signature),
             base_type: None,
-            reference_mutability: mutability,
+            reference_mutability: None,
         }
     }
 
-    /// Creates a new function type.
-    pub fn function(
-        parameters: Vec<(String, TypeContainer)>,
-        return_type: impl Into<TypeContainer>,
+    pub fn impl_type(
+        base_type: impl Into<Type>,
+        impl_types: Vec<PointerAddress>,
     ) -> Self {
         Type {
-            type_definition: TypeDefinition::Function {
-                parameters,
-                return_type: Box::new(return_type.into()),
-            },
+            type_definition: TypeDefinition::impl_type(base_type, impl_types),
             base_type: None,
             reference_mutability: None,
         }
@@ -160,7 +219,7 @@ impl Type {
     /// 42u8 -> integer
     /// 42 -> integer
     /// User/variant -> User
-    pub fn base_type(&self) -> Option<Rc<RefCell<TypeReference>>> {
+    pub fn base_type_reference(&self) -> Option<Rc<RefCell<TypeReference>>> {
         // has direct base type (e.g. integer/u8 -> integer)
         if let Some(base_type) = &self.base_type {
             return Some(base_type.clone());
@@ -177,11 +236,40 @@ impl Type {
                 core::todo!("#322 handle union base type"); // generic type base type / type
             }
             TypeDefinition::Reference(reference) => {
-                core::todo!("#323 handle reference base type");
-                // return reference.collapse_to_value().borrow()
+                let type_ref = reference.borrow();
+                if let Some(pointer_address) = &type_ref.pointer_address {
+                    if let Ok(core_lib_id) =
+                        CoreLibPointerId::try_from(pointer_address)
+                    {
+                        match core_lib_id {
+                            // for integer and decimal variants, return the base type
+                            CoreLibPointerId::Integer(Some(_)) => {
+                                get_core_lib_type_reference(
+                                    CoreLibPointerId::Integer(None),
+                                )
+                            }
+                            CoreLibPointerId::Decimal(Some(_)) => {
+                                get_core_lib_type_reference(
+                                    CoreLibPointerId::Decimal(None),
+                                )
+                            }
+                            // otherwise, reference is already base type
+                            _ => reference.clone(),
+                        }
+                    } else {
+                        todo!("handle non-core lib type base type");
+                    }
+                } else {
+                    todo!("handle pointer address none");
+                }
             }
             _ => core::panic!("Unhandled type definition for base type"),
         })
+    }
+
+    pub fn base_type(&self) -> Option<Type> {
+        self.base_type_reference()
+            .map(|r| Type::reference(r, ReferenceMutability::Immutable))
     }
 
     /// 1 matches 1 -> true
@@ -196,49 +284,76 @@ impl Type {
     /// 1 matches integer -> true
     /// integer matches 1 -> false
     /// integer matches integer -> true
+    /// 1 matches integer | text -> true
     pub fn matches_type(&self, other: &Type) -> bool {
-        // TODO #324
-        // println!("Matching types: {} and {}", self, other);
-
-        let other_base_type =
-            other.base_type().expect("other type has no base type");
-        let other_base_type = other_base_type.borrow();
-        let other_base_type = other_base_type.clone().as_type_container();
-
         match &self.type_definition {
             TypeDefinition::Union(members) => {
                 // If self is a union, check if any member matches the other type
                 for member in members {
-                    if member == &other_base_type {
+                    if member.matches_type(other) {
                         return true;
                     }
                 }
-                return false;
+                false
             }
             TypeDefinition::Intersection(members) => {
                 // If self is an intersection, all members must match the other type
                 for member in members {
-                    if !member.as_type().matches_type(other) {
+                    if !member.matches_type(other) {
                         return false;
                     }
                 }
-                return true;
+                true
             }
-            // TODO #325
-            _ => {}
+            _ => {
+                // atomic type match
+                Type::atomic_matches_type(self, other)
+            }
         }
-
-        if self.base_type() == other.base_type() {
-            return true;
-        }
-        false
     }
 
-    /// Matches if the current type matches the other type reference
-    /// 42 matches integer/u8 -> true
-    pub fn matches_reference(&self, other: Rc<RefCell<TypeReference>>) -> bool {
-        self.matches_type(&other.borrow().type_value)
-        // core::todo!("#326 implement type reference matching");
+    /// Checks if an atomic type matches another type
+    /// An atomic type can be any type variant besides union or intersection
+    pub fn atomic_matches_type(atomic_type: &Type, other: &Type) -> bool {
+        // first check if mutability matches
+        if atomic_type.reference_mutability != other.reference_mutability {
+            return false;
+        }
+
+        match &other.type_definition {
+            TypeDefinition::Reference(reference) => {
+                // compare base type of atomic_type with the referenced type
+                if let Some(atomic_base_type_reference) =
+                    atomic_type.base_type_reference()
+                {
+                    *atomic_base_type_reference.borrow() == *reference.borrow()
+                } else {
+                    false
+                }
+            }
+            TypeDefinition::Union(members) => {
+                // atomic type must match at least one member of the union
+                for member in members {
+                    if Type::atomic_matches_type(atomic_type, member) {
+                        return true;
+                    }
+                }
+                false
+            }
+            TypeDefinition::Intersection(members) => {
+                // atomic type must match all members of the intersection
+                for member in members {
+                    if !Type::atomic_matches_type(atomic_type, member) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => {
+                // compare type definitions directly
+                atomic_type.type_definition == other.type_definition
+            }
+        }
     }
 
     /// Matches a value against a type
@@ -254,15 +369,11 @@ impl Type {
             // e.g. 1 matches 1 | 2
             TypeDefinition::Union(types) => {
                 // value must match at least one of the union types
-                types
-                    .iter()
-                    .any(|t| Type::value_matches_type(value, &t.as_type()))
+                types.iter().any(|t| Type::value_matches_type(value, t))
             }
             TypeDefinition::Intersection(types) => {
                 // value must match all of the intersection types
-                types
-                    .iter()
-                    .all(|t| Type::value_matches_type(value, &t.as_type()))
+                types.iter().all(|t| Type::value_matches_type(value, t))
             }
             TypeDefinition::Structural(structural_type) => {
                 structural_type.value_matches(value)
@@ -275,10 +386,7 @@ impl Type {
                 // TODO #464: also check mutability of current type?
                 inner_type.value_matches(value)
             }
-            TypeDefinition::Function {
-                parameters,
-                return_type,
-            } => {
+            TypeDefinition::Callable(signature) => {
                 core::todo!("#328 handle function type matching");
             }
             TypeDefinition::Collection(collection_type) => {
@@ -287,6 +395,9 @@ impl Type {
             TypeDefinition::Unit => false, // unit type does not match any value
             TypeDefinition::Never => false,
             TypeDefinition::Unknown => false,
+            TypeDefinition::ImplType(ty, _) => {
+                Type::value_matches_type(value, ty)
+            }
         }
     }
 }
@@ -345,25 +456,21 @@ impl From<&CoreValue> for Type {
                     .iter()
                     .map(|v| Type::from(v.to_value().borrow().inner.clone()))
                     .collect::<Vec<_>>();
-                Type::structural(StructuralTypeDefinition::List(
-                    types.into_iter().map(TypeContainer::from).collect(),
-                ))
+                Type::structural(StructuralTypeDefinition::List(types))
             }
             CoreValue::Map(map) => {
                 let struct_types = map
                     .into_iter()
                     .map(|(key, value)| {
                         (
-                            TypeContainer::from(Type::from(
+                            Type::from(
                                 ValueContainer::from(key)
                                     .to_value()
                                     .borrow()
                                     .inner
                                     .clone(),
-                            )),
-                            TypeContainer::from(Type::from(
-                                value.to_value().borrow().inner.clone(),
-                            )),
+                            ),
+                            Type::from(value.to_value().borrow().inner.clone()),
                         )
                     })
                     .collect::<Vec<_>>();
@@ -417,6 +524,7 @@ impl TryFrom<&DatexExpressionData> for Type {
 
 #[cfg(test)]
 mod tests {
+    use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
     use crate::values::{
         core_values::{
             integer::{Integer, typed_integer::TypedInteger},
@@ -463,6 +571,30 @@ mod tests {
                 Type::structural(Integer::from(3)),
             ]),
         ))
+    }
+
+    #[test]
+    fn type_matches_union_type() {
+        // 1 matches (1 | 2 | 3)
+        assert!(
+            Type::structural(Integer::from(1)).matches_type(&Type::union(
+                vec![
+                    Type::structural(Integer::from(1)),
+                    Type::structural(Integer::from(2)),
+                    Type::structural(Integer::from(3)),
+                ]
+            ))
+        );
+
+        // 1 matches integer | text
+        assert!(
+            Type::structural(Integer::from(1)).matches_type(&Type::union(
+                vec![
+                    get_core_lib_type(CoreLibPointerId::Integer(None)),
+                    get_core_lib_type(CoreLibPointerId::Text),
+                ]
+            ))
+        );
     }
 
     // TODO #330

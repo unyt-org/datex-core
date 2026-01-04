@@ -25,7 +25,7 @@
         "section_index": 0,
         "block_number": 42,
         "flags_and_timestamp": {
-            "block_type": "TraceBack",
+            "block_type": "Hello",
             "has_side_effects": true,
             "has_only_data": true,
             "is_end_of_section": true,

@@ -1,11 +1,9 @@
+use crate::ast::expressions::{DatexExpression, VariableDeclaration};
+use crate::ast::resolved_variable::VariableId;
+use crate::visitor::VisitAction;
+use crate::visitor::expression::ExpressionVisitor;
+use crate::visitor::type_expression::TypeExpressionVisitor;
 use core::ops::Range;
-use datex_core::ast::structs::VariableId;
-use datex_core::ast::structs::expression::{
-    DatexExpression, VariableDeclaration,
-};
-use datex_core::visitor::VisitAction;
-use datex_core::visitor::expression::ExpressionVisitor;
-use datex_core::visitor::type_expression::TypeExpressionVisitor;
 
 #[derive(Default)]
 pub struct TypeHintCollector {

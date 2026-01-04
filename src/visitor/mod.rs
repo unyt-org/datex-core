@@ -1,4 +1,4 @@
-use crate::types::type_container::TypeContainer;
+use crate::values::core_values::r#type::Type;
 
 pub mod expression;
 pub mod type_expression;
@@ -17,32 +17,26 @@ pub enum VisitAction<T: Sized> {
     /// Replace the current node with a new one, and recurse into it
     ReplaceRecurse(T),
     /// Set the type annotation of the current node, and recurse into child nodes
-    SetTypeRecurseChildNodes(TypeContainer),
+    SetTypeRecurseChildNodes(Type),
     /// Set the type annotation of the current node, skipping child nodes
-    SetTypeSkipChildren(TypeContainer),
+    SetTypeSkipChildren(Type),
     /// Convert the current node to a no-op
     ToNoop,
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{
-        parse,
-        structs::expression::{
-            BinaryOperation, DatexExpression, DatexExpressionData, Statements,
-        },
+    use crate::ast::expressions::CreateRef;
+    use crate::ast::expressions::{
+        BinaryOperation, DatexExpression, DatexExpressionData, Statements,
+        VariableAccess,
     };
+    use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
     use crate::global::operators::BinaryOperator;
     use crate::global::operators::binary::ArithmeticOperator;
+    use crate::parser::Parser;
     use crate::visitor::{
         VisitAction, expression::visitable::ExpressionVisitResult,
-    };
-    use core::ops::Range;
-
-    use crate::ast::structs::expression::CreateRef;
-    use crate::ast::structs::{
-        expression::VariableAccess,
-        r#type::{TypeExpression, TypeExpressionData},
     };
     use crate::visitor::{
         expression::ExpressionVisitor,
@@ -50,6 +44,7 @@ mod tests {
             TypeExpressionVisitor, visitable::TypeExpressionVisitResult,
         },
     };
+    use core::ops::Range;
 
     pub struct MyAstTypeExpressionError {
         message: String,
@@ -101,7 +96,6 @@ mod tests {
             create_ref: &mut CreateRef,
             span: &Range<usize>,
         ) -> ExpressionVisitResult<MyAstExpressionError> {
-            println!("visit create ref {:?}", create_ref);
             Ok(VisitAction::VisitChildren)
         }
 
@@ -116,7 +110,6 @@ mod tests {
                     name: identifier.clone(),
                 }),
                 span: span.clone(),
-                wrapped: None,
                 ty: None,
             }))
         }
@@ -132,15 +125,18 @@ mod tests {
 
     #[test]
     fn simple_test() {
-        let mut ast =
-            parse("var x: integer/u8 = 42; x; ((42 + x))").unwrap().ast;
+        let mut ast = Parser::parse_with_default_options(
+            "var x: integer/u8 = 42; x; ((42 + x))",
+        )
+        .unwrap();
         MyAst.visit_datex_expression(&mut ast).unwrap();
         println!("{:#?}", ast);
     }
 
     #[test]
     fn error() {
-        let mut ast = parse("true + false").unwrap().ast;
+        let mut ast =
+            Parser::parse_with_default_options("true + false").unwrap();
         let mut transformer = MyAst;
         let res = transformer.visit_datex_expression(&mut ast);
         assert!(res.is_err());
@@ -161,7 +157,6 @@ mod tests {
                                     "x".to_string(),
                                 ),
                                 span: 0..1,
-                                wrapped: None,
                                 ty: None,
                             }),
                             right: Box::new(DatexExpression {
@@ -169,20 +164,18 @@ mod tests {
                                     "y".to_string(),
                                 ),
                                 span: 2..3,
-                                wrapped: None,
                                 ty: None,
                             }),
                             ty: None,
                         },
                     ),
-                    wrapped: None,
                     span: 0..3,
                     ty: None,
                 }],
                 is_terminated: true,
+                unbounded: None,
             }),
             span: 1..2,
-            wrapped: None,
             ty: None,
         };
         let transformer = &mut MyAst;

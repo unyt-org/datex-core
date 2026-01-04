@@ -1,6 +1,7 @@
 use super::super::instruction_codes::InstructionCode;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
+use datex_core::global::protocol_structures::instructions::RegularInstruction;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum AssignmentOperator {
@@ -69,5 +70,26 @@ impl TryFrom<InstructionCode> for AssignmentOperator {
             InstructionCode::DIVIDE_ASSIGN => AssignmentOperator::DivideAssign,
             _ => return Err(()),
         })
+    }
+}
+
+impl From<RegularInstruction> for AssignmentOperator {
+    fn from(instruction: RegularInstruction) -> Self {
+        match instruction {
+            RegularInstruction::AddAssign(_) => AssignmentOperator::AddAssign,
+            RegularInstruction::SubtractAssign(_) => {
+                AssignmentOperator::SubtractAssign
+            }
+            RegularInstruction::MultiplyAssign(_) => {
+                AssignmentOperator::MultiplyAssign
+            }
+            RegularInstruction::DivideAssign(_) => {
+                AssignmentOperator::DivideAssign
+            }
+            _ => core::todo!(
+                "Assignment operator for instruction {:?} not implemented",
+                instruction
+            ),
+        }
     }
 }

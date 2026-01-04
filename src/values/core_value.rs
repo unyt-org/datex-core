@@ -2,14 +2,15 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use datex_macros::FromCoreValue;
 
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type};
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference};
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::types::type_container::TypeContainer;
+use crate::types::definition::TypeDefinition;
 use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::callable::Callable;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -40,6 +41,7 @@ pub enum CoreValue {
     List(List),
     Map(Map),
     Type(Type),
+    Callable(Callable),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -61,7 +63,7 @@ impl StructuralEq for CoreValue {
             // Integers + TypedIntegers
             (CoreValue::Integer(a), CoreValue::TypedInteger(b))
             | (CoreValue::TypedInteger(b), CoreValue::Integer(a)) => {
-                TypedInteger::Big(a.clone()).structural_eq(b)
+                TypedInteger::IBig(a.clone()).structural_eq(b)
             }
 
             // Decimals
@@ -87,6 +89,10 @@ impl StructuralEq for CoreValue {
             }
             (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
             (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
+            (CoreValue::Type(a), CoreValue::Type(b)) => a.structural_eq(b),
+            (CoreValue::Callable(a), CoreValue::Callable(b)) => {
+                a.structural_eq(b)
+            }
             _ => false,
         }
     }
@@ -219,6 +225,7 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
+            CoreValue::Callable(_) => CoreLibPointerId::Callable,
         }
     }
 }
@@ -237,12 +244,14 @@ impl CoreValue {
         core::matches!(self, CoreValue::List(_) | CoreValue::Map(_))
     }
 
-    /// Get the default type of the CoreValue as a TypeContainer.
+    /// Get the default type of the CoreValue type definition.
     /// This method uses the CoreLibPointerId to retrieve the corresponding
     /// type reference from the core library.
     /// For example, a CoreValue::TypedInteger(i32) will return the type ref integer/i32
-    pub fn default_type(&self) -> TypeContainer {
-        get_core_lib_type(CoreLibPointerId::from(self))
+    pub fn default_type_definition(&self) -> TypeDefinition {
+        TypeDefinition::Reference(get_core_lib_type_reference(
+            CoreLibPointerId::from(self),
+        ))
     }
 
     // TODO #313: allow cast of any CoreValue to Type, as structural type can always be constructed?
@@ -344,7 +353,7 @@ impl CoreValue {
                 Some(int.to_smallest_fitting().clone())
             }
             CoreValue::Integer(int) => {
-                Some(TypedInteger::Big(int.clone()).to_smallest_fitting())
+                Some(TypedInteger::IBig(int.clone()).to_smallest_fitting())
             }
             CoreValue::Decimal(decimal) => Some(
                 TypedInteger::from(decimal.into_f64() as i128)
@@ -752,6 +761,7 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => core::write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
             CoreValue::List(list) => core::write!(f, "{list}"),
+            CoreValue::Callable(callable) => core::write!(f, "[[ callable ]]"), // TODO
         }
     }
 }
@@ -771,8 +781,7 @@ mod tests {
     fn type_construct() {
         init_logger_debug();
         let a = CoreValue::from(42i32);
-        assert_eq!(a.default_type().to_string(), "integer/i32");
-        assert_eq!(a.default_type().base_type().to_string(), "integer");
+        assert_eq!(a.default_type_definition().to_string(), "integer/i32");
     }
 
     #[test]

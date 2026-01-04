@@ -1,6 +1,7 @@
-use crate::ast::structs::r#type::{
-    FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union,
+use crate::ast::type_expressions::{
+    CallableTypeExpression, FixedSizeList, GenericAccess, Intersection,
+    SliceList, StructuralList, StructuralMap, TypeExpression,
+    TypeExpressionData, Union,
 };
 use crate::visitor::VisitAction;
 use crate::visitor::type_expression::TypeExpressionVisitor;
@@ -77,15 +78,23 @@ impl<E> VisitableTypeExpression<E> for GenericAccess {
         Ok(())
     }
 }
-impl<E> VisitableTypeExpression<E> for FunctionType {
+impl<E> VisitableTypeExpression<E> for CallableTypeExpression {
     fn walk_children(
         &mut self,
         visitor: &mut impl TypeExpressionVisitor<E>,
     ) -> Result<(), E> {
-        for (_, param_type) in &mut self.parameters {
+        for (_, param_type) in &mut self.parameter_types {
             visitor.visit_type_expression(param_type)?;
         }
-        visitor.visit_type_expression(&mut self.return_type)?;
+        if let Some((_, rest_param_type)) = &mut self.rest_parameter_type {
+            visitor.visit_type_expression(rest_param_type)?;
+        }
+        if let Some(return_type) = &mut self.return_type {
+            visitor.visit_type_expression(return_type)?;
+        }
+        if let Some(yeet_type) = &mut self.yeet_type {
+            visitor.visit_type_expression(yeet_type)?;
+        }
         Ok(())
     }
 }
@@ -123,8 +132,8 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
             TypeExpressionData::GenericAccess(generic_access) => {
                 generic_access.walk_children(visitor)
             }
-            TypeExpressionData::Function(function_type) => {
-                function_type.walk_children(visitor)
+            TypeExpressionData::Callable(callable_type_expression) => {
+                callable_type_expression.walk_children(visitor)
             }
             TypeExpressionData::StructuralMap(structural_map) => {
                 structural_map.walk_children(visitor)
@@ -135,8 +144,11 @@ impl<E> VisitableTypeExpression<E> for TypeExpression {
             TypeExpressionData::RefMut(type_expression) => {
                 type_expression.walk_children(visitor)
             }
-            TypeExpressionData::Null
-            | TypeExpressionData::Literal(_)
+
+            TypeExpressionData::Recover
+            | TypeExpressionData::Null
+            | TypeExpressionData::Unit
+            | TypeExpressionData::Identifier(_)
             | TypeExpressionData::VariableAccess(_)
             | TypeExpressionData::GetReference(_)
             | TypeExpressionData::Integer(_)

@@ -11,6 +11,7 @@ jobs:
         env:
             PROJECT_NAME_UNDERSCORE: datex_core
             CARGO_INCREMENTAL: 0
+            RUSTFLAGS: -Awarnings
         steps:
             - uses: actions/checkout@v5
 
@@ -67,11 +68,12 @@ jobs:
                   files: target/nextest/ci/report.xml
     test-embedded:
         runs-on: macos-latest
-        name: Test
+        name: Test no-std/embedded build
         concurrency:
             group: ${{ github.workflow }}-${{ github.ref }}-test-embedded
             cancel-in-progress: true
-
+        env:
+            RUSTFLAGS: -Awarnings
         steps:
             - uses: actions/checkout@v5
 

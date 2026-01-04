@@ -2,12 +2,13 @@ use core::ops::Range;
 
 use pretty::DocAllocator;
 
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
+    VariableAccess, VariableDeclaration,
+};
+use crate::fmt::Assoc;
 use crate::references::reference::ReferenceMutability;
 use crate::{
-    ast::structs::expression::{
-        BinaryOperation, DatexExpression, DatexExpressionData, List, Map,
-        VariableAccess, VariableDeclaration,
-    },
     fmt::{
         Format, Formatter, Operation, ParentContext,
         options::{StatementFormatting, VariantFormatting},
@@ -90,14 +91,21 @@ impl<'a> Formatter<'a> {
                     .iter()
                     .enumerate()
                     .map(|(i, stmt)| {
-                        self.format_datex_expression(stmt)
-                            + (if is_terminated
-                                || i < statements.statements.len() - 1
-                            {
-                                a.text(";")
-                            } else {
-                                self.alloc.nil()
-                            })
+                        self.format_datex_expression_with_parent(
+                            stmt,
+                            Some(ParentContext {
+                                precedence: 0,
+                                associativity: Assoc::None,
+                                operation: Operation::Statements,
+                            }),
+                            false,
+                        ) + (if is_terminated
+                            || i < statements.statements.len() - 1
+                        {
+                            a.text(";")
+                        } else {
+                            self.alloc.nil()
+                        })
                     })
                     .collect();
 
@@ -132,10 +140,10 @@ impl<'a> Formatter<'a> {
                     + self.operator_with_spaces(a.text("="))
                     + self.format_datex_expression(init_expression)
             }
-            DatexExpressionData::Type(type_expr) => {
+            DatexExpressionData::TypeExpression(type_expr) => {
                 let a = &self.alloc;
                 let inner = self.format_type_expression(type_expr);
-                (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))
+                (a.text("type<") + a.line_() + inner + a.line_() + a.text(">"))
                     .group()
             }
             DatexExpressionData::VariableAccess(VariableAccess {

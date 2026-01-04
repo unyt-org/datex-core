@@ -34,7 +34,7 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
         &json,
         |b, json| {
             b.iter(|| {
-                json::json_to_runtime_value_datex(black_box(json), None);
+                json::json_to_runtime_value_datex(black_box(json));
                 black_box(());
             })
         },
@@ -50,7 +50,6 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
             b.iter(|| {
                 json::json_to_runtime_value_datex_auto_static_detection(
                     black_box(json),
-                    None,
                 );
                 black_box(());
             })
@@ -79,7 +78,7 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
         &json,
         |b, json| {
             b.iter(|| {
-                json_to_dxb(black_box(json), None);
+                json_to_dxb(black_box(json));
                 black_box(());
             })
         },
@@ -189,7 +188,7 @@ fn bench_json_file(c: &mut Criterion, file_path: &str) {
 fn bench_json(c: &mut Criterion) {
     bench_json_file(c, "test1.json");
     bench_json_file(c, "test2.json");
-    bench_json_file(c, "test3.json");
+    // bench_json_file(c, "test3.json");
 }
 
 criterion_group! {

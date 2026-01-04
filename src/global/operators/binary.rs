@@ -1,5 +1,5 @@
 use crate::global::instruction_codes::InstructionCode;
-use crate::global::protocol_structures::instructions::Instruction;
+use crate::global::protocol_structures::instructions::RegularInstruction;
 use crate::stdlib::string::ToString;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
@@ -26,7 +26,7 @@ impl From<BitwiseOperator> for BinaryOperator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Copy, Eq, Hash)]
 pub enum ArithmeticOperator {
     Add,      // +
     Subtract, // -
@@ -85,8 +85,8 @@ impl Display for LogicalOperator {
             f,
             "{}",
             match self {
-                LogicalOperator::And => "&&",
-                LogicalOperator::Or => "||",
+                LogicalOperator::And => "and",
+                LogicalOperator::Or => "or",
             }
         )
     }
@@ -203,19 +203,19 @@ impl From<InstructionCode> for BinaryOperator {
     }
 }
 
-impl From<&Instruction> for BinaryOperator {
-    fn from(instruction: &Instruction) -> Self {
+impl From<&RegularInstruction> for BinaryOperator {
+    fn from(instruction: &RegularInstruction) -> Self {
         match instruction {
-            Instruction::Add => {
+            RegularInstruction::Add => {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Add)
             }
-            Instruction::Subtract => {
+            RegularInstruction::Subtract => {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Subtract)
             }
-            Instruction::Multiply => {
+            RegularInstruction::Multiply => {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Multiply)
             }
-            Instruction::Divide => {
+            RegularInstruction::Divide => {
                 BinaryOperator::Arithmetic(ArithmeticOperator::Divide)
             }
             _ => {
@@ -228,8 +228,8 @@ impl From<&Instruction> for BinaryOperator {
     }
 }
 
-impl From<Instruction> for BinaryOperator {
-    fn from(instruction: Instruction) -> Self {
+impl From<RegularInstruction> for BinaryOperator {
+    fn from(instruction: RegularInstruction) -> Self {
         BinaryOperator::from(&instruction)
     }
 }

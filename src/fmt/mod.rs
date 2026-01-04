@@ -1,12 +1,12 @@
 use core::ops::Range;
 
+use crate::ast::expressions::{DatexExpression, VariableAccess};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, TypeExpression, TypeExpressionData,
+    TypeVariantAccess,
+};
+use crate::parser::ParserOptions;
 use crate::{
-    ast::structs::{
-        expression::{DatexExpression, VariableAccess},
-        r#type::{
-            FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
-        },
-    },
     compiler::precompiler::precompiled_ast::RichAst,
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
     fmt::options::{FormattingOptions, TypeDeclarationFormatting},
@@ -14,6 +14,7 @@ use crate::{
     libs::core::CoreLibPointerId,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
+
 mod bracketing;
 mod formatting;
 pub mod options;
@@ -33,6 +34,7 @@ pub enum Operation<'a> {
     Binary(&'a BinaryOperator),
     Comparison(&'a ComparisonOperator),
     Unary(&'a UnaryOperator),
+    Statements,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +54,13 @@ impl<'a> Formatter<'a> {
     pub fn new(script: &'a str, options: FormattingOptions) -> Self {
         let ast = parse_datex_script_to_rich_ast_simple_error(
             script,
-            &mut CompileOptions::default(),
+            &mut CompileOptions {
+                // Preserve scoping information for accurate formatting
+                parser_options: ParserOptions {
+                    preserve_scoping: true,
+                },
+                ..Default::default()
+            },
         )
         .expect("Failed to parse Datex script");
         Self {
@@ -131,6 +139,7 @@ impl<'a> Formatter<'a> {
             TypeExpressionData::Text(t) => a.text(format!("{:?}", t)),
             TypeExpressionData::Endpoint(ep) => a.text(ep.to_string()),
             TypeExpressionData::Null => a.text("null"),
+            TypeExpressionData::Unit => a.text("()"),
 
             TypeExpressionData::Ref(inner) => {
                 a.text("&") + self.format_type_expression(inner)
@@ -138,7 +147,7 @@ impl<'a> Formatter<'a> {
             TypeExpressionData::RefMut(inner) => {
                 a.text("&mut") + a.space() + self.format_type_expression(inner)
             }
-            TypeExpressionData::Literal(lit) => a.text(lit.to_string()),
+            TypeExpressionData::Identifier(lit) => a.text(lit.to_string()),
             TypeExpressionData::VariableAccess(VariableAccess {
                 name, ..
             }) => a.text(name.clone()),
@@ -184,25 +193,24 @@ impl<'a> Formatter<'a> {
                 core::todo!()
             }
 
-            // Function type: `(x: Int, y: Text) -> Bool`
-            TypeExpressionData::Function(FunctionType {
-                parameters,
+            // Callable type, e.g. `function (x: integer, y: text) -> boolean`
+            TypeExpressionData::Callable(CallableTypeExpression {
+                kind,
+                parameter_types,
+                rest_parameter_type,
                 return_type,
+                yeet_type,
             }) => {
-                let params = parameters.iter().map(|(name, ty)| {
-                    a.text(name.clone())
+                // TODO: handle full signature
+                let params = parameter_types.iter().map(|(name, ty)| {
+                    a.text(name.clone().unwrap_or_else(|| "_".to_string()))
                         + self.type_declaration_colon()
                         + self.format_type_expression(ty)
                 });
                 let params_doc =
                     RcDoc::intersperse(params, a.text(",") + a.space());
                 let arrow = self.operator_with_spaces(a.text("->"));
-                (a.text("(")
-                    + params_doc
-                    + a.text(")")
-                    + arrow
-                    + self.format_type_expression(return_type))
-                .group()
+                todo!()
             }
 
             TypeExpressionData::StructuralMap(items) => {
@@ -214,6 +222,8 @@ impl<'a> Formatter<'a> {
                 });
                 self.wrap_collection(pairs, ("{", "}"), ",")
             }
+
+            TypeExpressionData::Recover => a.text("/*recover*/"),
         }
     }
 
@@ -307,17 +317,18 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ast::parse, fmt::options::VariantFormatting};
+    use crate::fmt::options::VariantFormatting;
 
     use super::*;
+    use crate::parser::Parser;
     use indoc::indoc;
 
     #[test]
     fn ensure_unchanged() {
         let script = "const x = {a: 1000000, b: [1,2,3,4,5,\"jfdjfsjdfjfsdjfdsjf\", 42, true, {a:1,b:3}], c: 123.456}; x";
-        let ast_original = parse(script).unwrap().ast;
+        let ast_original = Parser::parse_with_default_options(script).unwrap();
         let formatted = to_string(script, FormattingOptions::default());
-        let ast_new = parse(&formatted).unwrap().ast;
+        let ast_new = Parser::parse_with_default_options(&formatted).unwrap();
         assert_eq!(ast_original, ast_new);
     }
 
@@ -386,20 +397,20 @@ mod tests {
 
     #[test]
     fn type_declarations() {
-        let expr = "type(&mut integer/u8)";
+        let expr = "type<&mut integer/u8>";
         assert_eq!(
             to_string(expr, FormattingOptions::default()),
-            "type(&mut integer/u8)"
+            "type<&mut integer/u8>"
         );
 
-        let expr = "type(text | integer/u16 | decimal/f32)";
+        let expr = "type<text | integer/u16 | decimal/f32>";
         assert_eq!(
             to_string(expr, FormattingOptions::default()),
-            "type(text | integer/u16 | decimal/f32)"
+            "type<text | integer/u16 | decimal/f32>"
         );
         assert_eq!(
             to_string(expr, FormattingOptions::compact()),
-            "type(text|integer/u16|decimal/f32)"
+            "type<text|integer/u16|decimal/f32>"
         );
     }
 

@@ -1,10 +1,10 @@
 use core::ops::Range;
 
-use crate::ast::structs::expression::VariableAccess;
-use crate::ast::structs::r#type::{
-    FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
-    TypeVariantAccess, Union,
+use crate::ast::expressions::VariableAccess;
+use crate::ast::type_expressions::{
+    CallableTypeExpression, FixedSizeList, GenericAccess, Intersection,
+    SliceList, StructuralList, StructuralMap, TypeExpression,
+    TypeExpressionData, TypeVariantAccess, Union,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -56,6 +56,7 @@ pub trait TypeExpressionVisitor<E>: Sized {
                 self.visit_get_reference_type(pointer_address, &expr.span)
             }
             TypeExpressionData::Null => self.visit_null_type(&expr.span),
+            TypeExpressionData::Unit => self.visit_unit_type(&expr.span),
             TypeExpressionData::VariableAccess(variable_access) => {
                 self.visit_variable_access_type(variable_access, &expr.span)
             }
@@ -98,8 +99,8 @@ pub trait TypeExpressionVisitor<E>: Sized {
             TypeExpressionData::GenericAccess(generic_access) => {
                 self.visit_generic_access_type(generic_access, &expr.span)
             }
-            TypeExpressionData::Function(function) => {
-                self.visit_function_type(function, &expr.span)
+            TypeExpressionData::Callable(callable_type_expression) => {
+                self.visit_callable_type(callable_type_expression, &expr.span)
             }
             TypeExpressionData::StructuralMap(structural_map) => {
                 self.visit_structural_map_type(structural_map, &expr.span)
@@ -110,8 +111,11 @@ pub trait TypeExpressionVisitor<E>: Sized {
             TypeExpressionData::RefMut(type_ref_mut) => {
                 self.visit_ref_mut_type(type_ref_mut, &expr.span)
             }
-            TypeExpressionData::Literal(literal) => {
+            TypeExpressionData::Identifier(literal) => {
                 self.visit_literal_type(literal, &expr.span)
+            }
+            TypeExpressionData::Recover => {
+                unreachable!("Recover expression should not be visited")
             }
         };
         let action = match visit_result {
@@ -232,13 +236,13 @@ pub trait TypeExpressionVisitor<E>: Sized {
     }
 
     /// Visit function type expression
-    fn visit_function_type(
+    fn visit_callable_type(
         &mut self,
-        function_type: &mut FunctionType,
+        callable_type_expression: &mut CallableTypeExpression,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {
         let _ = span;
-        let _ = function_type;
+        let _ = callable_type_expression;
         Ok(VisitAction::VisitChildren)
     }
 
@@ -376,6 +380,15 @@ pub trait TypeExpressionVisitor<E>: Sized {
 
     /// Visit null literal
     fn visit_null_type(
+        &mut self,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<E> {
+        let _ = span;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    // Visit unit type
+    fn visit_unit_type(
         &mut self,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {

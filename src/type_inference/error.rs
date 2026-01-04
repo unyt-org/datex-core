@@ -1,28 +1,53 @@
+use crate::stdlib::string::String;
 use core::{fmt::Display, ops::Range};
 
+use crate::values::core_values::r#type::Type;
 use crate::{
     compiler::error::ErrorCollector,
     global::operators::binary::ArithmeticOperator,
-    types::type_container::TypeContainer,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeError {
+    SubvariantNotFound(String, String),
     // only for debugging purposes
-    InvalidDerefType(TypeContainer),
+    InvalidDerefType(Type),
     Unimplemented(String),
-    MismatchedOperands(ArithmeticOperator, TypeContainer, TypeContainer),
+    MismatchedOperands(ArithmeticOperator, Type, Type),
+    AssignmentToImmutableReference(String),
+    AssignmentToImmutableValue(String),
+    AssignmentToConstant(String),
 
     // can not assign value to variable of different type
     AssignmentTypeMismatch {
-        annotated_type: TypeContainer,
-        assigned_type: TypeContainer,
+        annotated_type: Type,
+        assigned_type: Type,
     },
 }
 
 impl Display for TypeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            TypeError::AssignmentToImmutableValue(var_name) => {
+                write!(f, "Cannot assign to immutable variable '{}'", var_name)
+            }
+            TypeError::AssignmentToConstant(var_name) => {
+                write!(f, "Cannot assign to constant variable '{}'", var_name)
+            }
+            TypeError::AssignmentToImmutableReference(var_name) => {
+                write!(
+                    f,
+                    "Cannot assign to immutable reference variable '{}'",
+                    var_name
+                )
+            }
+            TypeError::SubvariantNotFound(ty, variant) => {
+                write!(
+                    f,
+                    "Type {} does not have a subvariant named {}",
+                    ty, variant
+                )
+            }
             TypeError::InvalidDerefType(ty) => {
                 write!(f, "Cannot dereference value of type {}", ty)
             }

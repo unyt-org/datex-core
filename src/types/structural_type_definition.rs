@@ -4,20 +4,20 @@ use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
+use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::hash::Hash;
 use core::prelude::rust_2024::*;
 use core::unimplemented;
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::values::core_values::integer::Integer;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
@@ -29,8 +29,8 @@ pub enum StructuralTypeDefinition {
     Boolean(Boolean), // FIXME #374 use bool
     Endpoint(Endpoint),
     Null,
-    List(Vec<TypeContainer>),
-    Map(Vec<(TypeContainer, TypeContainer)>),
+    List(Vec<Type>), // e.g. [&mut integer, text, boolean]
+    Map(Vec<(Type, Type)>),
 }
 
 macro_rules! impl_from_typed_int {

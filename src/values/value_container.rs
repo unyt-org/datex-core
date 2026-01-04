@@ -1,21 +1,28 @@
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
-use crate::types::type_container::TypeContainer;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use super::value::Value;
+use crate::references::mutations::DIFUpdateDataOrMemory;
+use crate::references::observers::TransceiverId;
+use crate::references::reference::{AccessError, Reference};
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::stdlib::borrow::Cow;
+use crate::stdlib::boxed::Box;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::string::String;
 use crate::traits::apply::Apply;
 use crate::traits::value_eq::ValueEq;
+use crate::types::definition::TypeDefinition;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
-use datex_core::references::reference::Reference;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +45,150 @@ impl Display for ValueError {
             }
             ValueError::IntegerOverflow => {
                 core::write!(f, "Integer overflow occurred")
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ValueKey<'a> {
+    Text(Cow<'a, str>),
+    Index(i64),
+    Value(Cow<'a, ValueContainer>),
+}
+
+impl<'a> ValueKey<'a> {
+    pub fn with_value_container<R>(
+        &self,
+        callback: impl FnOnce(&ValueContainer) -> R,
+    ) -> R {
+        match self {
+            ValueKey::Value(value_container) => callback(value_container),
+            ValueKey::Text(text) => {
+                let value_container = ValueContainer::new_value(text.as_ref());
+                callback(&value_container)
+            }
+            ValueKey::Index(index) => {
+                let value_container = ValueContainer::new_value(*index);
+                callback(&value_container)
+            }
+        }
+    }
+}
+
+impl<'a> Display for ValueKey<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ValueKey::Text(text) => core::write!(f, "{}", text),
+            ValueKey::Index(index) => core::write!(f, "{}", index),
+            ValueKey::Value(value_container) => {
+                core::write!(f, "{}", value_container)
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a String> for ValueKey<'a> {
+    fn from(text: &'a String) -> Self {
+        ValueKey::Text(Cow::from(text))
+    }
+}
+
+impl<'a> From<&'a str> for ValueKey<'a> {
+    fn from(text: &'a str) -> Self {
+        ValueKey::Text(Cow::from(text))
+    }
+}
+
+impl<'a> From<i64> for ValueKey<'a> {
+    fn from(index: i64) -> Self {
+        ValueKey::Index(index)
+    }
+}
+
+impl<'a> From<u32> for ValueKey<'a> {
+    fn from(index: u32) -> Self {
+        ValueKey::Index(index as i64)
+    }
+}
+
+impl<'a> From<i32> for ValueKey<'a> {
+    fn from(index: i32) -> Self {
+        ValueKey::Index(index as i64)
+    }
+}
+
+impl<'a> From<&'a ValueContainer> for ValueKey<'a> {
+    fn from(value_container: &'a ValueContainer) -> Self {
+        ValueKey::Value(Cow::Borrowed(value_container))
+    }
+}
+
+impl<'a> ValueKey<'a> {
+    pub fn try_as_text(&self) -> Option<&str> {
+        if let ValueKey::Text(text) = self {
+            Some(text)
+        } else if let ValueKey::Value(val) = self
+            && let ValueContainer::Value(Value {
+                inner: CoreValue::Text(text),
+                ..
+            }) = val.as_ref()
+        {
+            Some(&text.0)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_as_index(&self) -> Option<i64> {
+        if let ValueKey::Index(index) = self {
+            Some(*index)
+        } else if let ValueKey::Value(value) = self
+            && let ValueContainer::Value(Value {
+                inner: CoreValue::Integer(index),
+                ..
+            }) = value.as_ref()
+        {
+            index.as_i64()
+        } else if let ValueKey::Value(value) = self
+            && let ValueContainer::Value(Value {
+                inner: CoreValue::TypedInteger(index),
+                ..
+            }) = value.as_ref()
+        {
+            index.as_i64()
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> From<ValueKey<'a>> for ValueContainer {
+    fn from(value_key: ValueKey) -> Self {
+        match value_key {
+            ValueKey::Text(text) => {
+                ValueContainer::new_value(text.into_owned())
+            }
+            ValueKey::Index(index) => ValueContainer::new_value(index),
+            ValueKey::Value(value_container) => value_container.into_owned(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OwnedValueKey {
+    Text(String),
+    Index(i64),
+    Value(ValueContainer),
+}
+
+impl<'a> From<OwnedValueKey> for ValueKey<'a> {
+    fn from(owned: OwnedValueKey) -> Self {
+        match owned {
+            OwnedValueKey::Text(text) => ValueKey::Text(Cow::Owned(text)),
+            OwnedValueKey::Index(index) => ValueKey::Index(index),
+            OwnedValueKey::Value(value_container) => {
+                ValueKey::Value(Cow::Owned(value_container))
             }
         }
     }
@@ -167,23 +318,36 @@ impl ValueContainer {
         }
     }
 
-    /// Returns the allowed type of the value container
-    pub fn allowed_type(&self) -> TypeContainer {
-        match self {
-            // If it's a Value, return its actual type
-            ValueContainer::Value(value) => value.actual_type().clone(),
-            ValueContainer::Reference(reference) => {
-                reference.allowed_type().clone()
-            }
-        }
-    }
-
     /// Returns the actual type of the contained value, resolving references if necessary.
-    pub fn actual_type(&self) -> TypeContainer {
+    pub fn actual_value_type(&self) -> TypeDefinition {
         match self {
             ValueContainer::Value(value) => value.actual_type().clone(),
             ValueContainer::Reference(reference) => {
                 reference.actual_type().clone()
+            }
+        }
+    }
+
+    /// Returns the actual type that describes the value container (e.g. integer or &&mut integer).
+    pub fn actual_container_type(&self) -> Type {
+        match self {
+            ValueContainer::Value(value) => {
+                Type::new(*value.actual_type.clone(), None)
+            }
+            ValueContainer::Reference(reference) => {
+                let inner_type =
+                    reference.value_container().actual_container_type();
+                Type::new(
+                    // when nesting references, we need to keep the reference information
+                    if inner_type.is_reference_type() {
+                        TypeDefinition::Type(Box::new(inner_type))
+                    }
+                    // for simple non-ref type, we can collapse the definition
+                    else {
+                        inner_type.type_definition
+                    },
+                    Some(reference.mutability()),
+                )
             }
         }
     }
@@ -225,21 +389,34 @@ impl ValueContainer {
         }
     }
 
-    /// Upgrades the ValueContainer to a ValueContainer::Reference if it is a ValueContainer::Value
-    /// and if the contained value is a combined value, not a primitive value like integer, text, etc.
-    pub fn upgrade_combined_value_to_reference(self) -> ValueContainer {
-        match &self {
-            // already a reference, no need to upgrade
-            ValueContainer::Reference(_) => self,
-            ValueContainer::Value(value) => {
-                if value.is_collection_value() {
-                    ValueContainer::new_reference(self)
-                }
-                // if the value is not a combined value, keep it as a ValueContainer::Value
-                else {
-                    self
-                }
+    /// Tries to get a property from the contained Value or Reference.
+    pub fn try_get_property<'a>(
+        &self,
+        key: impl Into<ValueKey<'a>>,
+    ) -> Result<ValueContainer, AccessError> {
+        match self {
+            ValueContainer::Value(value) => value.try_get_property(key),
+            ValueContainer::Reference(reference) => {
+                reference.try_get_property(key)
             }
+        }
+    }
+
+    pub fn try_set_property<'a>(
+        &mut self,
+        source_id: TransceiverId,
+        dif_update_data_or_memory: impl Into<DIFUpdateDataOrMemory<'a>>,
+        key: impl Into<ValueKey<'a>>,
+        val: ValueContainer,
+    ) -> Result<(), AccessError> {
+        match self {
+            ValueContainer::Value(v) => v.try_set_property(key, val),
+            ValueContainer::Reference(r) => r.try_set_property(
+                source_id,
+                dif_update_data_or_memory,
+                key,
+                val,
+            ),
         }
     }
 }
@@ -250,9 +427,7 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => {
-                core::todo!("#309 implement apply for Value")
-            }
+            ValueContainer::Value(value) => value.apply(args),
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
@@ -262,9 +437,7 @@ impl Apply for ValueContainer {
         arg: &ValueContainer,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => {
-                core::todo!("#310 implement apply_single for Value")
-            }
+            ValueContainer::Value(value) => value.apply_single(arg),
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }
     }
@@ -273,21 +446,6 @@ impl Apply for ValueContainer {
 impl<T: Into<Value>> From<T> for ValueContainer {
     fn from(value: T) -> Self {
         ValueContainer::Value(value.into())
-    }
-}
-
-impl From<TypeContainer> for ValueContainer {
-    fn from(type_container: TypeContainer) -> Self {
-        match type_container {
-            TypeContainer::Type(type_value) => {
-                ValueContainer::Value(Value::from(type_value))
-            }
-            TypeContainer::TypeReference(type_reference) => {
-                ValueContainer::Reference(Reference::TypeReference(
-                    type_reference,
-                ))
-            }
-        }
     }
 }
 

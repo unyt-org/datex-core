@@ -16,9 +16,10 @@ use datex_core::values::value_container::ValueContainer;
 fn compile_and_execute(input: ValueContainer) -> ValueContainer {
     let (dxb, _) = compile!("?", input.clone()).unwrap();
 
-    execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
+    execute_dxb_sync(ExecutionInput::new(
         &dxb,
         ExecutionOptions { verbose: true },
+        None,
     ))
     .unwrap()
     .unwrap()
@@ -56,7 +57,7 @@ fn test_compile_and_execute_typed_decimals() {
     let result = compile_and_execute(input.clone());
     assert_eq!(result, input);
 
-    let input = ValueContainer::from(TypedDecimal::Decimal(Decimal::NaN));
+    let input = ValueContainer::from(TypedDecimal::Decimal(Decimal::Nan));
     let result = compile_and_execute(input.clone());
     assert_eq!(result, input);
 }
@@ -88,7 +89,7 @@ fn test_compile_and_execute_list() {
 
 #[test]
 fn test_compile_and_execute_map() {
-    let input = ValueContainer::from(Map::from(vec![
+    let input = ValueContainer::from(Map::Structural(vec![
         ("key1".to_string(), ValueContainer::from(Integer::from(1))),
         ("key2".to_string(), ValueContainer::from("value")),
         ("key3".to_string(), ValueContainer::from(true)),

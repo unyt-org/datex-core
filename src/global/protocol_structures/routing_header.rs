@@ -1,4 +1,5 @@
 use super::serializable::Serializable;
+use crate::global::protocol_structures::instructions::RawFullPointerAddress;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
@@ -100,18 +101,6 @@ pub enum ReceiverType {
     ReceiversWithKeys = 0b11,
 }
 
-// TODO #430 directly use bytes / pointer address instead of whole struct here
-// 1 byte + 18 byte + 2 byte + 4 byte + 1 byte = 26 bytes
-#[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Default, BinWrite, BinRead, PartialEq)]
-pub struct PointerAddress {
-    pub pointer_type: u8,
-    pub identifier: [u8; 18],
-    pub instance: u16,
-    pub timestamp: u32,
-    pub counter: u8,
-}
-
 // <count>: 1 byte + (21 byte * count)
 // min: 2 bytes
 #[cfg_attr(feature = "debug", derive(serde::Serialize, serde::Deserialize))]
@@ -195,7 +184,7 @@ pub struct RoutingHeader {
 
     // TODO #115: add custom match receiver queries
     #[brw(if(flags.receiver_type() == ReceiverType::Pointer))]
-    receivers_pointer_id: Option<PointerAddress>,
+    receivers_pointer_id: Option<RawFullPointerAddress>,
     #[brw(if(flags.receiver_type() == ReceiverType::Receivers))]
     #[cfg_attr(feature = "debug", serde(flatten))]
     receivers_endpoints: Option<ReceiverEndpoints>,
@@ -227,7 +216,7 @@ impl Default for RoutingHeader {
 pub enum Receivers {
     None,
     // TODO #431 rename to PointerAddress
-    PointerId(PointerAddress),
+    PointerId(RawFullPointerAddress),
     Endpoints(Vec<Endpoint>),
     EndpointsWithKeys(Vec<(Endpoint, Key512)>),
 }
@@ -252,9 +241,12 @@ impl Display for Receivers {
     }
 }
 
-impl From<PointerAddress> for Receivers {
-    fn from(pid: PointerAddress) -> Self {
-        Receivers::PointerId(pid)
+impl<T> From<T> for Receivers
+where
+    T: Into<RawFullPointerAddress>,
+{
+    fn from(pid: T) -> Self {
+        Receivers::PointerId(pid.into())
     }
 }
 impl From<Vec<Endpoint>> for Receivers {
@@ -337,7 +329,10 @@ impl RoutingHeader {
         self.flags.set_receiver_type(ReceiverType::None);
 
         match receivers {
-            Receivers::PointerId(pid) => self.receivers_pointer_id = Some(pid),
+            Receivers::PointerId(pid) => {
+                self.receivers_pointer_id = Some(pid);
+                self.flags.set_receiver_type(ReceiverType::Pointer);
+            }
             Receivers::Endpoints(endpoints) => {
                 if !endpoints.is_empty() {
                     self.receivers_endpoints =

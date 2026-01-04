@@ -1,6 +1,8 @@
 use datex_core::assert_structural_eq;
 use datex_core::compiler::{CompileOptions, compile_script};
-use datex_core::decompiler::{DecompileOptions, Formatting, decompile_body};
+use datex_core::decompiler::{
+    DecompileOptions, FormattingMode, FormattingOptions, decompile_body,
+};
 use datex_core::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -67,12 +69,13 @@ fn compare_datex_result_with_json(json_string: &str) {
     let json_value = json_syntax::Value::parse_str(json_string).unwrap().0;
     let (dxb, _) =
         compile_script(json_string, CompileOptions::default()).unwrap();
-    let exec_input = ExecutionInput::new_with_dxb_and_options(
+    let exec_input = ExecutionInput::new(
         &dxb,
         ExecutionOptions {
             verbose: false,
             ..ExecutionOptions::default()
         },
+        None,
     );
     let datex_value = execute_dxb_sync(exec_input).unwrap().unwrap();
     let json_value_converted = json_value_to_datex_value(&json_value);
@@ -98,9 +101,11 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     let decompiled = decompile_body(
         &dxb,
         DecompileOptions {
-            json_compat: true,
-            formatting: Formatting::multiline(),
-            colorized: false,
+            formatting_options: FormattingOptions {
+                json_compat: true,
+                mode: FormattingMode::pretty(),
+                ..FormattingOptions::default()
+            },
             ..DecompileOptions::default()
         },
     )
@@ -108,7 +113,10 @@ fn get_datex_decompiled_from_json(json_string: &str) -> String {
     // try to parse JSON, if failed, panic
     let parsed_json = json_syntax::Value::parse_str(&decompiled);
     if parsed_json.is_err() {
-        core::panic!("Decompiled JSON is not valid: {decompiled}");
+        core::panic!(
+            "Decompiled JSON is not valid: {decompiled}, error: {:?}",
+            parsed_json.unwrap_err()
+        );
     }
     decompiled
 }
@@ -210,7 +218,7 @@ fn compare_with_expected() {
 #[test]
 #[ignore = "Only run this test to update expected results"]
 /// This test is used to update the expected results for the JSON test cases.
-/// It will overwrite the expected results with the current decompiled output.
+/// To update a file, it must be deleted first from the expected_results folder.
 fn update_expected() {
     for (input_path, output_path) in iterate_test_cases() {
         // only update if output_path does not exist

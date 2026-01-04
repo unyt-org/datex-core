@@ -1,4 +1,5 @@
 use crate::collections::HashMap;
+use crate::global::protocol_structures::instructions::RawFullPointerAddress;
 use crate::libs::core::{CoreLibPointerId, load_core_lib};
 use crate::references::reference::Reference;
 use crate::references::type_reference::TypeReference;
@@ -6,15 +7,13 @@ use crate::references::value_reference::ValueReference;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::types::error::IllegalTypeError;
-use crate::types::type_container::TypeContainer;
 use crate::utils::time::Time;
+use crate::values::core_values::endpoint::Endpoint;
 use crate::values::pointer::PointerAddress;
 use binrw::io::Cursor;
 use core::cell::RefCell;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::global::protocol_structures::instructions::RawFullPointerAddress;
-use datex_core::values::core_values::endpoint::Endpoint;
 
 #[derive(Debug, Default)]
 pub struct Memory {
@@ -104,29 +103,27 @@ impl Memory {
     }
 
     /// Helper function to get a core type directly from memory if it can be used as a type
-    pub fn get_core_type(
+    pub fn get_core_type_reference(
         &self,
         pointer_id: CoreLibPointerId,
-    ) -> Result<TypeContainer, IllegalTypeError> {
+    ) -> Result<Rc<RefCell<TypeReference>>, IllegalTypeError> {
         let reference = self
             .get_reference(&pointer_id.into())
             .ok_or(IllegalTypeError::TypeNotFound)?;
-        match &reference {
-            Reference::TypeReference(def) => {
-                Ok(TypeContainer::TypeReference(def.clone()))
-            }
+        match reference {
+            Reference::TypeReference(def) => Ok(def.clone()),
             _ => Err(IllegalTypeError::TypeNotFound),
         }
     }
 
     /// Helper function to get a core type directly from memory, asserting that is can be used as a type
     /// Panics if the core type is not found or cannot be used as a type.
-    pub fn get_core_type_unchecked(
+    pub fn get_core_type_reference_unchecked(
         &self,
         pointer_id: CoreLibPointerId,
-    ) -> TypeContainer {
+    ) -> Rc<RefCell<TypeReference>> {
         // FIXME #415: Mark as unchecked
-        self.get_core_type(pointer_id)
+        self.get_core_type_reference(pointer_id)
             .expect("core type not found or cannot be used as a type")
     }
 
@@ -136,8 +133,12 @@ impl Memory {
         &self,
         raw_address: RawFullPointerAddress,
     ) -> PointerAddress {
-        if raw_address.endpoint == self.local_endpoint {
-            PointerAddress::Local(raw_address.id)
+        if let Ok(endpoint) = raw_address.endpoint()
+            && endpoint == self.local_endpoint
+        {
+            // TODO: check if it makes sense to take the last 5 bytes only here
+            let last_bytes = &raw_address.id[raw_address.id.len() - 5..];
+            PointerAddress::Local(last_bytes.try_into().unwrap())
         } else {
             // combine raw_address.endpoint and raw_address.id to [u8; 26]
             let writer = Cursor::new(Vec::new());

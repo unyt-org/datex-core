@@ -1,3 +1,4 @@
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::FlagsAndTimestamp;
 use crate::global::protocol_structures::block_header::{
@@ -17,7 +18,6 @@ use crate::values::value_container::ValueContainer;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-use datex_core::core_compiler::value_compiler::compile_value_container;
 use futures::channel::oneshot;
 use log::info;
 

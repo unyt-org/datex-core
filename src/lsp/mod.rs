@@ -2,20 +2,20 @@ mod errors;
 mod type_hint_collector;
 mod utils;
 mod variable_declaration_finder;
+use crate::ast::expressions::{
+    DatexExpressionData, VariableAccess, VariableAssignment,
+    VariableDeclaration,
+};
+use crate::collections::HashMap;
+use crate::compiler::precompiler::precompiled_ast::RichAst;
+use crate::compiler::workspace::CompilerWorkspace;
 use crate::lsp::errors::SpannedLSPCompilerError;
 use crate::lsp::variable_declaration_finder::VariableDeclarationFinder;
 use crate::runtime::Runtime;
 use crate::stdlib::borrow::Cow;
 use crate::stdlib::cell::RefCell;
-use crate::stdlib::collections::HashMap;
-use datex_core::ast::structs::expression::{
-    DatexExpressionData, VariableAccess, VariableAssignment,
-    VariableDeclaration,
-};
-use datex_core::compiler::precompiler::precompiled_ast::RichAst;
-use datex_core::compiler::workspace::CompilerWorkspace;
-use datex_core::types::type_container::TypeContainer;
-use datex_core::visitor::expression::ExpressionVisitor;
+use crate::values::core_values::r#type::Type;
+use crate::visitor::expression::ExpressionVisitor;
 use realhydroper_lsp::jsonrpc::{Error, ErrorCode};
 use realhydroper_lsp::{Client, LanguageServer, Server};
 use realhydroper_lsp::{LspService, lsp_types::*};
@@ -187,13 +187,11 @@ impl LanguageServer for LanguageServerBackend {
                     let variable_metadata =
                         self.get_variable_by_id(id).unwrap();
                     Some(self.get_language_string_hover(&format!(
-                            "{} {}: {}",
-                            variable_metadata.shape,
-                            name,
-                            variable_metadata
-                                .var_type
-                                .unwrap_or(TypeContainer::unknown())
-                        )))
+                        "{} {}: {}",
+                        variable_metadata.shape,
+                        name,
+                        variable_metadata.var_type.unwrap_or(Type::unknown())
+                    )))
                 }
 
                 // show value info on hover for literals

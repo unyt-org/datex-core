@@ -1,9 +1,11 @@
 use core::prelude::rust_2024::*;
 use num_enum::TryFromPrimitive;
 use strum::Display;
+use strum_macros::EnumIter;
 
 #[allow(non_camel_case_types)]
 #[derive(
+    EnumIter,
     Debug,
     Eq,
     PartialEq,
@@ -17,11 +19,12 @@ use strum::Display;
 pub enum InstructionCode {
     // flow instructions 0x00 - 0x0f
     EXIT = 0x00,
-    CLOSE_AND_STORE, // ; TODO: do we need close_and_store at all, or is scope_end enough?
-    SCOPE_START,     // (
-    SCOPE_END,       // )
-    CACHE_POINT,     // cache dxb from this point on
-    CACHE_RESET,     // reset dxb scope cache
+    STATEMENTS,       // statements block
+    SHORT_STATEMENTS, // optimized statements block with up to 255 instructions
+    UNBOUNDED_STATEMENTS,
+    UNBOUNDED_STATEMENTS_END, // end of statements block (only needed for unbounded blocks)
+    CACHE_POINT,              // cache dxb from this point on
+    CACHE_RESET,              // reset dxb scope cache
 
     // internal variables and other shorthands 0x30 - 0x4f
     VAR_RESULT,
@@ -67,6 +70,14 @@ pub enum InstructionCode {
     APPLY_SINGLE,
     APPLY,
 
+    GET_PROPERTY_DYNAMIC, // get property with arbitrary key value
+    GET_PROPERTY_INDEX,   // get property with integer index
+    GET_PROPERTY_TEXT,    // get property with text key
+
+    SET_PROPERTY_DYNAMIC, // set property with arbitrary key value
+    SET_PROPERTY_INDEX,   // set property with integer index
+    SET_PROPERTY_TEXT,    // set property with text key
+
     // runtime commands 0x50 - 0x7f
     RETURN,         // return
     TEMPLATE,       // template
@@ -87,28 +98,6 @@ pub enum InstructionCode {
     SUBSCRIBERS,    // subscribers $aa
     PLAIN_SCOPE,    // scope xy;
     // don't use 0x64 (magic number)
-    TRANSFORM,             // transform x <Int>
-    OBSERVE,               // observe x ()=>()
-    RUN,                   // run xy;
-    AWAIT,                 // await xy;
-    DEFER,                 // maybe xy;
-    FUNCTION,              // function ()
-    ASSERT,                // assert
-    ITERATOR,              // iterator ()
-    NEXT,                  // next it
-    FREEZE,                // freeze
-    SEAL,                  // seal
-    HAS,                   // x has y
-    KEYS,                  // keys x
-    GET_TYPE,              // type $aa
-    GET,                   // get file://..., get @user::34
-    RANGE,                 // ..
-    RESOLVE_RELATIVE_PATH, // ./abc
-    DO,                    // do xy;
-    DEFAULT,               // x default y
-    COLLAPSE,              // collapse x
-    RESPONSE,              // response x
-    CLONE_COLLAPSE,        // collapse
 
     // comparators 0x80 - 0x8f
     STRUCTURAL_EQUAL,     // ==
@@ -152,27 +141,31 @@ pub enum InstructionCode {
     // pointers & variables 0xa0 - 0xbf
 
     // slots
+    // TODO: refactor with stack variable system?
     GET_SLOT, // #xyz   0x0000-0x00ff = variables passed on between scopes, 0x0100-0xfdff = normal variables, 0xfe00-0xffff = it variables (#it.0, #it.1, ...) for function arguments
     SET_SLOT, // #aa = ...
     ALLOCATE_SLOT, // #aa = ...
     SLOT_ACTION, // #x += ...
     DROP_SLOT, // drop #aa
 
+    GET_INTERNAL_SLOT, // e.g. #endpoint
+
     LABEL,        // $x
     SET_LABEL,    // $x = ...,
     INIT_LABEL,   // $x := ...
     LABEL_ACTION, // $x += ...
 
-    GET_REF,          // $x
-    GET_INTERNAL_REF, // $y, containing globally unique internal id
-    GET_LOCAL_REF, // $x, containing only the id, origin id is inferred from sender
-    GET_OR_INIT_REF, // $aa := ...
-    POINTER_ACTION, // $aa += ...
-    CREATE_REF,    // &()
-    CREATE_REF_MUT, // &mut ()
-    SET_REF,       // &aa = ...
+    // Note: fix to sync with RawPointerAddress
+    GET_REF = 120u8,          // $x
+    GET_INTERNAL_REF = 121u8, // $y, containing globally unique internal id
+    GET_LOCAL_REF = 122u8, // $x, containing only the id, origin id is inferred from sender
+    GET_OR_INIT_REF,       // $aa := ...
+    POINTER_ACTION,        // $aa += ...
+    CREATE_REF,            // &()
+    CREATE_REF_MUT,        // &mut ()
+    SET_REF,               // &aa = ...
 
-    ASSIGN_TO_REF, // *x = 10;
+    SET_REFERENCE_VALUE, // *x = 10;
 
     DEREF, // *x
 
@@ -198,6 +191,7 @@ pub enum InstructionCode {
     INT_64,
     INT_128,
     INT_BIG,
+    INT, // default integer (unsized)
 
     UINT_8, // u8
     UINT_16,
@@ -211,12 +205,13 @@ pub enum InstructionCode {
     DECIMAL_AS_INT_32,
     DECIMAL_AS_INT_16,
 
+    DECIMAL, // default decimal (unsized)
+
     TRUE,
     FALSE,
     NULL,
     VOID,
     BUFFER,
-    EXECUTION_BLOCK,
     QUANTITY,
 
     SHORT_TEXT, // string with max. 255 characters
@@ -236,9 +231,10 @@ pub enum InstructionCode {
     TIME, // ~2022-10-10~
 
     // lists and maps 0xe0 - 0xef
-    LIST_START,   // (1,2,3)
-    MAP_START,    // (a:1, b:2)
-    STRUCT_START, // {a:1, b:2} - optimized structural map, field names are inferred from struct type
+    LIST,       // (1,2,3)
+    SHORT_LIST, // (1,2,3) - optimized short list with up to 255 elements
+    MAP,        // (a:1, b:2)
+    SHORT_MAP,  // {a:1, b:2} - optimized short map with up to 255 elements
 
     KEY_VALUE_SHORT_TEXT,
     KEY_VALUE_DYNAMIC, // for object elements with dynamic key
@@ -252,11 +248,43 @@ pub enum InstructionCode {
     STREAM,      // << stream
     STOP_STREAM, // </ stream
 
-    EXTEND, // ...
-
-    YEET, // !
-
     REMOTE_EXECUTION, // ::
 
-    _SYNC_SILENT, // <==:
+    TRANSFORM,             // transform x <Int>
+    OBSERVE,               // observe x ()=>()
+    RUN,                   // run xy;
+    AWAIT,                 // await xy;
+    DEFER,                 // maybe xy;
+    FUNCTION,              // function ()
+    ASSERT,                // assert
+    ITERATOR,              // iterator ()
+    NEXT,                  // next it
+    FREEZE,                // freeze
+    SEAL,                  // seal
+    HAS,                   // x has y
+    KEYS,                  // keys x
+    GET_TYPE,              // type $aa
+    GET,                   // get file://..., get @user::34
+    RANGE,                 // ..
+    RESOLVE_RELATIVE_PATH, // ./abc
+    DO,                    // do xy;
+    DEFAULT,               // x default y
+    COLLAPSE,              // collapse x
+    RESPONSE,              // response x
+    CLONE_COLLAPSE,        // collapse
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    #[ignore]
+    #[test]
+    fn test_instruction_code_values() {
+        // print a list of all instruction codes and their values for debugging purposes
+        for code in InstructionCode::iter() {
+            println!("{:?} = {:2X}", code, code as u8);
+        }
+    }
 }

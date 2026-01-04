@@ -33,11 +33,7 @@ mod tests {
     use crate::dif::value::DIFValueContainer;
     use crate::runtime::memory::Memory;
     use crate::{
-        dif::{
-            representation::DIFValueRepresentation,
-            r#type::{DIFType, DIFTypeContainer},
-            value::DIFValue,
-        },
+        dif::{representation::DIFValueRepresentation, value::DIFValue},
         libs::core::CoreLibPointerId,
         values::{
             core_values::integer::typed_integer::IntegerTypeVariant,
@@ -90,14 +86,7 @@ mod tests {
     fn dif_value_serialization() {
         let value = DIFValue {
             value: DIFValueRepresentation::Null,
-            ty: Some(
-                DIFType {
-                    mutability: None,
-                    name: None,
-                    type_definition: DIFTypeDefinition::Unit,
-                }
-                .as_container(),
-            ),
+            ty: Some(DIFTypeDefinition::Unit),
         };
         let serialized = value.as_json();
         println!("Serialized DIFValue: {}", serialized);
@@ -112,7 +101,7 @@ mod tests {
             assert_eq!(dif_value.value, DIFValueRepresentation::Number(42f64));
             assert_eq!(
                 dif_value.ty,
-                Some(DIFTypeContainer::Reference(
+                Some(DIFTypeDefinition::Reference(
                     CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
                         .into()
                 ))

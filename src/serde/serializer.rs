@@ -1,3 +1,4 @@
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -13,7 +14,6 @@ use crate::values::core_values::map::Map;
 use crate::values::value_container::ValueContainer;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::core_compiler::value_compiler::compile_value_container;
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct,
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
@@ -349,7 +349,7 @@ impl SerializeMap for MapSerializer {
         let mut map = Map::default();
         for (key, value) in self.entries.into_iter() {
             if let Some(value) = value {
-                map.set(key, value);
+                map.set(&key, value);
             } else {
                 return Err(SerializationError::Custom(
                     "Map entry without value".to_string(),
@@ -499,9 +499,10 @@ impl Serializer for &mut DatexSerializer {
         } else if name == "datex::value" {
             // unsafe cast value to ValueContainer
             let bytes = unsafe { &*(value as *const T as *const Vec<u8>) };
-            Ok(execute_dxb_sync(ExecutionInput::new_with_dxb_and_options(
+            Ok(execute_dxb_sync(ExecutionInput::new(
                 bytes,
                 ExecutionOptions::default(),
+                None,
             ))
             .unwrap()
             .unwrap())
@@ -844,7 +845,7 @@ mod tests {
                 .borrow()
                 .cast_to_map()
                 .unwrap()
-                .get_text("usize")
+                .get("usize")
                 .unwrap(),
             ValueContainer::from(42)
         );

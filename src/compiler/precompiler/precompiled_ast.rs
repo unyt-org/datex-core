@@ -1,8 +1,6 @@
+use crate::ast::expressions::{DatexExpression, VariableKind};
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::{
-    ast::structs::expression::{DatexExpression, VariableKind},
-    types::type_container::TypeContainer,
-};
+use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 
 #[derive(Clone, Debug)]
@@ -10,7 +8,7 @@ pub struct VariableMetadata {
     pub original_realm_index: usize,
     pub is_cross_realm: bool,
     pub shape: VariableShape,
-    pub var_type: Option<TypeContainer>,
+    pub var_type: Option<Type>,
     pub name: String,
 }
 
@@ -38,6 +36,9 @@ impl Display for VariableShape {
 #[derive(Default, Debug)]
 pub struct AstMetadata {
     pub variables: Vec<VariableMetadata>,
+    /// Indicates whether the AST is terminated (; at the end)
+    /// A terminated script can never return a value
+    pub is_terminated: bool,
 }
 
 impl AstMetadata {

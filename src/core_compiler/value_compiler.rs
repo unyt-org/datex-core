@@ -1,10 +1,15 @@
+use crate::core_compiler::type_compiler::append_type;
 use crate::global::instruction_codes::InstructionCode;
-use crate::libs::core::CoreLibPointerId;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_type_definition};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
+use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::{
     append_f32, append_f64, append_i8, append_i16, append_u8, append_u32,
     append_u128,
+};
+use crate::utils::buffers::{
+    append_i32, append_i64, append_i128, append_u16, append_u64,
 };
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::decimal::Decimal;
@@ -19,9 +24,6 @@ use crate::values::value_container::ValueContainer;
 use binrw::BinWrite;
 use binrw::io::Cursor;
 use core::prelude::rust_2024::*;
-use datex_core::utils::buffers::{
-    append_i32, append_i64, append_i128, append_u16, append_u64,
-};
 
 /// Compiles a given value container to a DXB body
 pub fn compile_value_container(value_container: &ValueContainer) -> Vec<u8> {
@@ -56,21 +58,31 @@ pub fn append_value_container(
 }
 
 pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
+    // append non-default type information
+    if !value.has_default_type() {
+        append_type_cast(buffer, &value.actual_type);
+    }
     match &value.inner {
         CoreValue::Type(ty) => {
             core::todo!("#439 Type value not supported in CompilationContext");
         }
+        CoreValue::Callable(callable) => {
+            core::todo!("Callable value not supported in CompilationContext");
+        }
         CoreValue::Integer(integer) => {
-            let integer = integer.to_smallest_fitting();
-            append_encoded_integer(buffer, &integer);
+            // NOTE: we might optimize this later, but using INT with big integer encoding
+            // for all integers for now
+            // let integer = integer.to_smallest_fitting();
+            // append_encoded_integer(buffer, &integer);
+            append_integer(buffer, integer);
         }
         CoreValue::TypedInteger(integer) => {
-            append_typed_integer(buffer, integer);
+            append_encoded_integer(buffer, integer);
         }
 
         CoreValue::Endpoint(endpoint) => append_endpoint(buffer, endpoint),
         CoreValue::Decimal(decimal) => append_decimal(buffer, decimal),
-        CoreValue::TypedDecimal(val) => append_typed_decimal(buffer, val),
+        CoreValue::TypedDecimal(val) => append_encoded_decimal(buffer, val),
         CoreValue::Boolean(val) => append_boolean(buffer, val.0),
         CoreValue::Null => {
             append_instruction_code(buffer, InstructionCode::NULL)
@@ -79,14 +91,37 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             append_text(buffer, &val.0);
         }
         CoreValue::List(val) => {
-            append_instruction_code(buffer, InstructionCode::LIST_START);
+            // if list size < 256, use SHORT_LIST
+            match val.len() {
+                0..=255 => {
+                    append_instruction_code(
+                        buffer,
+                        InstructionCode::SHORT_LIST,
+                    );
+                    append_u8(buffer, val.len() as u8);
+                }
+                _ => {
+                    append_instruction_code(buffer, InstructionCode::LIST);
+                    append_u32(buffer, val.len());
+                }
+            }
+
             for item in val {
                 append_value_container(buffer, item);
             }
-            append_instruction_code(buffer, InstructionCode::SCOPE_END);
         }
         CoreValue::Map(val) => {
-            append_instruction_code(buffer, InstructionCode::MAP_START);
+            // if map size < 256, use SHORT_MAP
+            match val.size() {
+                0..=255 => {
+                    append_instruction_code(buffer, InstructionCode::SHORT_MAP);
+                    append_u8(buffer, val.size() as u8);
+                }
+                _ => {
+                    append_instruction_code(buffer, InstructionCode::MAP);
+                    append_u32(buffer, val.size() as u32); // FIXME: casting from usize to u32 here
+                }
+            }
             for (key, value) in val {
                 append_key_value_pair(
                     buffer,
@@ -94,9 +129,14 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
                     value,
                 );
             }
-            append_instruction_code(buffer, InstructionCode::SCOPE_END);
         }
     }
+}
+
+pub fn append_type_cast(buffer: &mut Vec<u8>, ty: &TypeDefinition) {
+    append_instruction_code(buffer, InstructionCode::TYPED_VALUE);
+    // TODO: optimize: avoid cloning
+    append_type(buffer, &(ty.clone().into_type(None)));
 }
 
 pub fn append_text(buffer: &mut Vec<u8>, string: &str) {
@@ -123,7 +163,11 @@ pub fn append_boolean(buffer: &mut Vec<u8>, boolean: bool) {
 }
 
 pub fn append_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
-    append_instruction_code(buffer, InstructionCode::DECIMAL_BIG);
+    append_instruction_code(buffer, InstructionCode::DECIMAL);
+    append_big_decimal(buffer, decimal);
+}
+
+pub fn append_big_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
     // big_decimal binrw write into buffer
     let original_length = buffer.len();
     let mut buffer_writer = Cursor::new(&mut *buffer);
@@ -136,17 +180,22 @@ pub fn append_decimal(buffer: &mut Vec<u8>, decimal: &Decimal) {
 
 pub fn append_endpoint(buffer: &mut Vec<u8>, endpoint: &Endpoint) {
     append_instruction_code(buffer, InstructionCode::ENDPOINT);
-    buffer.extend_from_slice(&endpoint.to_binary());
+    buffer.extend_from_slice(&endpoint.to_slice());
 }
 
 /// Appends a typed integer with explicit type casts
 pub fn append_typed_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
-    append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(
+    append_type_cast(
         buffer,
-        PointerAddress::from(CoreLibPointerId::from(integer)),
+        &get_core_lib_type_definition(CoreLibPointerId::from(integer)),
     );
-    append_encoded_integer(buffer, &integer.to_smallest_fitting());
+    append_encoded_integer(buffer, &integer);
+}
+
+/// Appends a default, unsized integer
+pub fn append_integer(buffer: &mut Vec<u8>, integer: &Integer) {
+    append_instruction_code(buffer, InstructionCode::INT);
+    append_big_integer(buffer, integer);
 }
 
 /// Appends an encoded integer without explicit type casts
@@ -192,7 +241,7 @@ pub fn append_encoded_integer(buffer: &mut Vec<u8>, integer: &TypedInteger) {
             append_instruction_code(buffer, InstructionCode::UINT_128);
             append_u128(buffer, *val);
         }
-        TypedInteger::Big(val) => {
+        TypedInteger::IBig(val) => {
             append_instruction_code(buffer, InstructionCode::INT_BIG);
             append_big_integer(buffer, val);
         }
@@ -209,29 +258,33 @@ pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
                 append_float64(buffer, val.into_inner());
             }
             TypedDecimal::Decimal(val) => {
-                append_decimal(buffer, val);
+                append_instruction_code(buffer, InstructionCode::DECIMAL_BIG);
+                append_big_decimal(buffer, val);
             }
         }
     }
 
-    match decimal.as_integer() {
-        Some(int) => {
-            let smallest = smallest_fitting_signed(int as i128);
-            match smallest {
-                TypedInteger::I8(val) => {
-                    append_float_as_i16(buffer, val as i16);
-                }
-                TypedInteger::I16(val) => {
-                    append_float_as_i16(buffer, val);
-                }
-                TypedInteger::I32(val) => {
-                    append_float_as_i32(buffer, val);
-                }
-                _ => append_f32_or_f64(buffer, decimal),
-            }
-        }
-        None => append_f32_or_f64(buffer, decimal),
-    }
+    append_f32_or_f64(buffer, decimal);
+
+    // TODO: maybe use this in the future, but type casts are necessary to decide which actual type is represented
+    // match decimal.as_integer() {
+    //     Some(int) => {
+    //         let smallest = smallest_fitting_signed(int as i128);
+    //         match smallest {
+    //             TypedInteger::I8(val) => {
+    //                 append_float_as_i16(buffer, val as i16);
+    //             }
+    //             TypedInteger::I16(val) => {
+    //                 append_float_as_i16(buffer, val);
+    //             }
+    //             TypedInteger::I32(val) => {
+    //                 append_float_as_i32(buffer, val);
+    //             }
+    //             _ => append_f32_or_f64(buffer, decimal),
+    //         }
+    //     }
+    //     None => append_f32_or_f64(buffer, decimal),
+    // }
 }
 
 pub fn append_float32(buffer: &mut Vec<u8>, float32: f32) {
@@ -256,10 +309,9 @@ pub fn append_big_integer(buffer: &mut Vec<u8>, integer: &Integer) {
 }
 
 pub fn append_typed_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
-    append_instruction_code(buffer, InstructionCode::APPLY_SINGLE);
-    append_get_ref(
+    append_type_cast(
         buffer,
-        PointerAddress::from(CoreLibPointerId::from(decimal)),
+        &get_core_lib_type_definition(CoreLibPointerId::from(decimal)),
     );
     append_encoded_decimal(buffer, decimal);
 }
@@ -273,19 +325,19 @@ pub fn append_float_as_i32(buffer: &mut Vec<u8>, int: i32) {
     append_i32(buffer, int);
 }
 
-pub fn append_get_ref(buffer: &mut Vec<u8>, address: PointerAddress) {
+pub fn append_get_ref(buffer: &mut Vec<u8>, address: &PointerAddress) {
     match address {
         PointerAddress::Internal(id) => {
             append_instruction_code(buffer, InstructionCode::GET_INTERNAL_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
         PointerAddress::Local(id) => {
             append_instruction_code(buffer, InstructionCode::GET_LOCAL_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
         PointerAddress::Remote(id) => {
             append_instruction_code(buffer, InstructionCode::GET_REF);
-            buffer.extend_from_slice(&id);
+            buffer.extend_from_slice(id);
         }
     }
 }

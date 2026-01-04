@@ -90,9 +90,6 @@ syntect = { version = "5.2.0", default-features = false, optional = true, featur
     "default-fancy",
 ] }
 pretty = { version = "0.12.5", optional = true }
-chumsky = { version = "0.10.1", optional = true, features = [
-    "std",
-], default-features = false }
 logos = { version = "0.15.0", optional = true }
 internment = { version = "0.8.6", optional = true }
 foldhash = { version = "0.2.0", optional = true, default-features = false }
@@ -109,6 +106,9 @@ embassy-executor = { version = "0.9.1", optional = true }
 embassy-futures = { version = "0.1.2", optional = true, default-features = false }
 esp-println = { version = "0.16.1", optional = true }
 hashbrown = { version = "0.16.0", features = ["serde"], optional = true }
+web-time = { version = "1.1.0", optional = true }
+embedded-time = "0.12.1"
+
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
@@ -178,6 +178,7 @@ default = [
     "flexi_logger",
     "tokio_runtime",
     "compiler",
+    "decompiler",
     "syntax_highlighting_legacy",
     "com_http",
     "com_tcp",
@@ -231,7 +232,9 @@ wasm_runtime = [
     "dep:wasm-bindgen-futures",
     "dep:gloo-timers",
     "dep:tsify",
+    "dep:web-time",
 #    "dep:wasm-bindgen",
+
 ]
 embassy_runtime = [
     "dep:embassy-executor",
@@ -293,10 +296,18 @@ compiler = [
     "std",
     "dep:ariadne",
     "dep:pretty",
-    "dep:chumsky",
     "dep:logos",
     "dep:internment",
+    "ast",
 ]
+
+# decompiler
+decompiler = [
+    "ast",
+]
+
+# ast structures, needed by compiler, decompiler, and lsp
+ast = []
 
 lsp = ["dep:realhydroper-lsp"]
 

@@ -168,7 +168,7 @@ impl Integer {
         }
 
         // If no smaller fitting type is found, return BigInt
-        TypedInteger::Big(self.clone())
+        TypedInteger::IBig(self.clone())
     }
 }
 
@@ -343,7 +343,7 @@ impl From<TypedInteger> for Integer {
             TypedInteger::U64(v) => Integer::from(v),
             TypedInteger::I128(v) => Integer::from(v),
             TypedInteger::U128(v) => Integer::from(v),
-            TypedInteger::Big(v) => v,
+            TypedInteger::IBig(v) => v,
         }
     }
 }

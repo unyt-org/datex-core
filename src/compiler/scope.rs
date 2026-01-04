@@ -1,8 +1,9 @@
-use crate::ast::structs::expression::VariableKind;
+use crate::ast::expressions::VariableKind;
 use crate::collections::HashMap;
 use crate::compiler::precompiler::precompiled_ast::RichAst;
 use crate::compiler::precompiler::scope_stack::PrecompilerScopeStack;
 use crate::compiler::{Variable, VariableRepresentation, context::VirtualSlot};
+use crate::runtime::execution::context::ExecutionMode;
 use core::cell::RefCell;
 
 #[derive(Debug, Default, Clone)]
@@ -26,9 +27,9 @@ pub struct CompilationScope {
     // ------- Data only relevant for the root scope (FIXME: refactor?) -------
     /// optional precompiler data, only on the root scope
     pub precompiler_data: Option<PrecompilerData>,
-    /// If once is true, the scope can only be used for compilation once.
-    /// E.g. for a REPL, this needs to be false, so that the scope can be reused
-    pub once: bool,
+    /// The execution mode of the scope.
+    /// When the mode is set to Unbounded, the outer statements block will be an unbounded statement block.
+    pub execution_mode: ExecutionMode,
     /// If was_used is true, the scope has been used for compilation and should not be reused if once is true.
     pub was_used: bool,
 }
@@ -41,16 +42,16 @@ impl Default for CompilationScope {
             external_parent_scope: None,
             next_slot_address: 0,
             precompiler_data: Some(PrecompilerData::default()),
-            once: false,
+            execution_mode: ExecutionMode::Static,
             was_used: false,
         }
     }
 }
 
 impl CompilationScope {
-    pub fn new(once: bool) -> CompilationScope {
+    pub fn new(execution_mode: ExecutionMode) -> CompilationScope {
         CompilationScope {
-            once,
+            execution_mode,
             ..CompilationScope::default()
         }
     }
@@ -61,6 +62,21 @@ impl CompilationScope {
         CompilationScope {
             external_parent_scope: Some(Box::new(parent_context)),
             ..CompilationScope::default()
+        }
+    }
+
+    pub fn mark_as_last_execution(&mut self) {
+        match self.execution_mode {
+            ExecutionMode::Static => {
+                panic!(
+                    "mark_as_last_execution can only be called for Unbounded execution modes"
+                );
+            }
+            ExecutionMode::Unbounded { .. } => {
+                self.execution_mode =
+                    ExecutionMode::Unbounded { has_next: false };
+            }
+            _ => {}
         }
     }
 
@@ -114,7 +130,7 @@ impl CompilationScope {
             external_parent_scope: None,
             variables: HashMap::new(),
             precompiler_data: None,
-            once: true,
+            execution_mode: ExecutionMode::Static,
             was_used: false,
         }
     }

@@ -1,12 +1,12 @@
 pub mod visitable;
-use core::ops::Range;
-
-use crate::ast::structs::expression::{
-    ApplyChain, BinaryOperation, ComparisonOperation, Conditional, CreateRef,
-    DatexExpression, DatexExpressionData, Deref, DerefAssignment,
-    FunctionDeclaration, List, Map, RemoteExecution, Slot, SlotAssignment,
-    Statements, TypeDeclaration, UnaryOperation, VariableAccess,
-    VariableAssignment, VariableDeclaration, VariantAccess,
+use crate::ast::expressions::GenericInstantiation;
+use crate::ast::expressions::{
+    Apply, BinaryOperation, CallableDeclaration, ComparisonOperation,
+    Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref,
+    DerefAssignment, List, Map, PropertyAccess, PropertyAssignment,
+    RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration,
+    UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration,
+    VariantAccess,
 };
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
@@ -19,6 +19,7 @@ use crate::visitor::expression::visitable::{
     ExpressionVisitResult, VisitableExpression,
 };
 use crate::visitor::type_expression::TypeExpressionVisitor;
+use core::ops::Range;
 
 pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     /// Handle expression error
@@ -53,6 +54,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     ) -> Result<(), E> {
         self.before_visit_datex_expression(expr);
         let visit_result = match &mut expr.data {
+            DatexExpressionData::PropertyAssignment(property_assignment) => {
+                self.visit_property_assignment(property_assignment, &expr.span)
+            }
             DatexExpressionData::VariantAccess(variant_access) => {
                 self.visit_variant_access(variant_access, &expr.span)
             }
@@ -107,12 +111,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::TypeExpression(type_expression) => self
                 .visit_type_expression(type_expression)
                 .map(|_| VisitAction::SkipChildren),
-            DatexExpressionData::Type(type_expression) => self
-                .visit_type_expression(type_expression)
-                .map(|_| VisitAction::SkipChildren),
-            DatexExpressionData::FunctionDeclaration(function_declaration) => {
-                self.visit_function_declaration(
-                    function_declaration,
+            DatexExpressionData::CallableDeclaration(callable_declaration) => {
+                self.visit_callable_declaration(
+                    callable_declaration,
                     &expr.span,
                 )
             }
@@ -143,9 +144,16 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::DerefAssignment(deref_assignment) => {
                 self.visit_deref_assignment(deref_assignment, &expr.span)
             }
-            DatexExpressionData::ApplyChain(apply_chain) => {
-                self.visit_apply_chain(apply_chain, &expr.span)
+            DatexExpressionData::Apply(apply_chain) => {
+                self.visit_apply(apply_chain, &expr.span)
             }
+            DatexExpressionData::PropertyAccess(property_access) => {
+                self.visit_property_access(property_access, &expr.span)
+            }
+            DatexExpressionData::GenericInstantiation(
+                generic_instantiation,
+            ) => self
+                .visit_generic_instantiation(generic_instantiation, &expr.span),
             DatexExpressionData::RemoteExecution(remote_execution) => {
                 self.visit_remote_execution(remote_execution, &expr.span)
             }
@@ -161,6 +169,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
                 )
             }
             DatexExpressionData::Noop => Ok(VisitAction::SkipChildren),
+            DatexExpressionData::NativeImplementationIndicator => {
+                Ok(VisitAction::SkipChildren)
+            }
         };
 
         let action = match visit_result {
@@ -238,6 +249,17 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         Ok(VisitAction::VisitChildren)
     }
 
+    /// Visit property assignment
+    fn visit_property_assignment(
+        &mut self,
+        property_assignment: &mut PropertyAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_assignment;
+        Ok(VisitAction::VisitChildren)
+    }
+
     /// Visit conditional expression
     fn visit_conditional(
         &mut self,
@@ -294,13 +316,35 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
     }
 
     /// Visit apply chain
-    fn visit_apply_chain(
+    fn visit_apply(
         &mut self,
-        apply_chain: &mut ApplyChain,
+        apply: &mut Apply,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;
-        let _ = apply_chain;
+        let _ = apply;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit property access
+    fn visit_property_access(
+        &mut self,
+        property_access: &mut PropertyAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_access;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit generic instantiation
+    fn visit_generic_instantiation(
+        &mut self,
+        generic_instantiation: &mut GenericInstantiation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = generic_instantiation;
         Ok(VisitAction::VisitChildren)
     }
 
@@ -315,10 +359,10 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         Ok(VisitAction::VisitChildren)
     }
 
-    /// Visit function declaration
-    fn visit_function_declaration(
+    /// Visit callable declaration
+    fn visit_callable_declaration(
         &mut self,
-        function_declaration: &mut FunctionDeclaration,
+        function_declaration: &mut CallableDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<E> {
         let _ = span;

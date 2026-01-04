@@ -1,10 +1,11 @@
 use crate::collections::HashMap;
+use crate::core_compiler::value_compiler::append_instruction_code;
 use crate::core_compiler::value_compiler::append_value_container;
 use crate::global::instruction_codes::InstructionCode;
+use crate::runtime::execution::context::ExecutionMode;
 use crate::utils::buffers::append_u32;
 use crate::values::value_container::ValueContainer;
 use core::cmp::PartialEq;
-use datex_core::core_compiler::value_compiler::append_instruction_code;
 use itertools::Itertools;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq, Hash)]
@@ -58,10 +59,7 @@ pub struct CompilationContext {
     pub inserted_values: Vec<ValueContainer>,
     /// this flag is set to true if any non-static value is encountered
     pub has_non_static_value: bool,
-
-    /// Set to true if no further source text is expected to be compiled.
-    /// Example: for a REPL, this is set to false
-    pub is_end_of_source_text: bool,
+    pub execution_mode: ExecutionMode,
 
     // mapping for temporary scope slot resolution
     slot_indices: HashMap<VirtualSlot, Vec<u32>>,
@@ -91,7 +89,7 @@ impl CompilationContext {
     pub fn new(
         buffer: Vec<u8>,
         inserted_values: Vec<ValueContainer>,
-        is_end_of_source_text: bool,
+        execution_mode: ExecutionMode,
     ) -> Self {
         CompilationContext {
             inserted_value_index: 0,
@@ -99,7 +97,7 @@ impl CompilationContext {
             inserted_values,
             has_non_static_value: false,
             slot_indices: HashMap::new(),
-            is_end_of_source_text,
+            execution_mode,
         }
     }
 
@@ -165,32 +163,6 @@ impl CompilationContext {
         append_u32(&mut self.buffer, 0); // placeholder for the slot address
     }
 
-    // TODO #440: we should probably not compile unions with nested binary operations, but rather have a separate instruction for n-ary unions
-    // pub fn insert_union(&self, union: &Union) {
-    //     // insert values as nested UNION binary operations
-
-    //     self.append_binary_code(InstructionCode::UNION);
-    //     // insert first value
-    //     self.insert_value_container(&union.options[0]);
-
-    //     // insert rest of values recursively
-    //     self.insert_union_options(union.options[1..].to_vec());
-    // }
-
-    fn insert_union_options(&mut self, options: Vec<ValueContainer>) {
-        // directly insert value if only one option left
-        if options.len() == 1 {
-            self.insert_value_container(&options[0]);
-        } else {
-            self.append_instruction_code(InstructionCode::SCOPE_START);
-            self.append_instruction_code(InstructionCode::UNION);
-            // insert first value
-            self.insert_value_container(&options[0]);
-            // insert rest of values recursively
-            self.insert_union_options(options[1..].to_vec());
-            self.append_instruction_code(InstructionCode::SCOPE_END);
-        }
-    }
     pub fn set_u32_at_index(&mut self, u32: u32, index: usize) {
         self.buffer[index..index + CompilationContext::INT_32_BYTES as usize]
             .copy_from_slice(&u32.to_le_bytes());

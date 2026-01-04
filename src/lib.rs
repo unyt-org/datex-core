@@ -26,11 +26,11 @@ extern crate num_integer;
 pub mod crypto;
 pub mod dif;
 
-#[cfg(feature = "compiler")]
+#[cfg(feature = "ast")]
 pub mod ast;
 #[cfg(feature = "compiler")]
 pub mod compiler;
-#[cfg(feature = "compiler")]
+#[cfg(feature = "decompiler")]
 pub mod decompiler;
 #[cfg(feature = "compiler")]
 pub mod fmt;
@@ -41,6 +41,7 @@ pub mod logger;
 #[cfg(feature = "lsp")]
 pub mod lsp;
 pub mod network;
+#[cfg(feature = "compiler")]
 pub mod parser;
 pub mod references;
 pub mod runtime;
@@ -50,6 +51,7 @@ pub mod type_inference;
 pub mod visitor;
 
 pub mod core_compiler;
+pub mod dxb_parser;
 pub mod serde;
 pub mod task;
 pub mod traits;
@@ -94,6 +96,14 @@ pub mod std_sync {
     pub use std::sync::Mutex;
 }
 
+pub mod time {
+    #[cfg(all(not(target_arch = "wasm32"), not(feature = "std")))]
+    pub use embedded_time::*;
+    #[cfg(all(not(target_arch = "wasm32"), feature = "std"))]
+    pub use std::time::*;
+    #[cfg(target_arch = "wasm32")]
+    pub use web_time::*;
+}
 pub mod std_random {
     #[cfg(not(feature = "std"))]
     pub use foldhash::fast::RandomState;

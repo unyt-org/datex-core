@@ -1,5 +1,5 @@
 use crate::stdlib::boxed::Box;
-use crate::types::type_container::TypeContainer;
+use crate::values::core_values::r#type::Type;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 
@@ -7,16 +7,13 @@ use core::prelude::rust_2024::*;
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum CollectionTypeDefinition {
     // e.g. [integer]
-    List(Box<TypeContainer>),
+    List(Box<Type>),
 
     // e.g. [integer; 5]
-    ListSlice(Box<TypeContainer>, usize),
+    ListSlice(Box<Type>, usize),
 
     // e.g. {string: integer}
-    Map {
-        key: Box<TypeContainer>,
-        value: Box<TypeContainer>,
-    },
+    Map { key: Box<Type>, value: Box<Type> },
 }
 
 impl Display for CollectionTypeDefinition {

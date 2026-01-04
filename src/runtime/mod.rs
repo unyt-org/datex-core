@@ -10,10 +10,9 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
 use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
+use crate::network::com_interfaces::com_interface::ComInterfaceFactory;
 use crate::runtime::execution::ExecutionError;
-use crate::runtime::execution_context::{
-    ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
-};
+use crate::runtime::execution::context::ExecutionMode;
 use crate::serde::error::SerializationError;
 use crate::serde::serializer::to_value_container;
 use crate::stdlib::borrow::ToOwned;
@@ -25,6 +24,7 @@ use crate::stdlib::sync::Arc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
+use crate::time::Instant;
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
@@ -33,18 +33,18 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::slice;
 use core::unreachable;
-use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
+use execution::context::{
+    ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
+};
 use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 pub mod dif_interface;
 pub mod execution;
-pub mod execution_context;
 pub mod global_context;
 pub mod memory;
-mod stack;
 mod update_loop;
 
 use self::memory::Memory;
@@ -123,7 +123,7 @@ macro_rules! get_execution_context {
                 context
             },
             None => {
-               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone(), true)
+               &mut ExecutionContext::local_with_runtime_internal($self_rc.clone(), ExecutionMode::Static)
             }
         }
     };
@@ -152,15 +152,26 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
+        let compile_start = Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb(
+        debug!(
+            "[Compilation took {} ms]",
+            compile_start.elapsed().as_millis()
+        );
+        let execute_start = Instant::now();
+        let result = RuntimeInternal::execute_dxb(
             self_rc,
             dxb,
             Some(execution_context),
             true,
         )
         .await
-        .map_err(ScriptExecutionError::from)
+        .map_err(ScriptExecutionError::from);
+        debug!(
+            "[Execution took {} ms]",
+            execute_start.elapsed().as_millis()
+        );
+        result
     }
 
     #[cfg(feature = "compiler")]
@@ -172,14 +183,25 @@ impl RuntimeInternal {
     ) -> Result<Option<ValueContainer>, ScriptExecutionError> {
         let execution_context =
             get_execution_context!(self_rc, execution_context);
+        let compile_start = Instant::now();
         let dxb = execution_context.compile(script, inserted_values)?;
-        RuntimeInternal::execute_dxb_sync(
+        debug!(
+            "[Compilation took {} ms]",
+            compile_start.elapsed().as_millis()
+        );
+        let execute_start = Instant::now();
+        let result = RuntimeInternal::execute_dxb_sync(
             self_rc,
             &dxb,
             Some(execution_context),
             true,
         )
-        .map_err(ScriptExecutionError::from)
+        .map_err(ScriptExecutionError::from);
+        debug!(
+            "[Execution took {} ms]",
+            execute_start.elapsed().as_millis()
+        );
+        result
     }
 
     pub fn execute_dxb<'a>(
@@ -201,7 +223,7 @@ impl RuntimeInternal {
                     RuntimeInternal::execute_remote(self_rc, context, dxb).await
                 }
                 ExecutionContext::Local(_) => {
-                    execution_context.execute_dxb(&dxb, end_execution).await
+                    execution_context.execute_dxb(&dxb).await
                 }
             }
         })
@@ -220,30 +242,28 @@ impl RuntimeInternal {
                 Err(ExecutionError::RequiresAsyncExecution)
             }
             ExecutionContext::Local(_) => {
-                execution_context.execute_dxb_sync(dxb, end_execution)
+                execution_context.execute_dxb_sync(dxb)
             }
         }
     }
 
     /// Returns the existing execution context for the given context_id,
     /// or creates a new one if it doesn't exist.
-    fn get_execution_context(
+    /// To reuse the context later, the caller must store it back in the map after use.
+    fn take_execution_context(
         self_rc: Rc<RuntimeInternal>,
         context_id: &IncomingEndpointContextSectionId,
     ) -> ExecutionContext {
         let mut execution_contexts = self_rc.execution_contexts.borrow_mut();
         // get execution context by context_id or create a new one if it doesn't exist
-        let execution_context = execution_contexts.get(context_id).cloned();
+        let execution_context = execution_contexts.remove(context_id);
         if let Some(context) = execution_context {
             context
         } else {
-            let new_context = ExecutionContext::local_with_runtime_internal(
+            ExecutionContext::local_with_runtime_internal(
                 self_rc.clone(),
-                false,
-            );
-            // insert the new context into the map
-            execution_contexts.insert(context_id.clone(), new_context.clone());
-            new_context
+                ExecutionMode::unbounded(),
+            )
         }
     }
 
@@ -296,10 +316,10 @@ impl RuntimeInternal {
         Endpoint,
         OutgoingContextId,
     ) {
-        let mut context = Self::get_execution_context(
-            self_rc.clone(),
-            incoming_section.get_section_context_id(),
-        );
+        let section_context_id =
+            incoming_section.get_section_context_id().clone();
+        let mut context =
+            Self::take_execution_context(self_rc.clone(), &section_context_id);
         info!(
             "Executing incoming section with index: {}",
             incoming_section.get_section_index()
@@ -338,6 +358,14 @@ impl RuntimeInternal {
         let last_block = last_block.unwrap();
         let sender_endpoint = last_block.get_sender().clone();
         let context_id = last_block.block_header.context_id;
+
+        // insert the context back into the map for future use
+        // TODO: is this needed or can we drop the context after execution here?
+        self_rc
+            .execution_contexts
+            .borrow_mut()
+            .insert(section_context_id, context);
+
         (Ok(result), sender_endpoint, context_id)
     }
 

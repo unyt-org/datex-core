@@ -2,7 +2,7 @@ use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
-use crate::values::core_values::map::{Map, OwnedMapKey};
+use crate::values::core_values::map::{Map, MapKey};
 use crate::values::value::Value;
 use crate::{
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
@@ -52,9 +52,10 @@ impl<'de> DatexDeserializer {
     /// Create a deserializer from a byte slice containing DXB data
     /// This will execute the DXB and extract the resulting value for deserialization
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, DeserializationError> {
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             input,
             ExecutionOptions { verbose: true },
+            None,
         );
         let value = execute_dxb_sync(context)
             .map_err(DeserializationError::ExecutionError)?
@@ -162,7 +163,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::U16(u) => visitor.visit_u16(u),
                     TypedInteger::I8(i) => visitor.visit_i8(i),
                     TypedInteger::U8(u) => visitor.visit_u8(u),
-                    TypedInteger::Big(i) => {
+                    TypedInteger::IBig(i) => {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                     e => core::todo!("#393 Unsupported typed integer: {:?}", e),
@@ -383,7 +384,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    if let OwnedMapKey::Text(string) = key {
+                    if let MapKey::Text(string) = key {
                         visitor.visit_string(string)
                     } else {
                         Err(DeserializationError::Custom(
@@ -445,7 +446,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 }
 
                 let (variant_name, value) = o.into_iter().next().unwrap();
-                if let OwnedMapKey::Text(variant) = variant_name {
+                if let MapKey::Text(variant) = variant_name {
                     let deserializer = DatexDeserializer::from_value(value);
                     visitor.visit_enum(EnumDeserializer {
                         variant,

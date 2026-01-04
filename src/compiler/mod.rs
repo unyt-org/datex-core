@@ -1,4 +1,3 @@
-use crate::ast::structs::VariableId;
 use crate::compiler::error::{
     CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
@@ -10,13 +9,12 @@ use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use core::cell::RefCell;
 
-use crate::ast::parse_result::ValidDatexParseResult;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
     BinaryOperation, ComparisonOperation, DatexExpression, DatexExpressionData,
     DerefAssignment, RemoteExecution, Slot, Statements, UnaryOperation,
-    VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
+    UnboundedStatement, VariableAccess, VariableAssignment,
+    VariableDeclaration, VariableKind,
 };
-use crate::ast::{DatexScriptParser, parse};
 use crate::compiler::context::{CompilationContext, VirtualSlot};
 use crate::compiler::error::{
     DetailedCompilerErrorsWithMaybeRichAst,
@@ -28,24 +26,28 @@ use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
+use crate::parser::parser_result::ValidDatexParseResult;
 
+use crate::ast::resolved_variable::VariableId;
 use crate::core_compiler::value_compiler::{
     append_boolean, append_decimal, append_encoded_integer, append_endpoint,
     append_float_as_i16, append_float_as_i32, append_instruction_code,
-    append_text, append_typed_decimal, append_typed_integer,
+    append_integer, append_text, append_typed_decimal, append_typed_integer,
     append_value_container,
 };
+use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
+use crate::parser::{Parser, ParserOptions};
 use crate::references::reference::ReferenceMutability;
+use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
+use crate::time::Instant;
+use crate::utils::buffers::append_u32;
+use crate::utils::buffers::{append_u8, append_u16};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
-use datex_core::core_compiler::value_compiler::{
-    append_get_ref, append_key_string,
-};
-use datex_core::utils::buffers::append_u32;
-use log::info;
+use log::{debug, info};
 use precompiler::options::PrecompilerOptions;
 use precompiler::precompile_ast;
 use precompiler::precompiled_ast::{AstMetadata, RichAst, VariableMetadata};
@@ -61,16 +63,16 @@ pub mod precompiler;
 pub mod workspace;
 
 #[derive(Clone, Default)]
-pub struct CompileOptions<'a> {
-    pub parser: Option<&'a DatexScriptParser<'a>>,
+pub struct CompileOptions {
     pub compile_scope: CompilationScope,
+    pub parser_options: ParserOptions,
 }
 
-impl CompileOptions<'_> {
+impl CompileOptions {
     pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
         CompileOptions {
-            parser: None,
             compile_scope,
+            parser_options: ParserOptions::default(),
         }
     }
 }
@@ -120,7 +122,7 @@ impl VariableModel {
     pub fn infer(
         variable_kind: VariableKind,
         variable_metadata: Option<VariableMetadata>,
-        is_end_of_source_text: bool,
+        execution_mode: ExecutionMode,
     ) -> Self {
         // const variables are always constant
         if variable_kind == VariableKind::Const {
@@ -132,7 +134,7 @@ impl VariableModel {
         // the variable will be transferred across realms later
         else if variable_metadata.is_none()
             || variable_metadata.unwrap().is_cross_realm
-            || !is_end_of_source_text
+            || execution_mode.is_unbounded()
         {
             VariableModel::VariableReference
         }
@@ -146,15 +148,11 @@ impl VariableModel {
         ast_metadata: &AstMetadata,
         variable_id: Option<VariableId>,
         variable_kind: VariableKind,
-        is_end_of_source_text: bool,
+        execution_mode: ExecutionMode,
     ) -> Self {
         let variable_metadata =
             variable_id.and_then(|id| ast_metadata.variable_metadata(id));
-        Self::infer(
-            variable_kind,
-            variable_metadata.cloned(),
-            is_end_of_source_text,
-        )
+        Self::infer(variable_kind, variable_metadata.cloned(), execution_mode)
     }
 }
 
@@ -251,9 +249,9 @@ pub fn compile_block(
 }
 
 /// Compiles a DATEX script text into a DXB body
-pub fn compile_script<'a>(
-    datex_script: &'a str,
-    options: CompileOptions<'a>,
+pub fn compile_script(
+    datex_script: &str,
+    options: CompileOptions,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     compile_template(datex_script, &[], options)
 }
@@ -264,10 +262,8 @@ pub fn compile_script<'a>(
 pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, SpannedCompilerError> {
-    let valid_parse_result = parse(datex_script)
-        .to_result()
-        .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
-    extract_static_value_from_ast(&valid_parse_result.ast)
+    let valid_parse_result = Parser::parse_with_default_options(datex_script)?;
+    extract_static_value_from_ast(&valid_parse_result)
         .map(Some)
         .map_err(SpannedCompilerError::from)
 }
@@ -277,7 +273,7 @@ pub fn extract_static_value_from_script(
 /// directly returned instead of the AST.
 pub fn compile_script_or_return_static_value<'a>(
     datex_script: &'a str,
-    mut options: CompileOptions<'a>,
+    mut options: CompileOptions,
 ) -> Result<(StaticValueOrDXB, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
@@ -286,7 +282,7 @@ pub fn compile_script_or_return_static_value<'a>(
     let mut compilation_context = CompilationContext::new(
         Vec::with_capacity(256),
         vec![],
-        options.compile_scope.once,
+        options.compile_scope.execution_mode,
     );
     // FIXME #480: no clone here
     let scope = compile_ast(ast.clone(), &mut compilation_context, options)?;
@@ -300,11 +296,37 @@ pub fn compile_script_or_return_static_value<'a>(
     }
 }
 
+/// Ensure that the root ast node is a statements node
+/// Returns if the initial ast was terminated
+fn ensure_statements(
+    ast: &mut DatexExpression,
+    unbounded_section: Option<UnboundedStatement>,
+) -> bool {
+    if let DatexExpressionData::Statements(Statements {
+        is_terminated,
+        unbounded,
+        ..
+    }) = &mut ast.data
+    {
+        *unbounded = unbounded_section;
+        *is_terminated
+    } else {
+        // wrap in statements
+        let original_ast = ast.clone();
+        ast.data = DatexExpressionData::Statements(Statements {
+            statements: vec![original_ast],
+            is_terminated: false,
+            unbounded: unbounded_section,
+        });
+        false
+    }
+}
+
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Only returns the first occurring error
-pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
-    datex_script: &'a str,
-    options: &mut CompileOptions<'a>,
+pub fn parse_datex_script_to_rich_ast_simple_error(
+    datex_script: &str,
+    options: &mut CompileOptions,
 ) -> Result<RichAst, SpannedCompilerError> {
     // TODO #481: do this (somewhere else)
     // // shortcut if datex_script is "?" - call compile_value_container directly
@@ -316,11 +338,33 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
     //         compile_value_container(inserted_values[0]).map(StaticValueOrAst::from)?;
     //     return Ok((result, options.compile_scope));
     // }
+    let parse_start = Instant::now();
+    let mut valid_parse_result =
+        Parser::parse(datex_script, options.parser_options.clone())?;
 
-    let valid_parse_result = parse(datex_script)
-        .to_result()
-        .map_err(|mut errs| SpannedCompilerError::from(errs.remove(0)))?;
-    precompile_to_rich_ast(
+    // make sure to append a statements block for the first block in ExecutionMode::Unbounded
+    let is_terminated = if let ExecutionMode::Unbounded { has_next } =
+        options.compile_scope.execution_mode
+    {
+        ensure_statements(
+            &mut valid_parse_result,
+            Some(UnboundedStatement {
+                is_first: !options.compile_scope.was_used,
+                is_last: !has_next,
+            }),
+        )
+    } else {
+        matches!(
+            valid_parse_result.data,
+            DatexExpressionData::Statements(Statements {
+                is_terminated: true,
+                ..
+            })
+        )
+    };
+    debug!(" [parse took {} ms]", parse_start.elapsed().as_millis());
+    let precompile_start = Instant::now();
+    let res = precompile_to_rich_ast(
         valid_parse_result,
         &mut options.compile_scope,
         PrecompilerOptions {
@@ -331,30 +375,41 @@ pub fn parse_datex_script_to_rich_ast_simple_error<'a>(
         SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(e) => e,
         _ => unreachable!(), // because detailed_errors: false
     })
+    .inspect(|ast| {
+        // store information about termination (last semicolon) in metadata
+        ast.metadata.borrow_mut().is_terminated = is_terminated;
+    });
+    debug!(
+        " [precompile took {} ms]",
+        precompile_start.elapsed().as_millis()
+    );
+    res
 }
 
 /// Parses and precompiles a DATEX script template text with inserted values into an AST with metadata
 /// Returns all occurring errors and the AST if one or more errors occur.
-pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
-    datex_script: &'a str,
-    options: &mut CompileOptions<'a>,
+pub fn parse_datex_script_to_rich_ast_detailed_errors(
+    datex_script: &str,
+    options: &mut CompileOptions,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
-    let valid_parse_result =
-        parse(datex_script).to_result().map_err(|errs| {
-            DetailedCompilerErrorsWithMaybeRichAst {
-                errors: DetailedCompilerErrors::from(errs),
-                ast: None,
-            }
-        })?;
+    let (ast, parser_errors) =
+        Parser::parse_collecting_with_default_options(datex_script)
+            .into_ast_and_errors();
     precompile_to_rich_ast(
-        valid_parse_result,
+        ast,
         &mut options.compile_scope,
         PrecompilerOptions {
             detailed_errors: true,
         },
     )
     .map_err(|e| match e {
-        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(e) => {
+        SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Detailed(
+            mut e,
+        ) => {
+            // append parser errors to detailed errors
+            e.errors.errors.extend(
+                parser_errors.into_iter().map(SpannedCompilerError::from),
+            );
             e.into()
         }
         _ => unreachable!(), // because detailed_errors: true
@@ -362,10 +417,10 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors<'a>(
 }
 
 /// Compiles a DATEX script template text with inserted values into a DXB body
-pub fn compile_template<'a>(
-    datex_script: &'a str,
+pub fn compile_template(
+    datex_script: &str,
     inserted_values: &[ValueContainer],
-    mut options: CompileOptions<'a>,
+    mut options: CompileOptions,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
@@ -375,18 +430,24 @@ pub fn compile_template<'a>(
         Vec::with_capacity(256),
         // TODO #482: no clone here
         inserted_values.to_vec(),
-        options.compile_scope.once,
+        options.compile_scope.execution_mode,
     );
-    compile_ast(ast, &mut compilation_context, options)
+    let compile_start = Instant::now();
+    let res = compile_ast(ast, &mut compilation_context, options)
         .map(|scope| (compilation_context.buffer, scope))
-        .map_err(SpannedCompilerError::from)
+        .map_err(SpannedCompilerError::from);
+    debug!(
+        " [compile_ast took {} ms]",
+        compile_start.elapsed().as_millis()
+    );
+    res
 }
 
 /// Compiles a precompiled DATEX AST, returning the compilation context and scope
-fn compile_ast<'a>(
+fn compile_ast(
     ast: RichAst,
     compilation_context: &mut CompilationContext,
-    options: CompileOptions<'a>,
+    options: CompileOptions,
 ) -> Result<CompilationScope, CompilerError> {
     let compilation_scope =
         compile_rich_ast(compilation_context, ast, options.compile_scope)?;
@@ -427,24 +488,24 @@ macro_rules! compile {
 
 /// Precompiles a DATEX expression AST into an AST with metadata.
 fn precompile_to_rich_ast(
-    valid_parse_result: ValidDatexParseResult,
+    valid_parse_result: DatexExpression,
     scope: &mut CompilationScope,
     precompiler_options: PrecompilerOptions,
 ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst> {
-    // if once is set to true in already used, return error
-    if scope.once {
-        if scope.was_used {
-            return Err(
-                SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
-                    SpannedCompilerError::from(
-                        CompilerError::OnceScopeUsedMultipleTimes,
-                    ),
+    // if static execution mode and scope already used, return error
+    if scope.execution_mode == ExecutionMode::Static && scope.was_used {
+        return Err(
+            SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(
+                SpannedCompilerError::from(
+                    CompilerError::OnceScopeUsedMultipleTimes,
                 ),
-            );
-        }
-        // set was_used to true
-        scope.was_used = true;
+            ),
+        );
     }
+
+    // set was_used to true
+    scope.was_used = true;
+
     let rich_ast = if let Some(precompiler_data) = &scope.precompiler_data {
         // precompile the AST, adding metadata for variables etc.
         precompile_ast(
@@ -455,7 +516,7 @@ fn precompile_to_rich_ast(
         )?
     } else {
         // if no precompiler data, just use the AST with default metadata
-        RichAst::new_without_metadata(valid_parse_result.ast)
+        RichAst::new_without_metadata(valid_parse_result)
     };
 
     Ok(rich_ast)
@@ -486,15 +547,12 @@ fn compile_expression(
 ) -> Result<CompilationScope, CompilerError> {
     let metadata = rich_ast.metadata;
     // TODO #483: no clone
-    match rich_ast.ast.clone().data {
+    match rich_ast.ast.data.clone() {
         DatexExpressionData::Integer(int) => {
-            append_encoded_integer(
-                &mut compilation_context.buffer,
-                &int.to_smallest_fitting(),
-            );
+            append_integer(&mut compilation_context.buffer, &int);
         }
         DatexExpressionData::TypedInteger(typed_int) => {
-            append_typed_integer(&mut compilation_context.buffer, &typed_int);
+            append_encoded_integer(&mut compilation_context.buffer, &typed_int);
         }
         DatexExpressionData::Decimal(decimal) => match &decimal {
             Decimal::Finite(big_decimal) if big_decimal.is_integer() => {
@@ -532,8 +590,24 @@ fn compile_expression(
             );
         }
         DatexExpressionData::List(list) => {
-            compilation_context
-                .append_instruction_code(InstructionCode::LIST_START);
+            match list.items.len() {
+                0..=255 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SHORT_LIST);
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        list.items.len() as u8,
+                    );
+                }
+                _ => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::LIST);
+                    append_u32(
+                        &mut compilation_context.buffer,
+                        list.items.len() as u32, // FIXME: conversion from usize to u32
+                    );
+                }
+            }
             for item in list.items {
                 scope = compile_expression(
                     compilation_context,
@@ -542,13 +616,27 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpressionData::Map(map) => {
             // TODO #434: Handle string keyed maps (structs)
-            compilation_context
-                .append_instruction_code(InstructionCode::MAP_START);
+            match map.entries.len() {
+                0..=255 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::SHORT_MAP);
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        map.entries.len() as u8,
+                    );
+                }
+                _ => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::MAP);
+                    append_u32(
+                        &mut compilation_context.buffer,
+                        map.entries.len() as u32, // FIXME: conversion from usize to u32
+                    );
+                }
+            }
             for (key, value) in map.entries {
                 scope = compile_key_value_entry(
                     compilation_context,
@@ -558,8 +646,6 @@ fn compile_expression(
                     scope,
                 )?;
             }
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
         DatexExpressionData::Placeholder => {
             append_value_container(
@@ -576,10 +662,12 @@ fn compile_expression(
         DatexExpressionData::Statements(Statements {
             mut statements,
             is_terminated,
+            unbounded,
         }) => {
             compilation_context.mark_has_non_static_value();
             // if single statement and not terminated, just compile the expression
-            if statements.len() == 1 && !is_terminated {
+            // (not for unbounded execution mode)
+            if unbounded.is_none() && statements.len() == 1 && !is_terminated {
                 scope = compile_expression(
                     compilation_context,
                     RichAst::new(statements.remove(0), &metadata),
@@ -587,15 +675,56 @@ fn compile_expression(
                     scope,
                 )?;
             } else {
+                let is_outer_context = meta.is_outer_context();
+
                 // if not outer context, new scope
-                let mut child_scope = if !meta.is_outer_context() {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_START);
-                    scope.push()
-                } else {
+                let mut child_scope = if is_outer_context {
                     scope
+                } else {
+                    scope.push()
                 };
-                let len = statements.len();
+
+                if let Some(UnboundedStatement { is_first, .. }) = unbounded {
+                    // if this is the first section of an unbounded statements block, mark as unbounded
+                    if is_first {
+                        compilation_context.append_instruction_code(
+                            InstructionCode::UNBOUNDED_STATEMENTS,
+                        );
+                    }
+                    // if not first, don't insert any instruction code
+                }
+                // otherwise, statements with fixed length
+                else {
+                    let len = statements.len();
+
+                    match len {
+                        0..=255 => {
+                            compilation_context.append_instruction_code(
+                                InstructionCode::SHORT_STATEMENTS,
+                            );
+                            append_u8(
+                                &mut compilation_context.buffer,
+                                len as u8,
+                            );
+                        }
+                        _ => {
+                            compilation_context.append_instruction_code(
+                                InstructionCode::STATEMENTS,
+                            );
+                            append_u32(
+                                &mut compilation_context.buffer,
+                                len as u32, // FIXME: conversion from usize to u32
+                            );
+                        }
+                    }
+
+                    // append termination flag
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        if is_terminated { 1 } else { 0 },
+                    );
+                }
+
                 for (i, statement) in statements.into_iter().enumerate() {
                     child_scope = compile_expression(
                         compilation_context,
@@ -603,12 +732,6 @@ fn compile_expression(
                         CompileMetadata::default(),
                         child_scope,
                     )?;
-                    // if not last statement or is terminated, append close and store
-                    if i < len - 1 || is_terminated {
-                        compilation_context.append_instruction_code(
-                            InstructionCode::CLOSE_AND_STORE,
-                        );
-                    }
                 }
                 if !meta.is_outer_context() {
                     let scope_data = child_scope
@@ -624,10 +747,22 @@ fn compile_expression(
                         compilation_context
                             .insert_virtual_slot_address(slot_address);
                     }
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_END);
                 } else {
                     scope = child_scope;
+                }
+
+                // if this is the last section of an unbounded statements block, add closing instruction
+                if let Some(UnboundedStatement { is_last: true, .. }) =
+                    unbounded
+                {
+                    compilation_context.append_instruction_code(
+                        InstructionCode::UNBOUNDED_STATEMENTS_END,
+                    );
+                    // append termination flag
+                    append_u8(
+                        &mut compilation_context.buffer,
+                        if is_terminated { 1 } else { 0 },
+                    );
                 }
             }
         }
@@ -697,9 +832,135 @@ fn compile_expression(
         }
 
         // apply
-        DatexExpressionData::ApplyChain(_) => {
+        DatexExpressionData::Apply(apply) => {
             compilation_context.mark_has_non_static_value();
-            // TODO #150
+
+            // append apply instruction code
+            let len = apply.arguments.len();
+            match len {
+                0 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY_ZERO);
+                }
+                1 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY_SINGLE);
+                }
+                // u16 argument count
+                2..=65_535 => {
+                    compilation_context
+                        .append_instruction_code(InstructionCode::APPLY);
+                    // add argument count
+                    append_u16(
+                        &mut compilation_context.buffer,
+                        apply.arguments.len() as u16,
+                    );
+                }
+                _ => return Err(CompilerError::TooManyApplyArguments),
+            }
+
+            // compile arguments
+            for argument in apply.arguments.iter() {
+                scope = compile_expression(
+                    compilation_context,
+                    RichAst::new(argument.clone(), &metadata),
+                    CompileMetadata::default(),
+                    scope,
+                )?;
+            }
+
+            // compile function expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*apply.base, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
+        DatexExpressionData::PropertyAccess(property_access) => {
+            compilation_context.mark_has_non_static_value();
+
+            // depending on the key, handle different property accesses
+            match &property_access.property.data {
+                // simple text key if length fits in u8
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    compile_text_property_access(compilation_context, key)
+                }
+                // index access if integer fits in u32
+                DatexExpressionData::Integer(index)
+                    if let Some(index) = index.as_u32() =>
+                {
+                    compile_index_property_access(compilation_context, index)
+                }
+                _ => {
+                    scope = compile_dynamic_property_access(
+                        compilation_context,
+                        &property_access.property,
+                        scope,
+                    )?;
+                }
+            }
+
+            // compile base expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*property_access.base, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
+        }
+
+        DatexExpressionData::GenericInstantiation(generic_instantiation) => {
+            // NOTE: might already be handled in type compilation
+            todo!()
+        }
+
+        DatexExpressionData::PropertyAssignment(property_assignment) => {
+            compilation_context.mark_has_non_static_value();
+
+            // depending on the key, handle different property assignments
+            match &property_assignment.property.data {
+                // simple text key if length fits in u8
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    compile_text_property_assignment(compilation_context, key)
+                }
+                // index access if integer fits in u32
+                DatexExpressionData::Integer(index)
+                    if let Some(index) = index.as_u32() =>
+                {
+                    compile_index_property_assignment(
+                        compilation_context,
+                        index,
+                    )
+                }
+                _ => {
+                    scope = compile_dynamic_property_assignment(
+                        compilation_context,
+                        &property_assignment.property,
+                        scope,
+                    )?;
+                }
+            }
+
+            // compile assigned expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(
+                    *property_assignment.assigned_expression,
+                    &metadata,
+                ),
+                CompileMetadata::default(),
+                scope,
+            )?;
+
+            // compile base expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*property_assignment.base, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         // variables
@@ -733,16 +994,12 @@ fn compile_expression(
                     &metadata.borrow(),
                     id,
                     kind,
-                    compilation_context.is_end_of_source_text,
+                    compilation_context.execution_mode,
                 );
-            info!("variable model for {name}: {variable_model:?}");
 
             // create new variable depending on the model
             let variable = match variable_model {
                 VariableModel::VariableReference => {
-                    // scope end
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SCOPE_END);
                     // allocate an additional slot with a reference to the variable
                     let virtual_slot_addr_for_var =
                         scope.get_next_virtual_slot();
@@ -781,14 +1038,11 @@ fn compile_expression(
             };
 
             scope.register_variable_slot(variable);
-
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpressionData::GetReference(address) => {
             compilation_context.mark_has_non_static_value();
-            append_get_ref(&mut compilation_context.buffer, address)
+            append_get_ref(&mut compilation_context.buffer, &address)
         }
 
         // assignment
@@ -858,30 +1112,20 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-            // close assignment scope
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         DatexExpressionData::DerefAssignment(DerefAssignment {
             operator,
-            deref_count,
             deref_expression,
             assigned_expression,
         }) => {
             compilation_context.mark_has_non_static_value();
 
             compilation_context
-                .append_instruction_code(InstructionCode::ASSIGN_TO_REF);
+                .append_instruction_code(InstructionCode::SET_REFERENCE_VALUE);
 
             compilation_context
                 .append_instruction_code(InstructionCode::from(&operator));
-
-            // "*x" must not be dereferenced, x is already the relevant reference that is modified
-            for _ in 0..deref_count - 1 {
-                compilation_context
-                    .append_instruction_code(InstructionCode::DEREF);
-            }
 
             // compile deref expression
             scope = compile_expression(
@@ -891,11 +1135,6 @@ fn compile_expression(
                 scope,
             )?;
 
-            for _ in 0..deref_count - 1 {
-                compilation_context
-                    .append_instruction_code(InstructionCode::SCOPE_END);
-            }
-
             // compile assigned expression
             scope = compile_expression(
                 compilation_context,
@@ -903,10 +1142,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-
-            // close assignment scope
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         // variable access
@@ -936,17 +1171,13 @@ fn compile_expression(
             // insert remote execution code
             compilation_context
                 .append_instruction_code(InstructionCode::REMOTE_EXECUTION);
-            // insert compiled caller expression
-            scope = compile_expression(
-                compilation_context,
-                RichAst::new(*caller, &metadata),
-                CompileMetadata::default(),
-                scope,
-            )?;
 
             // compile remote execution block
-            let mut execution_block_ctx =
-                CompilationContext::new(Vec::with_capacity(256), vec![], true);
+            let mut execution_block_ctx = CompilationContext::new(
+                Vec::with_capacity(256),
+                vec![],
+                ExecutionMode::Static,
+            );
             let external_scope = compile_rich_ast(
                 &mut execution_block_ctx,
                 RichAst::new(*script, &metadata),
@@ -958,9 +1189,8 @@ fn compile_expression(
                 .ok_or_else(|| CompilerError::ScopePopError)?;
 
             let external_slots = execution_block_ctx.external_slots();
-            // start block
-            compilation_context
-                .append_instruction_code(InstructionCode::EXECUTION_BLOCK);
+
+            // --- start block
             // set block size (len of compilation_context.buffer)
             append_u32(
                 &mut compilation_context.buffer,
@@ -979,14 +1209,24 @@ fn compile_expression(
             compilation_context
                 .buffer
                 .extend_from_slice(&execution_block_ctx.buffer);
+            // --- end block
+
+            // insert compiled caller expression
+            scope = compile_expression(
+                compilation_context,
+                RichAst::new(*caller, &metadata),
+                CompileMetadata::default(),
+                scope,
+            )?;
         }
 
         // named slot
         DatexExpressionData::Slot(Slot::Named(name)) => {
             match name.as_str() {
                 "endpoint" => {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::GET_SLOT);
+                    compilation_context.append_instruction_code(
+                        InstructionCode::GET_INTERNAL_SLOT,
+                    );
                     append_u32(
                         &mut compilation_context.buffer,
                         InternalSlot::ENDPOINT as u32,
@@ -994,7 +1234,7 @@ fn compile_expression(
                 }
                 "core" => append_get_ref(
                     &mut compilation_context.buffer,
-                    PointerAddress::from(CoreLibPointerId::Core),
+                    &PointerAddress::from(CoreLibPointerId::Core),
                 ),
                 _ => {
                     // invalid slot name
@@ -1005,7 +1245,7 @@ fn compile_expression(
 
         // pointer address
         DatexExpressionData::PointerAddress(address) => {
-            append_get_ref(&mut compilation_context.buffer, address);
+            append_get_ref(&mut compilation_context.buffer, &address);
         }
 
         // refs
@@ -1029,7 +1269,7 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpressionData::Type(type_expression) => {
+        DatexExpressionData::TypeExpression(type_expression) => {
             compilation_context
                 .append_instruction_code(InstructionCode::TYPE_EXPRESSION);
             scope = compile_type_expression(
@@ -1049,8 +1289,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-            compilation_context
-                .append_instruction_code(InstructionCode::SCOPE_END);
         }
 
         e => {
@@ -1063,7 +1301,7 @@ fn compile_expression(
 }
 
 fn compile_key_value_entry(
-    compilation_scope: &mut CompilationContext,
+    compilation_context: &mut CompilationContext,
     key: DatexExpression,
     value: DatexExpression,
     metadata: &Rc<RefCell<AstMetadata>>,
@@ -1072,14 +1310,14 @@ fn compile_key_value_entry(
     match key.data {
         // text -> insert key string
         DatexExpressionData::Text(text) => {
-            append_key_string(&mut compilation_scope.buffer, &text);
+            append_key_string(&mut compilation_context.buffer, &text);
         }
         // other -> insert key as dynamic
         _ => {
-            compilation_scope
+            compilation_context
                 .append_instruction_code(InstructionCode::KEY_VALUE_DYNAMIC);
             scope = compile_expression(
-                compilation_scope,
+                compilation_context,
                 RichAst::new(key, metadata),
                 CompileMetadata::default(),
                 scope,
@@ -1088,7 +1326,7 @@ fn compile_key_value_entry(
     };
     // insert value
     scope = compile_expression(
-        compilation_scope,
+        compilation_context,
         RichAst::new(value, metadata),
         CompileMetadata::default(),
         scope,
@@ -1096,27 +1334,112 @@ fn compile_key_value_entry(
     Ok(scope)
 }
 
+fn compile_text_property_access(
+    compilation_context: &mut CompilationContext,
+    key: &str,
+) {
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_TEXT);
+    // append key length as u8
+    append_u8(&mut compilation_context.buffer, key.len() as u8);
+    // append key bytes
+    compilation_context.buffer.extend_from_slice(key.as_bytes());
+}
+
+fn compile_text_property_assignment(
+    compilation_context: &mut CompilationContext,
+    key: &str,
+) {
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_TEXT);
+    // append key length as u8
+    append_u8(&mut compilation_context.buffer, key.len() as u8);
+    // append key bytes
+    compilation_context.buffer.extend_from_slice(key.as_bytes());
+}
+
+fn compile_index_property_access(
+    compilation_context: &mut CompilationContext,
+    index: u32,
+) {
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_INDEX);
+    append_u32(&mut compilation_context.buffer, index);
+}
+
+fn compile_index_property_assignment(
+    compilation_context: &mut CompilationContext,
+    index: u32,
+) {
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_INDEX);
+    append_u32(&mut compilation_context.buffer, index);
+}
+
+fn compile_dynamic_property_access(
+    compilation_context: &mut CompilationContext,
+    key_expression: &DatexExpression,
+    scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_DYNAMIC);
+    // compile key expression
+    compile_expression(
+        compilation_context,
+        RichAst::new(
+            key_expression.clone(),
+            &Rc::new(RefCell::new(AstMetadata::default())),
+        ),
+        CompileMetadata::default(),
+        scope,
+    )
+}
+
+fn compile_dynamic_property_assignment(
+    compilation_context: &mut CompilationContext,
+    key_expression: &DatexExpression,
+    scope: CompilationScope,
+) -> Result<CompilationScope, CompilerError> {
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_DYNAMIC);
+    // compile key expression
+    compile_expression(
+        compilation_context,
+        RichAst::new(
+            key_expression.clone(),
+            &Rc::new(RefCell::new(AstMetadata::default())),
+        ),
+        CompileMetadata::default(),
+        scope,
+    )
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::{
-        CompilationContext, CompilationScope, CompileOptions, StaticValueOrDXB,
-        compile_ast, compile_script, compile_script_or_return_static_value,
+        CompilationContext, CompileOptions, StaticValueOrDXB, compile_ast,
+        compile_script, compile_script_or_return_static_value,
         compile_template, parse_datex_script_to_rich_ast_simple_error,
     };
     use crate::stdlib::assert_matches::assert_matches;
     use crate::stdlib::io::Read;
     use crate::stdlib::vec;
-    use core::cell::RefCell;
 
-    use crate::ast::parse;
-    use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+    use crate::compiler::scope::CompilationScope;
+    use crate::global::type_instruction_codes::TypeInstructionCode;
     use crate::libs::core::CoreLibPointerId;
+    use crate::runtime::execution::ExecutionError;
+    use crate::runtime::execution::context::{
+        ExecutionContext, ExecutionMode, LocalExecutionContext,
+    };
     use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
+    use crate::values::value_container::ValueContainer;
     use crate::{
         global::instruction_codes::InstructionCode, logger::init_logger_debug,
     };
     use datex_core::compiler::error::CompilerError;
+    use datex_core::values::core_values::integer::typed_integer::TypedInteger;
     use log::*;
 
     fn compile_and_log(datex_script: &str) -> Vec<u8> {
@@ -1143,10 +1466,50 @@ pub mod tests {
         let mut compilation_context = CompilationContext::new(
             Vec::with_capacity(256),
             vec![],
-            options.compile_scope.once,
+            options.compile_scope.execution_mode,
         );
         compile_ast(ast, &mut compilation_context, options).unwrap();
         compilation_context
+    }
+
+    fn compile_datex_script_debug_unbounded(
+        datex_script_parts: impl Iterator<Item = &'static str>,
+    ) -> impl Iterator<Item = Vec<u8>> {
+        let datex_script_parts = datex_script_parts.collect::<Vec<_>>();
+        gen move {
+            let mut compilation_scope =
+                CompilationScope::new(ExecutionMode::unbounded());
+            let len = datex_script_parts.len();
+            for (index, script_part) in
+                datex_script_parts.into_iter().enumerate()
+            {
+                // if last part, compile and return static value if possible
+                if index == len - 1 {
+                    compilation_scope.mark_as_last_execution();
+                }
+                let (dxb, new_compilation_scope) = compile_script(
+                    script_part,
+                    CompileOptions::new_with_scope(compilation_scope),
+                )
+                .unwrap();
+                compilation_scope = new_compilation_scope;
+                yield dxb;
+            }
+        }
+    }
+
+    fn assert_unbounded_input_matches_output(
+        input: Vec<&'static str>,
+        expected_output: Vec<Vec<u8>>,
+    ) {
+        let input = input.into_iter();
+        let expected_output = expected_output.into_iter();
+        for (result, expected) in
+            compile_datex_script_debug_unbounded(input.into_iter())
+                .zip(expected_output.into_iter())
+        {
+            assert_eq!(result, expected);
+        }
     }
 
     #[test]
@@ -1155,15 +1518,15 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} * {rhs}"); // 1 * 2
+        let datex_script = format!("{lhs}u8 * {rhs}u8"); // 1 * 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1175,17 +1538,19 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} * {rhs};"); // 1 * 2
+        let datex_script = format!("{lhs}u8 * {rhs}u8;"); // 1 * 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                1,
+                1, // terminated
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
-                InstructionCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -1195,36 +1560,36 @@ pub mod tests {
         init_logger_debug();
 
         // TODO #151: compare refs
-        let datex_script = "1 is 2".to_string();
+        let datex_script = "1u8 is 2u8".to_string();
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::IS.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
 
         let datex_script =
-            "const a = &mut 42; const b = &mut 69; a is b".to_string(); // a is b
+            "const a = &mut 42u8; const b = &mut 69u8; a is b".to_string(); // a is b
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
-                // val a = 42;
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // val b = 69;
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
@@ -1232,10 +1597,8 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // a is b
                 InstructionCode::IS.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -1258,53 +1621,53 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} == {rhs}"); // 1 == 2
+        let datex_script = format!("{lhs}u8 == {rhs}u8"); // 1 == 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::STRUCTURAL_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
 
-        let datex_script = format!("{lhs} === {rhs}"); // 1 === 2
+        let datex_script = format!("{lhs}u8 === {rhs}u8"); // 1 === 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
 
-        let datex_script = format!("{lhs} != {rhs}"); // 1 != 2
+        let datex_script = format!("{lhs}u8 != {rhs}u8"); // 1 != 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::NOT_STRUCTURAL_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
-        let datex_script = format!("{lhs} !== {rhs}"); // 1 !== 2
+        let datex_script = format!("{lhs}u8 !== {rhs}u8"); // 1 !== 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::NOT_EQUAL.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
             ]
         );
@@ -1316,30 +1679,32 @@ pub mod tests {
 
         let lhs: u8 = 1;
         let rhs: u8 = 2;
-        let datex_script = format!("{lhs} + {rhs}"); // 1 + 2
+        let datex_script = format!("{lhs}u8 + {rhs}u8"); // 1 + 2
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs
             ]
         );
 
-        let datex_script = format!("{lhs} + {rhs};"); // 1 + 2;
+        let datex_script = format!("{lhs}u8 + {rhs}u8;"); // 1 + 2;
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                1,
+                1, // terminated
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 lhs,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 rhs,
-                InstructionCode::CLOSE_AND_STORE.into()
             ]
         );
     }
@@ -1353,7 +1718,7 @@ pub mod tests {
         let op3: u8 = 3;
         let op4: u8 = 4;
 
-        let datex_script = format!("{op1} + {op2} + {op3} + {op4}"); // 1 + 2 + 3 + 4
+        let datex_script = format!("{op1}u8 + {op2}u8 + {op3}u8 + {op4}u8"); // 1 + 2 + 3 + 4
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
@@ -1361,13 +1726,13 @@ pub mod tests {
                 InstructionCode::ADD.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op4,
             ]
         );
@@ -1382,21 +1747,21 @@ pub mod tests {
         let op3: u8 = 3;
         let op4: u8 = 4;
 
-        let datex_script = format!("{op1} * {op2} + {op3} * {op4}"); // 1 + 2 + 3 + 4
+        let datex_script = format!("{op1}u8 * {op2}u8 + {op3}u8 * {op4}u8"); // 1 + 2 + 3 + 4
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op2,
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 op4,
             ]
         );
@@ -1409,22 +1774,19 @@ pub mod tests {
         let a: u8 = 1;
         let b: u8 = 2;
         let c: u8 = 3;
-        let datex_script = format!("{a} + ({b} + {c})"); // 1 + (2 + 3)
+        let datex_script = format!("{a}u8 + ({b}u8 + {c}u8)"); // 1 + (2 + 3)
         let result = compile_and_log(&datex_script);
 
-        // note: scope is automatically collapsed by the parser since this is all the same operation
-        // TODO #152: we might need to change this to support nested additions, or maybe not if we only allow additions
-        // of values of the same type?...
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 a,
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 b,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 c,
             ]
         );
@@ -1437,18 +1799,18 @@ pub mod tests {
         let a: u8 = 1;
         let b: u8 = 2;
         let c: u8 = 3;
-        let datex_script = format!("{a} + ({b} - {c})"); // 1 + (2 - 3)
+        let datex_script = format!("{a}u8 + ({b}u8 - {c}u8)"); // 1 + (2 - 3)
         let result = compile_and_log(&datex_script);
         assert_eq!(
             result,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 a,
                 InstructionCode::SUBTRACT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 b,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 c,
             ]
         );
@@ -1458,9 +1820,9 @@ pub mod tests {
     fn integer_u8() {
         init_logger_debug();
         let val = 42;
-        let datex_script = format!("{val}"); // 42
+        let datex_script = format!("{val}u8"); // 42
         let result = compile_and_log(&datex_script);
-        assert_eq!(result, vec![InstructionCode::INT_8.into(), val,]);
+        assert_eq!(result, vec![InstructionCode::UINT_8.into(), val,]);
     }
 
     // Test for decimal
@@ -1500,8 +1862,8 @@ pub mod tests {
         // const x = mut 42;
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::LIST_START.into(),
-            InstructionCode::SCOPE_END.into(),
+            InstructionCode::SHORT_LIST.into(),
+            0, // length
         ];
         assert_eq!(result, expected);
     }
@@ -1511,15 +1873,15 @@ pub mod tests {
     fn single_element_list() {
         init_logger_debug();
         // TODO #438: support list constructor (apply on type)
-        let datex_script = "[42]";
+        let datex_script = "[42u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::SHORT_LIST.into(),
+                1, // length
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1528,36 +1890,36 @@ pub mod tests {
     #[test]
     fn multi_element_list() {
         init_logger_debug();
-        let datex_script = "[1, 2, 3]";
+        let datex_script = "[1u8, 2u8, 3u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
 
         // trailing comma
-        let datex_script = "[1, 2, 3,]";
+        let datex_script = "[1u8, 2u8, 3u8,]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1566,23 +1928,23 @@ pub mod tests {
     #[test]
     fn list_with_expressions() {
         init_logger_debug();
-        let datex_script = "[1 + 2, 3 * 4]";
+        let datex_script = "[1u8 + 2u8, 3u8 * 4u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
+                InstructionCode::SHORT_LIST.into(),
+                2, // length
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
                 InstructionCode::MULTIPLY.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1591,23 +1953,23 @@ pub mod tests {
     #[test]
     fn nested_lists() {
         init_logger_debug();
-        let datex_script = "[1, [2, 3], 4]";
+        let datex_script = "[1u8, [2u8, 3u8], 4u8]";
         let result = compile_and_log(datex_script);
         assert_eq!(
             result,
             vec![
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::SHORT_LIST.into(),
+                3, // length
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::LIST_START.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::SHORT_LIST.into(),
+                2, // length
+                InstructionCode::UINT_8.into(),
                 2,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 3,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 4,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1616,18 +1978,18 @@ pub mod tests {
     #[test]
     fn map_with_text_key() {
         init_logger_debug();
-        let datex_script = "{\"key\": 42}";
+        let datex_script = "{\"key\": 42u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
             b'e',
             b'y',
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1636,16 +1998,16 @@ pub mod tests {
     #[test]
     fn map_integer_key() {
         init_logger_debug();
-        let datex_script = "{(10): 42}";
+        let datex_script = "{(10u8): 42u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             10,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1655,20 +2017,17 @@ pub mod tests {
     fn map_with_long_text_key() {
         init_logger_debug();
         let long_key = "a".repeat(300);
-        let datex_script = format!("{{\"{long_key}\": 42}}");
+        let datex_script = format!("{{\"{long_key}\": 42u8}}");
         let result = compile_and_log(&datex_script);
         let mut expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::TEXT.into(),
         ];
         expected.extend((long_key.len() as u32).to_le_bytes());
         expected.extend(long_key.as_bytes());
-        expected.extend(vec![
-            InstructionCode::INT_8.into(),
-            42,
-            InstructionCode::SCOPE_END.into(),
-        ]);
+        expected.extend(vec![InstructionCode::UINT_8.into(), 42]);
         assert_eq!(result, expected);
     }
 
@@ -1676,19 +2035,19 @@ pub mod tests {
     #[test]
     fn map_with_dynamic_key() {
         init_logger_debug();
-        let datex_script = "{(1 + 2): 42}";
+        let datex_script = "{(1u8 + 2u8): 42u8}";
         let result = compile_and_log(datex_script);
         let expected = [
-            InstructionCode::MAP_START.into(),
+            InstructionCode::SHORT_MAP.into(),
+            1, // length
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             1,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             2,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1697,31 +2056,31 @@ pub mod tests {
     #[test]
     fn map_with_multiple_keys() {
         init_logger_debug();
-        let datex_script = "{key: 42, (4): 43, (1 + 2): 44}";
+        let datex_script = "{key: 42u8, (4u8): 43u8, (1u8 + 2u8): 44u8}";
         let result = compile_and_log(datex_script);
         let expected = vec![
-            InstructionCode::MAP_START.into(),
+            InstructionCode::SHORT_MAP.into(),
+            3, // length
             InstructionCode::KEY_VALUE_SHORT_TEXT.into(),
             3, // length of "key"
             b'k',
             b'e',
             b'y',
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             42,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             4,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             43,
             InstructionCode::KEY_VALUE_DYNAMIC.into(),
             InstructionCode::ADD.into(),
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             1,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             2,
-            InstructionCode::INT_8.into(),
+            InstructionCode::UINT_8.into(),
             44,
-            InstructionCode::SCOPE_END.into(),
         ];
         assert_eq!(result, expected);
     }
@@ -1733,8 +2092,8 @@ pub mod tests {
         let datex_script = "{}";
         let result = compile_and_log(datex_script);
         let expected: Vec<u8> = vec![
-            InstructionCode::MAP_START.into(),
-            InstructionCode::SCOPE_END.into(),
+            InstructionCode::SHORT_MAP.into(),
+            0, // length
         ];
         assert_eq!(result, expected);
     }
@@ -1742,7 +2101,7 @@ pub mod tests {
     #[test]
     fn allocate_slot() {
         init_logger_debug();
-        let script = "const a = 42";
+        let script = "const a = 42u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1753,9 +2112,8 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1763,21 +2121,22 @@ pub mod tests {
     #[test]
     fn allocate_slot_with_value() {
         init_logger_debug();
-        let script = "const a = 42; a + 1";
+        let script = "const a = 42u8; a + 1u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
@@ -1785,7 +2144,7 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
             ]
         );
@@ -1794,30 +2153,31 @@ pub mod tests {
     #[test]
     fn allocate_scoped_slots() {
         init_logger_debug();
-        let script = "const a = 42; (const a = 43; a); a";
+        let script = "const a = 42u8; (const a = 43u8; a); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
-                InstructionCode::SCOPE_START.into(),
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
                 0,
@@ -1828,8 +2188,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1843,45 +2201,44 @@ pub mod tests {
     #[test]
     fn allocate_scoped_slots_with_parent_variables() {
         init_logger_debug();
-        let script = "const a = 42; const b = 41; (const a = 43; a; b); a";
+        let script =
+            "const a = 42u8; const b = 41u8; (const a = 43u8; a; b); a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                4,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 1,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 41,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
-                InstructionCode::SCOPE_START.into(),
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 2,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 2,
                 0,
                 0,
                 0,
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 1,
                 0,
@@ -1892,8 +2249,6 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1907,7 +2262,7 @@ pub mod tests {
     #[test]
     fn allocate_ref() {
         init_logger_debug();
-        let script = "const a = &mut 42";
+        let script = "const a = &mut 42u8";
         let result = compile_and_log(script);
         assert_eq!(
             result,
@@ -1919,9 +2274,8 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
@@ -1929,11 +2283,14 @@ pub mod tests {
     #[test]
     fn read_ref() {
         init_logger_debug();
-        let script = "const a = &mut 42; a";
+        let script = "const a = &mut 42u8; a";
         let result = compile_and_log(script);
         assert_eq!(
             result,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1941,10 +2298,8 @@ pub mod tests {
                 0,
                 0,
                 InstructionCode::CREATE_REF_MUT.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::GET_SLOT.into(),
                 // slot index as u32
                 0,
@@ -1960,16 +2315,19 @@ pub mod tests {
         init_logger_debug();
         let result = compile_template(
             "? + ?",
-            &[Integer::from(1).into(), Integer::from(2).into()],
+            &[
+                TypedInteger::from(1u8).into(),
+                TypedInteger::from(2u8).into(),
+            ],
             CompileOptions::default(),
         );
         assert_eq!(
             result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
@@ -1978,22 +2336,23 @@ pub mod tests {
     #[test]
     fn compile_macro() {
         init_logger_debug();
-        let a = Integer::from(1);
+        let a = TypedInteger::from(1u8);
         let result = compile!("?", a);
-        assert_eq!(result.unwrap().0, vec![InstructionCode::INT_8.into(), 1,]);
+        assert_eq!(result.unwrap().0, vec![InstructionCode::UINT_8.into(), 1,]);
     }
 
     #[test]
     fn compile_macro_multi() {
         init_logger_debug();
-        let result = compile!("? + ?", Integer::from(1), Integer::from(2));
+        let result =
+            compile!("? + ?", TypedInteger::from(1u8), TypedInteger::from(2u8));
         assert_eq!(
             result.unwrap().0,
             vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2
             ]
         );
@@ -2015,7 +2374,7 @@ pub mod tests {
 
     #[test]
     fn json_to_dxb_large_file() {
-        let json = get_json_test_string("test2.json");
+        let json = get_json_test_string("test3.json");
         let _ = compile_script(&json, CompileOptions::default())
             .expect("Failed to parse JSON string");
     }
@@ -2070,7 +2429,7 @@ pub mod tests {
 
     #[test]
     fn compile_auto_static_value_detection() {
-        let script = "1";
+        let script = "1u8";
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
@@ -2078,10 +2437,10 @@ pub mod tests {
         .unwrap();
         assert_matches!(
             res,
-            StaticValueOrDXB::StaticValue(val) if val == Some(Integer::from(1).into())
+            StaticValueOrDXB::StaticValue(val) if val == Some(TypedInteger::from(1u8).into())
         );
 
-        let script = "1 + 2";
+        let script = "1u8 + 2u8";
         let (res, _) = compile_script_or_return_static_value(
             script,
             CompileOptions::default(),
@@ -2091,9 +2450,9 @@ pub mod tests {
             res,
             StaticValueOrDXB::DXB(code) if code == vec![
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
             ]
         );
@@ -2101,18 +2460,14 @@ pub mod tests {
 
     #[test]
     fn remote_execution() {
-        let script = "42 :: 43";
+        let script = "42u8 :: 43u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
-                42,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (2 bytes)
                 2,
                 0,
@@ -2124,26 +2479,26 @@ pub mod tests {
                 0,
                 0,
                 // literal value 43
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
+                // --- end of block
+                // caller (literal value 42 for test)
+                InstructionCode::UINT_8.into(),
+                42,
             ]
         );
     }
 
     #[test]
     fn remote_execution_expression() {
-        let script = "42 :: 1 + 2";
+        let script = "42u8 :: 1u8 + 2u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 42 for test)
-                InstructionCode::INT_8.into(),
-                42,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2156,10 +2511,14 @@ pub mod tests {
                 0,
                 // expression: 1 + 2
                 InstructionCode::ADD.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 1,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 2,
+                // --- end of block
+                // caller (literal value 42 for test)
+                InstructionCode::UINT_8.into(),
+                42,
             ]
         );
     }
@@ -2167,28 +2526,25 @@ pub mod tests {
     #[test]
     fn remote_execution_injected_const() {
         init_logger_debug();
-        let script = "const x = 42; 1 :: x";
+        let script = "const x = 42u8; 1u8 :: x";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2211,6 +2567,10 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
             ]
         );
     }
@@ -2220,21 +2580,23 @@ pub mod tests {
         init_logger_debug();
         // var x only refers to a value, not a ref, but since it is transferred to a
         // remote context, its state is synced via a ref (VariableReference model)
-        let script = "var x = 42; 1 :: x; x = 43;";
+        let script = "var x = 42u8; 1u8 :: x; x = 43u8;";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                1, // terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
@@ -2250,14 +2612,8 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (5 bytes)
                 5,
                 0,
@@ -2280,7 +2636,10 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::CLOSE_AND_STORE.into(),
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
                 // TODO #238: this is not the correct slot assignment for VariableReference model
                 // set x to 43
                 InstructionCode::SET_SLOT.into(),
@@ -2289,48 +2648,41 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 43,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
             ]
         );
     }
 
     #[test]
     fn remote_execution_injected_consts() {
-        let script = "const x = 42; const y = 69; 1 :: x + y";
+        let script = "const x = 42u8; const y = 69u8; 1u8 :: x + y";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block
                 // block size (11 bytes)
                 11,
                 0,
@@ -2365,46 +2717,46 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
             ]
         );
     }
 
     #[test]
     fn remote_execution_shadow_const() {
-        let script = "const x = 42; const y = 69; 1 :: (const x = 5; x + y)";
+        let script =
+            "const x = 42u8; const y = 69u8; 1u8 :: (const x = 5u8; x + y)";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                3,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 1,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 69,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
-                // block size (20 bytes)
-                20,
+                // --- start of block
+                // block size (21 bytes)
+                21,
                 0,
                 0,
                 0,
@@ -2418,6 +2770,9 @@ pub mod tests {
                 0,
                 0,
                 0,
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 // allocate slot for x
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
@@ -2425,10 +2780,8 @@ pub mod tests {
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 5,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 // expression: x + y
                 InstructionCode::ADD.into(),
                 InstructionCode::GET_SLOT.into(),
@@ -2443,37 +2796,38 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
             ]
         );
     }
 
     #[test]
     fn remote_execution_nested() {
-        let script = "const x = 42; (1 :: (2 :: x))";
+        let script = "const x = 42u8; (1u8 :: (2u8 :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
-                // block size (21 bytes)
-                21,
+                // --- start of block 1
+                // block size (20 bytes)
+                20,
                 0,
                 0,
                 0,
@@ -2489,11 +2843,7 @@ pub mod tests {
                 0,
                 // nested remote execution
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 2 for test)
-                InstructionCode::INT_8.into(),
-                2,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 2
                 // block size (5 bytes)
                 5,
                 0,
@@ -2515,37 +2865,42 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block 2
+                // caller (literal value 2 for test)
+                InstructionCode::UINT_8.into(),
+                2,
+                // -- end of block 1
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
             ]
         );
     }
 
     #[test]
     fn remote_execution_nested2() {
-        let script = "const x = 42; (1 :: (x :: x))";
+        let script = "const x = 42u8; (1u8 :: (x :: x))";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
 
         assert_eq!(
             res,
             vec![
+                InstructionCode::SHORT_STATEMENTS.into(),
+                2,
+                0, // not terminated
                 InstructionCode::ALLOCATE_SLOT.into(),
                 // slot index as u32
                 0,
                 0,
                 0,
                 0,
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 42,
-                InstructionCode::SCOPE_END.into(),
-                InstructionCode::CLOSE_AND_STORE.into(),
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 1 for test)
-                InstructionCode::INT_8.into(),
-                1,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
-                // block size (21 bytes)
-                24,
+                // --- start of block 1
+                // block size (23 bytes)
+                23,
                 0,
                 0,
                 0,
@@ -2561,14 +2916,7 @@ pub mod tests {
                 0,
                 // nested remote execution
                 InstructionCode::REMOTE_EXECUTION.into(),
-                // caller (literal value 2 for test)
-                InstructionCode::GET_SLOT.into(),
-                0,
-                0,
-                0,
-                0,
-                // start of block
-                InstructionCode::EXECUTION_BLOCK.into(),
+                // --- start of block 2
                 // block size (5 bytes)
                 5,
                 0,
@@ -2590,6 +2938,17 @@ pub mod tests {
                 0,
                 0,
                 0,
+                // --- end of block 2
+                // caller (literal value 2 for test)
+                InstructionCode::GET_SLOT.into(),
+                0,
+                0,
+                0,
+                0,
+                // --- end of block 1
+                // caller (literal value 1 for test)
+                InstructionCode::UINT_8.into(),
+                1,
             ]
         );
     }
@@ -2637,66 +2996,15 @@ pub mod tests {
         assert_matches!(result, Err(CompilerError::AssignmentToConst { .. }));
     }
 
-    #[ignore = "implement type inference (precompiler)"]
     #[test]
-    fn mutation_of_immutable_value() {
-        init_logger_debug();
-        let script = "const a = {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableValue { .. })
-        );
-    }
-
-    #[ignore = "implement type inference (precompiler)"]
-    #[test]
-    fn mutation_of_mutable_value() {
-        init_logger_debug();
-        let script = "const a = mut {x: 10}; a.x = 20;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableValue { .. })
-        );
-    }
-
-    /**
-     * var a = 10;
-     * a = 40;
-     * a += 10; // a = a + 10;
-     * var a = &mut 42;;
-     * a = &mut 43; // valid, new ref pointer
-     * *a = 2; // internal deref assignment
-     * *a += 1; // internal deref assignment with addition
-     * a += 1; a = a + 1; // invalid
-     * var obj = &mut {key: 42};
-     * obj.key = 43; // valid, internal deref assignment
-     */
-    #[ignore = "implement type inference (precompiler)"]
-    #[test]
-    fn addition_to_immutable_ref() {
-        init_logger_debug();
-        let script = "const a = &42; *a += 1;";
-        let result = compile_script(script, CompileOptions::default())
-            .map_err(|e| e.error);
-        assert_matches!(
-            result,
-            Err(CompilerError::AssignmentToImmutableReference { .. })
-        );
-    }
-
-    #[test]
-    fn slot_endpoint() {
+    fn internal_slot_endpoint() {
         let script = "#endpoint";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
-                InstructionCode::GET_SLOT.into(),
+                InstructionCode::GET_INTERNAL_SLOT.into(),
                 // slot index as u32
                 0,
                 0xff,
@@ -2709,31 +3017,30 @@ pub mod tests {
     // this is not a valid Datex script, just testing the compiler
     #[test]
     fn deref() {
-        let script = "*10";
+        let script = "*10u8";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
                 InstructionCode::DEREF.into(),
-                InstructionCode::INT_8.into(),
+                InstructionCode::UINT_8.into(),
                 // integer as u8
                 10,
-                InstructionCode::SCOPE_END.into(),
             ]
         );
     }
 
     #[test]
     fn type_literal_integer() {
-        let script = "type(1)";
+        let script = "type<1>";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
                 InstructionCode::TYPE_EXPRESSION.into(),
-                TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER.into(),
+                TypeInstructionCode::TYPE_LITERAL_INTEGER.into(),
                 // slot index as u32
                 2,
                 1,
@@ -2759,5 +3066,325 @@ pub mod tests {
                 .to_vec(),
         );
         assert_eq!(res, instructions);
+    }
+
+    #[test]
+    fn compile_continuous_terminated_script() {
+        let input = vec!["1u8", "2u8", "3u8;"];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::UINT_8.into(),
+                1,
+            ],
+            vec![InstructionCode::UINT_8.into(), 2],
+            vec![
+                InstructionCode::UINT_8.into(),
+                3,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                1, // terminated
+            ],
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn compile_continuous_unterminated_script() {
+        let input = vec!["1u8", "2u8 + 3u8", "3u8"];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::UINT_8.into(),
+                1,
+            ],
+            vec![
+                InstructionCode::ADD.into(),
+                InstructionCode::UINT_8.into(),
+                2,
+                InstructionCode::UINT_8.into(),
+                3,
+            ],
+            vec![
+                InstructionCode::UINT_8.into(),
+                3,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                0, // unterminated
+            ],
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn compile_continuous_complex() {
+        let input = vec!["1u8", "integer"];
+        let expected_output = vec![
+            vec![
+                InstructionCode::UNBOUNDED_STATEMENTS.into(),
+                InstructionCode::UINT_8.into(),
+                1,
+            ],
+            vec![
+                InstructionCode::GET_INTERNAL_REF.into(),
+                // pointer id for integer
+                100,
+                0,
+                0,
+                InstructionCode::UNBOUNDED_STATEMENTS_END.into(),
+                0, // unterminated
+            ],
+        ];
+
+        assert_unbounded_input_matches_output(input, expected_output);
+    }
+
+    #[test]
+    fn test_get_property_text() {
+        init_logger_debug();
+        let datex_script = "'test'.example";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_get_property_text_quoted() {
+        init_logger_debug();
+        let datex_script = "'test'.'example'";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_get_property_index() {
+        init_logger_debug();
+        let datex_script = "'test'.42";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_INDEX.into(),
+            // u32 index 42
+            42,
+            0,
+            0,
+            0,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_get_property_dynamic() {
+        init_logger_debug();
+        let datex_script = "'test'.(1u8 + 2u8)";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::GET_PROPERTY_DYNAMIC.into(),
+            // property expression: 1 + 2
+            InstructionCode::ADD.into(),
+            InstructionCode::UINT_8.into(),
+            1,
+            InstructionCode::UINT_8.into(),
+            2,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_text() {
+        init_logger_debug();
+        let datex_script = "'test'.example = 42u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_TEXT.into(),
+            7, // length of "example"
+            b'e',
+            b'x',
+            b'a',
+            b'm',
+            b'p',
+            b'l',
+            b'e',
+            // value to set
+            InstructionCode::UINT_8.into(),
+            42,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_index() {
+        init_logger_debug();
+        let datex_script = "'test'.42 = 43u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_INDEX.into(),
+            // u32 index 42
+            42,
+            0,
+            0,
+            0,
+            // value to set
+            InstructionCode::UINT_8.into(),
+            43,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_set_property_dynamic() {
+        init_logger_debug();
+        let datex_script = "'test'.(1u8 + 2u8) = 43u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::SET_PROPERTY_DYNAMIC.into(),
+            // property expression: 1 + 2
+            InstructionCode::ADD.into(),
+            InstructionCode::UINT_8.into(),
+            1,
+            InstructionCode::UINT_8.into(),
+            2,
+            // value to set
+            InstructionCode::UINT_8.into(),
+            43,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_no_arguments() {
+        init_logger_debug();
+        let datex_script = "'test'()";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY_ZERO.into(),
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_one_argument() {
+        init_logger_debug();
+        let datex_script = "'test' 42u8";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY_SINGLE.into(),
+            // argument
+            InstructionCode::UINT_8.into(),
+            42,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_apply_multiple_arguments() {
+        init_logger_debug();
+        let datex_script = "'test'(1u8, 2u8, 3u8)";
+        let result = compile_and_log(datex_script);
+        let expected = vec![
+            InstructionCode::APPLY.into(),
+            3, // number of arguments
+            0,
+            // argument 1
+            InstructionCode::UINT_8.into(),
+            1,
+            // argument 2
+            InstructionCode::UINT_8.into(),
+            2,
+            // argument 3
+            InstructionCode::UINT_8.into(),
+            3,
+            // base value
+            InstructionCode::SHORT_TEXT.into(),
+            4, // length of "test"
+            b't',
+            b'e',
+            b's',
+            b't',
+        ];
+        assert_eq!(result, expected);
     }
 }

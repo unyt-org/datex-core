@@ -1,0 +1,62 @@
+{
+    "routing_header": {
+        "version": 1,
+        "block_size": 78,
+        "flags": {
+            "signature_type": "None",
+            "encryption_type": "None",
+            "receiver_type": "Receivers",
+            "is_bounce_back": false,
+            "has_checksum": false
+        },
+        "checksum": null,
+        "distance": 0,
+        "ttl": 42,
+        "sender": "@sender",
+        "receivers_pointer_id": null,
+        "number_of_receivers": 1,
+        "receivers": [
+            "@jonas"
+        ]
+    },
+    "block_header": {
+        "context_id": 0,
+        "section_index": 0,
+        "block_number": 46,
+        "flags_and_timestamp": {
+            "block_type": "Response",
+            "has_side_effects": true,
+            "has_only_data": true,
+            "is_end_of_section": true,
+            "is_end_of_context": true,
+            "has_lifetime": false,
+            "has_represented_by": false,
+            "has_iv": false,
+            "is_compressed": false,
+            "is_signature_in_last_subblock": false,
+            "creation_timestamp": 0
+        },
+        "lifetime": null,
+        "represented_by": null,
+        "iv": null
+    },
+    "encrypted_header": {
+        "flags": {
+            "user_agent": "Unknown",
+            "has_on_behalf_of": false
+        },
+        "on_behalf_of": null
+    },
+    "body": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+    ]
+}

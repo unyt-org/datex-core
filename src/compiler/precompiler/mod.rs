@@ -7,24 +7,19 @@ pub mod options;
 pub mod precompiled_ast;
 pub mod scope;
 pub mod scope_stack;
-use crate::ast::structs::ResolvedVariable;
-use crate::ast::structs::expression::{
+use crate::ast::expressions::{
+    BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
+    VariableAccess, VariableAssignment, VariableDeclaration, VariableKind,
+};
+use crate::ast::expressions::{
     DatexExpression, RemoteExecution, TypeDeclarationKind, VariantAccess,
 };
-use crate::ast::structs::r#type::{
-    TypeExpression, TypeExpressionData, TypeVariantAccess,
-};
+use crate::ast::resolved_variable::ResolvedVariable;
+use crate::ast::type_expressions::{TypeExpressionData, TypeVariantAccess};
+use crate::types::definition::TypeDefinition;
 use crate::visitor::type_expression::visitable::TypeExpressionVisitResult;
 use crate::{
-    ast::{
-        parse_result::ValidDatexParseResult,
-        spanned::Spanned,
-        structs::expression::{
-            BinaryOperation, DatexExpressionData, Statements, TypeDeclaration,
-            VariableAccess, VariableAssignment, VariableDeclaration,
-            VariableKind,
-        },
-    },
+    ast::spanned::Spanned,
     compiler::error::{
         CompilerError, DetailedCompilerErrors,
         DetailedCompilerErrorsWithRichAst, ErrorCollector, MaybeAction,
@@ -34,7 +29,6 @@ use crate::{
     global::operators::{BinaryOperator, binary::ArithmeticOperator},
     libs::core::CoreLibPointerId,
     references::type_reference::{NominalTypeDeclaration, TypeReference},
-    types::type_container::TypeContainer,
     values::core_values::r#type::Type,
     visitor::{
         VisitAction,
@@ -53,14 +47,13 @@ pub struct Precompiler<'a> {
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope_stack: &'a mut PrecompilerScopeStack,
     collected_errors: Option<DetailedCompilerErrors>,
-    spans: Vec<Range<usize>>, // FIXME make this better
     is_first_level_expression: bool,
 }
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Exits early on first error encountered, returning a SpannedCompilerError.
 pub fn precompile_ast_simple_error(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, SpannedCompilerError> {
@@ -85,7 +78,7 @@ pub fn precompile_ast_simple_error(
 /// Precompile the AST by resolving variable references and collecting metadata.
 /// Collects all errors encountered, returning a DetailedCompilerErrorsWithRichAst.
 pub fn precompile_ast_detailed_errors(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
 ) -> Result<RichAst, DetailedCompilerErrorsWithRichAst> {
@@ -109,7 +102,7 @@ pub fn precompile_ast_detailed_errors(
 
 /// Precompile the AST by resolving variable references and collecting metadata.
 pub fn precompile_ast(
-    ast: ValidDatexParseResult,
+    ast: DatexExpression,
     scope_stack: &mut PrecompilerScopeStack,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     options: PrecompilerOptions,
@@ -126,7 +119,6 @@ impl<'a> Precompiler<'a> {
             ast_metadata,
             scope_stack,
             collected_errors: None,
-            spans: vec![],
             is_first_level_expression: true,
         }
     }
@@ -168,18 +160,17 @@ impl<'a> Precompiler<'a> {
     /// Precompile the AST by resolving variable references and collecting metadata.
     fn precompile(
         mut self,
-        mut ast: ValidDatexParseResult,
+        mut ast: DatexExpression,
         options: PrecompilerOptions,
     ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     {
         if options.detailed_errors {
             self.collected_errors = Some(DetailedCompilerErrors::default());
         }
-        self.spans = ast.spans.clone(); // FIXME make better
 
         // Hoist top-level type declaration if any
         if let DatexExpressionData::TypeDeclaration(type_declaration) =
-            &mut ast.ast.data
+            &mut ast.data
         {
             self.hoist_variable(type_declaration);
         }
@@ -187,11 +178,11 @@ impl<'a> Precompiler<'a> {
         // visit ast recursively
         // returns Error directly if early exit on first error is enabled
 
-        self.visit_datex_expression(&mut ast.ast)?;
+        self.visit_datex_expression(&mut ast)?;
 
         let mut rich_ast = RichAst {
             metadata: self.ast_metadata,
-            ast: ast.ast,
+            ast,
         };
 
         // type inference - currently only if detailed errors are enabled
@@ -221,21 +212,6 @@ impl<'a> Precompiler<'a> {
             )
         } else {
             Ok(rich_ast)
-        }
-    }
-
-    /// Get the full span from start and end token indices
-    /// Returns None if the span is the default (0..0)
-    /// Used to convert token indices to actual spans in the source code
-    fn span(&self, span: &Range<usize>) -> Option<Range<usize>> {
-        // skip if both zero (default span used for testing)
-        // TODO: improve this
-        if span.start != 0 || span.end != 0 {
-            let start_token = self.spans.get(span.start).cloned().unwrap();
-            let end_token = self.spans.get(span.end - 1).cloned().unwrap();
-            Some(start_token.start..end_token.end)
-        } else {
-            None
         }
     }
 
@@ -303,7 +279,7 @@ impl<'a> Precompiler<'a> {
         };
 
         // register placeholder ref in metadata
-        let type_def = TypeContainer::TypeReference(reference.clone());
+        let type_def = Type::new(TypeDefinition::reference(reference), None);
         {
             self.ast_metadata
                 .borrow_mut()
@@ -315,12 +291,6 @@ impl<'a> Precompiler<'a> {
 }
 
 impl<'a> TypeExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
-    fn before_visit_type_expression(&mut self, expr: &mut TypeExpression) {
-        if let Some(new_span) = self.span(&expr.span) {
-            expr.span = new_span;
-        }
-    }
-
     fn visit_literal_type(
         &mut self,
         literal: &mut String,
@@ -385,10 +355,6 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
     }
 
     fn before_visit_datex_expression(&mut self, expr: &mut DatexExpression) {
-        if let Some(new_span) = self.span(&expr.span) {
-            expr.span = new_span;
-        }
-
         match self.scope_type_for_expression(expr) {
             NewScopeType::NewScopeWithNewRealm => {
                 self.scope_stack.push_scope();
@@ -627,19 +593,18 @@ impl<'a> ExpressionVisitor<SpannedCompilerError> for Precompiler<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::error::src::SrcId;
-    use crate::ast::parse;
-    use crate::ast::parse_result::{DatexParseResult, InvalidDatexParseResult};
-    use crate::ast::structs::expression::{CreateRef, Deref};
-    use crate::ast::structs::r#type::{StructuralMap, TypeExpressionData};
+    use crate::ast::expressions::{CreateRef, Deref};
+    use crate::ast::resolved_variable::ResolvedVariable;
+    use crate::ast::src_id::SrcId;
+    use crate::ast::type_expressions::{StructuralMap, TypeExpressionData};
+    use crate::parser::Parser;
     use crate::references::reference::ReferenceMutability;
     use crate::stdlib::assert_matches::assert_matches;
-    use crate::stdlib::io;
     use crate::values::core_values::integer::Integer;
     use crate::values::pointer::PointerAddress;
 
     fn precompile(
-        ast: ValidDatexParseResult,
+        ast: DatexExpression,
         options: PrecompilerOptions,
     ) -> Result<RichAst, SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst>
     {
@@ -652,9 +617,29 @@ mod tests {
     #[test]
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
-        let ast = parse("var x: integer = 34; var y = 10; x + y").unwrap();
+        let ast = Parser::parse_with_default_options(
+            "var x: integer = 34; var y = 10; x + y",
+        )
+        .unwrap();
         let res = precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
+    }
+
+    #[test]
+    fn property_access() {
+        let options = PrecompilerOptions::default();
+        let ast =
+            Parser::parse_with_default_options("var x = {a: 1}; x.a").unwrap();
+        precompile(ast, options).expect("Should precompile without errors");
+    }
+
+    #[test]
+    fn property_access_assignment() {
+        let options = PrecompilerOptions::default();
+        let ast =
+            Parser::parse_with_default_options("var x = {a: 1}; x.a = 2;")
+                .unwrap();
+        precompile(ast, options).expect("Should precompile without errors");
     }
 
     #[test]
@@ -662,7 +647,7 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: true,
         };
-        let ast = parse("x + 10").unwrap();
+        let ast = Parser::parse_with_default_options("x + 10").unwrap();
         let result = precompile(ast, options);
         println!("{:#?}", result);
         assert!(result.is_err());
@@ -673,7 +658,8 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: false,
         };
-        let ast = parse("var x = 1; var x = 2;").unwrap();
+        let ast = Parser::parse_with_default_options("var x = 1; var x = 2;")
+            .unwrap();
         let result = precompile(ast, options);
         assert_matches!(result.unwrap_err(), SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})  if name == "x");
     }
@@ -684,7 +670,7 @@ mod tests {
         type A = integer;
         type A = text; // redeclaration error
         "#;
-        let ast = parse(src).unwrap();
+        let ast = Parser::parse_with_default_options(src).unwrap();
         let result = precompile(ast, PrecompilerOptions::default());
         assert!(result.is_err());
         assert_matches!(
@@ -695,19 +681,7 @@ mod tests {
 
     fn parse_unwrap(src: &str) -> DatexExpression {
         let src_id = SrcId::test();
-        let res = parse(src);
-        if let DatexParseResult::Invalid(InvalidDatexParseResult {
-            errors,
-            ..
-        }) = res
-        {
-            errors.iter().for_each(|e| {
-                let cache = ariadne::sources(vec![(src_id, src)]);
-                e.clone().write(cache, io::stdout());
-            });
-            core::panic!("Parsing errors found");
-        }
-        res.unwrap().ast
+        Parser::parse_with_default_options(src).unwrap()
     }
 
     fn parse_and_precompile_spanned_result(
@@ -715,9 +689,7 @@ mod tests {
     ) -> Result<RichAst, SpannedCompilerError> {
         let mut scope_stack = PrecompilerScopeStack::default();
         let ast_metadata = Rc::new(RefCell::new(AstMetadata::default()));
-        let ast = parse(src)
-            .to_result()
-            .map_err(|mut e| SpannedCompilerError::from(e.remove(0)))?;
+        let ast = Parser::parse_with_default_options(src)?;
         precompile_ast_simple_error(ast, &mut scope_stack, ast_metadata)
     }
 
@@ -748,7 +720,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "User".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![(
                                 TypeExpressionData::Text("a".to_string())
                                     .with_default_span(),
@@ -879,7 +851,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "User".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![])
                         )
                         .with_default_span(),
@@ -890,7 +862,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(1),
                         name: "User/admin".to_string(),
-                        value: TypeExpressionData::StructuralMap(
+                        definition: TypeExpressionData::StructuralMap(
                             StructuralMap(vec![])
                         )
                         .with_default_span(),
@@ -991,7 +963,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::Integer(Integer::from(1))
+                    definition: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1043,7 +1015,7 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::Integer(Integer::from(1))
+                    definition: TypeExpressionData::Integer(Integer::from(1))
                         .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1065,10 +1037,12 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(0),
                     name: "x".to_string(),
-                    value: TypeExpressionData::VariableAccess(VariableAccess {
-                        id: 1,
-                        name: "MyInt".to_string()
-                    })
+                    definition: TypeExpressionData::VariableAccess(
+                        VariableAccess {
+                            id: 1,
+                            name: "MyInt".to_string()
+                        }
+                    )
                     .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1077,10 +1051,12 @@ mod tests {
                 DatexExpressionData::TypeDeclaration(TypeDeclaration {
                     id: Some(1),
                     name: "MyInt".to_string(),
-                    value: TypeExpressionData::VariableAccess(VariableAccess {
-                        id: 0,
-                        name: "x".to_string()
-                    })
+                    definition: TypeExpressionData::VariableAccess(
+                        VariableAccess {
+                            id: 0,
+                            name: "x".to_string()
+                        }
+                    )
                     .with_default_span(),
                     hoisted: true,
                     kind: TypeDeclarationKind::Nominal
@@ -1112,7 +1088,7 @@ mod tests {
                     DatexExpressionData::TypeDeclaration(TypeDeclaration {
                         id: Some(0),
                         name: "x".to_string(),
-                        value: TypeExpressionData::Integer(
+                        definition: TypeExpressionData::Integer(
                             Integer::from(10).into()
                         )
                         .with_default_span(),
@@ -1128,13 +1104,14 @@ mod tests {
                                 TypeDeclaration {
                                     id: Some(1),
                                     name: "NestedVar".to_string(),
-                                    value: TypeExpressionData::VariableAccess(
-                                        VariableAccess {
-                                            id: 0,
-                                            name: "x".to_string()
-                                        }
-                                    )
-                                    .with_default_span(),
+                                    definition:
+                                        TypeExpressionData::VariableAccess(
+                                            VariableAccess {
+                                                id: 0,
+                                                name: "x".to_string()
+                                            }
+                                        )
+                                        .with_default_span(),
                                     hoisted: true,
                                     kind: TypeDeclarationKind::Nominal
                                 }
@@ -1159,9 +1136,9 @@ mod tests {
             DatexExpressionData::TypeDeclaration(TypeDeclaration {
                 id: Some(0),
                 name: "x".to_string(),
-                value: TypeExpressionData::GetReference(PointerAddress::from(
-                    CoreLibPointerId::Integer(None)
-                ))
+                definition: TypeExpressionData::GetReference(
+                    PointerAddress::from(CoreLibPointerId::Integer(None))
+                )
                 .with_default_span(),
                 hoisted: true,
                 kind: TypeDeclarationKind::Nominal

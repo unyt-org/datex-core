@@ -1,12 +1,13 @@
 use crate::dif::interface::DIFResolveReferenceError;
 use crate::dif::reference::DIFReference;
-use crate::dif::r#type::DIFTypeContainer;
-use crate::dif::update::{DIFProperty, DIFUpdateData};
+use crate::dif::r#type::DIFTypeDefinition;
+use crate::dif::update::{DIFKey, DIFUpdateData};
+use crate::dif::value::DIFReferenceNotFoundError;
 use crate::references::observers::{ObserveOptions, Observer, TransceiverId};
-use crate::references::reference::{AccessError, ReferenceMutability};
+use crate::references::reference::ReferenceMutability;
 use crate::runtime::RuntimeInternal;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 use crate::{
     dif::{
@@ -21,7 +22,6 @@ use crate::{
 };
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::dif::update::DIFUpdate;
 
 impl RuntimeInternal {
     fn resolve_in_memory_reference(
@@ -44,112 +44,114 @@ impl DIFInterface for RuntimeInternal {
         &self,
         source_id: TransceiverId,
         address: PointerAddress,
-        update: DIFUpdateData,
+        update: &DIFUpdateData,
     ) -> Result<(), DIFUpdateError> {
         let reference = self
             .resolve_in_memory_reference(&address)
             .ok_or(DIFUpdateError::ReferenceNotFound)?;
         match update {
             DIFUpdateData::Set { key, value } => {
-                if !reference.supports_property_access() {
-                    return Err(DIFUpdateError::AccessError(
-                        AccessError::InvalidOperation(
-                            "Reference does not support property access"
-                                .to_string(),
-                        ),
-                    ));
-                }
                 let value_container = value.to_value_container(&self.memory)?;
                 match key {
-                    DIFProperty::Text(key) => reference.try_set_text_property(
+                    DIFKey::Text(key) => reference.try_set_property(
                         source_id,
-                        &key,
+                        update,
+                        key,
                         value_container,
-                        &self.memory,
                     )?,
-                    DIFProperty::Index(key) => reference
-                        .try_set_numeric_property(
-                            source_id,
-                            key as u32,
-                            value_container,
-                            &self.memory,
-                        )?,
-                    DIFProperty::Value(key) => {
+                    DIFKey::Index(key) => reference.try_set_property(
+                        source_id,
+                        update,
+                        *key,
+                        value_container,
+                    )?,
+                    DIFKey::Value(key) => {
                         let key = key.to_value_container(&self.memory)?;
                         reference.try_set_property(
                             source_id,
-                            key,
+                            update,
+                            &key,
                             value_container,
-                            &self.memory,
                         )?
                     }
                 }
             }
-            DIFUpdateData::Replace { value } => reference.try_set_value(
+            DIFUpdateData::Replace { value } => reference.try_replace(
                 source_id,
+                update,
                 value.to_value_container(&self.memory)?,
-                &self.memory,
             )?,
-            DIFUpdateData::Push { value } => {
-                if !reference.supports_push() {
-                    return Err(DIFUpdateError::AccessError(
-                        AccessError::InvalidOperation(
-                            "Reference does not support push operation"
-                                .to_string(),
-                        ),
-                    ));
+            DIFUpdateData::Append { value } => reference.try_append_value(
+                source_id,
+                update,
+                value.to_value_container(&self.memory)?,
+            )?,
+            DIFUpdateData::Clear => reference.try_clear(source_id)?,
+            DIFUpdateData::Delete { key } => match key {
+                DIFKey::Text(key) => {
+                    reference.try_delete_property(source_id, update, key)?
                 }
-                reference.try_push_value(
+                DIFKey::Index(key) => {
+                    reference.try_delete_property(source_id, update, *key)?
+                }
+                DIFKey::Value(key) => {
+                    let key = key.to_value_container(&self.memory)?;
+                    reference.try_delete_property(source_id, update, &key)?
+                }
+            },
+            DIFUpdateData::ListSplice {
+                start,
+                delete_count,
+                items,
+            } => {
+                reference.try_list_splice(
                     source_id,
-                    value.to_value_container(&self.memory)?,
-                    &self.memory,
+                    update,
+                    *start..(start + delete_count),
+                    items
+                        .iter()
+                        .map(|item| item.to_value_container(&self.memory))
+                        .collect::<Result<
+                            Vec<ValueContainer>,
+                            DIFReferenceNotFoundError,
+                        >>()?,
                 )?
-            }
-            DIFUpdateData::Clear => {
-                if !reference.supports_clear() {
-                    return Err(DIFUpdateError::AccessError(
-                        AccessError::InvalidOperation(
-                            "Reference does not support clear operation"
-                                .to_string(),
-                        ),
-                    ));
-                }
-                reference.try_clear(source_id)?
-            }
-            DIFUpdateData::Remove { key } => {
-                if !reference.supports_property_access() {
-                    return Err(DIFUpdateError::AccessError(
-                        AccessError::InvalidOperation(
-                            "Reference does not support property access"
-                                .to_string(),
-                        ),
-                    ));
-                }
-
-                match key {
-                    DIFProperty::Text(key) => reference.try_delete_property(
-                        source_id,
-                        ValueContainer::from(key),
-                        &self.memory,
-                    )?,
-                    DIFProperty::Index(key) => reference.try_delete_property(
-                        source_id,
-                        ValueContainer::from(key),
-                        &self.memory,
-                    )?,
-                    DIFProperty::Value(key) => {
-                        let key = key.to_value_container(&self.memory)?;
-                        reference.try_delete_property(
-                            source_id,
-                            key,
-                            &self.memory,
-                        )?
-                    }
-                }
             }
         };
 
         Ok(())
+    }
+
+    fn apply(
+        &self,
+        callee: DIFValueContainer,
+        value: DIFValueContainer,
+    ) -> Result<DIFValueContainer, DIFApplyError> {
+        core::todo!("#400 Undescribed by author.")
+    }
+
+    fn create_pointer(
+        &self,
+        value: DIFValueContainer,
+        allowed_type: Option<DIFTypeDefinition>,
+        mutability: ReferenceMutability,
+    ) -> Result<PointerAddress, DIFCreatePointerError> {
+        let container = value.to_value_container(&self.memory)?;
+        let type_container = if let Some(allowed_type) = &allowed_type {
+            core::todo!(
+                "FIXME: Implement type_container creation from DIFTypeDefinition"
+            )
+        } else {
+            None
+        };
+        let reference = Reference::try_new_from_value_container(
+            container,
+            type_container,
+            None,
+            mutability,
+        )?;
+        let address = self.memory.borrow_mut().register_reference(&reference);
+        Ok(address)
     }
 
     async fn resolve_pointer_address_external(
@@ -176,44 +178,12 @@ impl DIFInterface for RuntimeInternal {
         }
     }
 
-    fn apply(
-        &self,
-        callee: DIFValueContainer,
-        value: DIFValueContainer,
-    ) -> Result<DIFValueContainer, DIFApplyError> {
-        core::todo!("#400 Undescribed by author.")
-    }
-
-    fn create_pointer(
-        &self,
-        value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
-        mutability: ReferenceMutability,
-    ) -> Result<PointerAddress, DIFCreatePointerError> {
-        let container = value.to_value_container(&self.memory)?;
-        let type_container = if let Some(allowed_type) = &allowed_type {
-            core::todo!(
-                "FIXME: Implement type_container creation from DIFTypeContainer"
-            )
-        } else {
-            None
-        };
-        let reference = Reference::try_new_from_value_container(
-            container,
-            type_container,
-            None,
-            mutability,
-        )?;
-        let address = self.memory.borrow_mut().register_reference(&reference);
-        Ok(address)
-    }
-
-    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
+    fn observe_pointer(
         &self,
         transceiver_id: TransceiverId,
         address: PointerAddress,
         options: ObserveOptions,
-        callback: F,
+        callback: impl Fn(&DIFUpdateData, TransceiverId) + 'static,
     ) -> Result<u32, DIFObserveError> {
         let reference = self
             .resolve_in_memory_reference(&address)
@@ -309,7 +279,7 @@ mod tests {
                     0,
                     pointer_address_clone.clone(),
                     ObserveOptions::default(),
-                    move |update| {
+                    move |update, _| {
                         println!("Observed pointer value: {:?}", update);
                         observed_clone.replace(Some(update.clone()));
                         // unobserve after first update
@@ -329,7 +299,7 @@ mod tests {
             .update(
                 1,
                 pointer_address.clone(),
-                DIFUpdateData::replace(DIFValue::from(
+                &DIFUpdateData::replace(DIFValue::from(
                     DIFValueRepresentation::String("Hello, Datex!".to_string()),
                 )),
             )
@@ -339,12 +309,9 @@ mod tests {
         let observed_value = observed.borrow();
         assert_eq!(
             *observed_value,
-            Some(DIFUpdate {
-                source_id: 1,
-                data: DIFUpdateData::replace(DIFValue::from(
-                    DIFValueRepresentation::String("Hello, Datex!".to_string(),)
-                ))
-            })
+            Some(DIFUpdateData::replace(DIFValue::from(
+                DIFValueRepresentation::String("Hello, Datex!".to_string(),)
+            )))
         );
 
         // try unobserve again, should fail
