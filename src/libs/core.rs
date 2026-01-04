@@ -46,10 +46,10 @@ fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes, &CoreLibVals) -> R) -> R
             CORE_LIB_VALS.replace(create_core_lib_vals());
         }
         handler(
-            CORE_LIB_TYPES.as_ref().unwrap_unchecked(), 
+            CORE_LIB_TYPES.as_ref().unwrap_unchecked(),
             CORE_LIB_VALS.as_ref().unwrap_unchecked(),
         )
-        
+
     }
 }
 
@@ -242,7 +242,7 @@ pub fn load_core_lib(memory: &mut Memory) {
                 _ => core::panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
-        
+
         // add core lib values
         for (name, val) in core_lib_values.iter() {
             let name = name.to_string();
@@ -381,6 +381,8 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
             inner: CoreValue::Callable(Callable {
                 kind: CallableKind::Function,
                 body: CallableBody::Native(|args: &[ValueContainer]| {
+                    // TODO: add I/O abstraction layer / interface
+                    println!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
                     info!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
                     Ok(None)
                 }),
