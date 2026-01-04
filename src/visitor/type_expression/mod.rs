@@ -1,7 +1,11 @@
 use core::ops::Range;
 
 use crate::ast::expressions::VariableAccess;
-use crate::ast::type_expressions::{CallableTypeExpression, FixedSizeList, GenericAccess, Intersection, SliceList, StructuralList, StructuralMap, TypeExpression, TypeExpressionData, TypeVariantAccess, Union};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, FixedSizeList, GenericAccess, Intersection,
+    SliceList, StructuralList, StructuralMap, TypeExpression,
+    TypeExpressionData, TypeVariantAccess, Union,
+};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -382,7 +386,7 @@ pub trait TypeExpressionVisitor<E>: Sized {
         let _ = span;
         Ok(VisitAction::SkipChildren)
     }
-    
+
     // Visit unit type
     fn visit_unit_type(
         &mut self,

@@ -1,4 +1,8 @@
-use crate::ast::type_expressions::{CallableTypeExpression, FixedSizeList, GenericAccess, Intersection, SliceList, StructuralList, StructuralMap, TypeExpression, TypeExpressionData, Union};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, FixedSizeList, GenericAccess, Intersection,
+    SliceList, StructuralList, StructuralMap, TypeExpression,
+    TypeExpressionData, Union,
+};
 use crate::visitor::VisitAction;
 use crate::visitor::type_expression::TypeExpressionVisitor;
 

@@ -34,7 +34,7 @@ impl Parser {
         } else {
             None
         };
-        
+
         // parse function body
         let body = self.parse_parenthesized_statements()?;
         Ok(

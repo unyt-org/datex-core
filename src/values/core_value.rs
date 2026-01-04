@@ -10,6 +10,7 @@ use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
 use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::callable::Callable;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::{
     DecimalTypeVariant, TypedDecimal,
@@ -26,7 +27,6 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
-use crate::values::core_values::callable::Callable;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {

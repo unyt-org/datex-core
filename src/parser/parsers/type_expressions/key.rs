@@ -28,19 +28,19 @@ impl Parser {
             }
             // map reserved keywords to text keys
             // TODO: add more keywords as needed
-            t @ Token::True |
-            t @ Token::False |
-            t @ Token::TypeDeclaration |
-            t @ Token::If |
-            t @ Token::Else |
-            t @ Token::Is |
-            t @ Token::Matches |
-            t @ Token::And |
-            t @ Token::Or => {
+            t @ Token::True
+            | t @ Token::False
+            | t @ Token::TypeDeclaration
+            | t @ Token::If
+            | t @ Token::Else
+            | t @ Token::Is
+            | t @ Token::Matches
+            | t @ Token::And
+            | t @ Token::Or => {
                 TypeExpressionData::Text(t.as_const_str().unwrap().to_string())
                     .with_span(self.advance()?.span)
             }
-            
+
             _ => {
                 return Err(SpannedParserError {
                     error: ParserError::UnexpectedToken {

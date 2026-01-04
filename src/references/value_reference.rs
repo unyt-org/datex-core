@@ -63,7 +63,6 @@ impl Debug for ValueReference {
     }
 }
 
-
 impl PartialEq for ValueReference {
     fn eq(&self, other: &Self) -> bool {
         // Two value references are equal if their value containers are equal

@@ -427,9 +427,7 @@ impl Apply for ValueContainer {
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => {
-                value.apply(args)
-            }
+            ValueContainer::Value(value) => value.apply(args),
             ValueContainer::Reference(reference) => reference.apply(args),
         }
     }
@@ -439,9 +437,7 @@ impl Apply for ValueContainer {
         arg: &ValueContainer,
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
-            ValueContainer::Value(value) => {
-                value.apply_single(arg)
-            }
+            ValueContainer::Value(value) => value.apply_single(arg),
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }
     }

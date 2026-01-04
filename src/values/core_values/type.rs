@@ -16,6 +16,7 @@ use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::boolean::Boolean;
+use crate::values::core_values::callable::CallableSignature;
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::values::core_values::text::Text;
@@ -27,7 +28,6 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
-use crate::values::core_values::callable::CallableSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {

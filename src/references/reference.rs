@@ -721,10 +721,7 @@ impl Apply for Reference {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply(args),
             Reference::ValueReference(vr) => {
-                vr.borrow()
-                    .resolve_current_value()
-                    .borrow()
-                    .apply(args)
+                vr.borrow().resolve_current_value().borrow().apply(args)
             }
         }
     }
@@ -735,9 +732,11 @@ impl Apply for Reference {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
-            Reference::ValueReference(vr) => {
-                vr.borrow().resolve_current_value().borrow().apply_single(arg)
-            }
+            Reference::ValueReference(vr) => vr
+                .borrow()
+                .resolve_current_value()
+                .borrow()
+                .apply_single(arg),
         }
     }
 }

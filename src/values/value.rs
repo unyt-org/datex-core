@@ -5,13 +5,18 @@ use crate::references::mutations::DIFUpdateDataOrMemory;
 use crate::references::observers::TransceiverId;
 use crate::references::reference::AccessError;
 use crate::references::type_reference::TypeReference;
+use crate::runtime::execution::ExecutionError;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
 use crate::stdlib::string::ToString;
+use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::callable::{
+    Callable, CallableBody, CallableSignature,
+};
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::value_container::{ValueContainer, ValueError, ValueKey};
 use core::fmt::{Display, Formatter};
@@ -19,9 +24,6 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
-use crate::runtime::execution::ExecutionError;
-use crate::traits::apply::Apply;
-use crate::values::core_values::callable::{Callable, CallableBody, CallableSignature};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -54,28 +56,25 @@ impl Deref for Value {
 }
 
 impl Apply for Value {
-    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self.inner {
-            CoreValue::Callable(ref callable) => {
-                callable.apply(args)
-            }
-            _ => {
-                Err(ExecutionError::InvalidApply)
-            }
+            CoreValue::Callable(ref callable) => callable.apply(args),
+            _ => Err(ExecutionError::InvalidApply),
         }
     }
-    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self.inner {
-            CoreValue::Callable(ref callable) => {
-                callable.apply_single(arg)
-            }
-            _ => {
-                Err(ExecutionError::InvalidApply)
-            }
+            CoreValue::Callable(ref callable) => callable.apply_single(arg),
+            _ => Err(ExecutionError::InvalidApply),
         }
     }
 }
-
 
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
@@ -94,7 +93,11 @@ impl Value {
 }
 
 impl Value {
-    pub fn callable(name: Option<String>, signature: CallableSignature, body: CallableBody) -> Self {
+    pub fn callable(
+        name: Option<String>,
+        signature: CallableSignature,
+        body: CallableBody,
+    ) -> Self {
         Value {
             inner: CoreValue::Callable(Callable {
                 name,

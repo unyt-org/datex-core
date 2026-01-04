@@ -8,13 +8,13 @@ impl Parser {
         &mut self,
     ) -> Result<TypeExpression, SpannedParserError> {
         let start = self.expect(Token::LeftParen)?.span.start;
-        
+
         // if right parenthesis follows immediately, it's a unit type
         if self.peek()?.token == Token::RightParen {
             let end = self.expect(Token::RightParen)?.span.end;
             return Ok(TypeExpressionData::Unit.with_span(start..end));
         }
-        
+
         let mut inner_expression = self.parse_type_expression(0)?;
 
         let end = self.expect(Token::RightParen)?.span.end;
