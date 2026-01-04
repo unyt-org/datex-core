@@ -141,11 +141,14 @@ pub enum InstructionCode {
     // pointers & variables 0xa0 - 0xbf
 
     // slots
+    // TODO: refactor with stack variable system?
     GET_SLOT, // #xyz   0x0000-0x00ff = variables passed on between scopes, 0x0100-0xfdff = normal variables, 0xfe00-0xffff = it variables (#it.0, #it.1, ...) for function arguments
     SET_SLOT, // #aa = ...
     ALLOCATE_SLOT, // #aa = ...
     SLOT_ACTION, // #x += ...
     DROP_SLOT, // drop #aa
+
+    GET_INTERNAL_SLOT, // e.g. #endpoint
 
     LABEL,        // $x
     SET_LABEL,    // $x = ...,

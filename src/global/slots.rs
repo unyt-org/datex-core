@@ -13,6 +13,7 @@ use strum::Display;
     Display,
     num_enum::IntoPrimitive,
 )]
+#[strum(serialize_all = "lowercase")]
 #[repr(u32)]
 pub enum InternalSlot {
     ENDPOINT = 0xffffff00,

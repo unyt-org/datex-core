@@ -1,3 +1,5 @@
+use crate::stdlib::rc::Rc;
+use datex_core::runtime::RuntimeInternal;
 use crate::global::operators::binary::{
     ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };
@@ -11,7 +13,26 @@ use crate::runtime::execution::ExecutionError;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::values::value_container::ValueContainer;
+use crate::values::value_container::{OwnedValueKey, ValueContainer};
+
+pub fn set_property(
+    runtime_internal: &Option<Rc<RuntimeInternal>>,
+    target: &mut ValueContainer,
+    key: OwnedValueKey,
+    value: ValueContainer,
+) -> Result<(), ExecutionError> {
+    if let Some(runtime) = runtime_internal {
+        target.try_set_property(
+            0, // TODO: set correct source id
+            &runtime.memory,
+            key,
+            value
+        )?;
+        Ok(())
+    } else {
+        Err(ExecutionError::RequiresRuntime)
+    }
+}
 
 pub fn handle_unary_reference_operation(
     operator: ReferenceUnaryOperator,
@@ -119,13 +140,13 @@ pub fn handle_comparison_operation(
 
 pub fn handle_assignment_operation(
     operator: AssignmentOperator,
-    lhs: ValueContainer,
+    lhs: &ValueContainer,
     rhs: ValueContainer,
 ) -> Result<ValueContainer, ExecutionError> {
     // apply operation to active value
     match operator {
-        AssignmentOperator::AddAssign => Ok((lhs + rhs)?),
-        AssignmentOperator::SubtractAssign => Ok((lhs - rhs)?),
+        AssignmentOperator::AddAssign => Ok((lhs + &rhs)?),
+        AssignmentOperator::SubtractAssign => Ok((lhs - &rhs)?),
         _ => {
             unreachable!("Instruction {:?} is not a valid operation", operator);
         }

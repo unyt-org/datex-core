@@ -8,6 +8,8 @@ use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
+use crate::references::observers::TransceiverId;
+use crate::runtime::RuntimeInternal;
 
 pub struct ExecutionLoopState {
     pub iterator: Box<
@@ -30,7 +32,8 @@ pub struct RuntimeExecutionState {
     /// Local memory slots for current execution context.
     /// TODO: replace this with a local stack and deprecate local slots?
     pub(crate) slots: RuntimeExecutionSlots,
-    pub(crate) active_value: Option<ValueContainer>,
+    pub(crate) runtime_internal: Option<Rc<RuntimeInternal>>,
+    pub(crate) source_id: TransceiverId,
 }
 
 #[derive(Debug, Default)]
@@ -73,16 +76,27 @@ impl RuntimeExecutionSlots {
             .map_err(|_| ExecutionError::SlotNotAllocated(address))
     }
 
-    /// Retrieves the value of a slot by its address.
+    /// Retrieves a reference to the value of a slot by its address.
     /// If the slot is not allocated, it returns an error.
     pub(crate) fn get_slot_value(
-        &mut self,
+        &self,
         address: u32,
-    ) -> Result<Option<ValueContainer>, ExecutionError> {
+    ) -> Result<&ValueContainer, ExecutionError> {
         self.slots
             .get(&address)
-            .cloned()
-            .ok_or(())
-            .map_err(|_| ExecutionError::SlotNotAllocated(address))
+            .and_then(|inner| inner.as_ref())
+            .ok_or_else(|| ExecutionError::SlotNotAllocated(address))
+    }
+    
+    /// Retrieves a mutable reference to the value of a slot by its address.
+    /// If the slot is not allocated, it returns an error.
+    pub(crate) fn get_slot_value_mut(
+        &mut self,
+        address: u32,
+    ) -> Result<&mut ValueContainer, ExecutionError> {
+        self.slots
+            .get_mut(&address)
+            .and_then(|inner| inner.as_mut())
+            .ok_or_else(|| ExecutionError::SlotNotAllocated(address))
     }
 }
