@@ -31,6 +31,8 @@ use core::result::Result;
 use datex_macros::LibTypeString;
 use log::info;
 use strum::IntoEnumIterator;
+use datex_core::values::core_values::integer::Integer;
+use crate::types::structural_type_definition::StructuralTypeDefinition;
 
 type CoreLibTypes = HashMap<CoreLibPointerId, Type>;
 type CoreLibVals = HashMap<CoreLibPointerId, ValueContainer>;
@@ -396,7 +398,7 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
             CallableSignature {
                 kind: CallableKind::Function,
                 parameter_types: vec![],
-                rest_parameter_type: Some((None, Box::new(Type::unknown()))),
+                rest_parameter_type: Some((Some("values".to_string()), Box::new(Type::unknown()))),
                 return_type: None,
                 yeet_type: None,
             },

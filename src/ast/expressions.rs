@@ -68,6 +68,7 @@ pub enum DatexExpressionData {
     Noop,
 
     Recover,
+    NativeImplementationIndicator,
 
     /// null
     Null,

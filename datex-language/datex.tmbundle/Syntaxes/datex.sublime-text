@@ -27,7 +27,7 @@ contexts:
     - match: '\s+'                # Whitespace (ignored)
       scope: text.whitespace.datex
 
-    - match: '\b(var|const)\b'           # Keywords
+    - match: '\b(var|const|type|if|else|function|procedure)\b'           # Keywords
       scope: keyword.control.datex
 
     - match: '//.*$'   # single-line comments

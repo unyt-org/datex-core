@@ -307,6 +307,7 @@ impl<E> VisitableExpression<E> for DatexExpression {
             }
 
             DatexExpressionData::Noop
+            | DatexExpressionData::NativeImplementationIndicator
             | DatexExpressionData::VariantAccess(_)
             | DatexExpressionData::PointerAddress(_)
             | DatexExpressionData::VariableAccess(_)
