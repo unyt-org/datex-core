@@ -24,10 +24,14 @@ use crate::ast::expressions::{
     VariantAccess,
 };
 use crate::ast::expressions::{GenericInstantiation, PropertyAccess};
-use crate::ast::type_expressions::{CallableTypeExpression, FixedSizeList, GenericAccess, SliceList, TypeVariantAccess};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, FixedSizeList, GenericAccess, SliceList,
+    TypeVariantAccess,
+};
 use crate::ast::type_expressions::{
     Intersection, StructuralList, StructuralMap, TypeExpression, Union,
 };
+use crate::values::core_values::callable::CallableSignature;
 use crate::{
     compiler::precompiler::precompiled_ast::{AstMetadata, RichAst},
     libs::core::{CoreLibPointerId, get_core_lib_type},
@@ -58,7 +62,6 @@ use crate::{
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
-use crate::values::core_values::callable::CallableSignature;
 
 pub mod error;
 pub mod options;
@@ -435,7 +438,8 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
 
         let rest_parameter_type = match &mut callable_type.rest_parameter_type {
             Some((key, rest_param_type_expr)) => {
-                let rest_param_type = self.infer_type_expression(rest_param_type_expr)?;
+                let rest_param_type =
+                    self.infer_type_expression(rest_param_type_expr)?;
                 Some((key.clone(), Box::new(rest_param_type)))
             }
             None => None,
@@ -971,18 +975,24 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 None
             };
 
-        let annotated_yeet_type = if let Some(yeet_type) = &mut callable_declaration.yeet_type {
-            Some(Box::new(self.infer_type_expression(yeet_type)?))
-        } else {
-            None
-        };
+        let annotated_yeet_type =
+            if let Some(yeet_type) = &mut callable_declaration.yeet_type {
+                Some(Box::new(self.infer_type_expression(yeet_type)?))
+            } else {
+                None
+            };
 
         let inferred_return_type = self
             .infer_expression(&mut callable_declaration.body)
             .unwrap_or(Type::never());
 
-        let rest_parameter_type = if let Some((name, rest_param)) = &mut callable_declaration.rest_parameter {
-            Some((Some(name.clone()), Box::new(self.infer_type_expression(rest_param)?)))
+        let rest_parameter_type = if let Some((name, rest_param)) =
+            &mut callable_declaration.rest_parameter
+        {
+            Some((
+                Some(name.clone()),
+                Box::new(self.infer_type_expression(rest_param)?),
+            ))
         } else {
             None
         };
@@ -997,7 +1007,6 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 (Some(name.clone()), param_type)
             })
             .collect();
-
 
         let signature = CallableSignature {
             kind: callable_declaration.kind.clone(),
@@ -1022,7 +1031,6 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                 span: Some(span.clone()),
             })?;
         }
-
 
         // Use the annotated type despite the mismatch
         mark_type(Type::callable(signature))
@@ -1236,6 +1244,9 @@ mod tests {
         VariableDeclaration, VariableKind,
     };
     use crate::parser::Parser;
+    use crate::values::core_values::callable::{
+        CallableKind, CallableSignature,
+    };
     use crate::{
         ast::spanned::Spanned,
         compiler::precompiler::{
@@ -1272,7 +1283,6 @@ mod tests {
             },
         },
     };
-    use crate::values::core_values::callable::{CallableKind, CallableSignature};
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
@@ -1482,9 +1492,9 @@ mod tests {
                     ),
                 ],
                 rest_parameter_type: None,
-                return_type: Some(Box::new(
-                    get_core_lib_type(CoreLibPointerId::Integer(None))
-                )),
+                return_type: Some(Box::new(get_core_lib_type(
+                    CoreLibPointerId::Integer(None)
+                ))),
                 yeet_type: None,
             })
         );

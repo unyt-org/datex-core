@@ -134,18 +134,16 @@ impl Serialize for DIFTypeDefinition {
             DIFTypeDefinition::Unknown => {
                 // no def field
             }
-            DIFTypeDefinition::Callable{
+            DIFTypeDefinition::Callable {
                 parameters,
                 rest_parameter,
                 return_type,
-                yeet_type
+                yeet_type,
             } => {
-                state.serialize_field("def", &(
-                    parameters, 
-                    rest_parameter,
-                    return_type,
-                    yeet_type,
-                ))?;
+                state.serialize_field(
+                    "def",
+                    &(parameters, rest_parameter, return_type, yeet_type),
+                )?;
             }
             DIFTypeDefinition::Reference(_) => {
                 // already handled above
@@ -170,7 +168,7 @@ enum DIFTypeDefinitionData {
             Option<(Option<String>, Box<DIFType>)>,
             Option<Box<DIFType>>,
             Option<Box<DIFType>>,
-        )
+        ),
     ),
 }
 
@@ -315,17 +313,17 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                         let def =
                             def.ok_or_else(|| de::Error::missing_field("def"))?;
                         if let DIFTypeDefinitionData::Callable((
-                            parameters, 
+                            parameters,
                             rest_parameter,
                             return_type,
-                            yeet_type
+                            yeet_type,
                         )) = def
                         {
                             DIFTypeDefinition::Callable {
                                 parameters,
                                 rest_parameter,
                                 return_type,
-                                yeet_type
+                                yeet_type,
                             }
                         } else {
                             return Err(de::Error::custom(
@@ -415,7 +413,8 @@ impl DIFTypeDefinition {
             TypeDefinition::Never => DIFTypeDefinition::Never,
             TypeDefinition::Unknown => DIFTypeDefinition::Unknown,
             TypeDefinition::Callable(callable) => DIFTypeDefinition::Callable {
-                parameters: callable.parameter_types
+                parameters: callable
+                    .parameter_types
                     .iter()
                     .map(|(name, ty)| {
                         (name.clone(), DIFType::from_type(ty, memory))

@@ -1,16 +1,16 @@
-use core::fmt::Display;
 use crate::runtime::execution::ExecutionError;
 use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
+use core::fmt::Display;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CallableKind {
     // A pure function
     Function,
     // A procedure that may have side effects
-    Procedure
+    Procedure,
 }
 
 impl Display for CallableKind {
@@ -22,7 +22,8 @@ impl Display for CallableKind {
     }
 }
 
-pub type NativeCallable = fn(&[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError>;
+pub type NativeCallable =
+    fn(&[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CallableBody {
@@ -39,7 +40,6 @@ pub struct CallableSignature {
     pub yeet_type: Option<Box<Type>>,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Callable {
     pub name: Option<String>,
@@ -48,7 +48,10 @@ pub struct Callable {
 }
 
 impl Callable {
-    pub fn call(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    pub fn call(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         match &self.body {
             CallableBody::Native(func) => func(args),
             CallableBody::DatexBytecode => {
@@ -59,10 +62,16 @@ impl Callable {
 }
 
 impl Apply for Callable {
-    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         self.call(args)
     }
-    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
         self.call(&[arg.clone()])
     }
 }

@@ -1,13 +1,15 @@
-use datex_core::ast::expressions::CallableDeclaration;
 use crate::ast::expressions::{CreateRef, DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
-use crate::ast::type_expressions::{Intersection, TypeExpression, TypeExpressionData, Union};
+use crate::ast::type_expressions::{
+    Intersection, TypeExpression, TypeExpressionData, Union,
+};
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::r#type::Type;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
+use datex_core::ast::expressions::CallableDeclaration;
 
 impl From<&ValueContainer> for DatexExpressionData {
     /// Converts a ValueContainer into a DatexExpression AST.
@@ -72,23 +74,41 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name: callable.name.clone(),
                 kind: callable.signature.kind.clone(),
-                parameters: callable.signature.parameter_types.iter().map(|(maybe_name, ty)| {
-                    (
-                        maybe_name.clone().unwrap_or("_".to_string()),
-                        type_to_type_expression(ty),
-                    )
-                }).collect(),
-                rest_parameter: callable.signature.rest_parameter_type.as_ref().map(|(maybe_name, ty)| {
-                    (
-                        maybe_name.clone().unwrap_or("_".to_string()),
-                        type_to_type_expression(ty)
-                    )
-                }),
-                return_type: callable.signature.return_type.as_ref().map(|ty| type_to_type_expression(ty)),
-                yeet_type: callable.signature.yeet_type.as_ref().map(|ty| type_to_type_expression(ty)),
-                body: Box::new(DatexExpressionData::Text(
-                    "[[ native ]]".to_string(),
-                ).with_default_span()),
+                parameters: callable
+                    .signature
+                    .parameter_types
+                    .iter()
+                    .map(|(maybe_name, ty)| {
+                        (
+                            maybe_name.clone().unwrap_or("_".to_string()),
+                            type_to_type_expression(ty),
+                        )
+                    })
+                    .collect(),
+                rest_parameter: callable
+                    .signature
+                    .rest_parameter_type
+                    .as_ref()
+                    .map(|(maybe_name, ty)| {
+                        (
+                            maybe_name.clone().unwrap_or("_".to_string()),
+                            type_to_type_expression(ty),
+                        )
+                    }),
+                return_type: callable
+                    .signature
+                    .return_type
+                    .as_ref()
+                    .map(|ty| type_to_type_expression(ty)),
+                yeet_type: callable
+                    .signature
+                    .yeet_type
+                    .as_ref()
+                    .map(|ty| type_to_type_expression(ty)),
+                body: Box::new(
+                    DatexExpressionData::Text("[[ native ]]".to_string())
+                        .with_default_span(),
+                ),
             })
         }
     }
@@ -98,30 +118,24 @@ fn type_to_type_expression(type_value: &Type) -> TypeExpression {
     match &type_value.type_definition {
         TypeDefinition::Structural(struct_type) => match struct_type {
             StructuralTypeDefinition::Integer(integer) => {
-                TypeExpressionData::Integer(integer.clone())
-                    .with_default_span()
+                TypeExpressionData::Integer(integer.clone()).with_default_span()
             }
             StructuralTypeDefinition::Text(text) => {
-                TypeExpressionData::Text(text.0.clone())
-                    .with_default_span()
+                TypeExpressionData::Text(text.0.clone()).with_default_span()
             }
             StructuralTypeDefinition::Boolean(boolean) => {
-                TypeExpressionData::Boolean(boolean.0)
-                    .with_default_span()
+                TypeExpressionData::Boolean(boolean.0).with_default_span()
             }
             StructuralTypeDefinition::Decimal(decimal) => {
-                TypeExpressionData::Decimal(decimal.clone())
+                TypeExpressionData::Decimal(decimal.clone()).with_default_span()
+            }
+            StructuralTypeDefinition::TypedInteger(typed_integer) => {
+                TypeExpressionData::TypedInteger(typed_integer.clone())
                     .with_default_span()
             }
-            StructuralTypeDefinition::TypedInteger(typed_integer, ) => {
-                TypeExpressionData::TypedInteger(
-                    typed_integer.clone(),
-                ).with_default_span()
-            }
-            StructuralTypeDefinition::TypedDecimal(typed_decimal, ) => {
-                TypeExpressionData::TypedDecimal(
-                    typed_decimal.clone(),
-                ).with_default_span()
+            StructuralTypeDefinition::TypedDecimal(typed_decimal) => {
+                TypeExpressionData::TypedDecimal(typed_decimal.clone())
+                    .with_default_span()
             }
             StructuralTypeDefinition::Endpoint(endpoint) => {
                 TypeExpressionData::Endpoint(endpoint.clone())
@@ -134,37 +148,32 @@ fn type_to_type_expression(type_value: &Type) -> TypeExpression {
                 "[[STRUCTURAL TYPE {:?}]]",
                 struct_type
             ))
-                .with_default_span(),
+            .with_default_span(),
         },
-        TypeDefinition::Union(union_types) => {
-            TypeExpressionData::Union(Union(
-                union_types
-                    .iter()
-                    .map(|t| type_to_type_expression(t))
-                    .collect::<Vec<TypeExpression>>(),
-            ))
-                .with_default_span()
-        }
+        TypeDefinition::Union(union_types) => TypeExpressionData::Union(Union(
+            union_types
+                .iter()
+                .map(|t| type_to_type_expression(t))
+                .collect::<Vec<TypeExpression>>(),
+        ))
+        .with_default_span(),
         TypeDefinition::Intersection(intersection_types) => {
             TypeExpressionData::Intersection(Intersection(
                 intersection_types
                     .iter()
                     .map(|t| type_to_type_expression(t))
-                    .collect::<Vec<TypeExpression>>()
+                    .collect::<Vec<TypeExpression>>(),
             ))
-                .with_default_span()
+            .with_default_span()
         }
-        TypeDefinition::Unit => {
-            TypeExpressionData::Unit.with_default_span()
-        }
+        TypeDefinition::Unit => TypeExpressionData::Unit.with_default_span(),
         _ => TypeExpressionData::Text(format!(
             "[[TYPE {:?}]]",
             type_value.type_definition
         ))
-            .with_default_span(),
+        .with_default_span(),
     }
 }
-
 
 #[cfg(test)]
 mod tests {

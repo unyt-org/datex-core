@@ -8,6 +8,7 @@ use crate::global::operators::{ArithmeticUnaryOperator, UnaryOperator};
 use crate::references::reference::ReferenceMutability;
 use crate::stdlib::vec::Vec;
 use crate::values::core_value::CoreValue;
+pub use crate::values::core_values::callable::CallableKind;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -19,7 +20,6 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::ops::{Neg, Range};
-pub use crate::values::core_values::callable::CallableKind;
 
 #[derive(Clone, Debug)]
 /// An expression in the AST

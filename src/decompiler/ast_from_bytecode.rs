@@ -108,146 +108,146 @@ pub fn ast_from_bytecode(
                         StatementResultCollectionStrategy::Full,
                     );
 
-                let expr: Option<DatexExpression> = if let Some(
-                    regular_instruction,
-                ) = regular_instruction
-                {
-                    Some(
-                        match regular_instruction {
-                            // Handle different regular instructions here
-                            RegularInstruction::Int8(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::Int16(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::Int32(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::Int64(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::Int128(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::UInt8(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::UInt16(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::UInt32(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::UInt64(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::UInt128(integer_data) => {
-                                DatexExpressionData::TypedInteger(
-                                    TypedInteger::from(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::BigInteger(integer_data) => {
-                                DatexExpressionData::TypedInteger(
+                let expr: Option<DatexExpression> =
+                    if let Some(regular_instruction) = regular_instruction {
+                        Some(
+                            match regular_instruction {
+                                // Handle different regular instructions here
+                                RegularInstruction::Int8(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::Int16(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::Int32(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::Int64(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::Int128(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::UInt8(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::UInt16(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::UInt32(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::UInt64(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::UInt128(integer_data) => {
+                                    DatexExpressionData::TypedInteger(
+                                        TypedInteger::from(integer_data.0),
+                                    )
+                                }
+                                RegularInstruction::BigInteger(
+                                    integer_data,
+                                ) => DatexExpressionData::TypedInteger(
                                     TypedInteger::IBig(integer_data.0),
-                                )
-                            }
-                            RegularInstruction::Integer(integer_data) => {
-                                DatexExpressionData::Integer(integer_data.0)
-                            }
-                            RegularInstruction::Endpoint(endpoint) => {
-                                DatexExpressionData::Endpoint(endpoint)
-                            }
-                            RegularInstruction::DecimalF32(f32_data) => {
-                                DatexExpressionData::TypedDecimal(
-                                    TypedDecimal::from(f32_data.0),
-                                )
-                            }
-                            RegularInstruction::DecimalF64(f64_data) => {
-                                DatexExpressionData::TypedDecimal(
-                                    TypedDecimal::from(f64_data.0),
-                                )
-                            }
-                            RegularInstruction::DecimalAsInt16(
-                                decimal_i16_data,
-                            ) => DatexExpressionData::Decimal(Decimal::from(
-                                decimal_i16_data.0 as f64,
-                            )),
-                            RegularInstruction::DecimalAsInt32(
-                                decimal_i32_data,
-                            ) => DatexExpressionData::Decimal(Decimal::from(
-                                decimal_i32_data.0 as f64,
-                            )),
-                            RegularInstruction::BigDecimal(decimal_data) => {
-                                DatexExpressionData::TypedDecimal(
+                                ),
+                                RegularInstruction::Integer(integer_data) => {
+                                    DatexExpressionData::Integer(integer_data.0)
+                                }
+                                RegularInstruction::Endpoint(endpoint) => {
+                                    DatexExpressionData::Endpoint(endpoint)
+                                }
+                                RegularInstruction::DecimalF32(f32_data) => {
+                                    DatexExpressionData::TypedDecimal(
+                                        TypedDecimal::from(f32_data.0),
+                                    )
+                                }
+                                RegularInstruction::DecimalF64(f64_data) => {
+                                    DatexExpressionData::TypedDecimal(
+                                        TypedDecimal::from(f64_data.0),
+                                    )
+                                }
+                                RegularInstruction::DecimalAsInt16(
+                                    decimal_i16_data,
+                                ) => DatexExpressionData::Decimal(
+                                    Decimal::from(decimal_i16_data.0 as f64),
+                                ),
+                                RegularInstruction::DecimalAsInt32(
+                                    decimal_i32_data,
+                                ) => DatexExpressionData::Decimal(
+                                    Decimal::from(decimal_i32_data.0 as f64),
+                                ),
+                                RegularInstruction::BigDecimal(
+                                    decimal_data,
+                                ) => DatexExpressionData::TypedDecimal(
                                     TypedDecimal::Decimal(decimal_data.0),
-                                )
-                            }
-                            RegularInstruction::Decimal(decimal_data) => {
-                                DatexExpressionData::Decimal(decimal_data.0)
-                            }
-                            RegularInstruction::ShortText(short_text_data) => {
-                                DatexExpressionData::Text(short_text_data.0)
-                            }
-                            RegularInstruction::Text(text_data) => {
-                                DatexExpressionData::Text(text_data.0)
-                            }
-                            RegularInstruction::True => {
-                                DatexExpressionData::Boolean(true)
-                            }
-                            RegularInstruction::False => {
-                                DatexExpressionData::Boolean(false)
-                            }
-                            RegularInstruction::Null => {
-                                DatexExpressionData::Null
-                            }
+                                ),
+                                RegularInstruction::Decimal(decimal_data) => {
+                                    DatexExpressionData::Decimal(decimal_data.0)
+                                }
+                                RegularInstruction::ShortText(
+                                    short_text_data,
+                                ) => {
+                                    DatexExpressionData::Text(short_text_data.0)
+                                }
+                                RegularInstruction::Text(text_data) => {
+                                    DatexExpressionData::Text(text_data.0)
+                                }
+                                RegularInstruction::True => {
+                                    DatexExpressionData::Boolean(true)
+                                }
+                                RegularInstruction::False => {
+                                    DatexExpressionData::Boolean(false)
+                                }
+                                RegularInstruction::Null => {
+                                    DatexExpressionData::Null
+                                }
 
-                            RegularInstruction::GetRef(raw_address) => {
-                                DatexExpressionData::GetReference(
+                                RegularInstruction::GetRef(raw_address) => {
+                                    DatexExpressionData::GetReference(
+                                        PointerAddress::from(&raw_address),
+                                    )
+                                }
+
+                                RegularInstruction::GetLocalRef(
+                                    raw_address,
+                                ) => DatexExpressionData::GetReference(
                                     PointerAddress::from(&raw_address),
-                                )
-                            }
+                                ),
 
-                            RegularInstruction::GetLocalRef(raw_address) => {
-                                DatexExpressionData::GetReference(
+                                RegularInstruction::GetInternalRef(
+                                    raw_address,
+                                ) => DatexExpressionData::GetReference(
                                     PointerAddress::from(&raw_address),
-                                )
-                            }
+                                ),
 
-                            RegularInstruction::GetInternalRef(raw_address) => {
-                                DatexExpressionData::GetReference(
-                                    PointerAddress::from(&raw_address),
-                                )
-                            }
+                                RegularInstruction::GetSlot(slot_address) => {
+                                    DatexExpressionData::Slot(Slot::Addressed(
+                                        slot_address.0,
+                                    ))
+                                }
 
-                            RegularInstruction::GetSlot(slot_address) => {
-                                DatexExpressionData::Slot(Slot::Addressed(
-                                    slot_address.0,
-                                ))
-                            }
-
-                            RegularInstruction::GetInternalSlot(
-                                slot_address,
-                            ) => {
-                                let slot = InternalSlot::try_from_primitive(
+                                RegularInstruction::GetInternalSlot(
+                                    slot_address,
+                                ) => {
+                                    let slot = InternalSlot::try_from_primitive(
                                     slot_address.0,
                                 )
                                 .map_err(|_| {
@@ -255,70 +255,72 @@ pub fn ast_from_bytecode(
                                         slot_address.0,
                                     )
                                 })?;
-                                DatexExpressionData::Slot(Slot::Named(
-                                    slot.to_string(),
-                                ))
-                            }
+                                    DatexExpressionData::Slot(Slot::Named(
+                                        slot.to_string(),
+                                    ))
+                                }
 
-                            RegularInstruction::DropSlot(slot_address) => {
-                                todo!()
-                            }
+                                RegularInstruction::DropSlot(slot_address) => {
+                                    todo!()
+                                }
 
-                            // NOTE: make sure that each possible match case is either implemented in the default collection or here
-                            // If an instruction is implemented in the default collection, it should be marked as unreachable!() here
-                            RegularInstruction::Statements(_)
-                            | RegularInstruction::ShortStatements(_)
-                            | RegularInstruction::UnboundedStatements
-                            | RegularInstruction::UnboundedStatementsEnd(_)
-                            | RegularInstruction::List(_)
-                            | RegularInstruction::ShortList(_)
-                            | RegularInstruction::Map(_)
-                            | RegularInstruction::ShortMap(_)
-                            | RegularInstruction::KeyValueDynamic
-                            | RegularInstruction::KeyValueShortText(_)
-                            | RegularInstruction::Add
-                            | RegularInstruction::Subtract
-                            | RegularInstruction::Multiply
-                            | RegularInstruction::Divide
-                            | RegularInstruction::UnaryMinus
-                            | RegularInstruction::UnaryPlus
-                            | RegularInstruction::BitwiseNot
-                            | RegularInstruction::Apply(_)
-                            | RegularInstruction::GetPropertyText(_)
-                            | RegularInstruction::GetPropertyIndex(_)
-                            | RegularInstruction::GetPropertyDynamic
-                            | RegularInstruction::SetPropertyText(_)
-                            | RegularInstruction::SetPropertyIndex(_)
-                            | RegularInstruction::SetPropertyDynamic
-                            | RegularInstruction::Is
-                            | RegularInstruction::Matches
-                            | RegularInstruction::StructuralEqual
-                            | RegularInstruction::Equal
-                            | RegularInstruction::NotStructuralEqual
-                            | RegularInstruction::NotEqual
-                            | RegularInstruction::AddAssign(_)
-                            | RegularInstruction::SubtractAssign(_)
-                            | RegularInstruction::MultiplyAssign(_)
-                            | RegularInstruction::DivideAssign(_)
-                            | RegularInstruction::CreateRef
-                            | RegularInstruction::CreateRefMut
-                            | RegularInstruction::GetOrCreateRef(_)
-                            | RegularInstruction::GetOrCreateRefMut(_)
-                            | RegularInstruction::AllocateSlot(_)
-                            | RegularInstruction::SetSlot(_)
-                            | RegularInstruction::SetReferenceValue(_)
-                            | RegularInstruction::Deref
-                            | RegularInstruction::TypedValue
-                            | RegularInstruction::RemoteExecution(_)
-                            | RegularInstruction::TypeExpression => {
-                                unreachable!()
+                                // NOTE: make sure that each possible match case is either implemented in the default collection or here
+                                // If an instruction is implemented in the default collection, it should be marked as unreachable!() here
+                                RegularInstruction::Statements(_)
+                                | RegularInstruction::ShortStatements(_)
+                                | RegularInstruction::UnboundedStatements
+                                | RegularInstruction::UnboundedStatementsEnd(
+                                    _,
+                                )
+                                | RegularInstruction::List(_)
+                                | RegularInstruction::ShortList(_)
+                                | RegularInstruction::Map(_)
+                                | RegularInstruction::ShortMap(_)
+                                | RegularInstruction::KeyValueDynamic
+                                | RegularInstruction::KeyValueShortText(_)
+                                | RegularInstruction::Add
+                                | RegularInstruction::Subtract
+                                | RegularInstruction::Multiply
+                                | RegularInstruction::Divide
+                                | RegularInstruction::UnaryMinus
+                                | RegularInstruction::UnaryPlus
+                                | RegularInstruction::BitwiseNot
+                                | RegularInstruction::Apply(_)
+                                | RegularInstruction::GetPropertyText(_)
+                                | RegularInstruction::GetPropertyIndex(_)
+                                | RegularInstruction::GetPropertyDynamic
+                                | RegularInstruction::SetPropertyText(_)
+                                | RegularInstruction::SetPropertyIndex(_)
+                                | RegularInstruction::SetPropertyDynamic
+                                | RegularInstruction::Is
+                                | RegularInstruction::Matches
+                                | RegularInstruction::StructuralEqual
+                                | RegularInstruction::Equal
+                                | RegularInstruction::NotStructuralEqual
+                                | RegularInstruction::NotEqual
+                                | RegularInstruction::AddAssign(_)
+                                | RegularInstruction::SubtractAssign(_)
+                                | RegularInstruction::MultiplyAssign(_)
+                                | RegularInstruction::DivideAssign(_)
+                                | RegularInstruction::CreateRef
+                                | RegularInstruction::CreateRefMut
+                                | RegularInstruction::GetOrCreateRef(_)
+                                | RegularInstruction::GetOrCreateRefMut(_)
+                                | RegularInstruction::AllocateSlot(_)
+                                | RegularInstruction::SetSlot(_)
+                                | RegularInstruction::SetReferenceValue(_)
+                                | RegularInstruction::Deref
+                                | RegularInstruction::TypedValue
+                                | RegularInstruction::RemoteExecution(_)
+                                | RegularInstruction::TypeExpression => {
+                                    unreachable!()
+                                }
                             }
-                        }
-                        .with_default_span(),
-                    )
-                } else {
-                    None
-                };
+                            .with_default_span(),
+                        )
+                    } else {
+                        None
+                    };
 
                 expr.map(|expr| CollectedAstResult::from(expr))
             }

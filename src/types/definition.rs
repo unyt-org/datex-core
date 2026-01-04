@@ -6,6 +6,7 @@ use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, hash::Hash, rc::Rc};
+use crate::values::core_values::callable::CallableSignature;
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::{
@@ -17,7 +18,6 @@ use crate::{
 };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
-use crate::values::core_values::callable::CallableSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -165,23 +165,25 @@ impl Display for TypeDefinition {
                     })
                     .collect();
                 // handle rest parameter
-                if let Some((param_name, param_type)) = &callable.rest_parameter_type {
+                if let Some((param_name, param_type)) =
+                    &callable.rest_parameter_type
+                {
                     params_code.push(match param_name {
                         Some(name) => format!("...{}: {}", name, param_type),
                         None => format!("...{}", param_type),
                     });
                 }
-                
+
                 let return_type_code = match &callable.return_type {
                     Some(return_type) => format!(" -> {}", return_type),
                     None => " -> ()".to_string(),
                 };
-                
+
                 let yeet_type_code = match &callable.yeet_type {
                     Some(yeet_type) => format!(" yeets {}", yeet_type),
                     None => "".to_string(),
                 };
-                
+
                 core::write!(
                     f,
                     "{} ({}){}{}",
@@ -256,9 +258,7 @@ impl TypeDefinition {
     }
 
     /// Creates a new callable type.
-    pub fn callable(
-        signature: CallableSignature
-    ) -> Self {
+    pub fn callable(signature: CallableSignature) -> Self {
         TypeDefinition::Callable(signature)
     }
 

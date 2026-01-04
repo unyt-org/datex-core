@@ -1,5 +1,7 @@
 use crate::global::protocol_structures::instructions::*;
-use crate::libs::core::{CoreLibPointerId, get_core_lib_type_reference, get_core_lib_value};
+use crate::libs::core::{
+    CoreLibPointerId, get_core_lib_type_reference, get_core_lib_value,
+};
 use crate::references::reference::Reference;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::context::ExecutionMode;
@@ -215,11 +217,10 @@ fn get_internal_pointer_value(
     address: RawInternalPointerAddress,
 ) -> Result<ValueContainer, ExecutionError> {
     // first try to get from memory
-    if let Some(runtime_internal) = runtime_internal &&
-        let Ok(core_lib_id) = get_internal_pointer_value_from_memory(
-        runtime_internal,
-        &address,
-    ) {
+    if let Some(runtime_internal) = runtime_internal
+        && let Ok(core_lib_id) =
+            get_internal_pointer_value_from_memory(runtime_internal, &address)
+    {
         return Ok(core_lib_id);
     }
 
@@ -227,7 +228,9 @@ fn get_internal_pointer_value(
         CoreLibPointerId::try_from(&PointerAddress::Internal(address.id));
     core_lib_id
         .map_err(|_| ExecutionError::ReferenceNotFound)
-        .map(|id| get_core_lib_value(id).ok_or(ExecutionError::ReferenceNotFound))?
+        .map(|id| {
+            get_core_lib_value(id).ok_or(ExecutionError::ReferenceNotFound)
+        })?
 }
 
 fn get_internal_pointer_value_from_memory(

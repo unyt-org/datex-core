@@ -8,7 +8,10 @@ use crate::ast::expressions::{
     CallableDeclaration, DatexExpression, DatexExpressionData, VariableAccess,
     VariableAssignment, VariableDeclaration,
 };
-use crate::ast::type_expressions::{CallableTypeExpression, TypeExpression, TypeExpressionData, TypeVariantAccess};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, TypeExpression, TypeExpressionData,
+    TypeVariantAccess,
+};
 use core::fmt::{self};
 
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
@@ -269,20 +272,18 @@ impl AstToSourceCodeConverter {
                 parameter_types,
                 rest_parameter_type,
                 return_type,
-                yeet_type
+                yeet_type,
             }) => {
                 let mut params_code: Vec<String> = parameter_types
                     .iter()
-                    .map(|(param_name, param_type)| {
-                        match param_name {
-                            Some(name) => ast_fmt!(
-                                &self,
-                                "{}:%s{}",
-                                name,
-                                self.type_expression_to_source_code(param_type)
-                            ),
-                            None => self.type_expression_to_source_code(param_type)
-                        }
+                    .map(|(param_name, param_type)| match param_name {
+                        Some(name) => ast_fmt!(
+                            &self,
+                            "{}:%s{}",
+                            name,
+                            self.type_expression_to_source_code(param_type)
+                        ),
+                        None => self.type_expression_to_source_code(param_type),
                     })
                     .collect();
 

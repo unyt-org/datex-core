@@ -1,7 +1,10 @@
 use core::ops::Range;
 
 use crate::ast::expressions::{DatexExpression, VariableAccess};
-use crate::ast::type_expressions::{CallableTypeExpression, TypeExpression, TypeExpressionData, TypeVariantAccess};
+use crate::ast::type_expressions::{
+    CallableTypeExpression, TypeExpression, TypeExpressionData,
+    TypeVariantAccess,
+};
 use crate::parser::ParserOptions;
 use crate::{
     compiler::precompiler::precompiled_ast::RichAst,
@@ -196,7 +199,7 @@ impl<'a> Formatter<'a> {
                 parameter_types,
                 rest_parameter_type,
                 return_type,
-                yeet_type
+                yeet_type,
             }) => {
                 // TODO: handle full signature
                 let params = parameter_types.iter().map(|(name, ty)| {
