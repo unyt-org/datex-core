@@ -30,7 +30,7 @@ impl Debug for ExecutionLoopState {
 #[derive(Debug, Default)]
 pub struct RuntimeExecutionState {
     /// Local memory slots for current execution context.
-    /// TODO: replace this with a local stack and deprecate local slots?
+    /// TODO #643: replace this with a local stack and deprecate local slots?
     pub(crate) slots: RuntimeExecutionSlots,
     pub(crate) runtime_internal: Option<Rc<RuntimeInternal>>,
     pub(crate) source_id: TransceiverId,

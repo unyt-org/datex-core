@@ -90,7 +90,7 @@ impl From<&TypeDefinition> for TypeInstructionCode {
             TypeDefinition::Collection(_) => {
                 TypeInstructionCode::TYPE_COLLECTION
             }
-            TypeDefinition::Type(_) => unreachable!(), // TODO: nested types
+            TypeDefinition::Type(_) => unreachable!(), // TODO #668: nested types
         }
     }
 }

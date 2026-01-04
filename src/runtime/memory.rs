@@ -136,7 +136,7 @@ impl Memory {
         if let Ok(endpoint) = raw_address.endpoint()
             && endpoint == self.local_endpoint
         {
-            // TODO: check if it makes sense to take the last 5 bytes only here
+            // TODO #639: check if it makes sense to take the last 5 bytes only here
             let last_bytes = &raw_address.id[raw_address.id.len() - 5..];
             PointerAddress::Local(last_bytes.try_into().unwrap())
         } else {

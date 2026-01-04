@@ -69,7 +69,7 @@ impl TCPServerNativeInterface {
         let interface_uuid = self.get_uuid().clone();
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
-        // TODO: use normal spawn (thread)? currently leads to global context panic
+        // TODO #615: use normal spawn (thread)? currently leads to global context panic
         spawn_with_panic_notify_default(async move {
             loop {
                 match listener.accept().await {

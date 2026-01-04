@@ -1130,7 +1130,7 @@ fn var_declaration_with_type_intersection() {
     );
 }
 
-// TODO
+// TODO #602
 // #[test]
 // fn type_var_declaration_list() {
 //     let src = "var x: integer[] = 42";

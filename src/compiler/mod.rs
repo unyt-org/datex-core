@@ -604,7 +604,7 @@ fn compile_expression(
                         .append_instruction_code(InstructionCode::LIST);
                     append_u32(
                         &mut compilation_context.buffer,
-                        list.items.len() as u32, // FIXME: conversion from usize to u32
+                        list.items.len() as u32, // FIXME #671: conversion from usize to u32
                     );
                 }
             }
@@ -633,7 +633,7 @@ fn compile_expression(
                         .append_instruction_code(InstructionCode::MAP);
                     append_u32(
                         &mut compilation_context.buffer,
-                        map.entries.len() as u32, // FIXME: conversion from usize to u32
+                        map.entries.len() as u32, // FIXME #672: conversion from usize to u32
                     );
                 }
             }
@@ -713,7 +713,7 @@ fn compile_expression(
                             );
                             append_u32(
                                 &mut compilation_context.buffer,
-                                len as u32, // FIXME: conversion from usize to u32
+                                len as u32, // FIXME #673: conversion from usize to u32
                             );
                         }
                     }
@@ -913,7 +913,7 @@ fn compile_expression(
 
         DatexExpressionData::GenericInstantiation(generic_instantiation) => {
             // NOTE: might already be handled in type compilation
-            todo!()
+            todo!("#674 Undescribed by author.")
         }
 
         DatexExpressionData::PropertyAssignment(property_assignment) => {

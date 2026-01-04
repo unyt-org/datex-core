@@ -411,7 +411,7 @@ pub enum TypeInstruction {
     LiteralText(TextData),
     LiteralInteger(IntegerData),
     List(ListData),
-    // TODO: add more type instructions
+    // TODO #670: add more type instructions
 }
 
 impl Display for TypeInstruction {

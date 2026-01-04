@@ -206,7 +206,7 @@ impl LanguageServerBackend {
     }
 
     /// Converts a byte offset to an LSP position (line and character) in the file content.
-    /// TODO: check if this is correct, generated with copilot
+    /// TODO #678: check if this is correct, generated with copilot
     pub fn byte_offset_to_position(
         &self,
         byte_offset: usize,

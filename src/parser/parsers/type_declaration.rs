@@ -33,7 +33,7 @@ impl Parser {
                 }
 
                 // optional generic parameters
-                // TODO: use generic parameters
+                // TODO #664: use generic parameters
                 let _generic_params = if self.peek()?.token == Token::LeftAngle
                 {
                     Some(self.parse_generic_parameters()?)
@@ -127,7 +127,7 @@ mod tests {
         );
     }
 
-    // TODO: generic parameters parsing
+    // TODO #665: generic parameters parsing
     #[test]
     fn parse_type_declaration_with_generic_parameters() {
         let expr = parse("type myType<T, U> = true");

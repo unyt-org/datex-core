@@ -162,11 +162,11 @@ impl<'a> Formatter<'a> {
 
             TypeExpressionData::TypedInteger(typed_integer) => {
                 a.text(typed_integer.to_string())
-                // TODO: handle variant formatting
+                // TODO #625: handle variant formatting
             }
             TypeExpressionData::TypedDecimal(typed_decimal) => {
                 a.text(typed_decimal.to_string())
-                // TODO: handle variant formatting
+                // TODO #626: handle variant formatting
             }
 
             // Lists — `[T, U, V]` or multiline depending on settings
@@ -176,8 +176,8 @@ impl<'a> Formatter<'a> {
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpressionData::FixedSizeList(list) => core::todo!(),
-            TypeExpressionData::SliceList(_) => core::todo!(),
+            TypeExpressionData::FixedSizeList(list) => core::todo!("#627 Undescribed by author."),
+            TypeExpressionData::SliceList(_) => core::todo!("#628 Undescribed by author."),
 
             // Intersection: `A & B & C`
             TypeExpressionData::Intersection(items) => {
@@ -190,7 +190,7 @@ impl<'a> Formatter<'a> {
             }
 
             TypeExpressionData::GenericAccess(access) => {
-                core::todo!()
+                core::todo!("#629 Undescribed by author.")
             }
 
             // Callable type, e.g. `function (x: integer, y: text) -> boolean`
@@ -201,7 +201,7 @@ impl<'a> Formatter<'a> {
                 return_type,
                 yeet_type,
             }) => {
-                // TODO: handle full signature
+                // TODO #630: handle full signature
                 let params = parameter_types.iter().map(|(name, ty)| {
                     a.text(name.clone().unwrap_or_else(|| "_".to_string()))
                         + self.type_declaration_colon()
@@ -210,7 +210,7 @@ impl<'a> Formatter<'a> {
                 let params_doc =
                     RcDoc::intersperse(params, a.text(",") + a.space());
                 let arrow = self.operator_with_spaces(a.text("->"));
-                todo!()
+                todo!("#631 Undescribed by author.")
             }
 
             TypeExpressionData::StructuralMap(items) => {

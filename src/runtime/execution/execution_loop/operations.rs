@@ -23,7 +23,7 @@ pub fn set_property(
 ) -> Result<(), ExecutionError> {
     if let Some(runtime) = runtime_internal {
         target.try_set_property(
-            0, // TODO: set correct source id
+            0, // TODO #644: set correct source id
             &runtime.memory,
             key,
             value,

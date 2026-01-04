@@ -20,7 +20,7 @@ impl ExpressionVisitor<()> for TypeHintCollector {
     ) -> Result<VisitAction<DatexExpression>, ()> {
         if var_decl.type_annotation.is_none() {
             let expr_start = var_decl.init_expression.span.start;
-            // TODO: improve
+            // TODO #677: improve
             self.type_hints.push((expr_start - 3, var_decl.id.unwrap()));
         }
         Ok(VisitAction::VisitChildren)

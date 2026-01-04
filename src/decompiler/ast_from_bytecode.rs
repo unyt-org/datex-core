@@ -261,7 +261,7 @@ pub fn ast_from_bytecode(
                                 }
 
                                 RegularInstruction::DropSlot(slot_address) => {
-                                    todo!()
+                                    todo!("#655 Undescribed by author.")
                                 }
 
                                 // NOTE: make sure that each possible match case is either implemented in the default collection or here
@@ -688,7 +688,7 @@ pub fn ast_from_bytecode(
                         },
 
                         Instruction::TypeInstruction(data) => {
-                            todo!()
+                            todo!("#656 Undescribed by author.")
                         }
                     };
                     collector.push_result(expr);

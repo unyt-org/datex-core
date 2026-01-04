@@ -143,7 +143,7 @@ impl DIFValue {
                 core::todo!("#382 Type value not supported in DIF")
             }
             CoreValue::Callable(callable) => {
-                core::todo!("Callable value not yet supported in DIF")
+                core::todo!("#616 Callable value not yet supported in DIF")
             }
             CoreValue::Null => DIFValueRepresentation::Null,
             CoreValue::Boolean(bool) => DIFValueRepresentation::Boolean(bool.0),

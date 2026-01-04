@@ -113,7 +113,7 @@ impl Display for DXBParserError {
     }
 }
 
-// TODO: we must ensure while an execution for a block runs, no other executions run using the same next_instructions_stack - maybe also find a solution without Rc<RefCell>
+// TODO #676: we must ensure while an execution for a block runs, no other executions run using the same next_instructions_stack - maybe also find a solution without Rc<RefCell>
 pub fn iterate_instructions(
     dxb_body_ref: Rc<RefCell<Vec<u8>>>,
 ) -> impl Iterator<Item = Result<Instruction, DXBParserError>> {

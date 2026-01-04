@@ -382,7 +382,7 @@ impl<T> Sender<T> {
 #[derive(Debug)]
 pub struct UnboundedSender<T>(_UnboundedSender<T>);
 
-// FIXME: derive Clone?
+// FIXME #603: derive Clone?
 impl<T> Clone for UnboundedSender<T> {
     fn clone(&self) -> Self {
         UnboundedSender(self.0.clone())

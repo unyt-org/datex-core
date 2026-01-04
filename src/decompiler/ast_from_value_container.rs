@@ -175,10 +175,10 @@ fn type_to_type_expression(type_value: &Type) -> TypeExpression {
                     TypeExpressionData::Identifier(core_lib_type.to_string())
                         .with_default_span()
                 } else {
-                    todo!("Handle non-core-lib type references in decompiler");
+                    todo!("#651 Handle non-core-lib type references in decompiler");
                 }
             } else {
-                panic!("Unresolved type reference in decompiler"); // TODO: how to handle properly?
+                panic!("Unresolved type reference in decompiler"); // TODO #652: how to handle properly?
             }
         }
         _ => TypeExpressionData::Text(format!(

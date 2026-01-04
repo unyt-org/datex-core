@@ -66,7 +66,7 @@ use core::{cell::RefCell, ops::Range, panic, str::FromStr};
 pub mod error;
 pub mod options;
 
-// TODO: refactor InferOutcome to a struct containing type, errors and warnings
+// TODO #617: refactor InferOutcome to a struct containing type, errors and warnings
 pub enum InferOutcome {
     Ok(Type),
     OkWithErrors {
@@ -516,7 +516,7 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
     }
 }
 
-// FIXME proper implementation of variant access resolution
+// FIXME #618 proper implementation of variant access resolution
 // currently only works for core lib types, and is hacky.
 // We need a good registration system for types and their variants.
 fn resolve_type_variant_access(
@@ -732,7 +732,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
 
         let actual_type =
             if let Some(specific) = &mut variable_declaration.type_annotation {
-                // FIXME check if matches
+                // FIXME #619 check if matches
                 let annotated_type = self.infer_type_expression(specific)?;
                 if !init_type.matches_type(&annotated_type) {
                     self.record_error(SpannedTypeError::new_with_span(
@@ -824,7 +824,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
                     reference.borrow_mut().type_value = inferred_type_def;
                 }
                 Some(r) => {
-                    // FIXME is this necesarry?
+                    // FIXME #620 is this necesarry?
                     reference.borrow_mut().type_value =
                         Type::new(TypeDefinition::Reference(r.clone()), None);
                 }
@@ -876,7 +876,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         })
     }
 
-    // FIXME for property access we need to implement
+    // FIXME #621 for property access we need to implement
     // apply chain access on type container level for structural types
     fn visit_property_access(
         &mut self,
@@ -1019,7 +1019,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         // Check if inferred return type matches the annotated return type
         // if an annotated return type is provided
         // If they don't match, record an error
-        // TODO: improve
+        // TODO #622: improve
         if let Some(annotated_return_type) = &signature.return_type
             && !inferred_return_type.matches_type(annotated_return_type)
         {
@@ -1140,7 +1140,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         deref_assignment: &mut DerefAssignment,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
-        // FIXME: handle type checking and if deref assignment is valid
+        // FIXME #623: handle type checking and if deref assignment is valid
         let mut expression_type =
             self.infer_expression(&mut deref_assignment.deref_expression)?;
         if let Some(reference) = expression_type.inner_reference() {
@@ -1154,7 +1154,7 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         let assigned_type =
             self.infer_expression(&mut deref_assignment.assigned_expression)?;
 
-        // FIXME implement proper type matching
+        // FIXME #624 implement proper type matching
         // if !assigned_type.matches_type(&expression_type) {
         //     return Err(SpannedTypeError {
         //         error: TypeError::AssignmentTypeMismatch {

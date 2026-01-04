@@ -42,9 +42,9 @@ impl Parser {
                 name: Some(name),
                 kind,
                 parameters,
-                rest_parameter: None, // TODO
+                rest_parameter: None, // TODO #662
                 return_type,
-                yeet_type: None, // TODO
+                yeet_type: None, // TODO #663
                 body: Box::new(body),
             })
             .with_span(start_pos..self.get_current_source_position()),

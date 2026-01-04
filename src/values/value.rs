@@ -142,7 +142,7 @@ impl Value {
     /// This will return false for an integer value if the actual type is one of the following:
     /// * an ImplType<integer, x>
     /// * a new nominal type containing an integer
-    /// TODO: this does not match all cases of default types from the point of view of the compiler -
+    /// TODO #604: this does not match all cases of default types from the point of view of the compiler -
     /// integer variants (despite bigint) can be distinguished based on the instruction code, but for text variants,
     /// the variant must be included in the compiler output - so we need to handle theses cases as well.
     /// Generally speaking, all variants except the few integer variants should never be considered default types.

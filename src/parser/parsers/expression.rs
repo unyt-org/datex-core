@@ -236,7 +236,7 @@ impl Parser {
         .with_span(span))
     }
 
-    // TODO: handle single value without parentheses as argument
+    // TODO #666: handle single value without parentheses as argument
     fn parse_apply_arguments(
         &mut self,
     ) -> Result<(Vec<DatexExpression>, usize), SpannedParserError> {

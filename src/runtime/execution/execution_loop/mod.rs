@@ -645,7 +645,7 @@ pub fn inner_execution_loop(
                                     let type_pattern =
                                         collected_results.pop_type_result();
 
-                                    todo!()
+                                    todo!("#645 Undescribed by author.")
                                 }
 
                                 RegularInstruction::UnaryMinus
@@ -665,7 +665,7 @@ pub fn inner_execution_loop(
                                                 UnaryOperator::from(
                                                     regular_instruction,
                                                 ),
-                                                target.clone(), // TODO: is unary operation supposed to take ownership?
+                                                target.clone(), // TODO #646: is unary operation supposed to take ownership?
                                             )
                                         },
                                     );
@@ -685,7 +685,7 @@ pub fn inner_execution_loop(
 
                                     match &mut value_container {
                                         ValueContainer::Value(value) => {
-                                            // FIXME: only using type definition here, refactor and/or add checks
+                                            // FIXME #647: only using type definition here, refactor and/or add checks
                                             value.actual_type =
                                                 Box::new(ty.type_definition);
                                         }
@@ -708,7 +708,7 @@ pub fn inner_execution_loop(
                                             inner: CoreValue::Type(ty),
                                             actual_type: Box::new(
                                                 TypeDefinition::Unknown,
-                                            ), // TODO: type for type
+                                            ), // TODO #648: type for type
                                         }),
                                     )
                                     .into()
@@ -1101,7 +1101,7 @@ pub fn inner_execution_loop(
                                         )
                                         .into()
                                     }
-                                    _ => todo!(),
+                                    _ => todo!("#649 Undescribed by author."),
                                 }
                             }
                         }

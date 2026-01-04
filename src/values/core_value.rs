@@ -761,7 +761,7 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => core::write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
             CoreValue::List(list) => core::write!(f, "{list}"),
-            CoreValue::Callable(callable) => core::write!(f, "[[ callable ]]"), // TODO
+            CoreValue::Callable(callable) => core::write!(f, "[[ callable ]]"), // TODO #605
         }
     }
 }

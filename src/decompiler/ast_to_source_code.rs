@@ -346,7 +346,7 @@ impl AstToSourceCodeConverter {
                 self.wrap_map_elements(elements)
             }
             TypeExpressionData::Recover => {
-                // TODO
+                // TODO #653
                 "/*Recovered Type Expression*/".to_string()
             }
         }
@@ -758,7 +758,7 @@ impl AstToSourceCodeConverter {
                 "[[ native code ]]".to_string()
             }
             DatexExpressionData::GenericInstantiation(_) => {
-                todo!()
+                todo!("#654 Undescribed by author.")
             }
         }
     }

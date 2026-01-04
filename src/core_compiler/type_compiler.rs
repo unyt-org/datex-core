@@ -46,7 +46,7 @@ fn append_type_definition(
             append_type(buffer, ty);
         }
         TypeDefinition::Reference(type_ref) => {
-            // TODO: ensure pointer_address exists here
+            // TODO #636: ensure pointer_address exists here
             let type_ref = type_ref.borrow();
             let pointer_address = type_ref
                 .pointer_address
@@ -54,7 +54,7 @@ fn append_type_definition(
                 .expect("Type reference must have a pointer address");
             append_get_ref(buffer, pointer_address);
         }
-        _ => todo!("Type definition compilation not implemented yet"),
+        _ => todo!("#637 Type definition compilation not implemented yet"),
     };
 }
 

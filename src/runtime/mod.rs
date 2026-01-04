@@ -360,7 +360,7 @@ impl RuntimeInternal {
         let context_id = last_block.block_header.context_id;
 
         // insert the context back into the map for future use
-        // TODO: is this needed or can we drop the context after execution here?
+        // TODO #638: is this needed or can we drop the context after execution here?
         self_rc
             .execution_contexts
             .borrow_mut()

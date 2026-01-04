@@ -222,7 +222,7 @@ impl ExecutionContext {
     pub fn memory_dump(&self) -> Option<MemoryDump> {
         match self {
             ExecutionContext::Local(local_context) => {
-                todo!()
+                todo!("#650 Undescribed by author.")
                 // Some(local_context.memory_dump())
             }
             // TODO #397: also support remote memory dump if possible

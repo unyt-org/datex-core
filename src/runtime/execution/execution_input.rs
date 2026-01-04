@@ -60,10 +60,10 @@ impl<'a> ExecutionInput<'a> {
         else {
             let state = RuntimeExecutionState {
                 runtime_internal: self.runtime.clone(),
-                source_id: 0, // TODO: set proper source ID
+                source_id: 0, // TODO #640: set proper source ID
                 ..Default::default()
             };
-            // TODO: optimize, don't clone the whole DXB body every time here
+            // TODO #641: optimize, don't clone the whole DXB body every time here
             let dxb_rc = Rc::new(RefCell::new(self.dxb_body.to_vec()));
             let interrupt_provider = InterruptProvider::new();
             ExecutionLoopState {

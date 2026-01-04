@@ -133,7 +133,7 @@ impl Type {
 
 impl Type {
     /// Creates a new Type with the given TypeDefinition and optional ReferenceMutability
-    /// FIXME: If the TypeDefinition is a Reference, the ReferenceMutability must be Some,
+    /// FIXME #607: If the TypeDefinition is a Reference, the ReferenceMutability must be Some,
     /// otherwise it must be None.
     pub fn new(
         type_definition: TypeDefinition,
@@ -256,10 +256,10 @@ impl Type {
                             _ => reference.clone(),
                         }
                     } else {
-                        todo!("handle non-core lib type base type");
+                        todo!("#608 handle non-core lib type base type");
                     }
                 } else {
-                    todo!("handle pointer address none");
+                    todo!("#609 handle pointer address none");
                 }
             }
             _ => core::panic!("Unhandled type definition for base type"),

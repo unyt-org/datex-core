@@ -13,7 +13,7 @@ use crate::parser::parser_result::{
 use core::ops::Range;
 use itertools::Itertools;
 use parser_result::ParserResult;
-// TODO: move to different module
+// TODO #658: move to different module
 
 pub mod errors;
 pub mod lexer;
@@ -197,7 +197,7 @@ impl Parser {
                 },
             });
         }
-        let tok = self.tokens[self.pos].clone(); // TODO: take, don't clone?
+        let tok = self.tokens[self.pos].clone(); // TODO #659: take, don't clone?
         self.pos += 1;
         Ok(tok)
     }
@@ -251,7 +251,7 @@ impl Parser {
     /// If recovery is successful after an error result was provided, returns an Ok result containing a Recover expression.
     /// If the result was Ok, returns the contained expression directly.
     /// If error collection is not enabled in the parser, the error is returned directly in the result and can be bubbled up.
-    /// TODO: set correct span on recovered expression
+    /// TODO #660: set correct span on recovered expression
     fn recover_on_error(
         &mut self,
         result: Result<DatexExpression, SpannedParserError>,

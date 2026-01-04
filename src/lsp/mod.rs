@@ -307,7 +307,7 @@ impl LanguageServer for LanguageServerBackend {
         &self,
         params: DocumentLinkParams,
     ) -> realhydroper_lsp::jsonrpc::Result<Option<Vec<DocumentLink>>> {
-        // TODO
+        // TODO #679
         Ok(Some(vec![]))
     }
 

@@ -67,7 +67,7 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
             core::todo!("#439 Type value not supported in CompilationContext");
         }
         CoreValue::Callable(callable) => {
-            core::todo!("Callable value not supported in CompilationContext");
+            core::todo!("#632 Callable value not supported in CompilationContext");
         }
         CoreValue::Integer(integer) => {
             // NOTE: we might optimize this later, but using INT with big integer encoding
@@ -119,7 +119,7 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
                 }
                 _ => {
                     append_instruction_code(buffer, InstructionCode::MAP);
-                    append_u32(buffer, val.size() as u32); // FIXME: casting from usize to u32 here
+                    append_u32(buffer, val.size() as u32); // FIXME #633: casting from usize to u32 here
                 }
             }
             for (key, value) in val {
@@ -135,7 +135,7 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
 
 pub fn append_type_cast(buffer: &mut Vec<u8>, ty: &TypeDefinition) {
     append_instruction_code(buffer, InstructionCode::TYPED_VALUE);
-    // TODO: optimize: avoid cloning
+    // TODO #634: optimize: avoid cloning
     append_type(buffer, &(ty.clone().into_type(None)));
 }
 
@@ -266,7 +266,7 @@ pub fn append_encoded_decimal(buffer: &mut Vec<u8>, decimal: &TypedDecimal) {
 
     append_f32_or_f64(buffer, decimal);
 
-    // TODO: maybe use this in the future, but type casts are necessary to decide which actual type is represented
+    // TODO #635: maybe use this in the future, but type casts are necessary to decide which actual type is represented
     // match decimal.as_integer() {
     //     Some(int) => {
     //         let smallest = smallest_fitting_signed(int as i128);

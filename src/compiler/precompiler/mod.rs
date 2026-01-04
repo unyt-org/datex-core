@@ -186,7 +186,7 @@ impl<'a> Precompiler<'a> {
         };
 
         // type inference - currently only if detailed errors are enabled
-        // FIXME: always do type inference here, not only for detailed errors
+        // FIXME #675: always do type inference here, not only for detailed errors
         if options.detailed_errors {
             let type_res = infer_expression_type_detailed_errors(&mut rich_ast);
 

@@ -32,7 +32,7 @@ pub enum ParserError {
 
 #[derive(Debug)]
 pub struct DetailedParserErrorsWithAst {
-    pub ast: DatexExpression, // TODO: rename to DatexAstNode
+    pub ast: DatexExpression, // TODO #657: rename to DatexAstNode
     pub errors: Vec<SpannedParserError>,
 }
 

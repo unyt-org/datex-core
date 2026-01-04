@@ -61,7 +61,7 @@ pub enum IntegerTypeVariant {
     I64,
     I128,
     IBig,
-    // TODO: ubig?
+    // TODO #610: ubig?
 }
 
 #[derive(Debug, Clone, Eq)]

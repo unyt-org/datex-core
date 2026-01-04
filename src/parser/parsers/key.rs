@@ -25,7 +25,7 @@ impl Parser {
             }
 
             // map reserved keywords to text keys
-            // TODO: add more keywords as needed
+            // TODO #661: add more keywords as needed
             t @ Token::True
             | t @ Token::False
             | t @ Token::TypeDeclaration

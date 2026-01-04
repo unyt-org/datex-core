@@ -27,7 +27,7 @@ impl Parser {
                 TypeExpressionData::Text(name).with_span(self.advance()?.span)
             }
             // map reserved keywords to text keys
-            // TODO: add more keywords as needed
+            // TODO #667: add more keywords as needed
             t @ Token::True
             | t @ Token::False
             | t @ Token::TypeDeclaration

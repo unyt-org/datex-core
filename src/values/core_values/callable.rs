@@ -59,7 +59,7 @@ impl Callable {
         match &self.body {
             CallableBody::Native(func) => func(args),
             CallableBody::DatexBytecode => {
-                todo!("Calling Datex bytecode is not yet implemented")
+                todo!("#606 Calling Datex bytecode is not yet implemented")
             }
         }
     }

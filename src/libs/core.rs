@@ -405,7 +405,7 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
                 yeet_type: None,
             },
             CallableBody::Native(|mut args: &[ValueContainer]| {
-                // TODO: add I/O abstraction layer / interface
+                // TODO #680: add I/O abstraction layer / interface
 
                 let mut output = String::new();
 
