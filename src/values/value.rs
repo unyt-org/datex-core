@@ -8,6 +8,7 @@ use crate::references::type_reference::TypeReference;
 use crate::runtime::execution::ExecutionError;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::format;
+use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
@@ -24,7 +25,6 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
-use crate::stdlib::string::String;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {

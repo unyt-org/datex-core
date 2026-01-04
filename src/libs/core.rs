@@ -427,7 +427,12 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
                 #[cfg(feature = "decompiler")]
                 let args_string = args
                     .iter()
-                    .map(|v| crate::decompiler::decompile_value(v, crate::decompiler::DecompileOptions::colorized()))
+                    .map(|v| {
+                        crate::decompiler::decompile_value(
+                            v,
+                            crate::decompiler::DecompileOptions::colorized(),
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(" ");
                 #[cfg(not(feature = "decompiler"))]

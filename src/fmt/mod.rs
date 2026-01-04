@@ -176,8 +176,12 @@ impl<'a> Formatter<'a> {
                 self.wrap_collection(docs, ("[", "]"), ",")
             }
 
-            TypeExpressionData::FixedSizeList(list) => core::todo!("#627 Undescribed by author."),
-            TypeExpressionData::SliceList(_) => core::todo!("#628 Undescribed by author."),
+            TypeExpressionData::FixedSizeList(list) => {
+                core::todo!("#627 Undescribed by author.")
+            }
+            TypeExpressionData::SliceList(_) => {
+                core::todo!("#628 Undescribed by author.")
+            }
 
             // Intersection: `A & B & C`
             TypeExpressionData::Intersection(items) => {

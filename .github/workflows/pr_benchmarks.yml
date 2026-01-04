@@ -1,6 +1,6 @@
 on:
-#    pull_request:
-#        types: [opened, reopened, edited, synchronize]
+    pull_request:
+        types: [opened, reopened, edited, synchronize]
 
 jobs:
     benchmark_pr_branch:
