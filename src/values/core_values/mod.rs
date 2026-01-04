@@ -1,5 +1,5 @@
 pub mod boolean;
-mod callable;
+pub mod callable;
 pub mod decimal;
 pub mod endpoint;
 pub mod error;

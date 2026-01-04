@@ -26,6 +26,7 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::{ValueContainer, ValueError};
 use core::fmt::{Display, Formatter};
 use core::ops::{Add, AddAssign, Neg, Not, Sub};
+use crate::values::core_values::callable::Callable;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, FromCoreValue)]
 pub enum CoreValue {
@@ -40,6 +41,7 @@ pub enum CoreValue {
     List(List),
     Map(Map),
     Type(Type),
+    Callable(Callable),
 }
 impl StructuralEq for CoreValue {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -87,6 +89,10 @@ impl StructuralEq for CoreValue {
             }
             (CoreValue::List(a), CoreValue::List(b)) => a.structural_eq(b),
             (CoreValue::Map(a), CoreValue::Map(b)) => a.structural_eq(b),
+            (CoreValue::Type(a), CoreValue::Type(b)) => a.structural_eq(b),
+            (CoreValue::Callable(a), CoreValue::Callable(b)) => {
+                a.structural_eq(b)
+            }
             _ => false,
         }
     }
@@ -219,6 +225,7 @@ impl From<&CoreValue> for CoreLibPointerId {
             CoreValue::Endpoint(_) => CoreLibPointerId::Endpoint,
             CoreValue::Null => CoreLibPointerId::Null,
             CoreValue::Type(_) => CoreLibPointerId::Type,
+            CoreValue::Callable(_) => CoreLibPointerId::Callable,
         }
     }
 }
@@ -754,6 +761,7 @@ impl Display for CoreValue {
             CoreValue::Integer(integer) => core::write!(f, "{integer}"),
             CoreValue::Decimal(decimal) => core::write!(f, "{decimal}"),
             CoreValue::List(list) => core::write!(f, "{list}"),
+            CoreValue::Callable(callable) => core::write!(f, "[[ callable ]]"), // TODO
         }
     }
 }

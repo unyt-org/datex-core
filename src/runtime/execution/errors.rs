@@ -73,6 +73,7 @@ pub enum ExecutionError {
         Option<ValueContainer>,
         Option<ExecutionLoopState>,
     ),
+    InvalidApply,
 }
 impl From<ReferenceCreationError> for ExecutionError {
     fn from(error: ReferenceCreationError) -> Self {
@@ -195,6 +196,9 @@ impl Display for ExecutionError {
                     value_opt,
                     state_opt
                 )
+            }
+            ExecutionError::InvalidApply => {
+                core::write!(f, "Invalid apply operation")
             }
         }
     }

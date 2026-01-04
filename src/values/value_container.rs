@@ -428,7 +428,7 @@ impl Apply for ValueContainer {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => {
-                core::todo!("#309 implement apply for Value")
+                value.apply(args)
             }
             ValueContainer::Reference(reference) => reference.apply(args),
         }
@@ -440,7 +440,7 @@ impl Apply for ValueContainer {
     ) -> Result<Option<ValueContainer>, ExecutionError> {
         match self {
             ValueContainer::Value(value) => {
-                core::todo!("#310 implement apply_single for Value")
+                value.apply_single(arg)
             }
             ValueContainer::Reference(reference) => reference.apply_single(arg),
         }

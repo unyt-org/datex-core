@@ -66,6 +66,9 @@ pub fn append_value(buffer: &mut Vec<u8>, value: &Value) {
         CoreValue::Type(ty) => {
             core::todo!("#439 Type value not supported in CompilationContext");
         }
+        CoreValue::Callable(callable) => {
+            core::todo!("Callable value not supported in CompilationContext");
+        }
         CoreValue::Integer(integer) => {
             // NOTE: we might optimize this later, but using INT with big integer encoding
             // for all integers for now
