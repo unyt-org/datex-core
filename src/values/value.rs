@@ -94,9 +94,10 @@ impl Value {
 }
 
 impl Value {
-    pub fn callable(signature: CallableSignature, body: CallableBody) -> Self {
+    pub fn callable(name: Option<String>, signature: CallableSignature, body: CallableBody) -> Self {
         Value {
             inner: CoreValue::Callable(Callable {
+                name,
                 signature: signature.clone(),
                 body,
             }),

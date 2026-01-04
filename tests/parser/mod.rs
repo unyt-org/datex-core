@@ -433,7 +433,7 @@ fn function_simple() {
     assert_eq!(
         val,
         DatexExpressionData::CallableDeclaration(CallableDeclaration {
-            name: "myFunction".to_string(),
+            name: Some("myFunction".to_string()),
             kind: CallableKind::Function,
             parameters: Vec::new(),
             rest_parameter: None,
@@ -458,7 +458,7 @@ fn function_with_params() {
     assert_eq!(
         val,
         DatexExpressionData::CallableDeclaration(CallableDeclaration {
-            name: "myFunction".to_string(),
+            name: Some("myFunction".to_string()),
             kind: CallableKind::Function,
             parameters: vec![(
                 "x".to_string(),
@@ -484,7 +484,7 @@ fn function_with_params() {
     assert_eq!(
         val,
         DatexExpressionData::CallableDeclaration(CallableDeclaration {
-            name: "myFunction".to_string(),
+            name: Some("myFunction".to_string()),
             kind: CallableKind::Function,
             parameters: vec![
                 (
@@ -538,7 +538,7 @@ fn test_function_with_return_type() {
     assert_eq!(
         val,
         DatexExpressionData::CallableDeclaration(CallableDeclaration {
-            name: "myFunction".to_string(),
+            name: Some("myFunction".to_string()),
             kind: CallableKind::Function,
             parameters: vec![(
                 "x".to_string(),

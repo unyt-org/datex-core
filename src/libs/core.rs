@@ -39,7 +39,7 @@ pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CORE_LIB_VALS: Option<CoreLibVals> = None;
 
-fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes, &CoreLibVals) -> R) -> R {
+fn with_full_core_lib<R>(handler: impl FnOnce(&CoreLibTypes, &CoreLibVals) -> R) -> R {
     unsafe {
         if CORE_LIB_TYPES.is_none() {
             CORE_LIB_TYPES.replace(create_core_lib_types());
@@ -52,6 +52,17 @@ fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes, &CoreLibVals) -> R) -> R
             CORE_LIB_VALS.as_ref().unwrap_unchecked(),
         )
 
+    }
+}
+
+fn with_core_lib_types<R>(handler: impl FnOnce(&CoreLibTypes) -> R) -> R {
+    unsafe {
+        if CORE_LIB_TYPES.is_none() {
+            CORE_LIB_TYPES.replace(create_core_lib_types());
+        }
+        handler(
+            CORE_LIB_TYPES.as_ref().unwrap_unchecked(),
+        )
     }
 }
 
@@ -171,7 +182,7 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
 }
 
 pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> Type {
-    with_core_lib(|core_lib_types, _| {
+    with_core_lib_types(|core_lib_types| {
         core_lib_types.get(&id.into()).unwrap().clone()
     })
 }
@@ -191,7 +202,7 @@ pub fn get_core_lib_value(
     id: impl Into<CoreLibPointerId>,
 ) -> Option<ValueContainer> {
     let id = id.into();
-    with_core_lib(|core_lib_types, core_lib_values| {
+    with_full_core_lib(|core_lib_types, core_lib_values| {
         // try types first
         if let Some(ty) = core_lib_types.get(&id) {
             match &ty.type_definition {
@@ -220,12 +231,12 @@ fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
-    with_core_lib(|core_lib_types, _| core_lib_types.contains_key(&id.into()))
+    with_core_lib_types(|core_lib_types| core_lib_types.contains_key(&id.into()))
 }
 
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
-    with_core_lib(|core_lib_types, core_lib_values| {
+    with_full_core_lib(|core_lib_types, core_lib_values| {
         let mut types_structure = core_lib_types
             .values()
             .map(|ty| match &ty.type_definition {
@@ -380,6 +391,7 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
     (
         CoreLibPointerId::Print,
         ValueContainer::Value(Value::callable(
+            Some("print".to_string()),
             CallableSignature {
                 kind: CallableKind::Function,
                 parameter_types: vec![],
@@ -619,7 +631,7 @@ mod tests {
     #[ignore]
     #[test]
     fn print_core_lib_addresses_as_hex() {
-        with_core_lib(|core_lib_types, _| {
+        with_full_core_lib(|core_lib_types, _| {
             let sorted_entries = core_lib_types
                 .keys()
                 .map(|k| (k.clone(), PointerAddress::from(k.clone())))

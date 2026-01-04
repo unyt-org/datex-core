@@ -640,7 +640,7 @@ impl AstToSourceCodeConverter {
                         ast_fmt!(
                             &self,
                             "{}:%s{}",
-                            name,
+                            param_name,
                             self.type_expression_to_source_code(param_type)
                         )
                     })
@@ -679,7 +679,7 @@ impl AstToSourceCodeConverter {
                     &self,
                     "{} {}({}){}{}%s(%n{}%n)",
                     kind,
-                    name,
+                    name.clone().unwrap_or_else(|| "".to_string()),
                     params_code.join(&ast_fmt!(&self, ",%s")),
                     return_type_code,
                     yeet_type_code,
