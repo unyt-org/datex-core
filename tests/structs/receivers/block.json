@@ -41,6 +41,7 @@
         "represented_by": null,
         "iv": null
     },
+    "signature": null,
     "encrypted_header": {
         "flags": {
             "user_agent": "Unknown",
