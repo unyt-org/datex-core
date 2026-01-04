@@ -16,6 +16,8 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
+use core::prelude::rust_2024::*;
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DIFTypeDefinition {

@@ -1,5 +1,4 @@
 use crate::collections::HashMap;
-use crate::decompiler::{DecompileOptions, decompile_value};
 use crate::references::reference::Reference;
 use crate::references::type_reference::{
     NominalTypeDeclaration, TypeReference,
@@ -428,7 +427,7 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
                 #[cfg(feature = "decompiler")]
                 let args_string = args
                     .iter()
-                    .map(|v| decompile_value(v, DecompileOptions::colorized()))
+                    .map(|v| crate::decompiler::decompile_value(v, crate::decompiler::DecompileOptions::colorized()))
                     .collect::<Vec<_>>()
                     .join(" ");
                 #[cfg(not(feature = "decompiler"))]
