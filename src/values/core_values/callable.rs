@@ -4,6 +4,7 @@ use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
+use core::fmt::Formatter;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CallableKind {
@@ -14,7 +15,7 @@ pub enum CallableKind {
 }
 
 impl Display for CallableKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             CallableKind::Function => write!(f, "function"),
             CallableKind::Procedure => write!(f, "procedure"),
