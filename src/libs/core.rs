@@ -27,6 +27,7 @@ use strum::IntoEnumIterator;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::callable::{Callable, CallableBody, CallableKind};
 use crate::values::value::Value;
+use crate::stdlib::boxed::Box;
 
 type CoreLibTypes = HashMap<CoreLibPointerId, Type>;
 type CoreLibVals = HashMap<CoreLibPointerId, ValueContainer>;
