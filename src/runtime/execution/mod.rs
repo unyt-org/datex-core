@@ -67,25 +67,6 @@ pub fn execute_dxb_sync(
                 interrupt_provider
                     .provide_result(InterruptResult::ResolvedValue(res));
             }
-            ExternalExecutionInterrupt::SetProperty {
-                mut target,
-                key,
-                value,
-            } => {
-                if let Some(runtime) = &runtime_internal {
-                    target.try_set_property(
-                        0, // TODO: set correct source id
-                        &runtime.memory,
-                        key,
-                        value,
-                    )?;
-                    interrupt_provider.provide_result(
-                        InterruptResult::ResolvedValue(Some(target)),
-                    );
-                } else {
-                    return Err(ExecutionError::RequiresRuntime);
-                }
-            }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
     }
@@ -156,25 +137,6 @@ pub async fn execute_dxb(
                 let res = handle_apply(&callee, &args)?;
                 interrupt_provider
                     .provide_result(InterruptResult::ResolvedValue(res));
-            }
-            ExternalExecutionInterrupt::SetProperty {
-                mut target,
-                key,
-                value,
-            } => {
-                if let Some(runtime) = &runtime_internal {
-                    target.try_set_property(
-                        0, // TODO: set correct source id
-                        &runtime.memory,
-                        key,
-                        value,
-                    )?;
-                    interrupt_provider.provide_result(
-                        InterruptResult::ResolvedValue(Some(target)),
-                    );
-                } else {
-                    return Err(ExecutionError::RequiresRuntime);
-                }
             }
         }
     }
