@@ -125,15 +125,18 @@ mod tests {
 
     #[test]
     fn simple_test() {
-        let mut ast =
-            Parser::parse_with_default_options("var x: integer/u8 = 42; x; ((42 + x))").unwrap();
+        let mut ast = Parser::parse_with_default_options(
+            "var x: integer/u8 = 42; x; ((42 + x))",
+        )
+        .unwrap();
         MyAst.visit_datex_expression(&mut ast).unwrap();
         println!("{:#?}", ast);
     }
 
     #[test]
     fn error() {
-        let mut ast = Parser::parse_with_default_options("true + false").unwrap();
+        let mut ast =
+            Parser::parse_with_default_options("true + false").unwrap();
         let mut transformer = MyAst;
         let res = transformer.visit_datex_expression(&mut ast);
         assert!(res.is_err());

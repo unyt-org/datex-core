@@ -1,5 +1,3 @@
-use crate::stdlib::rc::Rc;
-use datex_core::runtime::RuntimeInternal;
 use crate::global::operators::binary::{
     ArithmeticOperator, BitwiseOperator, LogicalOperator,
 };
@@ -10,10 +8,12 @@ use crate::global::operators::{
 };
 use crate::references::reference::Reference;
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::rc::Rc;
 use crate::traits::identity::Identity;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::values::value_container::{OwnedValueKey, ValueContainer};
+use datex_core::runtime::RuntimeInternal;
 
 pub fn set_property(
     runtime_internal: &Option<Rc<RuntimeInternal>>,
@@ -26,7 +26,7 @@ pub fn set_property(
             0, // TODO: set correct source id
             &runtime.memory,
             key,
-            value
+            value,
         )?;
         Ok(())
     } else {

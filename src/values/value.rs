@@ -1,6 +1,13 @@
+use crate::dif::update::{DIFKey, DIFUpdateData};
+use crate::dif::value::DIFValueContainer;
 use crate::libs::core::CoreLibPointerId;
+use crate::references::mutations::DIFUpdateDataOrMemory;
+use crate::references::observers::TransceiverId;
+use crate::references::reference::AccessError;
 use crate::references::type_reference::TypeReference;
 use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::string::ToString;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::types::definition::TypeDefinition;
@@ -12,13 +19,6 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
-use crate::dif::update::{DIFKey, DIFUpdateData};
-use crate::dif::value::DIFValueContainer;
-use crate::references::mutations::DIFUpdateDataOrMemory;
-use crate::references::observers::TransceiverId;
-use crate::references::reference::AccessError;
-use crate::stdlib::string::ToString;
-use crate::stdlib::format;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -171,9 +171,8 @@ impl Value {
             }
             CoreValue::List(ref mut list) => {
                 if let Some(index) = key.try_as_index() {
-                    list.set(index, val).map_err(|err| {
-                        AccessError::IndexOutOfBounds(err)
-                    })?;
+                    list.set(index, val)
+                        .map_err(|err| AccessError::IndexOutOfBounds(err))?;
                 } else {
                     return Err(AccessError::InvalidIndexKey);
                 }
@@ -184,15 +183,13 @@ impl Value {
                         && let CoreValue::Text(new_char) = &v.inner
                         && new_char.0.len() == 1
                     {
-                        let char =
-                            new_char.0.chars().next().unwrap_or('\0');
+                        let char = new_char.0.chars().next().unwrap_or('\0');
                         text.set_char_at(index, char).map_err(|err| {
                             AccessError::IndexOutOfBounds(err)
                         })?;
                     } else {
                         return Err(AccessError::InvalidOperation(
-                            "Can only set char character in text"
-                                .to_string(),
+                            "Can only set char character in text".to_string(),
                         ));
                     }
                 } else {

@@ -48,7 +48,10 @@ impl Parser {
 
         // only if preserve_scoping is disabled:
         // if single statement and not terminated, return that statement directly
-        if !self.options.preserve_scoping && statements.len() == 1 && !is_terminated {
+        if !self.options.preserve_scoping
+            && statements.len() == 1
+            && !is_terminated
+        {
             Ok(statements.remove(0))
         }
         // otherwise, return as statements

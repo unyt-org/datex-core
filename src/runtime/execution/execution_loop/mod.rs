@@ -1,8 +1,8 @@
 pub mod interrupts;
 mod operations;
-pub mod state;
-mod slots;
 mod runtime_value;
+mod slots;
+pub mod state;
 
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
@@ -25,7 +25,12 @@ use crate::runtime::execution::execution_loop::interrupts::{
     ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider,
     InterruptResult,
 };
-use crate::runtime::execution::execution_loop::operations::{handle_assignment_operation, handle_binary_operation, handle_comparison_operation, handle_unary_operation, set_property};
+use crate::runtime::execution::execution_loop::operations::{
+    handle_assignment_operation, handle_binary_operation,
+    handle_comparison_operation, handle_unary_operation, set_property,
+};
+use crate::runtime::execution::execution_loop::runtime_value::RuntimeValue;
+use crate::runtime::execution::execution_loop::slots::get_internal_slot_value;
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::macros::{
     interrupt, interrupt_with_maybe_value, interrupt_with_value, yield_unwrap,
@@ -49,8 +54,6 @@ use crate::values::value::Value;
 use crate::values::value_container::{OwnedValueKey, ValueContainer};
 use core::cell::RefCell;
 use datex_core::runtime::execution::execution_loop::slots::get_slot_value;
-use crate::runtime::execution::execution_loop::runtime_value::RuntimeValue;
-use crate::runtime::execution::execution_loop::slots::get_internal_slot_value;
 
 #[derive(Debug)]
 enum CollectedExecutionResult {
@@ -166,10 +169,7 @@ impl CollectedResults<CollectedExecutionResult> {
         let mut pairs = Vec::with_capacity(count);
         for _ in 0..count {
             let (key, value) = self.pop_key_value_pair_result();
-            pairs.push((
-                key,
-                value,
-            ));
+            pairs.push((key, value));
         }
         pairs.reverse();
         Ok(pairs)
@@ -190,16 +190,14 @@ pub fn execution_loop(
             inner_execution_loop(dxb_body, interrupt_provider.clone(), state)
         {
             match interrupt {
-                Ok(interrupt) => {
-                    match interrupt {
-                        ExecutionInterrupt::External(external_interrupt) => {
-                            yield Ok(external_interrupt);
-                        }
-                        ExecutionInterrupt::SetActiveValue(value) => {
-                            active_value = value;
-                        }
+                Ok(interrupt) => match interrupt {
+                    ExecutionInterrupt::External(external_interrupt) => {
+                        yield Ok(external_interrupt);
                     }
-                }
+                    ExecutionInterrupt::SetActiveValue(value) => {
+                        active_value = value;
+                    }
+                },
                 Err(err) => {
                     match err {
                         ExecutionError::DXBParserError(
@@ -228,7 +226,7 @@ pub fn execution_loop(
 pub fn inner_execution_loop(
     dxb_body: Rc<RefCell<Vec<u8>>>,
     interrupt_provider: InterruptProvider,
-    mut state: RuntimeExecutionState
+    mut state: RuntimeExecutionState,
 ) -> impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>> {
     gen move {
         let mut collector =
@@ -542,14 +540,22 @@ pub fn inner_execution_loop(
                                 RegularInstruction::List(_)
                                 | RegularInstruction::ShortList(_) => {
                                     let elements = yield_unwrap!(collected_results.collect_value_container_results_assert_existing(&state));
-                                    RuntimeValue::ValueContainer(ValueContainer::from(List::new(elements)))
-                                        .into()
+                                    RuntimeValue::ValueContainer(
+                                        ValueContainer::from(List::new(
+                                            elements,
+                                        )),
+                                    )
+                                    .into()
                                 }
                                 RegularInstruction::Map(_)
                                 | RegularInstruction::ShortMap(_) => {
                                     let entries = yield_unwrap!(collected_results.collect_key_value_pair_results_assert_existing());
-                                    RuntimeValue::ValueContainer(ValueContainer::from(Map::from(entries)))
-                                        .into()
+                                    RuntimeValue::ValueContainer(
+                                        ValueContainer::from(Map::from(
+                                            entries,
+                                        )),
+                                    )
+                                    .into()
                                 }
 
                                 RegularInstruction::KeyValueDynamic => {
@@ -598,7 +604,10 @@ pub fn inner_execution_loop(
                                         &left,
                                         &right,
                                     );
-                                    RuntimeValue::ValueContainer(yield_unwrap!(res)).into()
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        res
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::Is
@@ -622,7 +631,10 @@ pub fn inner_execution_loop(
                                         &left,
                                         &right,
                                     );
-                                    RuntimeValue::ValueContainer(yield_unwrap!(res)).into()
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        res
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::Matches => {
@@ -646,15 +658,21 @@ pub fn inner_execution_loop(
                                         collected_results
                                             .pop_runtime_value_result_assert_existing()
                                     );
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                        handle_unary_operation(
-                                            UnaryOperator::from(
-                                                regular_instruction
-                                            ),
-                                            target.clone(), // TODO: is unary operation supposed to take ownership?
-                                        )
-                                    });
-                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            handle_unary_operation(
+                                                UnaryOperator::from(
+                                                    regular_instruction,
+                                                ),
+                                                target.clone(), // TODO: is unary operation supposed to take ownership?
+                                            )
+                                        },
+                                    );
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        yield_unwrap!(res)
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::TypedValue => {
@@ -675,19 +693,24 @@ pub fn inner_execution_loop(
                                             "Expected ValueContainer::Value for type casting"
                                         ),
                                     }
-                                    RuntimeValue::ValueContainer(value_container).into()
+                                    RuntimeValue::ValueContainer(
+                                        value_container,
+                                    )
+                                    .into()
                                 }
 
                                 // type(...)
                                 RegularInstruction::TypeExpression => {
                                     let ty =
                                         collected_results.pop_type_result();
-                                    RuntimeValue::ValueContainer(ValueContainer::Value(Value {
-                                        inner: CoreValue::Type(ty),
-                                        actual_type: Box::new(
-                                            TypeDefinition::Unknown,
-                                        ), // TODO: type for type
-                                    }))
+                                    RuntimeValue::ValueContainer(
+                                        ValueContainer::Value(Value {
+                                            inner: CoreValue::Type(ty),
+                                            actual_type: Box::new(
+                                                TypeDefinition::Unknown,
+                                            ), // TODO: type for type
+                                        }),
+                                    )
                                     .into()
                                 }
 
@@ -703,25 +726,28 @@ pub fn inner_execution_loop(
                                 | RegularInstruction::SubtractAssign(
                                     SlotAddress(address),
                                 ) => {
-                                    let slot_value = yield_unwrap!(get_slot_value(
-                                        &state,
-                                        address
-                                    ));
+                                    let slot_value = yield_unwrap!(
+                                        get_slot_value(&state, address)
+                                    );
                                     let value = yield_unwrap!(
                                             collected_results
                                                 .pop_cloned_value_container_result_assert_existing(&state)
                                         );
 
                                     let new_val = yield_unwrap!(
-                                            handle_assignment_operation(
-                                                AssignmentOperator::from(
-                                                    regular_instruction
-                                                ),
-                                                &slot_value,
-                                                value,
-                                            )
-                                        );
-                                    yield_unwrap!(state.slots.set_slot_value(address, new_val));
+                                        handle_assignment_operation(
+                                            AssignmentOperator::from(
+                                                regular_instruction
+                                            ),
+                                            &slot_value,
+                                            value,
+                                        )
+                                    );
+                                    yield_unwrap!(
+                                        state
+                                            .slots
+                                            .set_slot_value(address, new_val)
+                                    );
                                     None.into()
                                 }
 
@@ -752,7 +778,10 @@ pub fn inner_execution_loop(
                                         yield_unwrap!(
                                             reference.set_value_container(res)
                                         );
-                                        RuntimeValue::ValueContainer(ref_value_container).into()
+                                        RuntimeValue::ValueContainer(
+                                            ref_value_container,
+                                        )
+                                        .into()
                                     } else {
                                         return yield Err(
                                             ExecutionError::DerefOfNonReference,
@@ -767,7 +796,11 @@ pub fn inner_execution_loop(
                                         collected_results
                                             .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    yield_unwrap!(state.slots.set_slot_value(address, value));
+                                    yield_unwrap!(
+                                        state
+                                            .slots
+                                            .set_slot_value(address, value)
+                                    );
                                     None.into()
                                 }
 
@@ -778,7 +811,9 @@ pub fn inner_execution_loop(
                                         collected_results
                                             .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    state.slots.allocate_slot(address, Some(value));
+                                    state
+                                        .slots
+                                        .allocate_slot(address, Some(value));
 
                                     None.into()
                                 }
@@ -792,10 +827,18 @@ pub fn inner_execution_loop(
                                     );
                                     let property_name = property_data.0;
 
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                         target.try_get_property(&property_name)
-                                    });
-                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            target.try_get_property(
+                                                &property_name,
+                                            )
+                                        },
+                                    );
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        yield_unwrap!(res)
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::GetPropertyIndex(
@@ -807,10 +850,18 @@ pub fn inner_execution_loop(
                                     );
                                     let property_index = property_data.0;
 
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                         target.try_get_property(property_index)
-                                    });
-                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            target.try_get_property(
+                                                property_index,
+                                            )
+                                        },
+                                    );
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        yield_unwrap!(res)
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::GetPropertyDynamic => {
@@ -823,10 +874,14 @@ pub fn inner_execution_loop(
                                             .pop_runtime_value_result_assert_existing()
                                     );
 
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                         target.try_get_property(&key)
-                                    });
-                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| target.try_get_property(&key),
+                                    );
+                                    RuntimeValue::ValueContainer(yield_unwrap!(
+                                        yield_unwrap!(res)
+                                    ))
+                                    .into()
                                 }
 
                                 RegularInstruction::SetPropertyText(
@@ -840,15 +895,21 @@ pub fn inner_execution_loop(
                                         collected_results
                                             .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    let runtime_internal = state.runtime_internal.clone();
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                        set_property(
-                                            &runtime_internal,
-                                            target,
-                                            OwnedValueKey::Text(property_data.0),
-                                            value,
-                                        )
-                                    });
+                                    let runtime_internal =
+                                        state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            set_property(
+                                                &runtime_internal,
+                                                target,
+                                                OwnedValueKey::Text(
+                                                    property_data.0,
+                                                ),
+                                                value,
+                                            )
+                                        },
+                                    );
                                     yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
@@ -865,15 +926,21 @@ pub fn inner_execution_loop(
                                             .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
-                                    let runtime_internal = state.runtime_internal.clone();
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                        set_property(
-                                            &runtime_internal,
-                                            target,
-                                            OwnedValueKey::Index(property_data.0 as i64),
-                                            value,
-                                        )
-                                    });
+                                    let runtime_internal =
+                                        state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            set_property(
+                                                &runtime_internal,
+                                                target,
+                                                OwnedValueKey::Index(
+                                                    property_data.0 as i64,
+                                                ),
+                                                value,
+                                            )
+                                        },
+                                    );
                                     yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
@@ -892,15 +959,19 @@ pub fn inner_execution_loop(
                                             .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
-                                    let runtime_internal = state.runtime_internal.clone();
-                                    let res = target.with_mut_value_container(&mut state, |target| {
-                                        set_property(
-                                            &runtime_internal,
-                                            target,
-                                            OwnedValueKey::Value(key),
-                                            value,
-                                        )
-                                    });
+                                    let runtime_internal =
+                                        state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(
+                                        &mut state,
+                                        |target| {
+                                            set_property(
+                                                &runtime_internal,
+                                                target,
+                                                OwnedValueKey::Value(key),
+                                                value,
+                                            )
+                                        },
+                                    );
                                     yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
@@ -922,10 +993,7 @@ pub fn inner_execution_loop(
                                         append_u32(&mut buffer, addr as u32);
 
                                         let slot_value = yield_unwrap!(
-                                            get_slot_value(
-                                                &state,
-                                                local_slot,
-                                            )
+                                            get_slot_value(&state, local_slot,)
                                         );
                                         buffer.extend_from_slice(
                                             &compile_value_container(
@@ -967,8 +1035,10 @@ pub fn inner_execution_loop(
                                             )
                                         )
                                     )
-                                        .map(|val| RuntimeValue::ValueContainer(val))
-                                        .into()
+                                    .map(|val| {
+                                        RuntimeValue::ValueContainer(val)
+                                    })
+                                    .into()
                                 }
 
                                 RegularInstruction::UnboundedStatementsEnd(
@@ -1105,7 +1175,7 @@ pub fn inner_execution_loop(
                         );
 
                         value
-                    },
+                    }
                     _ => unreachable!("Expected root result"),
                 }),
             ));

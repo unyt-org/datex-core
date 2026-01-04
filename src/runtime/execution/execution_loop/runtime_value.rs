@@ -1,7 +1,9 @@
-use crate::stdlib::borrow::Cow;
-use crate::runtime::execution::execution_loop::slots::{get_slot_value, get_slot_value_mut};
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::ExecutionError;
+use crate::runtime::execution::execution_loop::slots::{
+    get_slot_value, get_slot_value_mut,
+};
+use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
+use crate::stdlib::borrow::Cow;
 use crate::values::value_container::ValueContainer;
 
 /// Represents a value in the runtime execution context, which can either be a direct
@@ -9,7 +11,7 @@ use crate::values::value_container::ValueContainer;
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
     ValueContainer(ValueContainer),
-    SlotAddress(u32)
+    SlotAddress(u32),
 }
 
 impl From<ValueContainer> for RuntimeValue {
@@ -27,7 +29,11 @@ impl From<u32> for RuntimeValue {
 impl RuntimeValue {
     /// Call the provided closure with a reference to the underlying `ValueContainer`.
     /// If the `RuntimeValue` is a slot address, it retrieves the value from the runtime state.
-    pub fn with_mut_value_container<F, R>(&mut self, state: &mut RuntimeExecutionState, f: F) -> Result<R, ExecutionError>
+    pub fn with_mut_value_container<F, R>(
+        &mut self,
+        state: &mut RuntimeExecutionState,
+        f: F,
+    ) -> Result<R, ExecutionError>
     where
         F: FnOnce(&mut ValueContainer) -> R,
     {
@@ -39,11 +45,14 @@ impl RuntimeValue {
             }
         }
     }
-    
+
     /// Creates an owned `ValueContainer` from the `RuntimeValue`.
     /// This possibly involves cloning the value if it is stored in a slot.
     /// Do not use this method if you want to work on the actual value without cloning it.
-    pub fn into_cloned_value_container(self, state: &RuntimeExecutionState) -> Result<ValueContainer, ExecutionError> {
+    pub fn into_cloned_value_container(
+        self,
+        state: &RuntimeExecutionState,
+    ) -> Result<ValueContainer, ExecutionError> {
         match self {
             RuntimeValue::ValueContainer(vc) => Ok(vc),
             RuntimeValue::SlotAddress(addr) => {

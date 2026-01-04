@@ -1,6 +1,8 @@
 use crate::dxb_parser::body::DXBParserError;
 use crate::network::com_hub::ResponseError;
-use crate::references::reference::{AccessError, AssignmentError, ReferenceCreationError};
+use crate::references::reference::{
+    AccessError, AssignmentError, ReferenceCreationError,
+};
 use crate::runtime::execution::execution_loop::state::ExecutionLoopState;
 use crate::stdlib::string::String;
 use crate::types::error::IllegalTypeError;

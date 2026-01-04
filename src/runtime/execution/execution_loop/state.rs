@@ -1,4 +1,6 @@
 use crate::collections::HashMap;
+use crate::references::observers::TransceiverId;
+use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::execution_loop::ExternalExecutionInterrupt;
 use crate::runtime::execution::execution_loop::interrupts::InterruptProvider;
@@ -8,8 +10,6 @@ use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueContainer;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use crate::references::observers::TransceiverId;
-use crate::runtime::RuntimeInternal;
 
 pub struct ExecutionLoopState {
     pub iterator: Box<
@@ -87,7 +87,7 @@ impl RuntimeExecutionSlots {
             .and_then(|inner| inner.as_ref())
             .ok_or_else(|| ExecutionError::SlotNotAllocated(address))
     }
-    
+
     /// Retrieves a mutable reference to the value of a slot by its address.
     /// If the slot is not allocated, it returns an error.
     pub(crate) fn get_slot_value_mut(

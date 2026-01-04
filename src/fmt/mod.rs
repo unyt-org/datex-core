@@ -4,6 +4,7 @@ use crate::ast::expressions::{DatexExpression, VariableAccess};
 use crate::ast::type_expressions::{
     FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
 };
+use crate::parser::ParserOptions;
 use crate::{
     compiler::precompiler::precompiled_ast::RichAst,
     compiler::{CompileOptions, parse_datex_script_to_rich_ast_simple_error},
@@ -12,7 +13,6 @@ use crate::{
     libs::core::CoreLibPointerId,
 };
 use pretty::{DocAllocator, DocBuilder, RcAllocator, RcDoc};
-use crate::parser::ParserOptions;
 
 mod bracketing;
 mod formatting;
@@ -56,7 +56,7 @@ impl<'a> Formatter<'a> {
             &mut CompileOptions {
                 // Preserve scoping information for accurate formatting
                 parser_options: ParserOptions {
-                    preserve_scoping: true
+                    preserve_scoping: true,
                 },
                 ..Default::default()
             },

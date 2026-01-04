@@ -3,10 +3,14 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::stdlib::vec::Vec;
 
-pub trait CollectionResultsPopper<Result, Val, Key, KeyVal, Type>: GetResults<Result> + Sized {
+pub trait CollectionResultsPopper<Result, Val, Key, KeyVal, Type>:
+    GetResults<Result> + Sized
+{
     fn try_extract_value_result(result: Result) -> Option<Val>;
     fn try_extract_type_result(result: Result) -> Option<Type>;
-    fn try_extract_key_value_pair_result(result: Result) -> Option<(Key, KeyVal)>;
+    fn try_extract_key_value_pair_result(
+        result: Result,
+    ) -> Option<(Key, KeyVal)>;
 
     fn try_pop_value_result(&mut self) -> Option<Val> {
         let result = self.pop()?;
@@ -541,7 +545,7 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-            
+
             RegularInstruction::GetPropertyText(_)
             | RegularInstruction::GetPropertyIndex(_) => {
                 self.collect_full(
@@ -550,7 +554,7 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-            
+
             RegularInstruction::GetPropertyDynamic => {
                 self.collect_full(
                     Instruction::RegularInstruction(regular_instruction),
@@ -558,7 +562,7 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-            
+
             RegularInstruction::SetPropertyText(_)
             | RegularInstruction::SetPropertyIndex(_) => {
                 self.collect_full(
@@ -567,7 +571,7 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-            
+
             RegularInstruction::SetPropertyDynamic => {
                 self.collect_full(
                     Instruction::RegularInstruction(regular_instruction),
@@ -575,7 +579,7 @@ impl<T> InstructionCollector<T> {
                 );
                 None
             }
-            
+
             _ => Some(regular_instruction),
         }
     }

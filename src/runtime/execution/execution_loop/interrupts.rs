@@ -27,7 +27,7 @@ pub enum ExternalExecutionInterrupt {
         target: ValueContainer, // TODO: move value containers by reference to allow modification on plain value containers (no cloning!)
         key: OwnedValueKey,
         value: ValueContainer,
-    }
+    },
 }
 
 #[derive(Debug)]

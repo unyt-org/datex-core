@@ -995,8 +995,8 @@ mod tests {
 
     #[test]
     fn property_access_text_key() {
-        let prop_access_ast = DatexExpressionData::PropertyAccess(
-            PropertyAccess {
+        let prop_access_ast =
+            DatexExpressionData::PropertyAccess(PropertyAccess {
                 base: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
@@ -1008,23 +1008,16 @@ mod tests {
                     DatexExpressionData::Text("myProp".to_string())
                         .with_default_span(),
                 ),
-            },
-        )
-        .with_default_span();
-        assert_eq!(
-            compact().format(&prop_access_ast),
-            "obj.myProp"
-        );
-        assert_eq!(
-            pretty().format(&prop_access_ast),
-            "obj.myProp"
-        );
+            })
+            .with_default_span();
+        assert_eq!(compact().format(&prop_access_ast), "obj.myProp");
+        assert_eq!(pretty().format(&prop_access_ast), "obj.myProp");
     }
 
     #[test]
     fn property_access_boolean_key() {
-        let prop_access_ast = DatexExpressionData::PropertyAccess(
-            PropertyAccess {
+        let prop_access_ast =
+            DatexExpressionData::PropertyAccess(PropertyAccess {
                 base: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
@@ -1033,26 +1026,18 @@ mod tests {
                     .with_default_span(),
                 ),
                 property: Box::new(
-                    DatexExpressionData::Boolean(true)
-                        .with_default_span(),
+                    DatexExpressionData::Boolean(true).with_default_span(),
                 ),
-            },
-        )
-        .with_default_span();
-        assert_eq!(
-            compact().format(&prop_access_ast),
-            "obj.(true)"
-        );
-        assert_eq!(
-            pretty().format(&prop_access_ast),
-            "obj.(true)"
-        );
+            })
+            .with_default_span();
+        assert_eq!(compact().format(&prop_access_ast), "obj.(true)");
+        assert_eq!(pretty().format(&prop_access_ast), "obj.(true)");
     }
 
     #[test]
     fn property_access_integer_key() {
-        let prop_access_ast = DatexExpressionData::PropertyAccess(
-            PropertyAccess {
+        let prop_access_ast =
+            DatexExpressionData::PropertyAccess(PropertyAccess {
                 base: Box::new(
                     DatexExpressionData::VariableAccess(VariableAccess {
                         id: 0,
@@ -1061,20 +1046,12 @@ mod tests {
                     .with_default_span(),
                 ),
                 property: Box::new(
-                    DatexExpressionData::Integer(42.into())
-                        .with_default_span(),
+                    DatexExpressionData::Integer(42.into()).with_default_span(),
                 ),
-            },
-        )
-        .with_default_span();
-        assert_eq!(
-            compact().format(&prop_access_ast),
-            "obj.42"
-        );
-        assert_eq!(
-            pretty().format(&prop_access_ast),
-            "obj.42"
-        );
+            })
+            .with_default_span();
+        assert_eq!(compact().format(&prop_access_ast), "obj.42");
+        assert_eq!(pretty().format(&prop_access_ast), "obj.42");
     }
 
     #[test]
@@ -1092,14 +1069,8 @@ mod tests {
             ],
         })
         .with_default_span();
-        assert_eq!(
-            compact().format(&apply_ast),
-            "func(10)"
-        );
-        assert_eq!(
-            pretty().format(&apply_ast),
-            "func(10)"
-        );
+        assert_eq!(compact().format(&apply_ast), "func(10)");
+        assert_eq!(pretty().format(&apply_ast), "func(10)");
     }
 
     #[test]
@@ -1114,17 +1085,12 @@ mod tests {
             ),
             arguments: vec![
                 DatexExpressionData::Integer(10.into()).with_default_span(),
-                DatexExpressionData::Text("arg".to_string()).with_default_span(),
+                DatexExpressionData::Text("arg".to_string())
+                    .with_default_span(),
             ],
         })
         .with_default_span();
-        assert_eq!(
-            compact().format(&apply_ast),
-            "func(10,\"arg\")"
-        );
-        assert_eq!(
-            pretty().format(&apply_ast),
-            "func(10,\"arg\")"
-        );
+        assert_eq!(compact().format(&apply_ast), "func(10,\"arg\")");
+        assert_eq!(pretty().format(&apply_ast), "func(10,\"arg\")");
     }
 }

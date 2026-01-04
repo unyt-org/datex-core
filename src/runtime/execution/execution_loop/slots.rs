@@ -1,23 +1,21 @@
-use num_enum::TryFromPrimitive;
 use crate::global::slots::InternalSlot;
-use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::ExecutionError;
+use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::values::value_container::ValueContainer;
+use num_enum::TryFromPrimitive;
 
 pub fn get_slot_value_mut(
     runtime_state: &mut RuntimeExecutionState,
-    address: u32
+    address: u32,
 ) -> Result<&mut ValueContainer, ExecutionError> {
-    runtime_state.slots
-        .get_slot_value_mut(address)
+    runtime_state.slots.get_slot_value_mut(address)
 }
 
 pub fn get_slot_value(
     runtime_state: &RuntimeExecutionState,
-    address: u32
+    address: u32,
 ) -> Result<&ValueContainer, ExecutionError> {
-    runtime_state.slots
-        .get_slot_value(address)
+    runtime_state.slots.get_slot_value(address)
 }
 
 pub fn get_internal_slot_value(

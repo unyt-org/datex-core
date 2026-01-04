@@ -2,6 +2,7 @@ use super::super::core_value_trait::CoreValueTrait;
 use crate::collections::HashMap;
 use crate::references::reference::KeyNotFoundError;
 use crate::std_random::RandomState;
+use crate::stdlib::borrow::Cow;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
@@ -13,7 +14,6 @@ use core::fmt::{self, Display};
 use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::borrow::Cow;
 use indexmap::IndexMap;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

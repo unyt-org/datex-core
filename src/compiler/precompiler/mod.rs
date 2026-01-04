@@ -617,8 +617,10 @@ mod tests {
     #[test]
     fn test_precompiler_visit() {
         let options = PrecompilerOptions::default();
-        let ast =
-            Parser::parse_with_default_options("var x: integer = 34; var y = 10; x + y").unwrap();
+        let ast = Parser::parse_with_default_options(
+            "var x: integer = 34; var y = 10; x + y",
+        )
+        .unwrap();
         let res = precompile(ast, options).unwrap();
         println!("{:#?}", res.ast);
     }
@@ -626,14 +628,17 @@ mod tests {
     #[test]
     fn property_access() {
         let options = PrecompilerOptions::default();
-        let ast = Parser::parse_with_default_options("var x = {a: 1}; x.a").unwrap();
+        let ast =
+            Parser::parse_with_default_options("var x = {a: 1}; x.a").unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
     #[test]
     fn property_access_assignment() {
         let options = PrecompilerOptions::default();
-        let ast = Parser::parse_with_default_options("var x = {a: 1}; x.a = 2;").unwrap();
+        let ast =
+            Parser::parse_with_default_options("var x = {a: 1}; x.a = 2;")
+                .unwrap();
         precompile(ast, options).expect("Should precompile without errors");
     }
 
@@ -653,7 +658,8 @@ mod tests {
         let options = PrecompilerOptions {
             detailed_errors: false,
         };
-        let ast = Parser::parse_with_default_options("var x = 1; var x = 2;").unwrap();
+        let ast = Parser::parse_with_default_options("var x = 1; var x = 2;")
+            .unwrap();
         let result = precompile(ast, options);
         assert_matches!(result.unwrap_err(), SimpleCompilerErrorOrDetailedCompilerErrorWithRichAst::Simple(SpannedCompilerError{span, error: CompilerError::InvalidRedeclaration(name)})  if name == "x");
     }

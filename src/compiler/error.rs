@@ -314,7 +314,10 @@ impl Display for CompilerError {
                 core::write!(f, "{:?}", err)
             }
             CompilerError::TooManyApplyArguments => {
-                core::write!(f, "Apply has too many arguments (max 255 allowed)")
+                core::write!(
+                    f,
+                    "Apply has too many arguments (max 255 allowed)"
+                )
             }
         }
     }
