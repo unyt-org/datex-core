@@ -24,9 +24,7 @@ use crate::ast::expressions::{
     VariantAccess,
 };
 use crate::ast::expressions::{GenericInstantiation, PropertyAccess};
-use crate::ast::type_expressions::{
-    FixedSizeList, FunctionType, GenericAccess, SliceList, TypeVariantAccess,
-};
+use crate::ast::type_expressions::{CallableTypeExpression, FixedSizeList, GenericAccess, SliceList, TypeVariantAccess};
 use crate::ast::type_expressions::{
     Intersection, StructuralList, StructuralMap, TypeExpression, Union,
 };
@@ -60,6 +58,7 @@ use crate::{
     },
 };
 use core::{cell::RefCell, ops::Range, panic, str::FromStr};
+use crate::values::core_values::callable::CallableSignature;
 
 pub mod error;
 pub mod options;
@@ -410,22 +409,45 @@ impl TypeExpressionVisitor<SpannedTypeError> for TypeInference {
             span: Some(span.clone()),
         })
     }
-    fn visit_function_type(
+    fn visit_callable_type(
         &mut self,
-        function_type: &mut FunctionType,
+        callable_type: &mut CallableTypeExpression,
         _: &Range<usize>,
     ) -> TypeExpressionVisitResult<SpannedTypeError> {
-        let assigned_type =
-            self.infer_type_expression(&mut function_type.return_type)?;
-        let parameter_types = function_type
-            .parameters
+        let return_type = match &mut callable_type.return_type {
+            Some(return_type) => Some(self.infer_type_expression(return_type)?),
+            None => None,
+        };
+
+        let yeet_type = match &mut callable_type.yeet_type {
+            Some(yeet_type) => Some(self.infer_type_expression(yeet_type)?),
+            None => None,
+        };
+
+        let parameter_types = callable_type
+            .parameter_types
             .iter_mut()
             .map(|(key, param_type_expr)| {
                 let param_type = self.infer_type_expression(param_type_expr)?;
                 Ok((key.clone(), param_type))
             })
             .collect::<Result<Vec<_>, SpannedTypeError>>()?;
-        mark_type(Type::function(parameter_types, assigned_type))
+
+        let rest_parameter_type = match &mut callable_type.rest_parameter_type {
+            Some((key, rest_param_type_expr)) => {
+                let rest_param_type = self.infer_type_expression(rest_param_type_expr)?;
+                Some((key.clone(), Box::new(rest_param_type)))
+            }
+            None => None,
+        };
+
+        mark_type(Type::callable(CallableSignature {
+            kind: callable_type.kind.clone(),
+            parameter_types,
+            rest_parameter_type,
+            return_type: return_type.map(Box::new),
+            yeet_type: yeet_type.map(Box::new),
+        }))
     }
     fn visit_generic_access_type(
         &mut self,
@@ -937,52 +959,73 @@ impl ExpressionVisitor<SpannedTypeError> for TypeInference {
         mark_type(deref_type)
     }
 
-    fn visit_function_declaration(
+    fn visit_callable_declaration(
         &mut self,
-        function_declaration: &mut CallableDeclaration,
+        callable_declaration: &mut CallableDeclaration,
         span: &Range<usize>,
     ) -> ExpressionVisitResult<SpannedTypeError> {
         let annotated_return_type =
-            if let Some(return_type) = &mut function_declaration.return_type {
-                Some(self.infer_type_expression(return_type)?)
+            if let Some(return_type) = &mut callable_declaration.return_type {
+                Some(Box::new(self.infer_type_expression(return_type)?))
             } else {
                 None
             };
+
+        let annotated_yeet_type = if let Some(yeet_type) = &mut callable_declaration.yeet_type {
+            Some(Box::new(self.infer_type_expression(yeet_type)?))
+        } else {
+            None
+        };
+
         let inferred_return_type = self
-            .infer_expression(&mut function_declaration.body)
+            .infer_expression(&mut callable_declaration.body)
             .unwrap_or(Type::never());
 
-        let parameters = function_declaration
+        let rest_parameter_type = if let Some((name, rest_param)) = &mut callable_declaration.rest_parameter {
+            Some((Some(name.clone()), Box::new(self.infer_type_expression(rest_param)?)))
+        } else {
+            None
+        };
+
+        let parameters = callable_declaration
             .parameters
             .iter_mut()
             .map(|(name, param_type_expr)| {
                 let param_type = self
                     .infer_type_expression(param_type_expr)
                     .unwrap_or(Type::never());
-                (name.clone(), param_type)
+                (Some(name.clone()), param_type)
             })
             .collect();
 
+
+        let signature = CallableSignature {
+            kind: callable_declaration.kind.clone(),
+            parameter_types: parameters,
+            rest_parameter_type,
+            return_type: annotated_return_type,
+            yeet_type: annotated_yeet_type,
+        };
+
         // Check if inferred return type matches the annotated return type
         // if an annotated return type is provided
-        if let Some(annotated_type) = annotated_return_type {
-            // If they match, use the annotated type
-            if inferred_return_type.matches_type(&annotated_type) {
-                return mark_type(Type::function(parameters, annotated_type));
-            }
-            // If they don't match, record an error
+        // If they don't match, record an error
+        // TODO: improve
+        if let Some(annotated_return_type) = &signature.return_type
+            && !inferred_return_type.matches_type(annotated_return_type)
+        {
             self.record_error(SpannedTypeError {
                 error: TypeError::AssignmentTypeMismatch {
-                    annotated_type: annotated_type.clone(),
+                    annotated_type: *annotated_return_type.clone(),
                     assigned_type: inferred_return_type,
                 },
                 span: Some(span.clone()),
             })?;
-            // Use the annotated type despite the mismatch
-            mark_type(Type::function(parameters, annotated_type))
-        } else {
-            mark_type(Type::function(parameters, inferred_return_type))
         }
+
+
+        // Use the annotated type despite the mismatch
+        mark_type(Type::callable(signature))
     }
 
     fn visit_unary_operation(
@@ -1229,6 +1272,7 @@ mod tests {
             },
         },
     };
+    use crate::values::core_values::callable::{CallableKind, CallableSignature};
 
     /// Infers type errors for the given source code.
     /// Panics if parsing or precompilation succeeds.
@@ -1425,19 +1469,24 @@ mod tests {
         let res = infer_from_script(src);
         assert_eq!(
             res,
-            Type::function(
-                vec![
+            Type::callable(CallableSignature {
+                kind: CallableKind::Function,
+                parameter_types: vec![
                     (
-                        "a".to_string(),
+                        Some("a".to_string()),
                         get_core_lib_type(CoreLibPointerId::Integer(None))
                     ),
                     (
-                        "b".to_string(),
+                        Some("b".to_string()),
                         get_core_lib_type(CoreLibPointerId::Integer(None))
                     ),
                 ],
-                get_core_lib_type(CoreLibPointerId::Integer(None))
-            )
+                rest_parameter_type: None,
+                return_type: Some(Box::new(
+                    get_core_lib_type(CoreLibPointerId::Integer(None))
+                )),
+                yeet_type: None,
+            })
         );
 
         let src = r#"
@@ -1449,21 +1498,22 @@ mod tests {
         let res = infer_from_script(src);
         assert_eq!(
             res,
-            Type::function(
-                vec![
+            Type::callable(CallableSignature {
+                kind: CallableKind::Function,
+                parameter_types: vec![
                     (
-                        "a".to_string(),
+                        Some("a".to_string()),
                         get_core_lib_type(CoreLibPointerId::Integer(None))
                     ),
                     (
-                        "b".to_string(),
+                        Some("b".to_string()),
                         get_core_lib_type(CoreLibPointerId::Integer(None))
                     ),
                 ],
-                Type::structural(StructuralTypeDefinition::Integer(
-                    Integer::from(42)
-                ))
-            )
+                rest_parameter_type: None,
+                return_type: None,
+                yeet_type: None,
+            })
         );
     }
 

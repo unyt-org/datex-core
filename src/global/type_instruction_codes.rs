@@ -84,7 +84,7 @@ impl From<&TypeDefinition> for TypeInstructionCode {
                 TypeInstructionCode::TYPE_INTERSECTION
             }
             TypeDefinition::Union(_) => TypeInstructionCode::TYPE_UNION,
-            TypeDefinition::Function { .. } => {
+            TypeDefinition::Callable { .. } => {
                 TypeInstructionCode::TYPE_FUNCTION
             }
             TypeDefinition::Collection(_) => {

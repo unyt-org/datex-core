@@ -34,9 +34,7 @@ impl Parser {
         } else {
             None
         };
-
-        // TODO: add yeets
-
+        
         // parse function body
         let body = self.parse_parenthesized_statements()?;
         Ok(
@@ -44,7 +42,9 @@ impl Parser {
                 name,
                 kind,
                 parameters,
+                rest_parameter: None, // TODO
                 return_type,
+                yeet_type: None, // TODO
                 body: Box::new(body),
             })
             .with_span(start_pos..self.get_current_source_position()),
@@ -100,7 +100,9 @@ mod tests {
                 name: "test".to_string(),
                 kind: CallableKind::Function,
                 parameters: vec![],
+                rest_parameter: None,
                 return_type: None,
+                yeet_type: None,
                 body: Box::new(
                     DatexExpressionData::Statements(Statements {
                         statements: vec![],
@@ -122,7 +124,9 @@ mod tests {
                 name: "doSomething".to_string(),
                 kind: CallableKind::Procedure,
                 parameters: vec![],
+                rest_parameter: None,
                 return_type: None,
+                yeet_type: None,
                 body: Box::new(
                     DatexExpressionData::Statements(Statements {
                         statements: vec![],
@@ -155,10 +159,12 @@ mod tests {
                             .with_default_span()
                     ),
                 ],
+                rest_parameter: None,
                 return_type: Some(
                     TypeExpressionData::Identifier("integer".to_string())
                         .with_default_span()
                 ),
+                yeet_type: None,
                 body: Box::new(
                     DatexExpressionData::Statements(Statements {
                         statements: vec![],
@@ -184,11 +190,13 @@ mod tests {
                     "name".to_string(),
                     TypeExpressionData::Identifier("text".to_string())
                         .with_default_span()
-                ),],
+                )],
+                rest_parameter: None,
                 return_type: Some(
                     TypeExpressionData::Identifier("text".to_string())
                         .with_default_span()
                 ),
+                yeet_type: None,
                 body: Box::new(
                     DatexExpressionData::BinaryOperation(BinaryOperation {
                         left: Box::new(

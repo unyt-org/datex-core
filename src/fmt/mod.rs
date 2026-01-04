@@ -1,9 +1,7 @@
 use core::ops::Range;
 
 use crate::ast::expressions::{DatexExpression, VariableAccess};
-use crate::ast::type_expressions::{
-    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
-};
+use crate::ast::type_expressions::{CallableTypeExpression, TypeExpression, TypeExpressionData, TypeVariantAccess};
 use crate::parser::ParserOptions;
 use crate::{
     compiler::precompiler::precompiled_ast::RichAst,
@@ -192,25 +190,24 @@ impl<'a> Formatter<'a> {
                 core::todo!()
             }
 
-            // Function type: `(x: Int, y: Text) -> Bool`
-            TypeExpressionData::Function(FunctionType {
-                parameters,
+            // Callable type, e.g. `function (x: integer, y: text) -> boolean`
+            TypeExpressionData::Callable(CallableTypeExpression {
+                kind,
+                parameter_types,
+                rest_parameter_type,
                 return_type,
+                yeet_type
             }) => {
-                let params = parameters.iter().map(|(name, ty)| {
-                    a.text(name.clone())
+                // TODO: handle full signature
+                let params = parameter_types.iter().map(|(name, ty)| {
+                    a.text(name.clone().unwrap_or_else(|| "_".to_string()))
                         + self.type_declaration_colon()
                         + self.format_type_expression(ty)
                 });
                 let params_doc =
                     RcDoc::intersperse(params, a.text(",") + a.space());
                 let arrow = self.operator_with_spaces(a.text("->"));
-                (a.text("(")
-                    + params_doc
-                    + a.text(")")
-                    + arrow
-                    + self.format_type_expression(return_type))
-                .group()
+                todo!()
             }
 
             TypeExpressionData::StructuralMap(items) => {

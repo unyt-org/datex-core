@@ -8,9 +8,7 @@ use crate::ast::expressions::{
     CallableDeclaration, DatexExpression, DatexExpressionData, VariableAccess,
     VariableAssignment, VariableDeclaration,
 };
-use crate::ast::type_expressions::{
-    FunctionType, TypeExpression, TypeExpressionData, TypeVariantAccess,
-};
+use crate::ast::type_expressions::{CallableTypeExpression, TypeExpression, TypeExpressionData, TypeVariantAccess};
 use core::fmt::{self};
 
 use crate::decompiler::{FormattingMode, FormattingOptions, IndentType};
@@ -266,31 +264,69 @@ impl AstToSourceCodeConverter {
             TypeExpressionData::GenericAccess(generic_access) => {
                 core::todo!("#474 Undescribed by author.")
             }
-            TypeExpressionData::Function(FunctionType {
-                parameters,
+            TypeExpressionData::Callable(CallableTypeExpression {
+                kind,
+                parameter_types,
+                rest_parameter_type,
                 return_type,
+                yeet_type
             }) => {
-                let params_code: Vec<String> = parameters
+                let mut params_code: Vec<String> = parameter_types
                     .iter()
                     .map(|(param_name, param_type)| {
-                        ast_fmt!(
-                            &self,
-                            "{}:%s{}",
-                            param_name,
-                            self.type_expression_to_source_code(param_type,)
-                        )
+                        match param_name {
+                            Some(name) => ast_fmt!(
+                                &self,
+                                "{}:%s{}",
+                                name,
+                                self.type_expression_to_source_code(param_type)
+                            ),
+                            None => self.type_expression_to_source_code(param_type)
+                        }
                     })
                     .collect();
-                let return_type_code = format!(
-                    "{}{}",
-                    self.pad("->"),
-                    self.type_expression_to_source_code(return_type)
-                );
+
+                // handle rest parameter
+                if let Some((param_name, param_type)) = rest_parameter_type {
+                    params_code.push(match param_name {
+                        Some(name) => ast_fmt!(
+                            &self,
+                            "...{}:%s{}",
+                            name,
+                            self.type_expression_to_source_code(param_type)
+                        ),
+                        None => ast_fmt!(
+                            &self,
+                            "...{}",
+                            self.type_expression_to_source_code(param_type)
+                        ),
+                    });
+                }
+
+                let return_type_code = match return_type {
+                    Some(return_type) => format!(
+                        "{}{}",
+                        self.pad("->"),
+                        self.type_expression_to_source_code(return_type)
+                    ),
+                    None => format!("{}()", self.pad("->")).to_string(),
+                };
+
+                let yeet_type_code = match yeet_type {
+                    Some(yeet_type) => format!(
+                        " yeets {}",
+                        self.type_expression_to_source_code(yeet_type)
+                    ),
+                    None => "".to_string(),
+                };
+
                 ast_fmt!(
                     &self,
-                    "({}){}",
+                    "{} ({}){}{}",
+                    kind,
                     params_code.join(&ast_fmt!(&self, ",%s")),
-                    return_type_code
+                    return_type_code,
+                    yeet_type_code
                 )
             }
             TypeExpressionData::StructuralMap(items) => {
@@ -589,44 +625,64 @@ impl AstToSourceCodeConverter {
                     self.type_expression_to_source_code(value)
                 )
             }
-            DatexExpressionData::TypeExpression(type_expression) => {
-                self.type_expression_to_source_code(type_expression)
-            }
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
                 name,
                 kind,
                 parameters,
+                rest_parameter,
                 return_type,
+                yeet_type,
                 body,
             }) => {
-                let params_code: Vec<String> = parameters
+                let mut params_code: Vec<String> = parameters
                     .iter()
                     .map(|(param_name, param_type)| {
                         ast_fmt!(
                             &self,
                             "{}:%s{}",
-                            param_name,
-                            self.type_expression_to_source_code(param_type,)
+                            name,
+                            self.type_expression_to_source_code(param_type)
                         )
                     })
                     .collect();
-                let return_type_code = if let Some(return_type) = return_type {
-                    format!(
+
+                // handle rest parameter
+                if let Some((param_name, param_type)) = rest_parameter {
+                    params_code.push(ast_fmt!(
+                        &self,
+                        "...{}:%s{}",
+                        param_name,
+                        self.type_expression_to_source_code(param_type)
+                    ));
+                }
+
+                let return_type_code = match return_type {
+                    Some(return_type) => format!(
                         "{}{}",
                         self.pad("->"),
                         self.type_expression_to_source_code(return_type)
-                    )
-                } else {
-                    "".to_string()
+                    ),
+                    None => "".to_string(),
                 };
+
+                let yeet_type_code = match yeet_type {
+                    Some(yeet_type) => format!(
+                        " yeets {}",
+                        self.type_expression_to_source_code(yeet_type)
+                    ),
+                    None => "".to_string(),
+                };
+
                 let body_code = self.format(body);
+
                 ast_fmt!(
                     &self,
-                    "{} {}({}){}%s(%n{}%n)",
+                    "{} {}({}){}{}%s(%n{}%n)",
                     kind,
                     name,
-                    params_code.join(", "),
+                    params_code.join(&ast_fmt!(&self, ",%s")),
                     return_type_code,
+                    yeet_type_code,
                     body_code
                 )
             }

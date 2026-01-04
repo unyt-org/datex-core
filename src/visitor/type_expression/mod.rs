@@ -1,11 +1,7 @@
 use core::ops::Range;
 
 use crate::ast::expressions::VariableAccess;
-use crate::ast::type_expressions::{
-    FixedSizeList, FunctionType, GenericAccess, Intersection, SliceList,
-    StructuralList, StructuralMap, TypeExpression, TypeExpressionData,
-    TypeVariantAccess, Union,
-};
+use crate::ast::type_expressions::{CallableTypeExpression, FixedSizeList, GenericAccess, Intersection, SliceList, StructuralList, StructuralMap, TypeExpression, TypeExpressionData, TypeVariantAccess, Union};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -99,8 +95,8 @@ pub trait TypeExpressionVisitor<E>: Sized {
             TypeExpressionData::GenericAccess(generic_access) => {
                 self.visit_generic_access_type(generic_access, &expr.span)
             }
-            TypeExpressionData::Function(function) => {
-                self.visit_function_type(function, &expr.span)
+            TypeExpressionData::Callable(callable_type_expression) => {
+                self.visit_callable_type(callable_type_expression, &expr.span)
             }
             TypeExpressionData::StructuralMap(structural_map) => {
                 self.visit_structural_map_type(structural_map, &expr.span)
@@ -236,13 +232,13 @@ pub trait TypeExpressionVisitor<E>: Sized {
     }
 
     /// Visit function type expression
-    fn visit_function_type(
+    fn visit_callable_type(
         &mut self,
-        function_type: &mut FunctionType,
+        callable_type_expression: &mut CallableTypeExpression,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {
         let _ = span;
-        let _ = function_type;
+        let _ = callable_type_expression;
         Ok(VisitAction::VisitChildren)
     }
 
