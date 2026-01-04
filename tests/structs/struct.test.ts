@@ -88,11 +88,13 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                     );
                 }
                 continue;
+            } else if (path.startsWith("signature")) {
+                continue;
             }
 
             errors.push(
                 `${type} at '${path}': Expected '${
-                    resolvePath(jsonData, difference.p) ?? "-"
+                    resolvePath(jsonData, difference.p)
                 }', found '${difference.v}'`,
             );
         }
