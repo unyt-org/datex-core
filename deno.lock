@@ -3,7 +3,7 @@
   "specifiers": {
     "jsr:@opentf/obj-diff@0.11": "0.11.0",
     "jsr:@opentf/std@0.12.0": "0.12.0",
-    "jsr:@unyt/speck@^0.0.10": "0.0.10",
+    "jsr:@unyt/speck@^0.0.11": "0.0.11",
     "npm:github-slugger@2": "2.0.0",
     "npm:tablemark@^4.1.0": "4.1.0"
   },
@@ -17,8 +17,8 @@
     "@opentf/std@0.12.0": {
       "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
     },
-    "@unyt/speck@0.0.10": {
-      "integrity": "78e7f5459e864b582fe3b6d81905c266789bf3d36b7b003da320b54ee3215711",
+    "@unyt/speck@0.0.11": {
+      "integrity": "ef418d8abc17212176a3d7fe1a874bbe98647435667cdf58240e4ccf167b2ad7",
       "dependencies": [
         "npm:github-slugger",
         "npm:tablemark"
