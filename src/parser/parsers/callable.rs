@@ -39,7 +39,7 @@ impl Parser {
         let body = self.parse_parenthesized_statements()?;
         Ok(
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
-                name,
+                name: Some(name),
                 kind,
                 parameters,
                 rest_parameter: None, // TODO
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(
             expr.data,
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
-                name: "test".to_string(),
+                name: Some(String::from("test")),
                 kind: CallableKind::Function,
                 parameters: vec![],
                 rest_parameter: None,
@@ -121,7 +121,7 @@ mod tests {
         assert_eq!(
             expr.data,
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
-                name: "doSomething".to_string(),
+                name: Some(String::from("doSomething")),
                 kind: CallableKind::Procedure,
                 parameters: vec![],
                 rest_parameter: None,
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(
             expr.data,
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
-                name: "add".to_string(),
+                name: Some("add".to_string()),
                 kind: CallableKind::Function,
                 parameters: vec![
                     (
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(
             expr.data,
             DatexExpressionData::CallableDeclaration(CallableDeclaration {
-                name: "greet".to_string(),
+                name: Some("greet".to_string()),
                 kind: CallableKind::Function,
                 parameters: vec![(
                     "name".to_string(),

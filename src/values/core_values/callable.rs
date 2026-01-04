@@ -42,6 +42,7 @@ pub struct CallableSignature {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Callable {
+    pub name: Option<String>,
     pub signature: CallableSignature,
     pub body: CallableBody,
 }

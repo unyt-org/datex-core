@@ -1,3 +1,4 @@
+use datex_core::ast::expressions::CallableDeclaration;
 use crate::ast::expressions::{CreateRef, DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::{Intersection, TypeExpression, TypeExpressionData, Union};
@@ -68,8 +69,27 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
             type_to_type_expression(type_value),
         ),
         CoreValue::Callable(callable) => {
-            // TODO: Implement proper conversion of Callable to DatexExpressionData
-            DatexExpressionData::Text("[[ callable ]]".to_string())
+            DatexExpressionData::CallableDeclaration(CallableDeclaration {
+                name: callable.name.clone(),
+                kind: callable.signature.kind.clone(),
+                parameters: callable.signature.parameter_types.iter().map(|(maybe_name, ty)| {
+                    (
+                        maybe_name.clone().unwrap_or("_".to_string()),
+                        type_to_type_expression(ty),
+                    )
+                }).collect(),
+                rest_parameter: callable.signature.rest_parameter_type.as_ref().map(|(maybe_name, ty)| {
+                    (
+                        maybe_name.clone().unwrap_or("_".to_string()),
+                        type_to_type_expression(ty)
+                    )
+                }),
+                return_type: callable.signature.return_type.as_ref().map(|ty| type_to_type_expression(ty)),
+                yeet_type: callable.signature.yeet_type.as_ref().map(|ty| type_to_type_expression(ty)),
+                body: Box::new(DatexExpressionData::Text(
+                    "[[ native ]]".to_string(),
+                ).with_default_span()),
+            })
         }
     }
 }

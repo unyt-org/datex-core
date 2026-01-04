@@ -421,7 +421,7 @@ pub struct VariableAccess {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallableDeclaration {
-    pub name: String,
+    pub name: Option<String>,
     pub kind: CallableKind,
     pub parameters: Vec<(String, TypeExpression)>,
     pub rest_parameter: Option<(String, TypeExpression)>,
