@@ -107,7 +107,8 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                     .as_ref()
                     .map(|ty| type_to_type_expression(ty)),
                 body: Box::new(
-                    DatexExpressionData::NativeImplementationIndicator.with_default_span(),
+                    DatexExpressionData::NativeImplementationIndicator
+                        .with_default_span(),
                 ),
             })
         }
@@ -173,20 +174,18 @@ fn type_to_type_expression(type_value: &Type) -> TypeExpression {
                 if let Ok(core_lib_type) = CoreLibPointerId::try_from(address) {
                     TypeExpressionData::Identifier(core_lib_type.to_string())
                         .with_default_span()
-                }
-                else {
+                } else {
                     todo!("Handle non-core-lib type references in decompiler");
                 }
-            }
-            else {
+            } else {
                 panic!("Unresolved type reference in decompiler"); // TODO: how to handle properly?
             }
         }
         _ => TypeExpressionData::Text(format!(
-                "[[TYPE {:?}]]",
-                type_value.type_definition
-            ))
-            .with_default_span(),
+            "[[TYPE {:?}]]",
+            type_value.type_definition
+        ))
+        .with_default_span(),
     }
 }
 

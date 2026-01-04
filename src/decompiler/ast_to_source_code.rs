@@ -675,10 +675,9 @@ impl AstToSourceCodeConverter {
                 };
 
                 // indented function body
-                let body_code = self.format(body).replace(
-                    "\n",
-                    &format!("\n{}", self.indent()),
-                );
+                let body_code = self
+                    .format(body)
+                    .replace("\n", &format!("\n{}", self.indent()));
 
                 ast_fmt!(
                     &self,
