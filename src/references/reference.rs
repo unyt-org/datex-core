@@ -706,12 +706,10 @@ impl Reference {
         &self,
         key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, AccessError> {
-        self.with_value(|value| {
-            value.try_get_property(key)
-        })
-        .unwrap_or(Err(AccessError::InvalidOperation(
-            "Cannot get property on invalid reference".to_string(),
-        )))
+        self.with_value(|value| value.try_get_property(key))
+            .unwrap_or(Err(AccessError::InvalidOperation(
+                "Cannot get property on invalid reference".to_string(),
+            )))
     }
 }
 

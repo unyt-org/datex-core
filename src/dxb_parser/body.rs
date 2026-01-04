@@ -366,8 +366,9 @@ pub fn iterate_instructions(
                             let apply_data =
                                 yield_unwrap!(ApplyData::read(&mut reader));
                             // each argument is at least one instruction, plus the base to apply to
-                            next_instructions_stack
-                                .push_next_regular(apply_data.arg_count as u32 + 1);
+                            next_instructions_stack.push_next_regular(
+                                apply_data.arg_count as u32 + 1,
+                            );
                             RegularInstruction::Apply(apply_data)
                         }
 
@@ -385,9 +386,9 @@ pub fn iterate_instructions(
                         InstructionCode::GET_PROPERTY_INDEX => {
                             next_instructions_stack.push_next_regular(1);
                             let index_data = UInt32Data::read(&mut reader);
-                            RegularInstruction::GetPropertyIndex(
-                                yield_unwrap!(index_data),
-                            )
+                            RegularInstruction::GetPropertyIndex(yield_unwrap!(
+                                index_data
+                            ))
                         }
 
                         InstructionCode::GET_PROPERTY_DYNAMIC => {
@@ -409,9 +410,9 @@ pub fn iterate_instructions(
                         InstructionCode::SET_PROPERTY_INDEX => {
                             next_instructions_stack.push_next_regular(2);
                             let index_data = UInt32Data::read(&mut reader);
-                            RegularInstruction::SetPropertyIndex(
-                                yield_unwrap!(index_data),
-                            )
+                            RegularInstruction::SetPropertyIndex(yield_unwrap!(
+                                index_data
+                            ))
                         }
 
                         InstructionCode::SET_PROPERTY_DYNAMIC => {
@@ -536,7 +537,9 @@ pub fn iterate_instructions(
                         }
                         InstructionCode::GET_INTERNAL_SLOT => {
                             let address = SlotAddress::read(&mut reader);
-                            RegularInstruction::GetInternalSlot(yield_unwrap!(address))
+                            RegularInstruction::GetInternalSlot(yield_unwrap!(
+                                address
+                            ))
                         }
                         InstructionCode::DROP_SLOT => {
                             let address = SlotAddress::read(&mut reader);

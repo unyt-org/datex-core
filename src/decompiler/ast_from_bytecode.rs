@@ -1,9 +1,9 @@
-use crate::ast::expressions::{PropertyAssignment, UnboundedStatement};
 use crate::ast::expressions::{
     Apply, BinaryOperation, DatexExpression, List, Map, Slot, UnaryOperation,
     VariableAssignment, VariableDeclaration, VariableKind,
 };
 use crate::ast::expressions::{DatexExpressionData, Statements};
+use crate::ast::expressions::{PropertyAssignment, UnboundedStatement};
 use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
@@ -18,17 +18,17 @@ use crate::global::operators::{
 use crate::global::protocol_structures::instructions::{
     Instruction, RegularInstruction, TypeInstruction,
 };
+use crate::global::slots::InternalSlot;
+use crate::runtime::execution::ExecutionError;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
 use num_enum::TryFromPrimitive;
-use crate::global::slots::InternalSlot;
-use crate::runtime::execution::ExecutionError;
-use crate::values::core_values::integer::Integer;
 
 #[derive(Debug)]
 enum CollectedAstResult {
@@ -108,209 +108,217 @@ pub fn ast_from_bytecode(
                         StatementResultCollectionStrategy::Full,
                     );
 
-                let expr: Option<DatexExpression> =
-                    if let Some(regular_instruction) = regular_instruction {
-                        Some(
-                            match regular_instruction {
-                                // Handle different regular instructions here
-                                RegularInstruction::Int8(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::Int16(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::Int32(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::Int64(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::Int128(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::UInt8(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::UInt16(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::UInt32(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::UInt64(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::UInt128(integer_data) => {
-                                    DatexExpressionData::TypedInteger(
-                                        TypedInteger::from(integer_data.0),
-                                    )
-                                }
-                                RegularInstruction::BigInteger(
-                                    integer_data,
-                                ) => DatexExpressionData::TypedInteger(
-                                    TypedInteger::IBig(integer_data.0),
-                                ),
-                                RegularInstruction::Integer(integer_data) => {
-                                    DatexExpressionData::Integer(integer_data.0)
-                                }
-                                RegularInstruction::Endpoint(endpoint) => {
-                                    DatexExpressionData::Endpoint(endpoint)
-                                }
-                                RegularInstruction::DecimalF32(f32_data) => {
-                                    DatexExpressionData::TypedDecimal(
-                                        TypedDecimal::from(f32_data.0),
-                                    )
-                                }
-                                RegularInstruction::DecimalF64(f64_data) => {
-                                    DatexExpressionData::TypedDecimal(
-                                        TypedDecimal::from(f64_data.0),
-                                    )
-                                }
-                                RegularInstruction::DecimalAsInt16(
-                                    decimal_i16_data,
-                                ) => DatexExpressionData::Decimal(
-                                    Decimal::from(decimal_i16_data.0 as f64),
-                                ),
-                                RegularInstruction::DecimalAsInt32(
-                                    decimal_i32_data,
-                                ) => DatexExpressionData::Decimal(
-                                    Decimal::from(decimal_i32_data.0 as f64),
-                                ),
-                                RegularInstruction::BigDecimal(
-                                    decimal_data,
-                                ) => DatexExpressionData::TypedDecimal(
-                                    TypedDecimal::Decimal(decimal_data.0),
-                                ),
-                                RegularInstruction::Decimal(decimal_data) => {
-                                    DatexExpressionData::Decimal(decimal_data.0)
-                                }
-                                RegularInstruction::ShortText(
-                                    short_text_data,
-                                ) => {
-                                    DatexExpressionData::Text(short_text_data.0)
-                                }
-                                RegularInstruction::Text(text_data) => {
-                                    DatexExpressionData::Text(text_data.0)
-                                }
-                                RegularInstruction::True => {
-                                    DatexExpressionData::Boolean(true)
-                                }
-                                RegularInstruction::False => {
-                                    DatexExpressionData::Boolean(false)
-                                }
-                                RegularInstruction::Null => {
-                                    DatexExpressionData::Null
-                                }
-
-                                RegularInstruction::GetRef(raw_address) => {
-                                    DatexExpressionData::GetReference(
-                                        PointerAddress::from(&raw_address),
-                                    )
-                                }
-
-                                RegularInstruction::GetLocalRef(
-                                    raw_address,
-                                ) => DatexExpressionData::GetReference(
-                                    PointerAddress::from(&raw_address),
-                                ),
-
-                                RegularInstruction::GetInternalRef(
-                                    raw_address,
-                                ) => DatexExpressionData::GetReference(
-                                    PointerAddress::from(&raw_address),
-                                ),
-
-                                RegularInstruction::GetSlot(slot_address) => {
-                                    DatexExpressionData::Slot(Slot::Addressed(
-                                        slot_address.0,
-                                    ))
-                                }
-                                
-                                RegularInstruction::GetInternalSlot(slot_address) => {
-                                    let slot = InternalSlot::try_from_primitive(slot_address.0)
-                                        .map_err(|_| DXBParserError::InvalidInternalSlotAddress(slot_address.0))?;
-                                    DatexExpressionData::Slot(Slot::Named(slot.to_string()))
-                                }
-
-                                RegularInstruction::DropSlot(slot_address) => {
-                                    todo!()
-                                }
-
-                                // NOTE: make sure that each possible match case is either implemented in the default collection or here
-                                // If an instruction is implemented in the default collection, it should be marked as unreachable!() here
-                                RegularInstruction::Statements(_)
-                                | RegularInstruction::ShortStatements(_)
-                                | RegularInstruction::UnboundedStatements
-                                | RegularInstruction::UnboundedStatementsEnd(
-                                    _,
+                let expr: Option<DatexExpression> = if let Some(
+                    regular_instruction,
+                ) = regular_instruction
+                {
+                    Some(
+                        match regular_instruction {
+                            // Handle different regular instructions here
+                            RegularInstruction::Int8(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
                                 )
-                                | RegularInstruction::List(_)
-                                | RegularInstruction::ShortList(_)
-                                | RegularInstruction::Map(_)
-                                | RegularInstruction::ShortMap(_)
-                                | RegularInstruction::KeyValueDynamic
-                                | RegularInstruction::KeyValueShortText(_)
-                                | RegularInstruction::Add
-                                | RegularInstruction::Subtract
-                                | RegularInstruction::Multiply
-                                | RegularInstruction::Divide
-                                | RegularInstruction::UnaryMinus
-                                | RegularInstruction::UnaryPlus
-                                | RegularInstruction::BitwiseNot
-                                | RegularInstruction::Apply(_)
-                                | RegularInstruction::GetPropertyText(_)
-                                | RegularInstruction::GetPropertyIndex(_)
-                                | RegularInstruction::GetPropertyDynamic
-                                | RegularInstruction::SetPropertyText(_)
-                                | RegularInstruction::SetPropertyIndex(_)
-                                | RegularInstruction::SetPropertyDynamic
-                                | RegularInstruction::Is
-                                | RegularInstruction::Matches
-                                | RegularInstruction::StructuralEqual
-                                | RegularInstruction::Equal
-                                | RegularInstruction::NotStructuralEqual
-                                | RegularInstruction::NotEqual
-                                | RegularInstruction::AddAssign(_)
-                                | RegularInstruction::SubtractAssign(_)
-                                | RegularInstruction::MultiplyAssign(_)
-                                | RegularInstruction::DivideAssign(_)
-                                | RegularInstruction::CreateRef
-                                | RegularInstruction::CreateRefMut
-                                | RegularInstruction::GetOrCreateRef(_)
-                                | RegularInstruction::GetOrCreateRefMut(_)
-                                | RegularInstruction::AllocateSlot(_)
-                                | RegularInstruction::SetSlot(_)
-                                | RegularInstruction::SetReferenceValue(_)
-                                | RegularInstruction::Deref
-                                | RegularInstruction::TypedValue
-                                | RegularInstruction::RemoteExecution(_)
-                                | RegularInstruction::TypeExpression => {
-                                    unreachable!()
-                                }
                             }
-                            .with_default_span(),
-                        )
-                    } else {
-                        None
-                    };
+                            RegularInstruction::Int16(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::Int32(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::Int64(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::Int128(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::UInt8(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::UInt16(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::UInt32(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::UInt64(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::UInt128(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::from(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::BigInteger(integer_data) => {
+                                DatexExpressionData::TypedInteger(
+                                    TypedInteger::IBig(integer_data.0),
+                                )
+                            }
+                            RegularInstruction::Integer(integer_data) => {
+                                DatexExpressionData::Integer(integer_data.0)
+                            }
+                            RegularInstruction::Endpoint(endpoint) => {
+                                DatexExpressionData::Endpoint(endpoint)
+                            }
+                            RegularInstruction::DecimalF32(f32_data) => {
+                                DatexExpressionData::TypedDecimal(
+                                    TypedDecimal::from(f32_data.0),
+                                )
+                            }
+                            RegularInstruction::DecimalF64(f64_data) => {
+                                DatexExpressionData::TypedDecimal(
+                                    TypedDecimal::from(f64_data.0),
+                                )
+                            }
+                            RegularInstruction::DecimalAsInt16(
+                                decimal_i16_data,
+                            ) => DatexExpressionData::Decimal(Decimal::from(
+                                decimal_i16_data.0 as f64,
+                            )),
+                            RegularInstruction::DecimalAsInt32(
+                                decimal_i32_data,
+                            ) => DatexExpressionData::Decimal(Decimal::from(
+                                decimal_i32_data.0 as f64,
+                            )),
+                            RegularInstruction::BigDecimal(decimal_data) => {
+                                DatexExpressionData::TypedDecimal(
+                                    TypedDecimal::Decimal(decimal_data.0),
+                                )
+                            }
+                            RegularInstruction::Decimal(decimal_data) => {
+                                DatexExpressionData::Decimal(decimal_data.0)
+                            }
+                            RegularInstruction::ShortText(short_text_data) => {
+                                DatexExpressionData::Text(short_text_data.0)
+                            }
+                            RegularInstruction::Text(text_data) => {
+                                DatexExpressionData::Text(text_data.0)
+                            }
+                            RegularInstruction::True => {
+                                DatexExpressionData::Boolean(true)
+                            }
+                            RegularInstruction::False => {
+                                DatexExpressionData::Boolean(false)
+                            }
+                            RegularInstruction::Null => {
+                                DatexExpressionData::Null
+                            }
+
+                            RegularInstruction::GetRef(raw_address) => {
+                                DatexExpressionData::GetReference(
+                                    PointerAddress::from(&raw_address),
+                                )
+                            }
+
+                            RegularInstruction::GetLocalRef(raw_address) => {
+                                DatexExpressionData::GetReference(
+                                    PointerAddress::from(&raw_address),
+                                )
+                            }
+
+                            RegularInstruction::GetInternalRef(raw_address) => {
+                                DatexExpressionData::GetReference(
+                                    PointerAddress::from(&raw_address),
+                                )
+                            }
+
+                            RegularInstruction::GetSlot(slot_address) => {
+                                DatexExpressionData::Slot(Slot::Addressed(
+                                    slot_address.0,
+                                ))
+                            }
+
+                            RegularInstruction::GetInternalSlot(
+                                slot_address,
+                            ) => {
+                                let slot = InternalSlot::try_from_primitive(
+                                    slot_address.0,
+                                )
+                                .map_err(|_| {
+                                    DXBParserError::InvalidInternalSlotAddress(
+                                        slot_address.0,
+                                    )
+                                })?;
+                                DatexExpressionData::Slot(Slot::Named(
+                                    slot.to_string(),
+                                ))
+                            }
+
+                            RegularInstruction::DropSlot(slot_address) => {
+                                todo!()
+                            }
+
+                            // NOTE: make sure that each possible match case is either implemented in the default collection or here
+                            // If an instruction is implemented in the default collection, it should be marked as unreachable!() here
+                            RegularInstruction::Statements(_)
+                            | RegularInstruction::ShortStatements(_)
+                            | RegularInstruction::UnboundedStatements
+                            | RegularInstruction::UnboundedStatementsEnd(_)
+                            | RegularInstruction::List(_)
+                            | RegularInstruction::ShortList(_)
+                            | RegularInstruction::Map(_)
+                            | RegularInstruction::ShortMap(_)
+                            | RegularInstruction::KeyValueDynamic
+                            | RegularInstruction::KeyValueShortText(_)
+                            | RegularInstruction::Add
+                            | RegularInstruction::Subtract
+                            | RegularInstruction::Multiply
+                            | RegularInstruction::Divide
+                            | RegularInstruction::UnaryMinus
+                            | RegularInstruction::UnaryPlus
+                            | RegularInstruction::BitwiseNot
+                            | RegularInstruction::Apply(_)
+                            | RegularInstruction::GetPropertyText(_)
+                            | RegularInstruction::GetPropertyIndex(_)
+                            | RegularInstruction::GetPropertyDynamic
+                            | RegularInstruction::SetPropertyText(_)
+                            | RegularInstruction::SetPropertyIndex(_)
+                            | RegularInstruction::SetPropertyDynamic
+                            | RegularInstruction::Is
+                            | RegularInstruction::Matches
+                            | RegularInstruction::StructuralEqual
+                            | RegularInstruction::Equal
+                            | RegularInstruction::NotStructuralEqual
+                            | RegularInstruction::NotEqual
+                            | RegularInstruction::AddAssign(_)
+                            | RegularInstruction::SubtractAssign(_)
+                            | RegularInstruction::MultiplyAssign(_)
+                            | RegularInstruction::DivideAssign(_)
+                            | RegularInstruction::CreateRef
+                            | RegularInstruction::CreateRefMut
+                            | RegularInstruction::GetOrCreateRef(_)
+                            | RegularInstruction::GetOrCreateRefMut(_)
+                            | RegularInstruction::AllocateSlot(_)
+                            | RegularInstruction::SetSlot(_)
+                            | RegularInstruction::SetReferenceValue(_)
+                            | RegularInstruction::Deref
+                            | RegularInstruction::TypedValue
+                            | RegularInstruction::RemoteExecution(_)
+                            | RegularInstruction::TypeExpression => {
+                                unreachable!()
+                            }
+                        }
+                        .with_default_span(),
+                    )
+                } else {
+                    None
+                };
 
                 expr.map(|expr| CollectedAstResult::from(expr))
             }
@@ -547,8 +555,8 @@ pub fn ast_from_bytecode(
                                 let mut arguments =
                                     collected_results.collect_value_results();
                                 // base is the last collected argument
-                                let base = arguments
-                                    .remove(arguments.len() - 1);
+                                let base =
+                                    arguments.remove(arguments.len() - 1);
                                 DatexExpressionData::Apply(Apply {
                                     base: Box::new(base),
                                     arguments,
@@ -557,15 +565,18 @@ pub fn ast_from_bytecode(
                                 .into()
                             }
 
-                            RegularInstruction::GetPropertyIndex(index_data) => {
-                                let base =
-                                    collected_results.pop_value_result();
+                            RegularInstruction::GetPropertyIndex(
+                                index_data,
+                            ) => {
+                                let base = collected_results.pop_value_result();
                                 DatexExpressionData::PropertyAccess(
                                     crate::ast::expressions::PropertyAccess {
                                         base: Box::new(base),
                                         property: Box::new(
-                                            DatexExpressionData::Integer(Integer::from(index_data.0))
-                                                .with_default_span()
+                                            DatexExpressionData::Integer(
+                                                Integer::from(index_data.0),
+                                            )
+                                            .with_default_span(),
                                         ),
                                     },
                                 )
@@ -573,11 +584,8 @@ pub fn ast_from_bytecode(
                                 .into()
                             }
 
-                            RegularInstruction::GetPropertyText(
-                                text_data,
-                            ) => {
-                                let base =
-                                    collected_results.pop_value_result();
+                            RegularInstruction::GetPropertyText(text_data) => {
+                                let base = collected_results.pop_value_result();
                                 DatexExpressionData::PropertyAccess(
                                     crate::ast::expressions::PropertyAccess {
                                         base: Box::new(base),
@@ -594,8 +602,7 @@ pub fn ast_from_bytecode(
                             }
 
                             RegularInstruction::GetPropertyDynamic => {
-                                let base =
-                                    collected_results.pop_value_result();
+                                let base = collected_results.pop_value_result();
                                 let property =
                                     collected_results.pop_value_result();
                                 DatexExpressionData::PropertyAccess(
@@ -608,17 +615,20 @@ pub fn ast_from_bytecode(
                                 .into()
                             }
 
-                            RegularInstruction::SetPropertyIndex(index_data) => {
-                                let base =
-                                    collected_results.pop_value_result();
+                            RegularInstruction::SetPropertyIndex(
+                                index_data,
+                            ) => {
+                                let base = collected_results.pop_value_result();
                                 let value =
                                     collected_results.pop_value_result();
                                 DatexExpressionData::PropertyAssignment(
                                     PropertyAssignment {
                                         base: Box::new(base),
                                         property: Box::new(
-                                            DatexExpressionData::Integer(Integer::from(index_data.0))
-                                                .with_default_span()
+                                            DatexExpressionData::Integer(
+                                                Integer::from(index_data.0),
+                                            )
+                                            .with_default_span(),
                                         ),
                                         operator: AssignmentOperator::Assign,
                                         assigned_expression: Box::new(value),
@@ -628,11 +638,8 @@ pub fn ast_from_bytecode(
                                 .into()
                             }
 
-                            RegularInstruction::SetPropertyText(
-                                text_data,
-                            ) => {
-                                let base =
-                                    collected_results.pop_value_result();
+                            RegularInstruction::SetPropertyText(text_data) => {
+                                let base = collected_results.pop_value_result();
                                 let value =
                                     collected_results.pop_value_result();
                                 DatexExpressionData::PropertyAssignment(
@@ -653,8 +660,7 @@ pub fn ast_from_bytecode(
                             }
 
                             RegularInstruction::SetPropertyDynamic => {
-                                let base =
-                                    collected_results.pop_value_result();
+                                let base = collected_results.pop_value_result();
                                 let value =
                                     collected_results.pop_value_result();
                                 let property =
@@ -703,12 +709,12 @@ pub fn ast_from_bytecode(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::expressions::PropertyAccess;
     use crate::global::operators::binary::ArithmeticOperator;
     use crate::global::type_instruction_codes::TypeInstructionCode;
     use crate::{
         ast::spanned::Spanned, global::instruction_codes::InstructionCode,
     };
-    use crate::ast::expressions::PropertyAccess;
 
     #[test]
     fn ast_from_bytecode_simple_integer() {
@@ -992,7 +998,7 @@ mod tests {
                 ),
                 arguments: vec![
                     DatexExpressionData::TypedInteger(TypedInteger::from(0u8))
-                    .with_default_span()
+                        .with_default_span()
                 ],
             })
             .with_default_span()
@@ -1025,9 +1031,9 @@ mod tests {
                 ),
                 arguments: vec![
                     DatexExpressionData::TypedInteger(TypedInteger::from(1u8))
-                    .with_default_span(),
+                        .with_default_span(),
                     DatexExpressionData::TypedInteger(TypedInteger::from(2u8))
-                    .with_default_span(),
+                        .with_default_span(),
                 ],
             })
             .with_default_span()
@@ -1082,8 +1088,10 @@ mod tests {
             ast.data,
             DatexExpressionData::PropertyAssignment(PropertyAssignment {
                 base: Box::new(
-                    DatexExpressionData::TypedInteger(TypedInteger::from(200u8))
-                        .with_default_span()
+                    DatexExpressionData::TypedInteger(TypedInteger::from(
+                        200u8
+                    ))
+                    .with_default_span()
                 ),
                 property: Box::new(
                     DatexExpressionData::Text("xyz".to_string())
@@ -1091,8 +1099,10 @@ mod tests {
                 ),
                 operator: AssignmentOperator::Assign,
                 assigned_expression: Box::new(
-                    DatexExpressionData::TypedInteger(TypedInteger::from(100u8))
-                        .with_default_span(),
+                    DatexExpressionData::TypedInteger(TypedInteger::from(
+                        100u8
+                    ))
+                    .with_default_span(),
                 ),
             })
         );
@@ -1146,8 +1156,10 @@ mod tests {
             ast.data,
             DatexExpressionData::PropertyAssignment(PropertyAssignment {
                 base: Box::new(
-                    DatexExpressionData::TypedInteger(TypedInteger::from(250u8))
-                        .with_default_span()
+                    DatexExpressionData::TypedInteger(TypedInteger::from(
+                        250u8
+                    ))
+                    .with_default_span()
                 ),
                 property: Box::new(
                     DatexExpressionData::Integer(Integer::from(10u8))
@@ -1155,8 +1167,10 @@ mod tests {
                 ),
                 operator: AssignmentOperator::Assign,
                 assigned_expression: Box::new(
-                    DatexExpressionData::TypedInteger(TypedInteger::from(150u8))
-                        .with_default_span(),
+                    DatexExpressionData::TypedInteger(TypedInteger::from(
+                        150u8
+                    ))
+                    .with_default_span(),
                 ),
             })
         );
@@ -1215,8 +1229,10 @@ mod tests {
             ast.data,
             DatexExpressionData::PropertyAssignment(PropertyAssignment {
                 base: Box::new(
-                    DatexExpressionData::TypedInteger(TypedInteger::from(100u8))
-                        .with_default_span()
+                    DatexExpressionData::TypedInteger(TypedInteger::from(
+                        100u8
+                    ))
+                    .with_default_span()
                 ),
                 property: Box::new(
                     DatexExpressionData::Text("age".to_string())

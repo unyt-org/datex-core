@@ -42,8 +42,8 @@ use crate::runtime::execution::context::ExecutionMode;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
 use crate::time::Instant;
-use crate::utils::buffers::{append_u16, append_u8};
 use crate::utils::buffers::append_u32;
+use crate::utils::buffers::{append_u8, append_u16};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::pointer::PointerAddress;
 use crate::values::value_container::ValueContainer;
@@ -65,12 +65,15 @@ pub mod workspace;
 #[derive(Clone, Default)]
 pub struct CompileOptions {
     pub compile_scope: CompilationScope,
-    pub parser_options: ParserOptions
+    pub parser_options: ParserOptions,
 }
 
 impl CompileOptions {
     pub fn new_with_scope(compile_scope: CompilationScope) -> Self {
-        CompileOptions { compile_scope, parser_options: ParserOptions::default() }
+        CompileOptions {
+            compile_scope,
+            parser_options: ParserOptions::default(),
+        }
     }
 }
 
@@ -336,7 +339,8 @@ pub fn parse_datex_script_to_rich_ast_simple_error(
     //     return Ok((result, options.compile_scope));
     // }
     let parse_start = Instant::now();
-    let mut valid_parse_result = Parser::parse(datex_script, options.parser_options.clone())?;
+    let mut valid_parse_result =
+        Parser::parse(datex_script, options.parser_options.clone())?;
 
     // make sure to append a statements block for the first block in ExecutionMode::Unbounded
     let is_terminated = if let ExecutionMode::Unbounded { has_next } =
@@ -389,7 +393,8 @@ pub fn parse_datex_script_to_rich_ast_detailed_errors(
     options: &mut CompileOptions,
 ) -> Result<RichAst, DetailedCompilerErrorsWithMaybeRichAst> {
     let (ast, parser_errors) =
-        Parser::parse_collecting_with_default_options(datex_script).into_ast_and_errors();
+        Parser::parse_collecting_with_default_options(datex_script)
+            .into_ast_and_errors();
     precompile_to_rich_ast(
         ast,
         &mut options.compile_scope,
@@ -848,7 +853,7 @@ fn compile_expression(
                     // add argument count
                     append_u16(
                         &mut compilation_context.buffer,
-                        apply.arguments.len() as u16
+                        apply.arguments.len() as u16,
                     );
                 }
                 _ => return Err(CompilerError::TooManyApplyArguments),
@@ -871,7 +876,6 @@ fn compile_expression(
                 CompileMetadata::default(),
                 scope,
             )?;
-
         }
 
         DatexExpressionData::PropertyAccess(property_access) => {
@@ -884,7 +888,9 @@ fn compile_expression(
                     compile_text_property_access(compilation_context, key)
                 }
                 // index access if integer fits in u32
-                DatexExpressionData::Integer(index) if let Some(index) = index.as_u32() => {
+                DatexExpressionData::Integer(index)
+                    if let Some(index) = index.as_u32() =>
+                {
                     compile_index_property_access(compilation_context, index)
                 }
                 _ => {
@@ -920,8 +926,13 @@ fn compile_expression(
                     compile_text_property_assignment(compilation_context, key)
                 }
                 // index access if integer fits in u32
-                DatexExpressionData::Integer(index) if let Some(index) = index.as_u32() => {
-                    compile_index_property_assignment(compilation_context, index)
+                DatexExpressionData::Integer(index)
+                    if let Some(index) = index.as_u32() =>
+                {
+                    compile_index_property_assignment(
+                        compilation_context,
+                        index,
+                    )
                 }
                 _ => {
                     scope = compile_dynamic_property_assignment(
@@ -935,7 +946,10 @@ fn compile_expression(
             // compile assigned expression
             scope = compile_expression(
                 compilation_context,
-                RichAst::new(*property_assignment.assigned_expression, &metadata),
+                RichAst::new(
+                    *property_assignment.assigned_expression,
+                    &metadata,
+                ),
                 CompileMetadata::default(),
                 scope,
             )?;
@@ -1210,8 +1224,9 @@ fn compile_expression(
         DatexExpressionData::Slot(Slot::Named(name)) => {
             match name.as_str() {
                 "endpoint" => {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::GET_INTERNAL_SLOT);
+                    compilation_context.append_instruction_code(
+                        InstructionCode::GET_INTERNAL_SLOT,
+                    );
                     append_u32(
                         &mut compilation_context.buffer,
                         InternalSlot::ENDPOINT as u32,
@@ -1321,35 +1336,34 @@ fn compile_key_value_entry(
 
 fn compile_text_property_access(
     compilation_context: &mut CompilationContext,
-    key: &str
+    key: &str,
 ) {
-    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_TEXT);
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_TEXT);
     // append key length as u8
     append_u8(&mut compilation_context.buffer, key.len() as u8);
     // append key bytes
-    compilation_context
-        .buffer
-        .extend_from_slice(key.as_bytes());
+    compilation_context.buffer.extend_from_slice(key.as_bytes());
 }
 
 fn compile_text_property_assignment(
     compilation_context: &mut CompilationContext,
-    key: &str
+    key: &str,
 ) {
-    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_TEXT);
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_TEXT);
     // append key length as u8
     append_u8(&mut compilation_context.buffer, key.len() as u8);
     // append key bytes
-    compilation_context
-        .buffer
-        .extend_from_slice(key.as_bytes());
+    compilation_context.buffer.extend_from_slice(key.as_bytes());
 }
 
 fn compile_index_property_access(
     compilation_context: &mut CompilationContext,
     index: u32,
 ) {
-    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_INDEX);
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_INDEX);
     append_u32(&mut compilation_context.buffer, index);
 }
 
@@ -1357,7 +1371,8 @@ fn compile_index_property_assignment(
     compilation_context: &mut CompilationContext,
     index: u32,
 ) {
-    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_INDEX);
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_INDEX);
     append_u32(&mut compilation_context.buffer, index);
 }
 
@@ -1366,11 +1381,15 @@ fn compile_dynamic_property_access(
     key_expression: &DatexExpression,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    compilation_context.append_instruction_code(InstructionCode::GET_PROPERTY_DYNAMIC);
+    compilation_context
+        .append_instruction_code(InstructionCode::GET_PROPERTY_DYNAMIC);
     // compile key expression
     compile_expression(
         compilation_context,
-        RichAst::new(key_expression.clone(), &Rc::new(RefCell::new(AstMetadata::default()))),
+        RichAst::new(
+            key_expression.clone(),
+            &Rc::new(RefCell::new(AstMetadata::default())),
+        ),
         CompileMetadata::default(),
         scope,
     )
@@ -1381,16 +1400,19 @@ fn compile_dynamic_property_assignment(
     key_expression: &DatexExpression,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    compilation_context.append_instruction_code(InstructionCode::SET_PROPERTY_DYNAMIC);
+    compilation_context
+        .append_instruction_code(InstructionCode::SET_PROPERTY_DYNAMIC);
     // compile key expression
     compile_expression(
         compilation_context,
-        RichAst::new(key_expression.clone(), &Rc::new(RefCell::new(AstMetadata::default()))),
+        RichAst::new(
+            key_expression.clone(),
+            &Rc::new(RefCell::new(AstMetadata::default())),
+        ),
         CompileMetadata::default(),
         scope,
     )
 }
-
 
 #[cfg(test)]
 pub mod tests {
@@ -3142,7 +3164,6 @@ pub mod tests {
         ];
         assert_eq!(result, expected);
     }
-
 
     #[test]
     fn test_get_property_text_quoted() {

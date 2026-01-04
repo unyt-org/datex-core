@@ -5,9 +5,12 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use super::value::Value;
+use crate::references::mutations::DIFUpdateDataOrMemory;
+use crate::references::observers::TransceiverId;
 use crate::references::reference::{AccessError, Reference};
 use crate::runtime::execution::ExecutionError;
 use crate::serde::deserializer::DatexDeserializer;
+use crate::stdlib::borrow::Cow;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
@@ -20,10 +23,7 @@ use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::ops::FnOnce;
 use core::ops::{Add, Neg, Sub};
-use crate::stdlib::borrow::Cow;
 use serde::Deserialize;
-use crate::references::mutations::DIFUpdateDataOrMemory;
-use crate::references::observers::TransceiverId;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueError {
@@ -88,7 +88,6 @@ impl<'a> Display for ValueKey<'a> {
     }
 }
 
-
 impl<'a> From<&'a String> for ValueKey<'a> {
     fn from(text: &'a String) -> Self {
         ValueKey::Text(Cow::from(text))
@@ -146,15 +145,15 @@ impl<'a> ValueKey<'a> {
             Some(*index)
         } else if let ValueKey::Value(value) = self
             && let ValueContainer::Value(Value {
-                 inner: CoreValue::Integer(index),
-                 ..
+                inner: CoreValue::Integer(index),
+                ..
             }) = value.as_ref()
         {
             index.as_i64()
-        } else if let ValueKey::Value(value) = self &&
-            let ValueContainer::Value(Value {
-              inner: CoreValue::TypedInteger(index),
-              ..
+        } else if let ValueKey::Value(value) = self
+            && let ValueContainer::Value(Value {
+                inner: CoreValue::TypedInteger(index),
+                ..
             }) = value.as_ref()
         {
             index.as_i64()
@@ -167,13 +166,14 @@ impl<'a> ValueKey<'a> {
 impl<'a> From<ValueKey<'a>> for ValueContainer {
     fn from(value_key: ValueKey) -> Self {
         match value_key {
-            ValueKey::Text(text) => ValueContainer::new_value(text.into_owned()),
+            ValueKey::Text(text) => {
+                ValueContainer::new_value(text.into_owned())
+            }
             ValueKey::Index(index) => ValueContainer::new_value(index),
             ValueKey::Value(value_container) => value_container.into_owned(),
         }
     }
 }
-
 
 #[derive(Debug)]
 pub enum OwnedValueKey {
@@ -185,19 +185,14 @@ pub enum OwnedValueKey {
 impl<'a> From<OwnedValueKey> for ValueKey<'a> {
     fn from(owned: OwnedValueKey) -> Self {
         match owned {
-            OwnedValueKey::Text(text) => {
-                ValueKey::Text(Cow::Owned(text))
-            }
-            OwnedValueKey::Index(index) => {
-                ValueKey::Index(index)
-            }
+            OwnedValueKey::Text(text) => ValueKey::Text(Cow::Owned(text)),
+            OwnedValueKey::Index(index) => ValueKey::Index(index),
             OwnedValueKey::Value(value_container) => {
                 ValueKey::Value(Cow::Owned(value_container))
             }
         }
     }
 }
-
 
 #[derive(Clone, Debug, Eq)]
 pub enum ValueContainer {
@@ -394,16 +389,13 @@ impl ValueContainer {
         }
     }
 
-
     /// Tries to get a property from the contained Value or Reference.
     pub fn try_get_property<'a>(
         &self,
         key: impl Into<ValueKey<'a>>,
     ) -> Result<ValueContainer, AccessError> {
         match self {
-            ValueContainer::Value(value) => {
-                value.try_get_property(key)
-            }
+            ValueContainer::Value(value) => value.try_get_property(key),
             ValueContainer::Reference(reference) => {
                 reference.try_get_property(key)
             }
@@ -418,12 +410,13 @@ impl ValueContainer {
         val: ValueContainer,
     ) -> Result<(), AccessError> {
         match self {
-            ValueContainer::Value(v) => {
-                v.try_set_property(key, val)
-            }
-            ValueContainer::Reference(r) => {
-                r.try_set_property(source_id, dif_update_data_or_memory, key, val)
-            }
+            ValueContainer::Value(v) => v.try_set_property(key, val),
+            ValueContainer::Reference(r) => r.try_set_property(
+                source_id,
+                dif_update_data_or_memory,
+                key,
+                val,
+            ),
         }
     }
 }

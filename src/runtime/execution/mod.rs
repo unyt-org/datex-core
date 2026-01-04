@@ -5,7 +5,9 @@ use crate::references::reference::Reference;
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::runtime::execution::context::RemoteExecutionContext;
-use crate::runtime::execution::execution_loop::interrupts::{ExecutionInterrupt, ExternalExecutionInterrupt, InterruptResult};
+use crate::runtime::execution::execution_loop::interrupts::{
+    ExecutionInterrupt, ExternalExecutionInterrupt, InterruptResult,
+};
 use crate::stdlib::rc::Rc;
 use crate::traits::apply::Apply;
 use crate::values::pointer::PointerAddress;
@@ -74,15 +76,14 @@ pub fn execute_dxb_sync(
                         0, // TODO: set correct source id
                         &runtime.memory,
                         key,
-                        value
+                        value,
                     )?;
-                    interrupt_provider
-                        .provide_result(InterruptResult::ResolvedValue(Some(target)));
-                }
-                else {
+                    interrupt_provider.provide_result(
+                        InterruptResult::ResolvedValue(Some(target)),
+                    );
+                } else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
-
             }
             _ => return Err(ExecutionError::RequiresAsyncExecution),
         }
@@ -165,15 +166,14 @@ pub async fn execute_dxb(
                         0, // TODO: set correct source id
                         &runtime.memory,
                         key,
-                        value
+                        value,
                     )?;
-                    interrupt_provider
-                        .provide_result(InterruptResult::ResolvedValue(Some(target)));
-                }
-                else {
+                    interrupt_provider.provide_result(
+                        InterruptResult::ResolvedValue(Some(target)),
+                    );
+                } else {
                     return Err(ExecutionError::RequiresRuntime);
                 }
-                
             }
         }
     }
@@ -193,8 +193,6 @@ fn handle_apply(
         callee.apply(args)?
     })
 }
-
-
 
 fn get_pointer_value(
     runtime_internal: &Option<Rc<RuntimeInternal>>,

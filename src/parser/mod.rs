@@ -21,11 +21,10 @@ pub mod parser_result;
 mod parsers;
 pub mod utils;
 
-
 #[derive(Debug, Clone, Default)]
 pub struct ParserOptions {
     // does not collapse grouped statements, even if there is only a single statement inside
-    pub(crate) preserve_scoping: bool
+    pub(crate) preserve_scoping: bool,
 }
 
 pub struct Parser {
@@ -70,7 +69,10 @@ impl Parser {
 
     /// Parses the given source code.
     /// Aborts on the first lexing or parsing error encountered.
-    pub fn parse(src: &str, options: ParserOptions) -> Result<DatexExpression, SpannedParserError> {
+    pub fn parse(
+        src: &str,
+        options: ParserOptions,
+    ) -> Result<DatexExpression, SpannedParserError> {
         let (tokens, errors) = lexer::get_spanned_tokens_from_source(src);
         // already has lexer errors - aborts early when parsing starts
         if let Some(first_error) = errors.into_iter().next() {
@@ -95,9 +97,7 @@ impl Parser {
     /// Parses the given source code.
     /// Collects all lexing and parsing errors encountered.
     /// Uses default parser options.
-    pub fn parse_collecting_with_default_options(
-        src: &str,
-    ) -> ParserResult {
+    pub fn parse_collecting_with_default_options(src: &str) -> ParserResult {
         Self::parse_collecting(src, ParserOptions::default())
     }
 
