@@ -1,18 +1,22 @@
 use crate::crypto::random;
-use crate::stdlib::fmt::{Debug, Display, Formatter};
-use crate::stdlib::hash::Hash;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::utils::buffers::buffer_to_hex;
 use crate::values::core_value::CoreValue;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::value_container::{ValueContainer, ValueError};
+use binrw::io::Cursor;
 use binrw::{BinRead, BinWrite};
+use core::fmt::{Debug, Display, Formatter};
+use core::hash::Hash;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::str;
+use core::str::FromStr;
 use hex::decode;
-// FIXME #123 no-std
-use crate::stdlib::str;
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
-use std::str::FromStr;
 
 #[derive(
     BinWrite, BinRead, Debug, Clone, Copy, Hash, PartialEq, Eq, Default,
@@ -80,6 +84,7 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
         Err(ValueError::TypeConversionError)
     }
 }
+
 // also for ref
 // impl<T: Into<ValueContainer>> TryFrom<&Option<T>> for Endpoint {
 //     type Error = ValueError;
@@ -93,8 +98,6 @@ impl<T: Into<ValueContainer>> TryFrom<Option<T>> for Endpoint {
 //         Err(ValueError::TypeConversionError)
 //     }
 // }
-
-impl CoreValueTrait for Endpoint {}
 
 impl StructuralEq for Endpoint {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -131,7 +134,7 @@ impl TryFrom<CoreValue> for Endpoint {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum InvalidEndpointError {
     InvalidCharacters,
     MaxLengthExceeded,
@@ -140,25 +143,28 @@ pub enum InvalidEndpointError {
     ReservedName,
 }
 impl Display for InvalidEndpointError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             InvalidEndpointError::InvalidCharacters => {
-                write!(f, "Endpoint contains invalid characters")
+                core::write!(f, "Endpoint contains invalid characters")
             }
             InvalidEndpointError::MaxLengthExceeded => {
-                write!(
+                core::write!(
                     f,
                     "Endpoint name exceeds maximum length of 18 characters"
                 )
             }
             InvalidEndpointError::MinLengthNotMet => {
-                write!(f, "Endpoint name must be at least 3 characters long")
+                core::write!(
+                    f,
+                    "Endpoint name must be at least 3 characters long"
+                )
             }
             InvalidEndpointError::InvalidInstance => {
-                write!(f, "Endpoint instance must be between 1 and 65534")
+                core::write!(f, "Endpoint instance must be between 1 and 65534")
             }
             InvalidEndpointError::ReservedName => {
-                write!(f, "Endpoint name is reserved")
+                core::write!(f, "Endpoint name is reserved")
             }
         }
     }
@@ -259,7 +265,7 @@ impl Endpoint {
     /// Panics if the name is invalid
     pub fn new(name: &str) -> Endpoint {
         Endpoint::from_string(name).unwrap_or_else(|_| {
-            panic!("Failed to convert str {name} to Endpoint")
+            core::panic!("Failed to convert str {name} to Endpoint")
         })
     }
 
@@ -364,7 +370,7 @@ impl Endpoint {
     }
 
     // parse endpoint from binary
-    pub fn from_binary(
+    pub fn from_slice(
         binary: [u8; 21],
     ) -> Result<Endpoint, EndpointParsingError> {
         let mut reader = Cursor::new(binary);
@@ -427,7 +433,7 @@ impl Endpoint {
             return buffer;
         }
         // if all bytes are 0, we panic - this should not happen under normal circumstances
-        panic!("Could not generate random anonymous id");
+        core::panic!("Could not generate random anonymous id");
     }
 
     fn are_name_chars_valid(name: [u8; 18]) -> bool {
@@ -479,7 +485,7 @@ impl Endpoint {
         }
     }
 
-    pub fn to_binary(&self) -> [u8; 21] {
+    pub fn to_slice(&self) -> [u8; 21] {
         let mut writer = Cursor::new(Vec::new());
         self.write(&mut writer).unwrap();
         writer.into_inner().try_into().unwrap()
@@ -535,12 +541,12 @@ impl Endpoint {
 }
 
 impl Display for Endpoint {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self.type_ {
             EndpointType::Anonymous => {
                 // is @@any
                 if self.identifier == [255; 18] {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -549,7 +555,7 @@ impl Display for Endpoint {
                 }
                 // is @@local
                 else if self.identifier == [0; 18] {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -558,7 +564,7 @@ impl Display for Endpoint {
                 }
                 // is normal anonymous endpoint
                 else {
-                    write!(
+                    core::write!(
                         f,
                         "{}{}",
                         Endpoint::PREFIX_ANONYMOUS,
@@ -566,7 +572,7 @@ impl Display for Endpoint {
                     )?
                 }
             }
-            EndpointType::Person => write!(
+            EndpointType::Person => core::write!(
                 f,
                 "{}{}",
                 Endpoint::PREFIX_PERSON,
@@ -574,7 +580,7 @@ impl Display for Endpoint {
                     .unwrap()
                     .trim_end_matches('\0')
             )?,
-            EndpointType::Institution => write!(
+            EndpointType::Institution => core::write!(
                 f,
                 "{}{}",
                 Endpoint::PREFIX_INSTITUTION,
@@ -587,7 +593,9 @@ impl Display for Endpoint {
         match self.instance {
             EndpointInstance::Any => (),
             EndpointInstance::All => f.write_str("/*")?,
-            EndpointInstance::Instance(instance) => write!(f, "/{instance}")?,
+            EndpointInstance::Instance(instance) => {
+                core::write!(f, "/{instance}")?
+            }
         };
 
         Ok(())
@@ -847,7 +855,7 @@ mod tests {
             0x00,
             0x00,
         ];
-        let endpoint = Endpoint::from_binary(binary);
+        let endpoint = Endpoint::from_slice(binary);
         assert_eq!(endpoint, Ok(Endpoint::ANY));
     }
 

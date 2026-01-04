@@ -1,5 +1,8 @@
-use std::fmt::Display;
-
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 
@@ -19,7 +22,7 @@ pub fn smallest_fitting_float(value: f64) -> TypedDecimal {
     }
 }
 
-pub fn decimal_to_string<T: Float + Display + std::fmt::LowerExp>(
+pub fn decimal_to_string<T: Float + Display + core::fmt::LowerExp>(
     value: T,
     json_compatible: bool,
 ) -> String {

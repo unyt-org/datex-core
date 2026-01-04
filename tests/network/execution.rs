@@ -1,12 +1,13 @@
 use crate::network::helpers::mock_setup::get_mock_setup_with_two_runtimes;
+use core::time::Duration;
 use datex_core::logger::init_logger_debug;
 use datex_core::run_async;
-use datex_core::runtime::execution_context::ExecutionContext;
+use datex_core::runtime::execution::context::{
+    ExecutionContext, ExecutionMode,
+};
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::core_values::integer::Integer;
-use datex_core::values::core_values::integer::typed_integer::TypedInteger;
 use datex_core::values::value_container::ValueContainer;
-use std::time::Duration;
 
 #[tokio::test]
 pub async fn test_basic_remote_execution() {
@@ -20,7 +21,7 @@ pub async fn test_basic_remote_execution() {
         runtime_a.com_hub().print_metadata();
 
         // create an execution context for @test_b
-        let mut remote_execution_context = ExecutionContext::remote(endpoint_b);
+        let mut remote_execution_context = ExecutionContext::remote_unbounded(endpoint_b);
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("1 + 2", &[], Some(&mut remote_execution_context)).await;
@@ -44,7 +45,7 @@ pub async fn test_remote_execution_persistent_context() {
         runtime_a.com_hub().print_metadata();
 
         // create an execution context for @test_b
-        let mut remote_execution_context = ExecutionContext::remote(endpoint_b);
+        let mut remote_execution_context = ExecutionContext::remote_unbounded(endpoint_b);
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("const x = 10; x", &[], Some(&mut remote_execution_context)).await;
@@ -68,7 +69,7 @@ pub async fn test_remote_inline() {
         runtime_a.com_hub().print_metadata();
 
         // create an execution context for @test_b
-        let mut execution_context = ExecutionContext::local_with_runtime_internal(runtime_a.internal.clone(), false);
+        let mut execution_context = ExecutionContext::local_with_runtime_internal(runtime_a.internal.clone(), ExecutionMode::unbounded());
 
         // execute script remotely on @test_b
         let result = runtime_a.execute("@test_b :: 1 + 2", &[], Some(&mut execution_context)).await;

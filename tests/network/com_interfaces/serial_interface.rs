@@ -22,7 +22,7 @@ pub async fn test_construct() {
     let mut interface =
         SerialNativeInterface::new_with_baud_rate(PORT_NAME, BAUD_RATE)
             .unwrap_or_else(|e| {
-                panic!("Failed to create SerialNativeInterface: {e:?}");
+                core::panic!("Failed to create SerialNativeInterface: {e:?}");
             });
     let socket_uuid = interface.get_socket_uuid().unwrap();
     assert!(interface.send_block(b"Hello World", socket_uuid).await);

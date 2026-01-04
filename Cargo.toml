@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "datex-core"
-version = "0.0.6"
+version = "0.0.7"
 description = "The DATEX Core Rust implementation"
 authors = [
     "Benedikt Strehle <benedikt@unyt.org>",
@@ -21,30 +21,57 @@ members = ["macros"]
 name = "mod"
 harness = false
 
+[lints.clippy]
+std_instead_of_core = "deny"
+alloc_instead_of_core = "deny"
+std_instead_of_alloc = "deny"
+
 [dependencies]
 # core dependencies
-byteorder = "1"
-num_enum = "0.7.4"
-lazy_static = "1.4.0"
+strum = { version = "0.27.1", default-features = false, features = ["derive"] }
+mopa = { version = "0.2.2", default-features = false }
+num = { version = "0.4.3", default-features = false }
+num-bigint = { version = "0.4", default-features = false }
+num-integer = { version = "0.1", default-features = false }
+num_enum = { version = "0.7.4", default-features = false }
+itertools = { version = "0.14.0", default-features = false, features = [
+    "use_alloc",
+] }
+binrw = { version = "0.15.0", default-features = false }
+modular-bitfield = "0.13.0"
+thiserror = { version = "2.0.11", default-features = false }
+url = { version = "2.5.7", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
+hex = { version = "0.4.3", default-features = false }
+log = { version = "0.4", default-features = false, features = ["serde"] }
+bytes = { version = "1", default-features = false }
+futures-util = { version = "0.3", default-features = false }
+futures = { version = "0.3", default-features = false }
+indexmap = { version = "2.9.0", default-features = false }
+ordered-float = { version = "5.0.0", default-features = false }
+bigdecimal = { version = "0.4.8", default-features = false }
+ringmap = { version = "0.1.3", default-features = false }
+futures-core = { version = "0.3.31", default-features = false }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde_with = { version = "3.12.0", default-features = false, features = [
+    "macros",
+    "schemars_1",
+    "chrono",
+] }
+serde_json = { version = "1.0.140", default-features = false }
+serde-big-array = { version = "0.5.1", optional = true }
+realhydroper-lsp = { version = "0.22.0", optional = true, default-features = false, features = [
+    "proposed",
+] }
+bs58 = { version = "0.5.1", default-features = false }
+
+# macros
 strum_macros = { version = "0.27.1" }
-strum = { version = "0.27.1", features = ["derive"] }
-mopa = "0.2.2"
-num-bigint = "0.4"
-num-integer = "0.1"
-default-args = "1.0.0"
-itertools = "0.14.0"
-pad = "0.1"
-binrw = "0.15.0"
-modular-bitfield = "0.12.0"
-thiserror = "2.0.11"
-url = "2.5.4"
-num-traits = "0.2.19"
-async-trait = "0.1.87"
-hex = "0.4.3"
-log = { version = "0.4", features = ["std", "serde"] }
 cfg-if = "1.0.1"
-bytes = { version = "1" }
-futures-util = { version = "0.3" }
+async-trait = "0.1.87"
+datex_macros = { path = "./macros", version = "0.1.1" }
+
+# optional dependencies
 tokio = { version = "1.43.0", optional = true, features = [
     "sync",
     "macros",
@@ -52,47 +79,42 @@ tokio = { version = "1.43.0", optional = true, features = [
     "rt",
     "time",
 ], default-features = false }
-
-datex_macros = { path = "./macros", version = "0.1.1" }
-
-# optional dependencies
-futures = { version = "0.3" }
-nostd = { version = "0.1.4", optional = true }
+nostd = { version = "0.1.4", optional = true, features = ["io", "alloc"] }
 rand = { version = "0.8.5", optional = true }
 uuid = { version = "1.15.1", features = ["v4"], optional = true }
 flexi_logger = { version = "0.31.2", optional = true }
 console_log = { version = "1.0.0", optional = true }
-esp-idf-svc = { version = "0.51.0", optional = true }
-futures-timer = { version = "3" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
-serde = "1.0.219"
-serde_with = "3.12.0"
-ntest_timeout = "0.9.3"
-ringmap = "0.1.3"
 webrtc = { version = "0.13.0", optional = true }
-syntect = { version = "5.2.0", default-features = false, features = [
+ariadne = { version = "0.5.1", optional = true }
+syntect = { version = "5.2.0", default-features = false, optional = true, features = [
     "default-fancy",
 ] }
-indexmap = "2.9.0"
-ordered-float = "5.0.0"
-bigdecimal = "0.4.8"
-bigint = "4.4.3"
-serde_json = "1.0.140"
-num = "0.4.3"
-chumsky = { version = "0.10.1", features = ["std"], default-features = false }
-ariadne = "0.5.1"
-logos = "0.15.0"
-async-stream = "0.3.6"
-futures-core = "0.3.31"
-internment = "0.8.6"
-serde-big-array = "0.5.1"
+pretty = { version = "0.12.5", optional = true }
+logos = { version = "0.15.0", optional = true }
+internment = { version = "0.8.6", optional = true }
+foldhash = { version = "0.2.0", optional = true, default-features = false }
+spin = { version = "0.10.0", optional = true, default-features = false, features = [
+    "spin_mutex",
+    "mutex",
+    "lock_api",
+] }
+embassy-time = { version = "0.5.0", optional = true }
+async-unsync = { version = "0.3.0", optional = true, default-features = false, features = [
+    "alloc",
+] }
+embassy-executor = { version = "0.9.1", optional = true }
+embassy-futures = { version = "0.1.2", optional = true, default-features = false }
+esp-println = { version = "0.16.1", optional = true }
+hashbrown = { version = "0.16.0", features = ["serde"], optional = true }
+web-time = { version = "1.1.0", optional = true }
+embedded-time = "0.12.1"
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { version = "0.8.4", optional = true }
 tokio-stream = { version = "0.1.17", optional = true, features = ["sync"] }
 hyper = { version = "1", optional = true }
-futures-timer = { version = "3", features = ["wasm-bindgen"] }
 serialport = { version = "4.7.1", optional = true }
 tokio-tungstenite = { version = "0.21.0", optional = true, features = [
     "native-tls",
@@ -102,14 +124,16 @@ openssl = { version = "0.10.73", optional = true }
 
 wasm-bindgen-futures = { optional = true, version = "0.4.29" }
 gloo-timers = { optional = true, version = "0.3.0", features = ["futures"] }
-tsify = { optional = true, version = "0.5.5" }
-wasm-bindgen = { optional = true, version = "=0.2.102" }
+tsify = { optional = true, version = "0.5.6", features = ["js"] }
+# wasm-bindgen is required for tsify
+wasm-bindgen = { optional = true, version = "=0.2.105" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# TODO: required for rust-analyzer to resolve dependencies
 wasm-bindgen-futures = { version = "0.4.29" }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
-tsify = "0.5.5"
-wasm-bindgen = "=0.2.102"
+tsify = "0.5.6"
+wasm-bindgen = "=0.2.105"
 
 [profile.release]
 opt-level = "z"
@@ -133,11 +157,16 @@ tokio = { version = "1.43.0", features = [
 criterion = { version = "0.6.0", features = ["html_reports"] }
 criterion-macro = "0.4.0"
 json-syntax = "0.12.5"
+lazy_static = "1.4.0"
+ntest_timeout = "0.9.3"
+indoc = "2.0.6"
 
 
 [features]
+
+# default: build with all features enabled + native features (com interfaces, crypto)
 default = [
-    "nostd",
+    "std",
     "native_websocket",
     "native_tcp",
     "native_rand",
@@ -147,29 +176,55 @@ default = [
     "native_http",
     "native_serial",
     "native_webrtc",
-    "wasm_webrtc",
     "flexi_logger",
     "tokio_runtime",
-    "serde",
-    # "debug", # temporary to fix linting and allow tests to run
-] # default to nostd
+    "compiler",
+    "decompiler",
+    "syntax_highlighting_legacy",
+    "com_http",
+    "com_tcp",
+    "com_webrtc",
+    "com_serial",
+    "com_websocket",
+    "lsp_tokio",
+]
 
-# com interfaces
-native_http = ["axum", "hyper", "tokio-stream"]
-native_websocket = ["tokio-tungstenite", "tungstenite"] # use native websocket
-native_tcp = []                                         # use native tcp
-native_time = []                                        # use native time
-native_rand = ["rand"]                                  # use native websocket
-native_uuid = ["uuid"]                                  # use native uuid
-native_crypto = ["openssl"]                             # use native crypto
-native_serial = ["serialport"]                          # use native serial
-native_webrtc = ["webrtc"]                              # use webrtc
+# embedded build with nostd
+embedded = [
+    "nostd",
+    "embassy_runtime",
+    "com_websocket",
+    "com_serial",
+    "com_tcp",
+    "com_http",
+]
 
-wasm_webrtc = [] # use webrtc
+# com interfaces base
+com_http = []
+com_tcp = []
+com_webrtc = []
+com_serial = []
+com_websocket = []
+
+# native com intefaces
+native_http = ["com_http", "axum", "hyper", "tokio-stream"]
+native_websocket = [
+    "com_websocket",
+    "tokio-tungstenite",
+    "tungstenite",
+] # use native websocket
+native_tcp = ["com_tcp"] # use native tcp
+native_serial = ["com_serial", "serialport"] # use native serial
+native_webrtc = ["com_webrtc", "webrtc"] # use webrtc
+
+native_time = []            # use native time
+native_rand = ["rand"]      # use native websocket
+native_uuid = ["uuid"]      # use native uuid
+native_crypto = ["openssl"] # use native crypto
 
 # logger
 wasm_logger = ["console_log", "console_error_panic_hook"]
-esp_logger = ["esp-idf-svc"]
+esp_logger = ["dep:esp-println"]
 env_logger = []
 
 # runtime
@@ -178,10 +233,86 @@ wasm_runtime = [
     "dep:wasm-bindgen-futures",
     "dep:gloo-timers",
     "dep:tsify",
-    "dep:wasm-bindgen",
+    "dep:web-time",
+#    "dep:wasm-bindgen",
+
+]
+embassy_runtime = [
+    "dep:embassy-executor",
+    "dep:embassy-time",
+    "dep:embassy-futures",
+    "dep:async-unsync",
 ]
 
-# utils
-std = []   # use std
-debug = []
-serde = []
+# only required for legacy syntax highlighting in decompiler, will be removed in the future
+syntax_highlighting_legacy = ["dep:syntect"]
+
+
+std = [
+    "serde/std",
+    "serde_with/std",
+    "serde_json/std",
+    "indexmap/std",
+    "log/std",
+    "futures-util/std",
+    "futures-core/std",
+    "futures/std",
+    "url/std",
+    "num/std",
+    "num-traits/std",
+    "num-bigint/std",
+    "num-integer/std",
+    "bigdecimal/std",
+    "ordered-float/std",
+    "num_enum/std",
+    "strum/std",
+    "binrw/std",
+    "thiserror/std",
+    "hex/std",
+    "bytes/std",
+    "ringmap/std",
+] # use std
+
+nostd = [
+    "dep:nostd",
+    "dep:foldhash",
+    "dep:spin",
+    "dep:hashbrown",
+    "serde/alloc",
+    "serde_with/alloc",
+    "serde_json/alloc",
+    "futures-util/alloc",
+    "futures-core/alloc",
+    "futures/alloc",
+    "mopa/no_std",
+    "hex/alloc",
+    "num/alloc",
+    "num/libm",
+]
+
+debug = ["dep:serde-big-array"]
+
+# note: compiler requires std
+compiler = [
+    "std",
+    "dep:ariadne",
+    "dep:pretty",
+    "dep:logos",
+    "dep:internment",
+    "ast",
+]
+
+# decompiler
+decompiler = [
+    "ast",
+]
+
+# ast structures, needed by compiler, decompiler, and lsp
+ast = []
+
+lsp = ["dep:realhydroper-lsp"]
+
+# lsp support
+lsp_tokio = ["lsp", "realhydroper-lsp/runtime-tokio"]
+# enable runtime-agnostic feature for realhydroper-lsp in wasm
+lsp_wasm = ["lsp", "realhydroper-lsp/runtime-agnostic"]

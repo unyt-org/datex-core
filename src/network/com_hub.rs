@@ -1,22 +1,26 @@
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
+use crate::stdlib::boxed::Box;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{self, sleep, spawn_with_panic_notify};
 use crate::utils::time::Time;
-
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use futures::channel::oneshot::Sender;
-use futures_util::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use core::cmp::PartialEq;
+use crate::collections::{HashMap, HashSet};
+use core::fmt::{Debug, Display, Formatter};
+use crate::stdlib::sync::{Arc};
+use crate::std_sync::Mutex;
+use core::time::Duration;
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-// FIXME #175 no-std
-
+use crate::stdlib::vec::Vec;
+use crate::stdlib::vec;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use super::com_interfaces::com_interface::{
     self, ComInterfaceError, ComInterfaceState
 };
@@ -33,6 +37,7 @@ use crate::network::com_interfaces::com_interface_properties::{
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
+use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
 
 #[derive(Debug, Clone)]
@@ -71,9 +76,17 @@ type InterfaceMap = HashMap<
     (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
 >;
 
+pub type IncomingBlockInterceptor =
+    Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
+
+pub type OutgoingBlockInterceptor =
+    Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint]) + 'static>;
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
+
+    pub async_context: AsyncContext,
 
     /// ComHub configuration options
     pub options: ComHubOptions,
@@ -112,10 +125,13 @@ pub struct ComHub {
     update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     pub block_handler: BlockHandler,
+
+    incoming_block_interceptors: RefCell<Vec<IncomingBlockInterceptor>>,
+    outgoing_block_interceptors: RefCell<Vec<OutgoingBlockInterceptor>>,
 }
 
 impl Debug for ComHub {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ComHub")
             .field("endpoint", &self.endpoint)
             .field("options", &self.options)
@@ -135,24 +151,6 @@ struct EndpointIterateOptions<'a> {
     pub only_direct: bool,
     pub exact_instance: bool,
     pub exclude_sockets: &'a [ComInterfaceSocketUUID],
-}
-
-impl Default for ComHub {
-    fn default() -> Self {
-        ComHub {
-            endpoint: Endpoint::default(),
-            options: ComHubOptions::default(),
-            interface_factories: RefCell::new(HashMap::new()),
-            interfaces: RefCell::new(HashMap::new()),
-            endpoint_sockets: RefCell::new(HashMap::new()),
-            block_handler: BlockHandler::new(),
-            sockets: RefCell::new(HashMap::new()),
-            fallback_sockets: RefCell::new(Vec::new()),
-            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -176,14 +174,55 @@ impl Default for InterfacePriority {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
     InterfaceError(ComInterfaceError),
+    InterfaceOpenFailed,
     InterfaceCloseFailed,
-    InterfaceNotConnected,
-    InterfaceDoesNotExist,
     InterfaceAlreadyExists,
+    InterfaceDoesNotExist,
+    InterfaceNotConnected,
     InterfaceTypeDoesNotExist,
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
-    InterfaceOpenError,
+    SignatureError,
+}
+
+impl Display for ComHubError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ComHubError::InterfaceError(_msg) => {
+                core::write!(f, "ComHubError: ComInterfaceError")
+            }
+            ComHubError::InterfaceCloseFailed => {
+                core::write!(f, "ComHubError: Failed to close interface")
+            }
+            ComHubError::InterfaceNotConnected => {
+                core::write!(f, "ComHubError: Interface not connected")
+            }
+            ComHubError::InterfaceDoesNotExist => {
+                core::write!(f, "ComHubError: Interface does not exit")
+            }
+            ComHubError::InterfaceAlreadyExists => {
+                core::write!(f, "ComHubError: Interface already exists")
+            }
+            ComHubError::InterfaceTypeDoesNotExist => {
+                core::write!(f, "ComHubError: Type of interface does not exist")
+            }
+            ComHubError::InvalidInterfaceDirectionForFallbackInterface => {
+                core::write!(
+                    f,
+                    "ComHubError: Invalid direction for fallback interface"
+                )
+            }
+            ComHubError::NoResponse => {
+                core::write!(f, "ComHubError: No response")
+            }
+            ComHubError::InterfaceOpenFailed => {
+                core::write!(f, "ComHubError: Failed to open interface")
+            }
+            ComHubError::SignatureError => {
+                core::write!(f, "ComHubError: CryptoError")
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -193,11 +232,57 @@ pub enum SocketEndpointRegistrationError {
     SocketEndpointAlreadyRegistered,
 }
 
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn update_loop_task(self_rc: Rc<ComHub>) {
+    while *self_rc.update_loop_running.borrow() {
+        self_rc.update().await;
+        sleep(Duration::from_millis(1)).await;
+    }
+    if let Some(sender) = self_rc.update_loop_stop_sender.borrow_mut().take() {
+        sender.send(()).expect("Failed to send stop signal");
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
+    let interface = interface_rc.clone();
+    let mut interface = interface.borrow_mut();
+
+    let config = interface.get_properties_mut();
+    config.close_timestamp = None;
+
+    let current_attempts = config.reconnect_attempts.unwrap_or(0);
+    config.reconnect_attempts = Some(current_attempts + 1);
+
+    let res = interface.handle_open().await;
+    if res {
+        interface.set_state(ComInterfaceState::Connected);
+        // config.reconnect_attempts = None;
+    } else {
+        interface.set_state(ComInterfaceState::NotConnected);
+    }
+}
+
 impl ComHub {
-    pub fn new(endpoint: impl Into<Endpoint>) -> ComHub {
+    pub fn new(
+        endpoint: impl Into<Endpoint>,
+        async_context: AsyncContext,
+    ) -> ComHub {
         ComHub {
             endpoint: endpoint.into(),
-            ..ComHub::default()
+            async_context,
+            options: ComHubOptions::default(),
+            interface_factories: RefCell::new(HashMap::new()),
+            interfaces: RefCell::new(HashMap::new()),
+            endpoint_sockets: RefCell::new(HashMap::new()),
+            block_handler: BlockHandler::new(),
+            sockets: RefCell::new(HashMap::new()),
+            fallback_sockets: RefCell::new(Vec::new()),
+            endpoint_sockets_blacklist: RefCell::new(HashMap::new()),
+            update_loop_running: RefCell::new(false),
+            update_loop_stop_sender: RefCell::new(None),
+            incoming_block_interceptors: RefCell::new(Vec::new()),
+            outgoing_block_interceptors: RefCell::new(Vec::new()),
         }
     }
 
@@ -232,9 +317,7 @@ impl ComHub {
         setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        info!(
-            "creating interface {interface_type} with setup data: {setup_data:?}"
-        );
+        info!("creating interface {interface_type}");
         let interface_factories = self.interface_factories.borrow();
         if let Some(factory) = interface_factories.get(interface_type) {
             let interface =
@@ -260,6 +343,26 @@ impl ComHub {
         } else {
             None
         }
+    }
+
+    /// Register an incoming block interceptor
+    pub fn register_incoming_block_interceptor<F>(&self, interceptor: F)
+    where
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static,
+    {
+        self.incoming_block_interceptors
+            .borrow_mut()
+            .push(Box::new(interceptor));
+    }
+
+    /// Register an outgoing block interceptor
+    pub fn register_outgoing_block_interceptor<F>(&self, interceptor: F)
+    where
+        F: Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint]) + 'static,
+    {
+        self.outgoing_block_interceptors
+            .borrow_mut()
+            .push(Box::new(interceptor));
     }
 
     pub fn get_interface_by_uuid<T: ComInterface>(
@@ -295,7 +398,7 @@ impl ComHub {
             // and wait for it to be connected
             // FIXME #240: borrow_mut across await point
             if !(interface.borrow_mut().handle_open().await) {
-                return Err(ComHubError::InterfaceOpenError);
+                return Err(ComHubError::InterfaceOpenFailed);
             }
         }
         self.add_interface(interface.clone(), priority)
@@ -348,7 +451,7 @@ impl ComHub {
         }
 
         // Remove old sockets from ComHub that have been deleted by the interface destroy_sockets()
-        self.update_sockets();
+        self.update_sockets().await;
 
         self.cleanup_interface(interface_uuid)
             .ok_or(ComHubError::InterfaceDoesNotExist)?;
@@ -371,7 +474,7 @@ impl ComHub {
         Some(interface)
     }
 
-    pub(crate) fn receive_block(
+    pub(crate) async fn receive_block(
         &self,
         block: &DXBBlock,
         socket_uuid: ComInterfaceSocketUUID,
@@ -379,9 +482,20 @@ impl ComHub {
         info!("{} received block: {}", self.endpoint, block);
 
         // ignore invalid blocks (e.g. invalid signature)
-        if !self.validate_block(block) {
-            warn!("Block validation failed. Dropping block...");
-            return;
+        match self.validate_block(block).await {
+            Ok(true) => { /* Ignored */ }
+            Ok(false) => {
+                warn!("Block validation failed. Dropping block...");
+                return;
+            }
+            Err(e) => {
+                warn!("Error in block validation {e}. Dropping block...");
+                return;
+            }
+        }
+
+        for interceptor in self.incoming_block_interceptors.borrow().iter() {
+            interceptor(block, &socket_uuid);
         }
 
         let block_type = block.block_header.flags_and_timestamp.block_type();
@@ -411,7 +525,8 @@ impl ComHub {
 
                 match block_type {
                     BlockType::Trace => {
-                        self.handle_trace_block(block, socket_uuid.clone());
+                        self.handle_trace_block(block, socket_uuid.clone())
+                            .await;
                     }
                     BlockType::TraceBack => {
                         self.handle_trace_back_block(
@@ -495,7 +610,7 @@ impl ComHub {
         block: &DXBBlock,
     ) {
         let socket = self.get_socket_by_uuid(&socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let distance = block.routing_header.distance;
         let sender = block.routing_header.sender.clone();
@@ -521,7 +636,7 @@ impl ComHub {
                 );
             }
             Err(error) => {
-                panic!("Failed to register socket endpoint {sender}: {error:?}");
+                core::panic!("Failed to register socket endpoint {sender}: {error:?}");
             },
             Ok(_) => { }
         }
@@ -561,11 +676,18 @@ impl ComHub {
         // increment distance for next hop
         block.routing_header.distance += 1;
 
-        // TODO #178: ensure ttl is >= 1
+        // ensure ttl is >= 1
         // decrease TTL by 1
-        block.routing_header.ttl -= 1;
-        // if ttl is 0, drop the block
-        if block.routing_header.ttl == 0 {
+        if block.routing_header.ttl > 1 {
+            block.routing_header.ttl -= 1;
+        }
+        // if ttl becomes 0 after decrement drop the block
+        else if block.routing_header.ttl == 1 {
+            block.routing_header.ttl -= 1;
+            warn!("Block TTL expired. Dropping block...");
+            return;
+        // else ttl must be zero
+        } else {
             warn!("Block TTL expired. Dropping block...");
             return;
         }
@@ -616,7 +738,7 @@ impl ComHub {
                     );
                 } else if self
                     .get_socket_by_uuid(&send_back_socket)
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .can_send()
                 {
@@ -652,7 +774,10 @@ impl ComHub {
 
     /// Validates a block including it's signature if set
     /// TODO #378 @Norbert
-    fn validate_block(&self, block: &DXBBlock) -> bool {
+    pub async fn validate_block(
+        &self,
+        block: &DXBBlock,
+    ) -> Result<bool, ComHubError> {
         // TODO #179 check for creation time, withdraw if too old (TBD) or in the future
 
         let is_signed =
@@ -663,7 +788,72 @@ impl ComHub {
                 // TODO #180: verify signature and abort if invalid
                 // Check if signature is following in some later block and add them to
                 // a pool of incoming blocks awaiting some signature
-                true
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "native_crypto")] {
+                        use crate::runtime::global_context::get_global_context;
+                        match block.routing_header.flags.signature_type() {
+                            SignatureType::Encrypted => {
+                                let crypto = get_global_context().crypto;
+                                let raw_sign = block.signature
+                                    .as_ref()
+                                    .ok_or(ComHubError::SignatureError)?;
+                                let (enc_sign, pub_key) = raw_sign.split_at(64);
+                                let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+                                let signature = crypto
+                                    .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+
+                                let raw_signed = [
+                                    pub_key,
+                                    &block.body.clone()
+                                    ]
+                                    .concat();
+                                let hashed_signed = crypto
+                                    .hash_sha256(&raw_signed)
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+
+                                let ver = crypto
+                                    .ver_ed25519(pub_key, &signature, &hashed_signed)
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+                                return Ok(ver);
+                            },
+                            SignatureType::Unencrypted => {
+                                let crypto = get_global_context().crypto;
+                                let raw_sign = block.signature
+                                    .as_ref()
+                                    .ok_or(ComHubError::SignatureError)?;
+                                let (signature, pub_key) = raw_sign.split_at(64);
+
+                                let raw_signed = [
+                                    pub_key,
+                                    &block.body.clone()
+                                    ]
+                                    .concat();
+                                let hashed_signed = crypto
+                                    .hash_sha256(&raw_signed)
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+
+                                let ver = crypto
+                                    .ver_ed25519(pub_key, signature, &hashed_signed)
+                                    .await
+                                    .map_err(|_| ComHubError::SignatureError)?;
+                                return Ok(ver);
+                            },
+                            SignatureType::None => {
+                                unreachable!("If (is_signed == true) => !None");
+                            }
+                        }
+                    }
+                    else {
+                        Ok(true)
+                    }
+                }
             }
             false => {
                 let endpoint = block.routing_header.sender.clone();
@@ -680,12 +870,12 @@ impl ComHub {
                     }
                 };
                 match is_trusted {
-                    true => true,
+                    true => Ok(true),
                     false => {
                         warn!(
                             "Block received by {endpoint} is not signed. Dropping block..."
                         );
-                        false
+                        Ok(false)
                     }
                 }
             }
@@ -706,9 +896,9 @@ impl ComHub {
             "{} registering endpoint {} for socket {}",
             self.endpoint,
             endpoint,
-            socket.lock().unwrap().uuid
+            socket.try_lock().unwrap().uuid
         );
-        let socket_ref = socket.lock().unwrap();
+        let socket_ref = socket.try_lock().unwrap();
 
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
@@ -783,10 +973,9 @@ impl ComHub {
 
     /// Updates all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
-    /// In contrast to the update() function, this function is asynchronous
-    /// and will wait for all background tasks scheduled by the update() function to finish
+    /// This function will wait for all background tasks scheduled by the update() function to finish
     pub async fn update_async(&self) {
-        self.update();
+        self.update().await;
         self.wait_for_update_async().await;
     }
 
@@ -823,15 +1012,15 @@ impl ComHub {
     /// If the priority is not set to `InterfacePriority::None`, the socket
     /// is also registered as a fallback socket for outgoing connections with the
     /// specified priority.
-    fn add_socket(
+    async fn add_socket(
         &self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
-    ) {
-        let socket_ref = socket.lock().unwrap();
+    ) -> Result<(), ComHubError> {
+        let socket_ref = socket.try_lock().unwrap();
         let socket_uuid = socket_ref.uuid.clone();
         if self.sockets.borrow().contains_key(&socket_ref.uuid) {
-            panic!("Socket {} already exists in ComHub", socket_ref.uuid);
+            core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
         }
 
         // info!(
@@ -840,7 +1029,7 @@ impl ComHub {
         // );
 
         if !socket_ref.can_send() && priority != InterfacePriority::None {
-            panic!(
+            core::panic!(
                 "Socket {} cannot be used for fallback routing, since it has no send capability",
                 socket_ref.uuid
             );
@@ -875,7 +1064,7 @@ impl ComHub {
                 .set_signature_type(SignatureType::Unencrypted);
             // TODO #182 include fingerprint of the own public key into body
 
-            let block = self.prepare_own_block(block);
+            let block = self.prepare_own_block(block).await?;
 
             drop(socket_ref);
             self.send_block_to_endpoints_via_socket(
@@ -885,6 +1074,7 @@ impl ComHub {
                 None,
             );
         }
+        Ok(())
     }
 
     /// Registers a socket as a fallback socket for outgoing connections
@@ -906,19 +1096,18 @@ impl ComHub {
                 InterfaceDirection::InOut => 0,
                 InterfaceDirection::Out => 1,
                 InterfaceDirection::In => {
-                    panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
+                    core::panic!("Socket {socket_uuid} is not allowed to be used as fallback socket")
                 }
             };
-            (dir_rank, std::cmp::Reverse(*priority))
+            (dir_rank, core::cmp::Reverse(*priority))
         });
     }
 
     /// Removes a socket from the socket list
     fn delete_socket(&self, socket_uuid: &ComInterfaceSocketUUID) {
-        self.sockets
-            .borrow_mut()
-            .remove(socket_uuid)
-            .or_else(|| panic!("Socket {socket_uuid} not found in ComHub"));
+        self.sockets.borrow_mut().remove(socket_uuid).or_else(|| {
+            core::panic!("Socket {socket_uuid} not found in ComHub")
+        });
 
         // remove socket from endpoint socket list
         // remove endpoint key from endpoint_sockets if not sockets present
@@ -939,7 +1128,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
         endpoint: Endpoint,
     ) {
-        assert!(
+        core::assert!(
             self.sockets.borrow().contains_key(socket_uuid),
             "Socket not found in ComHub"
         );
@@ -976,7 +1165,7 @@ impl ComHub {
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "debug")] {
                                 use crate::runtime::global_context::get_global_context;
-                                use std::cmp::Ordering;
+                                use core::cmp::Ordering;
                                 if get_global_context().debug_flags.enable_deterministic_behavior {
                                     Ordering::Equal
                                 }
@@ -1006,7 +1195,7 @@ impl ComHub {
             .get(socket_uuid)
             .map(|socket| socket.0.clone())
             .unwrap_or_else(|| {
-                panic!("Socket for uuid {socket_uuid} not found")
+                core::panic!("Socket for uuid {socket_uuid} not found")
             })
     }
 
@@ -1021,7 +1210,7 @@ impl ComHub {
             .borrow()
             .get(interface_uuid)
             .unwrap_or_else(|| {
-                panic!("Interface for uuid {interface_uuid} not found")
+                core::panic!("Interface for uuid {interface_uuid} not found")
             })
             .0
             .clone()
@@ -1035,7 +1224,7 @@ impl ComHub {
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let socket = socket.lock().unwrap();
+        let socket = socket.try_lock().unwrap();
         self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
@@ -1047,7 +1236,7 @@ impl ComHub {
         endpoint: &'a Endpoint,
         options: EndpointIterateOptions<'a>,
     ) -> impl Iterator<Item = ComInterfaceSocketUUID> + 'a {
-        std::iter::from_coroutine(
+        core::iter::from_coroutine(
             #[coroutine]
             move || {
                 let endpoint_sockets_borrow = self.endpoint_sockets.borrow();
@@ -1060,7 +1249,7 @@ impl ComHub {
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
                         let socket = self.get_socket_by_uuid(&socket_uuid);
-                        let socket = socket.lock().unwrap();
+                        let socket = socket.try_lock().unwrap();
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
                         if options.only_direct
@@ -1142,14 +1331,12 @@ impl ComHub {
                 }
                 None
             }
-
             // TODO #185: how to handle broadcasts?
             EndpointInstance::All => {
-                todo!("#186 Undescribed by author.")
+                core::todo!("#186 Undescribed by author.")
             }
         }
     }
-
     /// Finds the best socket over which to send a block to an endpoint.
     /// If a known socket is found, it is returned, otherwise the default socket is returned, if it
     /// exists and is not excluded.
@@ -1186,7 +1373,7 @@ impl ComHub {
                     endpoint,
                     socket_uuid,
                     socket
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .direct_endpoint
                         .clone()
@@ -1236,7 +1423,6 @@ impl ComHub {
                     (socket, endpoints)
                 })
                 .collect::<Vec<_>>();
-
             Some(endpoint_sockets)
         } else {
             None
@@ -1257,35 +1443,28 @@ impl ComHub {
         // set update loop running flag
         *self_rc.update_loop_running.borrow_mut() = true;
 
-        spawn_with_panic_notify(async move {
-            while *self_rc.update_loop_running.borrow() {
-                self_rc.update();
-                sleep(Duration::from_millis(1)).await;
-            }
-            if let Some(sender) =
-                self_rc.update_loop_stop_sender.borrow_mut().take()
-            {
-                sender.send(()).expect("Failed to send stop signal");
-            }
-        });
+        spawn_with_panic_notify(
+            &self_rc.clone().async_context,
+            update_loop_task(self_rc),
+        );
     }
 
     /// Update all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
     /// Updates are scheduled in local tasks and are not immediately visible.
     /// To wait for the block update to finish, use `wait_for_update_async()`.
-    pub fn update(&self) {
+    pub async fn update(&self) {
         // update all interfaces
         self.update_interfaces();
 
         // update own socket lists for routing
-        self.update_sockets();
+        self.update_sockets().await;
 
         // update sockets block collectors
-        self.collect_incoming_data();
+        self.collect_incoming_data().await;
 
         // receive blocks from all sockets
-        self.receive_incoming_blocks();
+        self.receive_incoming_blocks().await;
 
         // send all queued blocks from all interfaces
         self.flush_outgoing_blocks();
@@ -1294,8 +1473,78 @@ impl ComHub {
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
     /// TODO #379 @Norbert
-    fn prepare_own_block(&self, mut block: DXBBlock) -> DXBBlock {
+    pub async fn prepare_own_block(
+        &self,
+        mut block: DXBBlock,
+    ) -> Result<DXBBlock, ComHubError> {
         // TODO #188 signature & encryption
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "native_crypto")] {
+                use crate::runtime::global_context::get_global_context;
+                match block.routing_header.flags.signature_type() {
+                    SignatureType::Encrypted => {
+                        let crypto = get_global_context().crypto;
+                        let (pub_key, pri_key) = crypto.gen_ed25519()
+                                .await
+                                .map_err(|_| ComHubError::SignatureError)?;
+
+                        let raw_signed = [
+                            pub_key.clone(),
+                            block.body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+
+                        let signature = crypto
+                            .sig_ed25519(&pri_key, &hashed_signed)
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+                        let hash = crypto
+                            .hkdf_sha256(&pub_key, &[0u8; 16])
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+                        let enc_sig = crypto
+                            .aes_ctr_encrypt(&hash, &[0u8; 16], &signature)
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+                        // 64 + 44 = 108
+                        block.signature =
+                            Some([enc_sig.to_vec(), pub_key].concat());
+                    }
+                    SignatureType::Unencrypted => {
+                        let crypto = get_global_context().crypto;
+                        let (pub_key, pri_key) = crypto.gen_ed25519()
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+
+                        let raw_signed = [
+                            pub_key.clone(),
+                            block.body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+
+                        let signature = crypto
+                            .sig_ed25519(&pri_key, &hashed_signed)
+                            .await
+                            .map_err(|_| ComHubError::SignatureError)?;
+                        // 64 + 44 = 108
+                        block.signature =
+                            Some([signature.to_vec(), pub_key].concat());
+                    }
+                    SignatureType::None => {
+                        /* Ignored */
+                    }
+                }
+            }
+        }
+
         let now = Time::now();
         block.routing_header.sender = self.endpoint.clone();
         block
@@ -1305,15 +1554,15 @@ impl ComHub {
 
         // set distance to 1
         block.routing_header.distance = 1;
-        block
+        Ok(block)
     }
 
     /// Public method to send an outgoing block from this endpoint. Called by the runtime.
-    pub fn send_own_block(
+    pub async fn send_own_block(
         &self,
         mut block: DXBBlock,
     ) -> Result<(), Vec<Endpoint>> {
-        block = self.prepare_own_block(block);
+        block = self.prepare_own_block(block).await.map_err(|_| vec![])?;
         // add own outgoing block to history
         self.block_handler.add_block_to_history(&block, None);
         self.send_block(block, vec![], false)
@@ -1334,7 +1583,7 @@ impl ComHub {
         let has_exact_receiver_count = block.has_exact_receiver_count();
         let receivers = block.receiver_endpoints();
 
-        let res = self.send_own_block(block);
+        let res = self.send_own_block(block).await;
         let failed_endpoints = res.err().unwrap_or_default();
 
         // yield
@@ -1610,7 +1859,7 @@ impl ComHub {
         }
 
         let socket = self.get_socket_by_uuid(socket_uuid);
-        let mut socket_ref = socket.lock().unwrap();
+        let mut socket_ref = socket.try_lock().unwrap();
 
         let is_broadcast = endpoints
             .iter()
@@ -1623,7 +1872,9 @@ impl ComHub {
         {
             return;
         }
-
+        for interceptor in self.outgoing_block_interceptors.borrow().iter() {
+            interceptor(&block, socket_uuid, endpoints);
+        }
         match &block.to_bytes() {
             Ok(bytes) => {
                 info!(
@@ -1703,28 +1954,10 @@ impl ComHub {
                     if reconnect_now {
                         debug!("Reconnecting interface {uuid}");
                         interface.set_state(ComInterfaceState::Connecting);
-                        spawn_with_panic_notify(async move {
-                            let interface = interface_rc.clone();
-                            let mut interface = interface.borrow_mut();
-
-                            let config = interface.get_properties_mut();
-                            config.close_timestamp = None;
-
-                            let current_attempts =
-                                config.reconnect_attempts.unwrap_or(0);
-                            config.reconnect_attempts =
-                                Some(current_attempts + 1);
-
-                            let res = interface.handle_open().await;
-                            if res {
-                                interface
-                                    .set_state(ComInterfaceState::Connected);
-                                // config.reconnect_attempts = None;
-                            } else {
-                                interface
-                                    .set_state(ComInterfaceState::NotConnected);
-                            }
-                        });
+                        spawn_with_panic_notify(
+                            &self.async_context,
+                            reconnect_interface_task(interface_rc),
+                        );
                     } else {
                         debug!("Not reconnecting interface {uuid}");
                     }
@@ -1739,14 +1972,14 @@ impl ComHub {
 
     /// Updates all known sockets for all interfaces to update routing
     /// information, remove deleted sockets and add new sockets and endpoint relations
-    fn update_sockets(&self) {
+    async fn update_sockets(&self) {
         let mut new_sockets = Vec::new();
         let mut deleted_sockets = Vec::new();
         let mut registered_sockets = Vec::new();
 
         for (interface, priority) in self.interfaces.borrow().values() {
             let socket_updates = interface.clone().borrow().get_sockets();
-            let mut socket_updates = socket_updates.lock().unwrap();
+            let mut socket_updates = socket_updates.try_lock().unwrap();
 
             registered_sockets
                 .extend(socket_updates.socket_registrations.drain(..));
@@ -1757,7 +1990,7 @@ impl ComHub {
         }
 
         for (socket, priority) in new_sockets {
-            self.add_socket(socket.clone(), priority);
+            self.add_socket(socket.clone(), priority).await;
         }
         for socket_uuid in deleted_sockets {
             self.delete_socket(&socket_uuid);
@@ -1775,21 +2008,21 @@ impl ComHub {
 
     /// Collects incoming data slices from all sockets. The sockets will call their
     /// BlockCollector to collect the data into blocks.
-    fn collect_incoming_data(&self) {
+    async fn collect_incoming_data(&self) {
         // update sockets, collect incoming data into full blocks
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
-            socket_ref.collect_incoming_data();
+            let mut socket_ref = socket.try_lock().unwrap();
+            socket_ref.collect_incoming_data().await;
         }
     }
 
     /// Collects all blocks from the receive queues of all sockets and process them
     /// in the receive_block method.
-    fn receive_incoming_blocks(&self) {
+    async fn receive_incoming_blocks(&self) {
         let mut blocks = vec![];
         // iterate over all sockets
         for (socket, _) in self.sockets.borrow().values() {
-            let mut socket_ref = socket.lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             let uuid = socket_ref.uuid.clone();
             let block_queue = socket_ref.get_incoming_block_queue();
             blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));
@@ -1797,7 +2030,7 @@ impl ComHub {
 
         for (uuid, blocks) in blocks {
             for block in blocks.iter() {
-                self.receive_block(block, uuid.clone());
+                self.receive_block(block, uuid.clone()).await;
             }
         }
     }
@@ -1806,7 +2039,10 @@ impl ComHub {
     fn flush_outgoing_blocks(&self) {
         let interfaces = self.interfaces.borrow();
         for (interface, _) in interfaces.values() {
-            com_interface::flush_outgoing_blocks(interface.clone());
+            com_interface::flush_outgoing_blocks(
+                interface.clone(),
+                &self.async_context,
+            );
         }
     }
 }
@@ -1905,10 +2141,10 @@ pub enum ResponseError {
 }
 
 impl Display for ResponseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ResponseError::NoResponseAfterTimeout(endpoint, duration) => {
-                write!(
+                core::write!(
                     f,
                     "No response after timeout ({}s) for endpoint {}",
                     duration.as_secs(),
@@ -1916,10 +2152,10 @@ impl Display for ResponseError {
                 )
             }
             ResponseError::NotReachable(endpoint) => {
-                write!(f, "Endpoint {endpoint} is not reachable")
+                core::write!(f, "Endpoint {endpoint} is not reachable")
             }
             ResponseError::EarlyAbort(endpoint) => {
-                write!(f, "Early abort for endpoint {endpoint}")
+                core::write!(f, "Early abort for endpoint {endpoint}")
             }
         }
     }

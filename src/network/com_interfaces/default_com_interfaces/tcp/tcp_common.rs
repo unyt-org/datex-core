@@ -1,3 +1,5 @@
+use crate::stdlib::string::String;
+use core::prelude::rust_2024::*;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use thiserror::Error;
@@ -17,7 +19,7 @@ pub struct TCPServerInterfaceSetupData {
 #[derive(Debug, Display, Error, Clone, PartialEq)]
 pub enum TCPError {
     Other(String),
-    InvalidURL,
+    InvalidAddress,
     ConnectionError,
     SendError,
     ReceiveError,

@@ -1,17 +1,23 @@
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
-use crate::types::type_container::TypeContainer;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::text::Text;
+use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::values::core_values::integer::Integer;
-use std::fmt::Display;
-use std::hash::Hash;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::prelude::rust_2024::*;
+use core::unimplemented;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum StructuralTypeDefinition {
@@ -23,8 +29,8 @@ pub enum StructuralTypeDefinition {
     Boolean(Boolean), // FIXME #374 use bool
     Endpoint(Endpoint),
     Null,
-    List(Vec<TypeContainer>),
-    Map(Vec<(TypeContainer, TypeContainer)>),
+    List(Vec<Type>), // e.g. [&mut integer, text, boolean]
+    Map(Vec<(Type, Type)>),
 }
 
 macro_rules! impl_from_typed_int {
@@ -144,7 +150,7 @@ impl StructuralTypeDefinition {
                 StructuralTypeDefinition::Map(field_types),
                 CoreValue::Map(map),
             ) => field_types.iter().all(|(field_name, field_type)| {
-                todo!("#375 handle key matching")
+                core::todo!("#375 handle key matching")
                 // map.get(&field_name_value).is_some_and(|field_value| {
                 //     field_type.value_matches(field_value)
                 // })
@@ -199,39 +205,39 @@ impl StructuralEq for StructuralTypeDefinition {
 }
 
 impl Display for StructuralTypeDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             StructuralTypeDefinition::Integer(integer) => {
-                write!(f, "{}", integer)
+                core::write!(f, "{}", integer)
             }
             StructuralTypeDefinition::TypedInteger(typed_integer) => {
-                write!(f, "{}", typed_integer)
+                core::write!(f, "{}", typed_integer)
             }
             StructuralTypeDefinition::Decimal(decimal) => {
-                write!(f, "{}", decimal)
+                core::write!(f, "{}", decimal)
             }
             StructuralTypeDefinition::TypedDecimal(typed_decimal) => {
-                write!(f, "{}", typed_decimal)
+                core::write!(f, "{}", typed_decimal)
             }
-            StructuralTypeDefinition::Text(text) => write!(f, "{}", text),
+            StructuralTypeDefinition::Text(text) => core::write!(f, "{}", text),
             StructuralTypeDefinition::Boolean(boolean) => {
-                write!(f, "{}", boolean)
+                core::write!(f, "{}", boolean)
             }
             StructuralTypeDefinition::Endpoint(endpoint) => {
-                write!(f, "{}", endpoint)
+                core::write!(f, "{}", endpoint)
             }
-            StructuralTypeDefinition::Null => write!(f, "null"),
+            StructuralTypeDefinition::Null => core::write!(f, "null"),
             StructuralTypeDefinition::List(types) => {
                 let types_str: Vec<String> =
                     types.iter().map(|t| t.to_string()).collect();
-                write!(f, "[{}]", types_str.join(", "))
+                core::write!(f, "[{}]", types_str.join(", "))
             }
             StructuralTypeDefinition::Map(fields) => {
                 let fields_str: Vec<String> = fields
                     .iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect();
-                write!(f, "{{{}}}", fields_str.join(", "))
+                core::write!(f, "{{{}}}", fields_str.join(", "))
             }
         }
     }

@@ -1,9 +1,9 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
     "jsr:@opentf/obj-diff@0.11": "0.11.0",
     "jsr:@opentf/std@0.12.0": "0.12.0",
-    "jsr:@unyt/speck@^0.0.10": "0.0.10",
+    "jsr:@unyt/speck@^0.0.11": "0.0.11",
     "npm:github-slugger@2": "2.0.0",
     "npm:tablemark@^4.1.0": "4.1.0"
   },
@@ -17,8 +17,8 @@
     "@opentf/std@0.12.0": {
       "integrity": "a78ec5cee300c4379dda0e92458ae372a9e871daef7b2aa2a53cb2314a276980"
     },
-    "@unyt/speck@0.0.10": {
-      "integrity": "78e7f5459e864b582fe3b6d81905c266789bf3d36b7b003da320b54ee3215711",
+    "@unyt/speck@0.0.11": {
+      "integrity": "ef418d8abc17212176a3d7fe1a874bbe98647435667cdf58240e4ccf167b2ad7",
       "dependencies": [
         "npm:github-slugger",
         "npm:tablemark"
@@ -35,8 +35,8 @@
     "change-case@5.4.4": {
       "integrity": "sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w=="
     },
-    "emoji-regex@10.5.0": {
-      "integrity": "sha512-lb49vf1Xzfx080OKA0o6l8DQQpV+6Vg95zyCJX9VB/BqKYlhG7N4wgROUUHRA+ZPUefLnteQOad7z1kT2bV7bg=="
+    "emoji-regex@10.6.0": {
+      "integrity": "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="
     },
     "get-east-asian-width@1.4.0": {
       "integrity": "sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q=="
@@ -75,8 +75,8 @@
         "wrap-ansi"
       ]
     },
-    "wordwrapjs@5.1.0": {
-      "integrity": "sha512-JNjcULU2e4KJwUNv6CHgI46UvDGitb6dGryHajXTDiLgg1/RiGoPSDw4kZfYnwGtEXf2ZMeIewDQgFGzkCB2Sg=="
+    "wordwrapjs@5.1.1": {
+      "integrity": "sha512-0yweIbkINJodk27gX9LBGMzyQdBDan3s/dEAiwBOj+Mf0PPyWL6/rikalkv8EeD0E8jm4o5RXEOrFTP3NXbhJg=="
     },
     "wrap-ansi@9.0.2": {
       "integrity": "sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==",
@@ -88,16 +88,12 @@
     }
   },
   "remote": {
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json": "1c3d837b9a7356bbeaa6f432afa1f4582a650bfe45c03b8061ddb15bd71936c1",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "351c707f13745a267381593f88b0e0e04bd6fa363aca52523b57c810b38d4a29",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token=": "8baecc217a44d57aa3cf5dbb1f9d5f473dabf5a033b30b5264c49a6d648814b7",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=1": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5",
-    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?x=2": "216799404b3595d5406caf18b7b6765598b3a7157c86a95b6520b1af492c6bf5"
+    "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token": "eebb55680a419f1055e5250e08dd3cc669a6f9b5721d99d083166be080931c62"
   },
   "workspace": {
     "dependencies": [
       "jsr:@opentf/obj-diff@0.11",
-      "jsr:@unyt/speck@^0.0.10"
+      "jsr:@unyt/speck@^0.0.11"
     ]
   }
 }

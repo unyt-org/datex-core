@@ -1,3 +1,4 @@
+use core::prelude::rust_2024::*;
 use num_enum::TryFromPrimitive;
 use strum::Display;
 
@@ -12,6 +13,7 @@ use strum::Display;
     Display,
     num_enum::IntoPrimitive,
 )]
+#[strum(serialize_all = "lowercase")]
 #[repr(u32)]
 pub enum InternalSlot {
     ENDPOINT = 0xffffff00,

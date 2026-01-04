@@ -1,6 +1,7 @@
 use super::serializable::Serializable;
 use crate::values::core_values::endpoint::Endpoint;
 use binrw::{BinRead, BinWrite};
+use core::prelude::rust_2024::*;
 use modular_bitfield::{Specifier, bitfield, prelude::B43};
 use strum_macros::Display;
 
@@ -19,7 +20,7 @@ pub enum BlockType {
 
 impl BlockType {
     pub fn is_response(&self) -> bool {
-        matches!(self, BlockType::Response | BlockType::TraceBack)
+        core::matches!(self, BlockType::Response | BlockType::TraceBack)
     }
 }
 

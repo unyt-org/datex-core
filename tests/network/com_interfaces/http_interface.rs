@@ -1,12 +1,12 @@
+use core::str::FromStr;
 use datex_core::{
-    values::core_values::endpoint::Endpoint,
     network::com_interfaces::{
         com_interface::ComInterface,
         default_com_interfaces::http::http_server_interface::HTTPServerNativeInterface,
         socket_provider::MultipleSocketProvider,
     },
+    values::core_values::endpoint::Endpoint,
 };
-use std::str::FromStr;
 
 use crate::context::init_global_context;
 
@@ -18,7 +18,7 @@ pub async fn test_construct() {
 
     let mut server =
         HTTPServerNativeInterface::new(&PORT).unwrap_or_else(|e| {
-            panic!("Failed to create HTTPServerInterface: {e:?}");
+            core::panic!("Failed to create HTTPServerInterface: {e:?}");
         });
     server.open().await.unwrap();
     let endpoint = Endpoint::from_str("@jonas").unwrap();

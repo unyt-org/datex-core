@@ -1,16 +1,18 @@
+use core::prelude::rust_2024::*;
 use strum_macros::EnumIs;
 
 use super::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use crate::stdlib::fmt::Display;
+use crate::std_sync::Mutex;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::utils::uuid::UUID;
 use crate::{
-    values::core_values::endpoint::Endpoint, global::dxb_block::DXBBlock,
+    global::dxb_block::DXBBlock, values::core_values::endpoint::Endpoint,
 };
-use std::sync::Mutex;
-// FIXME #196 no-std
+use core::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {
@@ -22,8 +24,8 @@ pub enum SocketState {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComInterfaceSocketUUID(pub UUID);
 impl Display for ComInterfaceSocketUUID {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "ComInterfaceSocket({})", self.0)
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "ComInterfaceSocket({})", self.0)
     }
 }
 impl ComInterfaceSocketUUID {
@@ -55,8 +57,8 @@ impl ComInterfaceSocket {
         self.block_collector.get_block_queue()
     }
 
-    pub fn collect_incoming_data(&mut self) {
-        self.block_collector.update();
+    pub async fn collect_incoming_data(&mut self) {
+        self.block_collector.update().await;
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {

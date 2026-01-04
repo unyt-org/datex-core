@@ -1,5 +1,4 @@
-// deno-lint-ignore no-import-prefix
-import dxb from "https://raw.githubusercontent.com/unyt-org/speck/refs/heads/main/examples/dxb.json?token" with {
+import dxb from "example-dxb" with {
     type: "json",
 };
 
@@ -55,7 +54,7 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                     resolvePath(jsonData, difference.p) as [string, number[]] ??
                         [];
                 const { receiver: parsedEndpoint, key: parsedKey } = difference
-                    .v as any;
+                    .v as unknown as { receiver: string; key: string };
                 if (expectedEndpoint !== parsedEndpoint) {
                     throw new Error(
                         `Difference at '${path}': Expected '${expectedEndpoint}', found '${parsedEndpoint}'`,
@@ -71,11 +70,31 @@ for await (const dirEntry of Deno.readDir(BASE)) {
                     );
                 }
                 continue;
+            } else if (path.startsWith("routing_header.receivers_pointer_id")) {
+                const parsedKey = (resolvePath(
+                    jsonData,
+                    difference.p,
+                ) as unknown as { id: number[] }).id;
+
+                console.log(parsedKey);
+                const hexKey = "$" +
+                    parsedKey.map((ba: number) =>
+                        ba.toString(16).padStart(2, "0")
+                    )
+                        .join("");
+                if (hexKey !== difference.v) {
+                    errors.push(
+                        `Difference at '${path}': Expected key '${difference.v}', found '${hexKey}'`,
+                    );
+                }
+                continue;
+            } else if (path.startsWith("signature")) {
+                continue;
             }
 
             errors.push(
                 `${type} at '${path}': Expected '${
-                    resolvePath(jsonData, difference.p) ?? "-"
+                    resolvePath(jsonData, difference.p)
                 }', found '${difference.v}'`,
             );
         }

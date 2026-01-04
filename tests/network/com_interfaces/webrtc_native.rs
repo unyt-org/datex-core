@@ -113,15 +113,15 @@ pub async fn test_connect() {
         let receive_a = {
             let  socket = interface_a.borrow_mut().get_socket();
             let socket = socket.unwrap();
-            let socket = socket.lock().unwrap();
-            let mut socket = socket.receive_queue.lock().unwrap();
+            let socket = socket.try_lock().unwrap();
+            let mut socket = socket.receive_queue.try_lock().unwrap();
             socket.drain(..).collect::<Vec<_>>()
         };
         let receive_b = {
             let  socket = interface_b.borrow_mut().get_socket();
             let socket = socket.unwrap();
-            let socket = socket.lock().unwrap();
-            let mut socket = socket.receive_queue.lock().unwrap();
+            let socket = socket.try_lock().unwrap();
+            let mut socket = socket.receive_queue.try_lock().unwrap();
             socket.drain(..).collect::<Vec<_>>()
         };
 

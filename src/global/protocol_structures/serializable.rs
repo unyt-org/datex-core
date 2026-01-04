@@ -1,8 +1,10 @@
+use crate::stdlib::vec::Vec;
+use binrw::io::Cursor;
 use binrw::{
-    meta::{ReadEndian, WriteEndian},
     BinWrite,
+    meta::{ReadEndian, WriteEndian},
 };
-use std::io::Cursor; // FIXME #114 no-std
+use core::prelude::rust_2024::*;
 
 pub trait Serializable: BinWrite + ReadEndian + WriteEndian {
     fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error>

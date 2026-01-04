@@ -1,11 +1,13 @@
 use super::mockup_interface::{MockupInterface, store_sender_and_receiver};
 use crate::network::helpers::mockup_interface::MockupInterfaceSetupData;
+use core::fmt::{self, Debug, Display};
 use core::panic;
+use core::str::FromStr;
 use datex_core::network::com_hub::{ComInterfaceFactoryFn, InterfacePriority};
 use datex_core::network::com_hub_network_tracing::TraceOptions;
 use datex_core::network::com_interfaces::com_interface::ComInterfaceFactory;
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
-use datex_core::runtime::{Runtime, RuntimeConfig};
+use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
 use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::values::value_container::ValueContainer;
@@ -13,10 +15,8 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{self, Debug, Display};
 use std::path::Path;
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::mpsc;
 use std::{env, fs};
 
@@ -93,14 +93,14 @@ impl Display for Route {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, (endpoint, channel, _fork)) in self.hops.iter().enumerate() {
             // Write the endpoint
-            write!(f, "{endpoint}")?;
+            core::write!(f, "{endpoint}")?;
 
             // If not the last, write the arrow + optional channel
             if i + 1 < self.hops.len() {
                 if let Some(chan) = channel {
-                    write!(f, " -({chan})-> ")?;
+                    core::write!(f, " -({chan})-> ")?;
                 } else {
-                    write!(f, " --> ")?;
+                    core::write!(f, " --> ")?;
                 }
             }
         }
@@ -219,16 +219,21 @@ pub async fn test_routes(
     // make sure the start endpoint for all routes is the same
     for route in routes {
         if route.hops[0].0 != start {
-            panic!(
+            core::panic!(
                 "Route start endpoints must all be the same. Found {} instead of {}",
-                route.hops[0].0, start
+                route.hops[0].0,
+                start
             );
         }
     }
 
     for end in ends {
         if start != end {
-            panic!("Route start {} does not match receiver {}", start, end);
+            core::panic!(
+                "Route start {} does not match receiver {}",
+                start,
+                end
+            );
         }
     }
 
@@ -332,7 +337,7 @@ impl Display for RouteAssertionError {
                 expected,
                 actual,
             ) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be {expected} but was {actual}"
                 )
@@ -342,19 +347,19 @@ impl Display for RouteAssertionError {
                 expected,
                 actual,
             ) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be channel {expected} but was {actual}"
                 )
             }
             RouteAssertionError::InvalidForkOnHop(index, expected, actual) => {
-                write!(
+                core::write!(
                     f,
                     "Expected hop #{index} to be fork {expected} but was {actual}"
                 )
             }
             RouteAssertionError::MissingResponse(endpoint) => {
-                write!(f, "No response received for endpoint {endpoint}")
+                core::write!(f, "No response received for endpoint {endpoint}")
             }
         }
     }
@@ -588,7 +593,7 @@ impl Network {
             match mockup_interface_channels.get_mut(&name).unwrap().take() {
                 Some(channel) => channel,
                 _ => {
-                    panic!("Channel {name} is already used");
+                    core::panic!("Channel {name} is already used");
                 }
             }
         }
@@ -605,7 +610,7 @@ impl Network {
 
     pub async fn start(&mut self) {
         if self.is_initialized {
-            panic!("Network already initialized");
+            core::panic!("Network already initialized");
         }
         self.is_initialized = true;
 
@@ -613,6 +618,7 @@ impl Network {
         for endpoint in self.endpoints.iter_mut() {
             let runtime = Rc::new(Runtime::new(
                 RuntimeConfig::new_with_endpoint(endpoint.endpoint.clone()),
+                AsyncContext::new(),
             ));
 
             // register factories
@@ -652,6 +658,6 @@ impl Network {
                 return node.runtime.as_ref().unwrap();
             }
         }
-        panic!("Endpoint {endpoint} not found in network");
+        core::panic!("Endpoint {endpoint} not found in network");
     }
 }

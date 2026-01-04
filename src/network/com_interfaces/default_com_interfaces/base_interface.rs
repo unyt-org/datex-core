@@ -1,3 +1,5 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::error;
 
 use super::super::com_interface::ComInterface;
@@ -14,13 +16,18 @@ use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::std_sync::Mutex;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::pin::Pin;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::sync::Arc;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::{delegate_com_interface_info, set_sync_opener};
+use core::future::Future;
+use core::time::Duration;
 use serde::{Deserialize, Serialize};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -138,9 +145,9 @@ impl BaseInterface {
     ) -> Result<(), BaseInterfaceError> {
         match self.get_socket_with_uuid(receiver_socket_uuid) {
             Some(socket) => {
-                let socket = socket.lock().unwrap();
+                let socket = socket.try_lock().unwrap();
                 let receive_queue = socket.get_receive_queue();
-                receive_queue.lock().unwrap().extend(data);
+                receive_queue.try_lock().unwrap().extend(data);
                 Ok(())
             }
             _ => {

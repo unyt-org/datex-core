@@ -8,7 +8,9 @@ use datex_core::values::core_values::endpoint::Endpoint;
  */
 #[test]
 pub fn init_runtime() {
-    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(Endpoint::new("@test")));
+    let runtime = Runtime::init_native(RuntimeConfig::new_with_endpoint(
+        Endpoint::new("@test"),
+    ));
     assert_eq!(runtime.version, env!("CARGO_PKG_VERSION"));
 }
 

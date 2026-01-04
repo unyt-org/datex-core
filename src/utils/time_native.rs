@@ -1,4 +1,4 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::stdlib::time::{SystemTime, UNIX_EPOCH};
 
 use super::time::TimeTrait;
 pub struct TimeNative;

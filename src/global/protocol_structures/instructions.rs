@@ -1,14 +1,54 @@
-use crate::ast::assignment_operation::AssignmentOperator;
+use crate::global::operators::AssignmentOperator;
+use crate::global::type_instruction_codes::TypeMutabilityCode;
+use crate::stdlib::string::String;
+use crate::stdlib::vec::Vec;
 use crate::values::core_values::decimal::Decimal;
+use crate::values::core_values::endpoint::EndpointParsingError;
 use crate::values::core_values::integer::Integer;
 use crate::values::core_values::{
     decimal::utils::decimal_to_string, endpoint::Endpoint,
 };
 use binrw::{BinRead, BinWrite};
-use std::fmt::Display;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use datex_core::values::pointer::PointerAddress;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
+    // regular instruction
+    RegularInstruction(RegularInstruction),
+    // Type instruction that yields a type
+    TypeInstruction(TypeInstruction),
+}
+
+impl Display for Instruction {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Instruction::RegularInstruction(instr) => {
+                core::write!(f, "{}", instr)
+            }
+            Instruction::TypeInstruction(instr) => {
+                core::write!(f, "TYPE_INSTRUCTION {}", instr)
+            }
+        }
+    }
+}
+
+impl From<RegularInstruction> for Instruction {
+    fn from(instruction: RegularInstruction) -> Self {
+        Instruction::RegularInstruction(instruction)
+    }
+}
+
+impl From<TypeInstruction> for Instruction {
+    fn from(instruction: TypeInstruction) -> Self {
+        Instruction::TypeInstruction(instruction)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RegularInstruction {
     // signed integers
     Int8(Int8Data),
     Int16(Int16Data),
@@ -26,30 +66,37 @@ pub enum Instruction {
     // big integers
     BigInteger(IntegerData),
 
+    // default integer
+    Integer(IntegerData),
+
     Endpoint(Endpoint),
 
     DecimalF32(Float32Data),
     DecimalF64(Float64Data),
     DecimalAsInt16(FloatAsInt16Data),
     DecimalAsInt32(FloatAsInt32Data),
+    BigDecimal(DecimalData),
+    // default decimal
     Decimal(DecimalData),
 
-    ExecutionBlock(ExecutionBlockData),
-    RemoteExecution,
+    RemoteExecution(InstructionBlockData),
 
     ShortText(ShortTextData),
     Text(TextData),
     True,
     False,
     Null,
-    ScopeStart,
-    ListStart,
-    MapStart,
-    StructStart,
-    ScopeEnd,
+    Statements(StatementsData),
+    ShortStatements(StatementsData),
+    UnboundedStatements,
+    UnboundedStatementsEnd(bool),
+    List(ListData),
+    ShortList(ListData),
+    Map(MapData),
+    ShortMap(MapData),
+
     KeyValueDynamic,
     KeyValueShortText(ShortTextData),
-    CloseAndStore,
 
     // binary operator
     Add,
@@ -65,6 +112,14 @@ pub enum Instruction {
     BitwiseNot,
 
     Apply(ApplyData),
+
+    GetPropertyText(ShortTextData),
+    SetPropertyText(ShortTextData),
+    SetPropertyDynamic,
+
+    GetPropertyIndex(UInt32Data),
+    SetPropertyIndex(UInt32Data),
+    GetPropertyDynamic,
 
     // comparison operator
     Is,
@@ -82,7 +137,6 @@ pub enum Instruction {
 
     CreateRef,
     CreateRefMut,
-    CreateRefFinal,
 
     // &ABCDE
     GetRef(RawFullPointerAddress),
@@ -99,199 +153,290 @@ pub enum Instruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
-    AssignToReference(AssignmentOperator),
+    GetInternalSlot(SlotAddress),
+
+    SetReferenceValue(AssignmentOperator),
     Deref,
 
-    TypeInstructions(Vec<TypeInstruction>),
-    TypeExpression(Vec<TypeInstruction>),
+    TypedValue,
+    TypeExpression,
 }
 
-impl Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for RegularInstruction {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Instruction::Int8(data) => write!(f, "INT_8 {}", data.0),
-            Instruction::Int16(data) => write!(f, "INT_16 {}", data.0),
-            Instruction::Int32(data) => write!(f, "INT_32 {}", data.0),
-            Instruction::Int64(data) => write!(f, "INT_64 {}", data.0),
-            Instruction::Int128(data) => write!(f, "INT_128 {}", data.0),
-
-            Instruction::UInt8(data) => write!(f, "UINT_8 {}", data.0),
-            Instruction::UInt16(data) => write!(f, "UINT_16 {}", data.0),
-            Instruction::UInt32(data) => write!(f, "UINT_32 {}", data.0),
-            Instruction::UInt64(data) => write!(f, "UINT_64 {}", data.0),
-            Instruction::UInt128(data) => write!(f, "UINT_128 {}", data.0),
-
-            Instruction::Apply(count) => write!(f, "APPLY {}", count.arg_count),
-
-            Instruction::BigInteger(data) => {
-                write!(f, "BIG_INTEGER {}", data.0)
+            RegularInstruction::Int8(data) => {
+                core::write!(f, "INT_8 {}", data.0)
             }
-            Instruction::Endpoint(data) => {
-                write!(f, "ENDPOINT {data}")
+            RegularInstruction::Int16(data) => {
+                core::write!(f, "INT_16 {}", data.0)
+            }
+            RegularInstruction::Int32(data) => {
+                core::write!(f, "INT_32 {}", data.0)
+            }
+            RegularInstruction::Int64(data) => {
+                core::write!(f, "INT_64 {}", data.0)
+            }
+            RegularInstruction::Int128(data) => {
+                core::write!(f, "INT_128 {}", data.0)
             }
 
-            Instruction::DecimalAsInt16(data) => {
-                write!(f, "DECIMAL_AS_INT_16 {}", data.0)
+            RegularInstruction::UInt8(data) => {
+                core::write!(f, "UINT_8 {}", data.0)
             }
-            Instruction::DecimalAsInt32(data) => {
-                write!(f, "DECIMAL_AS_INT_32 {}", data.0)
+            RegularInstruction::UInt16(data) => {
+                core::write!(f, "UINT_16 {}", data.0)
             }
-            Instruction::DecimalF32(data) => {
-                write!(f, "DECIMAL_F32 {}", decimal_to_string(data.0, false))
+            RegularInstruction::UInt32(data) => {
+                core::write!(f, "UINT_32 {}", data.0)
             }
-            Instruction::DecimalF64(data) => {
-                write!(f, "DECIMAL_F64 {}", decimal_to_string(data.0, false))
+            RegularInstruction::UInt64(data) => {
+                core::write!(f, "UINT_64 {}", data.0)
             }
-            Instruction::Decimal(data) => {
-                write!(f, "DECIMAL_BIG {}", data.0)
+            RegularInstruction::UInt128(data) => {
+                core::write!(f, "UINT_128 {}", data.0)
             }
-            Instruction::ShortText(data) => write!(f, "SHORT_TEXT {}", data.0),
-            Instruction::Text(data) => write!(f, "TEXT {}", data.0),
-            Instruction::True => write!(f, "TRUE"),
-            Instruction::False => write!(f, "FALSE"),
-            Instruction::Null => write!(f, "NULL"),
-            Instruction::ScopeStart => write!(f, "SCOPE_START"),
-            Instruction::ListStart => write!(f, "LIST_START"),
-            Instruction::MapStart => write!(f, "MAP_START"),
-            Instruction::StructStart => write!(f, "STRUCT_START"),
-            Instruction::ScopeEnd => write!(f, "SCOPE_END"),
-            Instruction::KeyValueDynamic => write!(f, "KEY_VALUE_DYNAMIC"),
-            Instruction::KeyValueShortText(data) => {
-                write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
-            }
-            Instruction::CloseAndStore => write!(f, "CLOSE_AND_STORE"),
 
+            RegularInstruction::Apply(count) => {
+                core::write!(f, "APPLY {}", count.arg_count)
+            }
+
+            RegularInstruction::BigInteger(data) => {
+                core::write!(f, "BIG_INTEGER {}", data.0)
+            }
+            RegularInstruction::Integer(data) => {
+                core::write!(f, "INTEGER {}", data.0)
+            }
+            RegularInstruction::Endpoint(data) => {
+                core::write!(f, "ENDPOINT {data}")
+            }
+
+            RegularInstruction::DecimalAsInt16(data) => {
+                core::write!(f, "DECIMAL_AS_INT_16 {}", data.0)
+            }
+            RegularInstruction::DecimalAsInt32(data) => {
+                core::write!(f, "DECIMAL_AS_INT_32 {}", data.0)
+            }
+            RegularInstruction::DecimalF32(data) => {
+                core::write!(
+                    f,
+                    "DECIMAL_F32 {}",
+                    decimal_to_string(data.0, false)
+                )
+            }
+            RegularInstruction::DecimalF64(data) => {
+                core::write!(
+                    f,
+                    "DECIMAL_F64 {}",
+                    decimal_to_string(data.0, false)
+                )
+            }
+            RegularInstruction::BigDecimal(data) => {
+                core::write!(f, "DECIMAL_BIG {}", data.0)
+            }
+            RegularInstruction::Decimal(data) => {
+                core::write!(f, "DECIMAL {}", data.0)
+            }
+            RegularInstruction::ShortText(data) => {
+                core::write!(f, "SHORT_TEXT {}", data.0)
+            }
+            RegularInstruction::Text(data) => {
+                core::write!(f, "TEXT {}", data.0)
+            }
+            RegularInstruction::True => core::write!(f, "TRUE"),
+            RegularInstruction::False => core::write!(f, "FALSE"),
+            RegularInstruction::Null => core::write!(f, "NULL"),
+            RegularInstruction::Statements(data) => {
+                core::write!(f, "STATEMENTS {}", data.statements_count)
+            }
+            RegularInstruction::ShortStatements(data) => {
+                core::write!(f, "SHORT_STATEMENTS {}", data.statements_count)
+            }
+            RegularInstruction::UnboundedStatements => {
+                core::write!(f, "UNBOUNDED_STATEMENTS")
+            }
+            RegularInstruction::UnboundedStatementsEnd(_) => {
+                core::write!(f, "STATEMENTS_END")
+            }
+            RegularInstruction::List(data) => {
+                core::write!(f, "LIST {}", data.element_count)
+            }
+            RegularInstruction::ShortList(data) => {
+                core::write!(f, "SHORT_LIST {}", data.element_count)
+            }
+            RegularInstruction::Map(data) => {
+                core::write!(f, "MAP {}", data.element_count)
+            }
+            RegularInstruction::ShortMap(data) => {
+                core::write!(f, "SHORT_MAP {}", data.element_count)
+            }
+            RegularInstruction::KeyValueDynamic => {
+                core::write!(f, "KEY_VALUE_DYNAMIC")
+            }
+            RegularInstruction::KeyValueShortText(data) => {
+                core::write!(f, "KEY_VALUE_SHORT_TEXT {}", data.0)
+            }
             // operations
-            Instruction::Add => write!(f, "ADD"),
-            Instruction::Subtract => write!(f, "SUBTRACT"),
-            Instruction::Multiply => write!(f, "MULTIPLY"),
-            Instruction::Divide => write!(f, "DIVIDE"),
+            RegularInstruction::Add => core::write!(f, "ADD"),
+            RegularInstruction::Subtract => core::write!(f, "SUBTRACT"),
+            RegularInstruction::Multiply => core::write!(f, "MULTIPLY"),
+            RegularInstruction::Divide => core::write!(f, "DIVIDE"),
 
             // equality checks
-            Instruction::StructuralEqual => write!(f, "STRUCTURAL_EQUAL"),
-            Instruction::Equal => write!(f, "EQUAL"),
-            Instruction::NotStructuralEqual => {
-                write!(f, "NOT_STRUCTURAL_EQUAL")
+            RegularInstruction::StructuralEqual => {
+                core::write!(f, "STRUCTURAL_EQUAL")
             }
-            Instruction::NotEqual => write!(f, "NOT_EQUAL"),
-            Instruction::Is => write!(f, "IS"),
-            Instruction::Matches => write!(f, "MATCHES"),
+            RegularInstruction::Equal => core::write!(f, "EQUAL"),
+            RegularInstruction::NotStructuralEqual => {
+                core::write!(f, "NOT_STRUCTURAL_EQUAL")
+            }
+            RegularInstruction::NotEqual => core::write!(f, "NOT_EQUAL"),
+            RegularInstruction::Is => core::write!(f, "IS"),
+            RegularInstruction::Matches => core::write!(f, "MATCHES"),
 
-            Instruction::AllocateSlot(address) => {
-                write!(f, "ALLOCATE_SLOT {}", address.0)
+            RegularInstruction::AllocateSlot(address) => {
+                core::write!(f, "ALLOCATE_SLOT {}", address.0)
             }
-            Instruction::GetSlot(address) => {
-                write!(f, "GET_SLOT {}", address.0)
+            RegularInstruction::GetSlot(address) => {
+                core::write!(f, "GET_SLOT {}", address.0)
             }
-            Instruction::DropSlot(address) => {
-                write!(f, "DROP_SLOT {}", address.0)
+            RegularInstruction::GetInternalSlot(address) => {
+                core::write!(f, "GET_INTERNAL_SLOT {}", address.0)
             }
-            Instruction::SetSlot(address) => {
-                write!(f, "SET_SLOT {}", address.0)
+            RegularInstruction::DropSlot(address) => {
+                core::write!(f, "DROP_SLOT {}", address.0)
             }
-            Instruction::AssignToReference(operator) => {
-                write!(f, "ASSIGN_REFERENCE ({})", operator)
+            RegularInstruction::SetSlot(address) => {
+                core::write!(f, "SET_SLOT {}", address.0)
             }
-            Instruction::Deref => write!(f, "DEREF"),
-            Instruction::GetRef(address) => {
-                write!(
+            RegularInstruction::SetReferenceValue(operator) => {
+                core::write!(f, "SET_REFERENCE_VALUE ({})", operator)
+            }
+            RegularInstruction::Deref => core::write!(f, "DEREF"),
+            RegularInstruction::GetRef(address) => {
+                core::write!(
                     f,
                     "GET_REF [{}:{}]",
-                    address.endpoint,
+                    address.endpoint().expect("Invalid endpoint"),
                     hex::encode(address.id)
                 )
             }
-            Instruction::GetLocalRef(address) => {
-                write!(
+            RegularInstruction::GetLocalRef(address) => {
+                core::write!(
                     f,
                     "GET_LOCAL_REF [origin_id: {}]",
                     hex::encode(address.id)
                 )
             }
-            Instruction::GetInternalRef(address) => {
-                write!(
+            RegularInstruction::GetInternalRef(address) => {
+                core::write!(
                     f,
                     "GET_INTERNAL_REF [internal_id: {}]",
                     hex::encode(address.id)
                 )
             }
-            Instruction::CreateRef => write!(f, "CREATE_REF"),
-            Instruction::CreateRefMut => write!(f, "CREATE_REF_MUT"),
-            Instruction::CreateRefFinal => write!(f, "CREATE_REF_FINAL"),
-            Instruction::GetOrCreateRef(data) => {
-                write!(
+            RegularInstruction::CreateRef => core::write!(f, "CREATE_REF"),
+            RegularInstruction::CreateRefMut => {
+                core::write!(f, "CREATE_REF_MUT")
+            }
+            RegularInstruction::GetOrCreateRef(data) => {
+                core::write!(
                     f,
-                    "GET_OR_CREATE_REF [{}:{}, block_size: {}]",
-                    data.address.endpoint,
+                    "GET_OR_CREATE_REF [{}, block_size: {}]",
                     hex::encode(data.address.id),
                     data.create_block_size
                 )
             }
-            Instruction::GetOrCreateRefMut(data) => {
-                write!(
+            RegularInstruction::GetOrCreateRefMut(data) => {
+                core::write!(
                     f,
-                    "GET_OR_CREATE_REF_MUT [{}:{}, block_size: {}]",
-                    data.address.endpoint,
+                    "GET_OR_CREATE_REF_MUT [{}, block_size: {}]",
                     hex::encode(data.address.id),
                     data.create_block_size
                 )
             }
-            Instruction::ExecutionBlock(block) => {
-                write!(
+            RegularInstruction::RemoteExecution(block) => {
+                core::write!(
                     f,
-                    "EXECUTION_BLOCK (length: {}, injected_slot_count: {})",
-                    block.length, block.injected_slot_count
+                    "REMOTE_EXECUTION (length: {}, injected_slot_count: {})",
+                    block.length,
+                    block.injected_slot_count
                 )
             }
-            Instruction::RemoteExecution => write!(f, "REMOTE_EXECUTION"),
-            Instruction::AddAssign(address) => {
-                write!(f, "ADD_ASSIGN {}", address.0)
+            RegularInstruction::AddAssign(address) => {
+                core::write!(f, "ADD_ASSIGN {}", address.0)
             }
-            Instruction::SubtractAssign(address) => {
-                write!(f, "SUBTRACT_ASSIGN {}", address.0)
+            RegularInstruction::SubtractAssign(address) => {
+                core::write!(f, "SUBTRACT_ASSIGN {}", address.0)
             }
-            Instruction::MultiplyAssign(address) => {
-                write!(f, "MULTIPLY_ASSIGN {}", address.0)
+            RegularInstruction::MultiplyAssign(address) => {
+                core::write!(f, "MULTIPLY_ASSIGN {}", address.0)
             }
-            Instruction::DivideAssign(address) => {
-                write!(f, "DIVIDE_ASSIGN {}", address.0)
+            RegularInstruction::DivideAssign(address) => {
+                core::write!(f, "DIVIDE_ASSIGN {}", address.0)
             }
-            Instruction::TypeInstructions(instr) => {
-                let instr_strings: Vec<String> =
-                    instr.iter().map(|i| i.to_string()).collect();
-                write!(f, "TYPE_INSTRUCTIONS [{}]", instr_strings.join(", "))
+            RegularInstruction::UnaryMinus => core::write!(f, "-"),
+            RegularInstruction::UnaryPlus => core::write!(f, "+"),
+            RegularInstruction::BitwiseNot => core::write!(f, "BITWISE_NOT"),
+            RegularInstruction::TypedValue => core::write!(f, "TYPED_VALUE"),
+            RegularInstruction::TypeExpression => {
+                core::write!(f, "TYPE_EXPRESSION")
             }
-            Instruction::TypeExpression(instr) => {
-                let instr_strings: Vec<String> =
-                    instr.iter().map(|i| i.to_string()).collect();
-                write!(f, "TYPE_EXPRESSION [{}]", instr_strings.join(", "))
+            RegularInstruction::GetPropertyIndex(uint_32_data) => {
+                core::write!(f, "GET_PROPERTY_INDEX {}", uint_32_data.0)
             }
-            Instruction::UnaryMinus => write!(f, "-"),
-            Instruction::UnaryPlus => write!(f, "+"),
-            Instruction::BitwiseNot => write!(f, "BITWISE_NOT"),
+            RegularInstruction::SetPropertyIndex(uint_32_data) => {
+                core::write!(f, "SET_PROPERTY_INDEX {}", uint_32_data.0)
+            }
+            RegularInstruction::GetPropertyText(short_text_data) => {
+                core::write!(f, "GET_PROPERTY_TEXT {}", short_text_data.0)
+            }
+            RegularInstruction::SetPropertyText(short_text_data) => {
+                core::write!(f, "SET_PROPERTY_TEXT {}", short_text_data.0)
+            }
+            RegularInstruction::GetPropertyDynamic => {
+                core::write!(f, "GET_PROPERTY_DYNAMIC")
+            }
+            RegularInstruction::SetPropertyDynamic => {
+                core::write!(f, "SET_PROPERTY_DYNAMIC")
+            }
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeInstruction {
+    ImplType(ImplTypeData),
+    TypeReference(TypeReferenceData),
     LiteralText(TextData),
     LiteralInteger(IntegerData),
-    ListStart,
-    ScopeEnd,
+    List(ListData),
+    // TODO: add more type instructions
 }
 
 impl Display for TypeInstruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypeInstruction::LiteralText(data) => {
-                write!(f, "LITERAL_TEXT {}", data.0)
+                core::write!(f, "LITERAL_TEXT {}", data.0)
             }
             TypeInstruction::LiteralInteger(data) => {
-                write!(f, "LITERAL_INTEGER {}", data.0)
+                core::write!(f, "LITERAL_INTEGER {}", data.0)
             }
-            TypeInstruction::ListStart => write!(f, "LIST_START"),
-            TypeInstruction::ScopeEnd => write!(f, "SCOPE_END"),
+            TypeInstruction::List(data) => {
+                core::write!(f, "LIST {}", data.element_count)
+            }
+            TypeInstruction::TypeReference(reference_data) => {
+                core::write!(
+                    f,
+                    "TYPE_REFERENCE mutability: {}, address: {}",
+                    reference_data.metadata.mutability,
+                    PointerAddress::from(&reference_data.address)
+                )
+            }
+            TypeInstruction::ImplType(data) => {
+                core::write!(f, "IMPL_TYPE ({} impls)", data.impl_count)
+            }
         }
     }
 }
@@ -384,6 +529,56 @@ pub struct TextData(pub String);
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub struct ShortListData {
+    pub element_count: u8,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct StatementsData {
+    pub statements_count: u32,
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
+    pub terminated: bool,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct UnboundedStatementsData {
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
+    pub terminated: bool,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ShortStatementsData {
+    pub statements_count: u8,
+    #[br(map = |x: u8| x != 0)]
+    #[bw(map = |b: &bool| if *b { 1u8 } else { 0u8 })]
+    pub terminated: bool,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ListData {
+    pub element_count: u32,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ShortMapData {
+    pub element_count: u8,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct MapData {
+    pub element_count: u32,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct InstructionCloseAndStore {
     pub instruction: Int8Data,
 }
@@ -392,11 +587,34 @@ pub struct InstructionCloseAndStore {
 #[brw(little)]
 pub struct SlotAddress(pub u32);
 
-#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[derive(
+    BinRead, BinWrite, Clone, Debug, PartialEq, Serialize, Deserialize,
+)]
 #[brw(little)]
 pub struct RawFullPointerAddress {
-    pub endpoint: Endpoint,
-    pub id: [u8; 5],
+    pub id: [u8; 26],
+}
+impl RawFullPointerAddress {
+    pub fn endpoint(&self) -> Result<Endpoint, EndpointParsingError> {
+        let mut endpoint = [0u8; 21];
+        endpoint.copy_from_slice(&self.id[0..21]);
+        Endpoint::from_slice(endpoint)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PointerAddressConversionError;
+
+impl TryFrom<PointerAddress> for RawFullPointerAddress {
+    type Error = PointerAddressConversionError;
+    fn try_from(ptr: PointerAddress) -> Result<Self, Self::Error> {
+        match ptr {
+            PointerAddress::Remote(bytes) => {
+                Ok(RawFullPointerAddress { id: bytes })
+            }
+            _ => Err(PointerAddressConversionError),
+        }
+    }
 }
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
@@ -413,6 +631,17 @@ pub struct RawInternalPointerAddress {
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
+pub enum RawPointerAddress {
+    #[br(magic = 120u8)] // InstructionCode::GET_REF
+    Full(RawFullPointerAddress),
+    #[br(magic = 121u8)] // InstructionCode::GET_INTERNAL_REF
+    Internal(RawInternalPointerAddress),
+    #[br(magic = 122u8)] // InstructionCode::GET_LOCAL_REF
+    Local(RawLocalPointerAddress),
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
 pub struct GetOrCreateRefData {
     pub address: RawFullPointerAddress,
     pub create_block_size: u64,
@@ -420,7 +649,7 @@ pub struct GetOrCreateRefData {
 
 #[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
 #[brw(little)]
-pub struct ExecutionBlockData {
+pub struct InstructionBlockData {
     pub length: u32,
     pub injected_slot_count: u32,
     #[br(count = injected_slot_count)]
@@ -433,4 +662,26 @@ pub struct ExecutionBlockData {
 #[brw(little)]
 pub struct ApplyData {
     pub arg_count: u16,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct ImplTypeData {
+    pub metadata: TypeMetadata,
+    pub impl_count: u8,
+    #[br(count = impl_count)]
+    pub impls: Vec<RawPointerAddress>,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeReferenceData {
+    pub metadata: TypeMetadata,
+    pub address: RawPointerAddress,
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq)]
+#[brw(little)]
+pub struct TypeMetadata {
+    pub mutability: TypeMutabilityCode,
 }

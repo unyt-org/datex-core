@@ -1,23 +1,18 @@
 use datex_core::serde::serializer::to_value_container;
-use datex_core::values::core_values::endpoint::Endpoint;
 use datex_core::global::dxb_block::DXBBlock;
 use datex_core::global::protocol_structures::block_header::BlockHeader;
 use datex_core::global::protocol_structures::encrypted_header::{
     self, EncryptedHeader,
 };
-use datex_core::global::protocol_structures::routing_header::RoutingHeader;
+use datex_core::global::protocol_structures::routing_header::{RoutingHeader, SignatureType};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface_properties::{InterfaceProperties, ReconnectionConfig};
 use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use itertools::Itertools;
-use core::panic;
-use std::io::Write;
-use std::str::FromStr;
+use datex_core::stdlib::io::Write;
 use std::sync::mpsc;
-// FIXME #217 no-std
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
@@ -35,11 +30,14 @@ use datex_core::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceFactory, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
+use datex_core::runtime::AsyncContext;
+use datex_core::values::core_values::endpoint::Endpoint;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
     init_global_context();
-    let com_hub = Rc::new(ComHub::default());
+    let com_hub =
+        Rc::new(ComHub::new(Endpoint::default(), AsyncContext::new()));
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
@@ -51,7 +49,7 @@ pub async fn test_add_and_remove() {
             )
             .await
             .unwrap_or_else(|e| {
-                panic!("Error adding interface: {e:?}");
+                core::panic!("Error adding interface: {e:?}");
             });
         uuid
     };
@@ -62,7 +60,7 @@ pub async fn test_add_and_remove() {
 pub async fn test_multiple_add() {
     init_global_context();
 
-    let com_hub = ComHub::default();
+    let com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
 
     let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
     let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
@@ -74,7 +72,7 @@ pub async fn test_multiple_add() {
         )
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
     com_hub
         .open_and_add_interface(
@@ -83,7 +81,7 @@ pub async fn test_multiple_add() {
         )
         .await
         .unwrap_or_else(|e| {
-            panic!("Error adding interface: {e:?}");
+            core::panic!("Error adding interface: {e:?}");
         });
 
     assert!(
@@ -125,6 +123,7 @@ pub async fn test_send() {
         let mockup_interface_out = mockup_interface_out.borrow();
         let block_bytes =
             DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+                .await
                 .unwrap();
 
         assert!(mockup_interface_out.last_block().is_some());
@@ -184,6 +183,7 @@ pub async fn send_block_to_multiple_endpoints() {
         let mockup_interface_out = mockup_interface_out.borrow();
         let block_bytes =
             DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+                .await
                 .unwrap();
 
         assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
@@ -224,9 +224,9 @@ pub async fn send_blocks_to_multiple_endpoints() {
         assert_eq!(mockup_interface_out.outgoing_queue.len(), 2);
 
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_a.lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(socket_a.try_lock().unwrap().uuid.clone()));
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_b.lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(socket_b.try_lock().unwrap().uuid.clone()));
 
         assert!(mockup_interface_out.last_block().is_some());
     };
@@ -271,7 +271,7 @@ pub async fn default_interface_set_default_interface_first() {
         // This will set the default interface and socket
         com_hub.update_async().await;
         let _ = send_empty_block_and_update(
-            std::slice::from_ref(&TEST_ENDPOINT_B),
+            core::slice::from_ref(&TEST_ENDPOINT_B),
             &com_hub,
         )
         .await;
@@ -304,15 +304,97 @@ pub async fn test_receive() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let socket_ref = socket.lock().unwrap();
+            let socket_ref = socket.try_lock().unwrap();
             let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.lock().unwrap();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
             let _ = receive_queue_mut.write(block_bytes.as_slice());
         }
         com_hub.update_async().await;
 
         let last_block = get_last_received_single_block_from_com_hub(&com_hub);
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
+    }
+}
+
+#[tokio::test]
+pub async fn unencrypted_signature_prepare_block_com_hub() {
+    run_async! {
+        // init mock setup
+        init_global_context();
+        let (com_hub, _, socket) = get_mock_setup_and_socket().await;
+
+        // receive block
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                flags: encrypted_header::Flags::new()
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
+                ..Default::default()
+            },
+            ..DXBBlock::default()
+        };
+
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
+        block.recalculate_struct();
+
+        block.routing_header.flags.set_signature_type(SignatureType::Unencrypted);
+        block = com_hub.prepare_own_block(block).await.unwrap();
+
+        let block_bytes = block.to_bytes().unwrap();
+        {
+            let socket_ref = socket.try_lock().unwrap();
+            let receive_queue = socket_ref.get_receive_queue();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
+            let _ = receive_queue_mut.write(block_bytes.as_slice());
+        }
+        com_hub.update_async().await;
+
+        let last_block = get_last_received_single_block_from_com_hub(&com_hub);
+        assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
+        assert_eq!(block.signature, last_block.signature);
+
+        assert!(com_hub.validate_block(&last_block).await.unwrap());
+    }
+}
+
+#[tokio::test]
+pub async fn encrypted_signature_prepare_block_com_hub() {
+    run_async! {
+        // init mock setup
+        init_global_context();
+        let (com_hub, _, socket) = get_mock_setup_and_socket().await;
+
+        // receive block
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                flags: encrypted_header::Flags::new()
+                    .with_user_agent(encrypted_header::UserAgent::Unused11),
+                ..Default::default()
+            },
+            ..DXBBlock::default()
+        };
+
+        block.set_receivers(vec![TEST_ENDPOINT_ORIGIN.clone()]);
+        block.recalculate_struct();
+
+        block.routing_header.flags.set_signature_type(SignatureType::Encrypted);
+        block = com_hub.prepare_own_block(block).await.unwrap();
+
+        let block_bytes = block.to_bytes().unwrap();
+        {
+            let socket_ref = socket.try_lock().unwrap();
+            let receive_queue = socket_ref.get_receive_queue();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
+            let _ = receive_queue_mut.write(block_bytes.as_slice());
+        }
+        com_hub.update_async().await;
+
+        let last_block = get_last_received_single_block_from_com_hub(&com_hub);
+        assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
+        assert_eq!(block.signature, last_block.signature);
+
+        assert!(com_hub.validate_block(&last_block).await.unwrap());
     }
 }
 
@@ -362,9 +444,9 @@ pub async fn test_receive_multiple() {
             .collect();
 
         {
-            let socket_ref = socket.lock().unwrap();
+            let socket_ref = socket.try_lock().unwrap();
             let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.lock().unwrap();
+            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
             for block in block_bytes.iter() {
                 let _ = receive_queue_mut.write(block);
             }
@@ -399,7 +481,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
             ComInterfaceState::Connected
         );
 
-        assert_eq!(socket.lock().unwrap().state, SocketState::Open);
+        assert_eq!(socket.try_lock().unwrap().state, SocketState::Open);
 
         let uuid = com_interface.borrow().get_uuid().clone();
 
@@ -415,7 +497,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
             ComInterfaceState::Destroyed
         );
 
-        assert_eq!(socket.lock().unwrap().state, SocketState::Destroyed);
+        assert_eq!(socket.try_lock().unwrap().state, SocketState::Destroyed);
     };
 }
 
@@ -472,7 +554,7 @@ pub async fn test_basic_routing() {
 pub async fn register_factory() {
     run_async! {
         init_global_context();
-        let mut com_hub = ComHub::default();
+        let mut com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
         MockupInterface::register_on_com_hub(&com_hub);
 
         assert_eq!(com_hub.interface_factories.borrow().len(), 1);
@@ -506,13 +588,13 @@ pub async fn register_factory() {
 pub async fn test_reconnect() {
     run_async! {
         init_global_context();
-        let com_hub = ComHub::default();
+        let com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
 
         // create a new interface, open it and add it to the com_hub
         let mut base_interface =
             BaseInterface::new_with_properties(InterfaceProperties {
                 reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
-                    timeout: std::time::Duration::from_secs(1),
+                    timeout: core::time::Duration::from_secs(1),
                 },
                 ..InterfaceProperties::default()
             });
@@ -558,7 +640,7 @@ pub async fn test_reconnect() {
         );
 
         // wait for the reconnection to happen
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(core::time::Duration::from_secs(1)).await;
 
         // check that the interface is connected again
         // and that the close_timestamp is reset

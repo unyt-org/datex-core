@@ -1,0 +1,606 @@
+pub mod visitable;
+use crate::ast::expressions::GenericInstantiation;
+use crate::ast::expressions::{
+    Apply, BinaryOperation, CallableDeclaration, ComparisonOperation,
+    Conditional, CreateRef, DatexExpression, DatexExpressionData, Deref,
+    DerefAssignment, List, Map, PropertyAccess, PropertyAssignment,
+    RemoteExecution, Slot, SlotAssignment, Statements, TypeDeclaration,
+    UnaryOperation, VariableAccess, VariableAssignment, VariableDeclaration,
+    VariantAccess,
+};
+use crate::values::core_values::decimal::Decimal;
+use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::values::core_values::integer::Integer;
+use crate::values::core_values::integer::typed_integer::TypedInteger;
+use crate::values::pointer::PointerAddress;
+use crate::visitor::VisitAction;
+use crate::visitor::expression::visitable::{
+    ExpressionVisitResult, VisitableExpression,
+};
+use crate::visitor::type_expression::TypeExpressionVisitor;
+use core::ops::Range;
+
+pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
+    /// Handle expression error
+    /// Can either propagate the error or return a VisitAction to recover
+    /// Per default, it just propagates the error
+    fn handle_expression_error(
+        &mut self,
+        error: E,
+        expression: &DatexExpression,
+    ) -> Result<VisitAction<DatexExpression>, E> {
+        let _ = expression;
+        Err(error)
+    }
+
+    fn before_visit_datex_expression(
+        &mut self,
+        expression: &mut DatexExpression,
+    ) {
+        let _ = expression;
+    }
+    fn after_visit_datex_expression(
+        &mut self,
+        expression: &mut DatexExpression,
+    ) {
+        let _ = expression;
+    }
+
+    /// Visit datex expression
+    fn visit_datex_expression(
+        &mut self,
+        expr: &mut DatexExpression,
+    ) -> Result<(), E> {
+        self.before_visit_datex_expression(expr);
+        let visit_result = match &mut expr.data {
+            DatexExpressionData::PropertyAssignment(property_assignment) => {
+                self.visit_property_assignment(property_assignment, &expr.span)
+            }
+            DatexExpressionData::VariantAccess(variant_access) => {
+                self.visit_variant_access(variant_access, &expr.span)
+            }
+            DatexExpressionData::UnaryOperation(op) => {
+                self.visit_unary_operation(op, &expr.span)
+            }
+            DatexExpressionData::Statements(stmts) => {
+                self.visit_statements(stmts, &expr.span)
+            }
+            DatexExpressionData::VariableDeclaration(var_decl) => {
+                self.visit_variable_declaration(var_decl, &expr.span)
+            }
+            DatexExpressionData::VariableAssignment(var_assign) => {
+                self.visit_variable_assignment(var_assign, &expr.span)
+            }
+            DatexExpressionData::VariableAccess(var_access) => {
+                self.visit_variable_access(var_access, &expr.span)
+            }
+            DatexExpressionData::Integer(i) => {
+                self.visit_integer(i, &expr.span)
+            }
+            DatexExpressionData::TypedInteger(ti) => {
+                self.visit_typed_integer(ti, &expr.span)
+            }
+            DatexExpressionData::Decimal(d) => {
+                self.visit_decimal(d, &expr.span)
+            }
+            DatexExpressionData::TypedDecimal(td) => {
+                self.visit_typed_decimal(td, &expr.span)
+            }
+            DatexExpressionData::Text(s) => self.visit_text(s, &expr.span),
+            DatexExpressionData::Boolean(b) => {
+                self.visit_boolean(b, &expr.span)
+            }
+            DatexExpressionData::Endpoint(e) => {
+                self.visit_endpoint(e, &expr.span)
+            }
+            DatexExpressionData::Null => self.visit_null(&expr.span),
+            DatexExpressionData::List(list) => {
+                self.visit_list(list, &expr.span)
+            }
+            DatexExpressionData::Map(map) => self.visit_map(map, &expr.span),
+            DatexExpressionData::GetReference(pointer_address) => {
+                self.visit_get_reference(pointer_address, &expr.span)
+            }
+            DatexExpressionData::Conditional(conditional) => {
+                self.visit_conditional(conditional, &expr.span)
+            }
+            DatexExpressionData::TypeDeclaration(type_declaration) => {
+                self.visit_type_declaration(type_declaration, &expr.span)
+            }
+            DatexExpressionData::TypeExpression(type_expression) => self
+                .visit_type_expression(type_expression)
+                .map(|_| VisitAction::SkipChildren),
+            DatexExpressionData::CallableDeclaration(callable_declaration) => {
+                self.visit_callable_declaration(
+                    callable_declaration,
+                    &expr.span,
+                )
+            }
+            DatexExpressionData::CreateRef(create_ref) => {
+                self.visit_create_ref(create_ref, &expr.span)
+            }
+            DatexExpressionData::Deref(deref) => {
+                self.visit_deref(deref, &expr.span)
+            }
+            DatexExpressionData::Slot(slot) => {
+                self.visit_slot(slot, &expr.span)
+            }
+            DatexExpressionData::SlotAssignment(slot_assignment) => {
+                self.visit_slot_assignment(slot_assignment, &expr.span)
+            }
+            DatexExpressionData::PointerAddress(pointer_address) => {
+                self.visit_pointer_address(pointer_address, &expr.span)
+            }
+            DatexExpressionData::BinaryOperation(binary_operation) => {
+                self.visit_binary_operation(binary_operation, &expr.span)
+            }
+            DatexExpressionData::ComparisonOperation(comparison_operation) => {
+                self.visit_comparison_operation(
+                    comparison_operation,
+                    &expr.span,
+                )
+            }
+            DatexExpressionData::DerefAssignment(deref_assignment) => {
+                self.visit_deref_assignment(deref_assignment, &expr.span)
+            }
+            DatexExpressionData::Apply(apply_chain) => {
+                self.visit_apply(apply_chain, &expr.span)
+            }
+            DatexExpressionData::PropertyAccess(property_access) => {
+                self.visit_property_access(property_access, &expr.span)
+            }
+            DatexExpressionData::GenericInstantiation(
+                generic_instantiation,
+            ) => self
+                .visit_generic_instantiation(generic_instantiation, &expr.span),
+            DatexExpressionData::RemoteExecution(remote_execution) => {
+                self.visit_remote_execution(remote_execution, &expr.span)
+            }
+            DatexExpressionData::Identifier(identifier) => {
+                self.visit_identifier(identifier, &expr.span)
+            }
+            DatexExpressionData::Placeholder => {
+                self.visit_placeholder(&expr.span)
+            }
+            DatexExpressionData::Recover => {
+                unreachable!(
+                    "Placeholder and Recover expressions should not be visited"
+                )
+            }
+            DatexExpressionData::Noop => Ok(VisitAction::SkipChildren),
+            DatexExpressionData::NativeImplementationIndicator => {
+                Ok(VisitAction::SkipChildren)
+            }
+        };
+
+        let action = match visit_result {
+            Ok(act) => act,
+            Err(error) => self.handle_expression_error(error, expr)?,
+        };
+        let result = match action {
+            VisitAction::SetTypeRecurseChildNodes(type_annotation) => {
+                expr.ty = Some(type_annotation);
+                expr.walk_children(self)?;
+                Ok(())
+            }
+            VisitAction::SetTypeSkipChildren(type_annotation) => {
+                expr.ty = Some(type_annotation);
+                Ok(())
+            }
+            VisitAction::SkipChildren => Ok(()),
+            VisitAction::ToNoop => {
+                expr.data = DatexExpressionData::Noop;
+                Ok(())
+            }
+            VisitAction::VisitChildren => {
+                expr.walk_children(self)?;
+                Ok(())
+            }
+            VisitAction::Replace(new_expr) => {
+                *expr = new_expr.to_owned();
+                Ok(())
+            }
+            VisitAction::ReplaceRecurseChildNodes(new_expr) => {
+                expr.walk_children(self)?;
+                *expr = new_expr.to_owned();
+                Ok(())
+            }
+            VisitAction::ReplaceRecurse(new_expr) => {
+                *expr = new_expr.to_owned();
+                self.visit_datex_expression(expr)?;
+                Ok(())
+            }
+        };
+        self.after_visit_datex_expression(expr);
+        result
+    }
+
+    /// Visit statements
+    fn visit_statements(
+        &mut self,
+        statements: &mut Statements,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = statements;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit unary operation
+    fn visit_unary_operation(
+        &mut self,
+        unary_operation: &mut UnaryOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = unary_operation;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit variant access
+    fn visit_variant_access(
+        &mut self,
+        variant_access: &mut VariantAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = variant_access;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit property assignment
+    fn visit_property_assignment(
+        &mut self,
+        property_assignment: &mut PropertyAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_assignment;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit conditional expression
+    fn visit_conditional(
+        &mut self,
+        conditional: &mut Conditional,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = conditional;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit type declaration
+    fn visit_type_declaration(
+        &mut self,
+        type_declaration: &mut TypeDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = type_declaration;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit binary operation
+    fn visit_binary_operation(
+        &mut self,
+        binary_operation: &mut BinaryOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = binary_operation;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit comparison operation
+    fn visit_comparison_operation(
+        &mut self,
+        comparison_operation: &mut ComparisonOperation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = comparison_operation;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit dereference assignment
+    fn visit_deref_assignment(
+        &mut self,
+        deref_assignment: &mut DerefAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = deref_assignment;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit apply chain
+    fn visit_apply(
+        &mut self,
+        apply: &mut Apply,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = apply;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit property access
+    fn visit_property_access(
+        &mut self,
+        property_access: &mut PropertyAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = property_access;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit generic instantiation
+    fn visit_generic_instantiation(
+        &mut self,
+        generic_instantiation: &mut GenericInstantiation,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = generic_instantiation;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit remote execution
+    fn visit_remote_execution(
+        &mut self,
+        remote_execution: &mut RemoteExecution,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = remote_execution;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit callable declaration
+    fn visit_callable_declaration(
+        &mut self,
+        function_declaration: &mut CallableDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = function_declaration;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit slot assignment
+    fn visit_slot_assignment(
+        &mut self,
+        slot_assignment: &mut SlotAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = slot_assignment;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit variable declaration
+    fn visit_variable_declaration(
+        &mut self,
+        variable_declaration: &mut VariableDeclaration,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = variable_declaration;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit variable assignment
+    fn visit_variable_assignment(
+        &mut self,
+        variable_assignment: &mut VariableAssignment,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = variable_assignment;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit variable access
+    fn visit_variable_access(
+        &mut self,
+        var_access: &mut VariableAccess,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = var_access;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit create reference expression
+    fn visit_create_ref(
+        &mut self,
+        create_ref: &mut CreateRef,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = create_ref;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit create mutable reference expression
+    fn visit_create_mut(
+        &mut self,
+        datex_expression: &mut DatexExpression,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = datex_expression;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit dereference expression
+    fn visit_deref(
+        &mut self,
+        deref: &mut Deref,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = deref;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit list expression
+    fn visit_list(
+        &mut self,
+        list: &mut List,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = list;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit map expression
+    fn visit_map(
+        &mut self,
+        map: &mut Map,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = map;
+        let _ = span;
+        Ok(VisitAction::VisitChildren)
+    }
+
+    /// Visit integer literal
+    fn visit_integer(
+        &mut self,
+        integer: &mut Integer,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = integer;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit typed integer literal
+    fn visit_typed_integer(
+        &mut self,
+        typed_integer: &mut TypedInteger,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = typed_integer;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit decimal literal
+    fn visit_decimal(
+        &mut self,
+        decimal: &mut Decimal,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = decimal;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit typed decimal literal
+    fn visit_typed_decimal(
+        &mut self,
+        typed_decimal: &mut TypedDecimal,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = typed_decimal;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit identifier
+    fn visit_identifier(
+        &mut self,
+        identifier: &mut String,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = identifier;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    fn visit_placeholder(
+        &mut self,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit text literal
+    fn visit_text(
+        &mut self,
+        text: &mut String,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = text;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit get reference expression
+    fn visit_get_reference(
+        &mut self,
+        pointer_address: &mut PointerAddress,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = pointer_address;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit boolean literal
+    fn visit_boolean(
+        &mut self,
+        boolean: &mut bool,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = boolean;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit endpoint expression
+    fn visit_endpoint(
+        &mut self,
+        endpoint: &mut Endpoint,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = endpoint;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit null literal
+    fn visit_null(&mut self, span: &Range<usize>) -> ExpressionVisitResult<E> {
+        let _ = span;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit pointer address expression
+    fn visit_pointer_address(
+        &mut self,
+        pointer_address: &PointerAddress,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = pointer_address;
+        Ok(VisitAction::SkipChildren)
+    }
+
+    /// Visit slot expression
+    fn visit_slot(
+        &mut self,
+        slot: &Slot,
+        span: &Range<usize>,
+    ) -> ExpressionVisitResult<E> {
+        let _ = span;
+        let _ = slot;
+        Ok(VisitAction::SkipChildren)
+    }
+}

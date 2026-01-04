@@ -1,17 +1,21 @@
+#[cfg(feature = "compiler")]
+use crate::compiler::error::{CompilerError, SpannedCompilerError};
+use crate::runtime::execution::ExecutionError;
+use crate::stdlib::io;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
 use core::fmt;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
 use serde::de::Error;
 use serde::ser::StdError;
 use serde::ser::{self};
-use std::fmt::Display;
-use std::io;
-
-use crate::compiler::error::CompilerError;
-use crate::runtime::execution::ExecutionError;
 
 #[derive(Debug)]
 pub enum SerializationError {
     Custom(String),
     CanNotSerialize(String),
+    #[cfg(feature = "compiler")]
     CompilerError(CompilerError),
 }
 impl ser::Error for SerializationError {
@@ -30,6 +34,8 @@ impl From<io::Error> for SerializationError {
         SerializationError::Custom(e.to_string())
     }
 }
+
+#[cfg(feature = "compiler")]
 impl From<CompilerError> for SerializationError {
     fn from(e: CompilerError) -> Self {
         SerializationError::CompilerError(e)
@@ -40,13 +46,14 @@ impl Display for SerializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SerializationError::Custom(msg) => {
-                write!(f, "Serialization error: {}", msg)
+                core::write!(f, "Serialization error: {}", msg)
             }
             SerializationError::CanNotSerialize(msg) => {
-                write!(f, "Can not serialize value: {}", msg)
+                core::write!(f, "Can not serialize value: {}", msg)
             }
+            #[cfg(feature = "compiler")]
             SerializationError::CompilerError(err) => {
-                write!(f, "Compiler error: {}", err)
+                core::write!(f, "Compiler error: {}", err)
             }
         }
     }
@@ -58,7 +65,8 @@ pub enum DeserializationError {
     CanNotDeserialize(String),
     ExecutionError(ExecutionError),
     CanNotReadFile(String),
-    CompilerError(CompilerError),
+    #[cfg(feature = "compiler")]
+    CompilerError(SpannedCompilerError),
     NoStaticValueFound,
 }
 impl ser::Error for DeserializationError {
@@ -82,32 +90,29 @@ impl From<ExecutionError> for DeserializationError {
         DeserializationError::ExecutionError(e)
     }
 }
-impl From<CompilerError> for DeserializationError {
-    fn from(e: CompilerError) -> Self {
-        DeserializationError::CompilerError(e)
-    }
-}
+
 impl StdError for DeserializationError {}
 impl Display for DeserializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DeserializationError::Custom(msg) => {
-                write!(f, "Deserialization error: {}", msg)
+                core::write!(f, "Deserialization error: {}", msg)
             }
             DeserializationError::CanNotDeserialize(msg) => {
-                write!(f, "Can not deserialize value: {}", msg)
+                core::write!(f, "Can not deserialize value: {}", msg)
             }
             DeserializationError::ExecutionError(err) => {
-                write!(f, "Execution error: {}", err)
+                core::write!(f, "Execution error: {}", err)
             }
             DeserializationError::CanNotReadFile(msg) => {
-                write!(f, "Can not read file: {}", msg)
+                core::write!(f, "Can not read file: {}", msg)
             }
+            #[cfg(feature = "compiler")]
             DeserializationError::CompilerError(err) => {
-                write!(f, "Compiler error: {}", err)
+                core::write!(f, "Compiler error: {}", err)
             }
             DeserializationError::NoStaticValueFound => {
-                write!(f, "No static value found in script")
+                core::write!(f, "No static value found in script")
             }
         }
     }

@@ -1,14 +1,15 @@
 use crate::references::observers::Observer;
 use crate::references::reference::ReferenceMutability;
+use crate::stdlib::rc::Rc;
 use crate::traits::value_eq::ValueEq;
-use crate::types::type_container::TypeContainer;
+use crate::types::definition::TypeDefinition;
 use crate::utils::freemap::FreeHashMap;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use std::cell::RefCell;
-use std::fmt::Debug;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
 
 pub struct ValueReference {
     /// the value that this reference points to
@@ -16,7 +17,7 @@ pub struct ValueReference {
     /// pointer id, can be initialized as None for local pointers
     pub pointer_address: Option<PointerAddress>,
     /// custom type for the pointer that the Datex value is allowed to reference
-    pub allowed_type: TypeContainer,
+    pub allowed_type: TypeDefinition,
     /// list of observer callbacks
     pub observers: FreeHashMap<u32, Observer>,
     pub mutability: ReferenceMutability,
@@ -27,7 +28,7 @@ impl Default for ValueReference {
         ValueReference {
             value_container: ValueContainer::Value(Value::null()),
             pointer_address: None,
-            allowed_type: TypeContainer::null(),
+            allowed_type: TypeDefinition::Unknown,
             observers: FreeHashMap::new(),
             mutability: ReferenceMutability::Immutable,
         }
@@ -38,7 +39,7 @@ impl ValueReference {
     pub fn new(
         value_container: ValueContainer,
         pointer_address: Option<PointerAddress>,
-        allowed_type: TypeContainer,
+        allowed_type: TypeDefinition,
         mutability: ReferenceMutability,
     ) -> Self {
         ValueReference {
@@ -52,7 +53,7 @@ impl ValueReference {
 }
 
 impl Debug for ValueReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ReferenceData")
             .field("value_container", &self.value_container)
             .field("pointer", &self.pointer_address)
@@ -83,10 +84,6 @@ impl ValueReference {
     }
 
     pub fn is_mutable(&self) -> bool {
-        matches!(self.mutability, ReferenceMutability::Mutable)
-    }
-
-    pub fn is_final(&self) -> bool {
-        matches!(self.mutability, ReferenceMutability::Final)
+        core::matches!(self.mutability, ReferenceMutability::Mutable)
     }
 }

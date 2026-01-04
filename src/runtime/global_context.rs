@@ -1,6 +1,6 @@
+use crate::stdlib::sync::Arc;
 use crate::{crypto::crypto::CryptoTrait, utils::time::TimeTrait};
-use std::{cell::RefCell, sync::Arc}; // FIXME #106 no-std
-
+use core::prelude::rust_2024::*;
 #[cfg(feature = "debug")]
 #[derive(Clone, Debug)]
 pub struct DebugFlags {
@@ -39,7 +39,11 @@ impl GlobalContext {
         }
     }
 
-    #[cfg(all(feature = "native_crypto", feature = "native_time"))]
+    #[cfg(all(
+        feature = "native_crypto",
+        feature = "std",
+        feature = "native_time"
+    ))]
     pub fn native() -> GlobalContext {
         use crate::{
             crypto::crypto_native::CryptoNative, utils::time_native::TimeNative,
@@ -53,17 +57,18 @@ impl GlobalContext {
     }
 }
 
-thread_local! {
-    pub static GLOBAL_CONTEXT: RefCell<Option<GlobalContext>> = const { RefCell::new(None) };
-}
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+pub static mut GLOBAL_CONTEXT: Option<GlobalContext> = None;
+
 pub fn set_global_context(c: GlobalContext) {
-    GLOBAL_CONTEXT.replace(Some(c));
+    unsafe {
+        GLOBAL_CONTEXT.replace(c);
+    }
 }
 pub(crate) fn get_global_context() -> GlobalContext {
-    match GLOBAL_CONTEXT.with(|c| c.borrow().clone()) {
-        Some(c) => c,
-        None => panic!(
-            "Global context not initialized - call set_global_context first!"
-        ),
+    unsafe {
+        GLOBAL_CONTEXT.clone().expect(
+            "Global context not initialized - call set_global_context first!",
+        )
     }
 }

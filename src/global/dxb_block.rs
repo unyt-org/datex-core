@@ -1,18 +1,19 @@
-use std::fmt::Display;
-use std::io::{Cursor, Read};
-// FIXME #109 no-std
-
 use super::protocol_structures::{
     block_header::BlockHeader,
     encrypted_header::EncryptedHeader,
     routing_header::{EncryptionType, RoutingHeader, SignatureType},
 };
 use crate::global::protocol_structures::routing_header::Receivers;
+use crate::stdlib::vec::Vec;
+use crate::task::UnboundedReceiver;
 use crate::utils::buffers::write_u16;
 use crate::values::core_values::endpoint::Endpoint;
+use binrw::io::{Cursor, Read};
 use binrw::{BinRead, BinWrite};
-use futures::channel::mpsc::UnboundedReceiver;
-use futures_util::StreamExt;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unimplemented;
 use log::error;
 use strum::Display;
 use thiserror::Error;
@@ -32,6 +33,7 @@ pub enum HeaderParsingError {
 pub struct DXBBlock {
     pub routing_header: RoutingHeader,
     pub block_header: BlockHeader,
+    pub signature: Option<Vec<u8>>,
     pub encrypted_header: EncryptedHeader,
     pub body: Vec<u8>,
 
@@ -161,6 +163,7 @@ impl DXBBlock {
         DXBBlock {
             routing_header,
             block_header,
+            signature: None,
             encrypted_header,
             body,
             raw_bytes: None,
@@ -170,6 +173,7 @@ impl DXBBlock {
     pub fn to_bytes(&self) -> Result<Vec<u8>, binrw::Error> {
         let mut writer = Cursor::new(Vec::new());
         self.routing_header.write(&mut writer)?;
+        self.signature.write(&mut writer)?;
         self.block_header.write(&mut writer)?;
         self.encrypted_header.write(&mut writer)?;
         let mut bytes = writer.into_inner();
@@ -207,14 +211,14 @@ impl DXBBlock {
         Ok(routing_header.block_size)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {
+    pub async fn from_bytes(bytes: &[u8]) -> Result<DXBBlock, binrw::Error> {
         let mut reader = Cursor::new(bytes);
         let routing_header = RoutingHeader::read(&mut reader)?;
 
-        let _signature = match routing_header.flags.signature_type() {
+        let signature = match routing_header.flags.signature_type() {
             SignatureType::Encrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::with_capacity(255);
+                let mut signature = Vec::from([0u8; 108]);
                 reader.read_exact(&mut signature)?;
 
                 // TODO #111: decrypt the signature
@@ -222,7 +226,7 @@ impl DXBBlock {
             }
             SignatureType::Unencrypted => {
                 // extract next 255 bytes as the signature
-                let mut signature = Vec::with_capacity(255);
+                let mut signature = Vec::from([0u8; 108]);
                 reader.read_exact(&mut signature)?;
                 Some(signature)
             }
@@ -233,7 +237,7 @@ impl DXBBlock {
         let decrypted_bytes = match routing_header.flags.encryption_type() {
             EncryptionType::Encrypted => {
                 // TODO #113: decrypt the body
-                let mut decrypted_bytes = Vec::with_capacity(255);
+                let mut decrypted_bytes = Vec::from([0u8; 255]);
                 reader.read_exact(&mut decrypted_bytes)?;
                 decrypted_bytes
             }
@@ -251,9 +255,95 @@ impl DXBBlock {
         let mut body = Vec::new();
         reader.read_to_end(&mut body)?;
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "native_crypto")] {
+                /*
+                use crate::runtime::global_context::{GlobalContext, set_global_context, get_global_context};
+                set_global_context(GlobalContext::native());
+                let crypto = get_global_context().crypto;
+                */
+                use crate::crypto::crypto_native::CryptoNative;
+                use crate::crypto::crypto::CryptoTrait;
+                let crypto = CryptoNative {};
+
+                match routing_header.flags.signature_type() {
+                    SignatureType::Encrypted => {
+                        let raw_sign = signature
+                            .as_ref()
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new(HeaderParsingError::InvalidBlock) })?;
+                        let (enc_sign, pub_key) = raw_sign.split_at(64);
+                        let hash = crypto.hkdf_sha256(pub_key, &[0u8; 16])
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+                        let signature = crypto
+                            .aes_ctr_decrypt(&hash, &[0u8; 16], enc_sign)
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        let raw_signed = [
+                            pub_key,
+                            &body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        let ver = crypto
+                            .ver_ed25519(pub_key, &signature, &hashed_signed)
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        if !ver {
+                            return Err(
+                                binrw::Error::Custom {
+                                    pos: 0u64,
+                                    err: Box::new("Something is off with the signature.")
+                                });
+                        }
+                    },
+                    SignatureType::Unencrypted => {
+                        let raw_sign = signature
+                            .as_ref()
+                            .ok_or(binrw::Error::Custom { pos: 0u64, err: Box::new(HeaderParsingError::InvalidBlock) })?;
+                        let (signature, pub_key) = raw_sign.split_at(64);
+
+                        let raw_signed = [
+                            pub_key,
+                            &body.clone()
+                            ]
+                            .concat();
+                        let hashed_signed = crypto
+                            .hash_sha256(&raw_signed)
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        let ver = crypto
+                            .ver_ed25519(pub_key, signature, &hashed_signed)
+                            .await
+                            .map_err(|e| binrw::Error::Custom { pos: 0u64, err: Box::new(e) })?;
+
+                        if !ver {
+                            return Err(
+                                binrw::Error::Custom {
+                                    pos: 0u64,
+                                    err: Box::new("Something is off with the signature.")
+                                });
+                        }
+                    },
+                    SignatureType::None => {
+                        /* Ignored */
+                    },
+                };
+            }
+            else {/* Add other crypto implementations */}
+        }
+
         Ok(DXBBlock {
             routing_header,
             block_header,
+            signature,
             encrypted_header,
             body,
             raw_bytes: Some(bytes.to_vec()),
@@ -334,11 +424,11 @@ impl DXBBlock {
 }
 
 impl Display for DXBBlock {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let block_type = self.block_header.flags_and_timestamp.block_type();
         let sender = &self.routing_header.sender;
         let receivers = self.receivers();
-        write!(f, "[{block_type}] {sender} -> {receivers}")?;
+        core::write!(f, "[{block_type}] {sender} -> {receivers}")?;
 
         Ok(())
     }
@@ -346,21 +436,23 @@ impl Display for DXBBlock {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     use crate::{
+        crypto::crypto::CryptoTrait,
+        crypto::crypto_native::CryptoNative,
         global::{
             dxb_block::DXBBlock,
             protocol_structures::{
                 encrypted_header::{self, EncryptedHeader},
-                routing_header::RoutingHeader,
+                routing_header::{RoutingHeader, SignatureType},
             },
         },
         values::core_values::endpoint::Endpoint,
     };
 
-    #[test]
-    pub fn test_recalculate() {
+    #[tokio::test]
+    pub async fn test_recalculate() {
         let mut routing_header = RoutingHeader::default()
             .with_sender(Endpoint::from_str("@test").unwrap())
             .to_owned();
@@ -379,7 +471,8 @@ mod tests {
         {
             // invalid block size
             let block_bytes = block.to_bytes().unwrap();
-            let block2: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            let block2: DXBBlock =
+                DXBBlock::from_bytes(&block_bytes).await.unwrap();
             assert_ne!(block, block2);
         }
 
@@ -387,8 +480,64 @@ mod tests {
             // valid block size
             block.recalculate_struct();
             let block_bytes = block.to_bytes().unwrap();
-            let block3: DXBBlock = DXBBlock::from_bytes(&block_bytes).unwrap();
+            let block3: DXBBlock =
+                DXBBlock::from_bytes(&block_bytes).await.unwrap();
             assert_eq!(block, block3);
         }
+    }
+
+    #[tokio::test]
+    pub async fn signature_to_and_from_bytes() {
+        let crypto = CryptoNative {};
+        // setup block
+        let mut routing_header = RoutingHeader::default()
+            .with_sender(Endpoint::from_str("@test").unwrap())
+            .to_owned();
+        routing_header.set_size(157);
+        let mut block = DXBBlock {
+            body: vec![0x01, 0x02, 0x03],
+            encrypted_header: EncryptedHeader {
+                ..Default::default()
+            },
+            routing_header,
+            ..DXBBlock::default()
+        };
+
+        // setup correct signature
+        block
+            .routing_header
+            .flags
+            .set_signature_type(SignatureType::Unencrypted);
+
+        let (pub_key, pri_key) = crypto.gen_ed25519().await.unwrap();
+        let raw_signed = [pub_key.clone(), block.body.clone()].concat();
+        let hashed_signed = crypto.hash_sha256(&raw_signed).await.unwrap();
+
+        let signature =
+            crypto.sig_ed25519(&pri_key, &hashed_signed).await.unwrap();
+        // 64 + 44 = 108
+        block.signature = Some([signature.to_vec(), pub_key.clone()].concat());
+
+        let block_bytes = block.to_bytes().unwrap();
+        let block2: DXBBlock =
+            DXBBlock::from_bytes(&block_bytes).await.unwrap();
+        assert_eq!(block, block2);
+        assert_eq!(block.signature, block2.signature);
+
+        // setup faulty signature
+        let mut other_sig = signature.clone();
+        if other_sig[42] != 42u8 {
+            other_sig[42] = 42u8;
+        } else {
+            other_sig[42] = 43u8;
+        }
+        block.signature = Some([other_sig.to_vec(), pub_key].concat());
+        let block_bytes2 = block.to_bytes().unwrap();
+        let block3 = DXBBlock::from_bytes(&block_bytes2).await;
+        assert!(block3.is_err());
+        assert_eq!(
+            block3.unwrap_err().to_string(),
+            "Something is off with the signature. at 0x0"
+        )
     }
 }

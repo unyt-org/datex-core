@@ -1,9 +1,9 @@
-use log::error;
-
-use crate::stdlib::{collections::VecDeque, sync::Arc};
-use std::sync::Mutex; // FIXME #192 no-std
-
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
+use crate::std_sync::Mutex;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::{collections::VecDeque, sync::Arc};
+use core::prelude::rust_2024::*;
+use log::error;
 
 #[derive(Debug)]
 pub struct BlockCollector {
@@ -45,7 +45,7 @@ impl BlockCollector {
         &mut self.block_queue
     }
 
-    fn receive_slice(&mut self, slice: &[u8]) {
+    async fn receive_slice(&mut self, slice: &[u8]) {
         // Add the received data to the current block.
         self.current_block.extend_from_slice(slice);
 
@@ -79,7 +79,7 @@ impl BlockCollector {
                         .drain(0..specified_length as usize)
                         .collect::<Vec<u8>>();
 
-                    let block_result = DXBBlock::from_bytes(&block_slice);
+                    let block_result = DXBBlock::from_bytes(&block_slice).await;
 
                     match block_result {
                         Ok(block) => {
@@ -103,15 +103,15 @@ impl BlockCollector {
         }
     }
 
-    pub fn update(&mut self) {
+    pub async fn update(&mut self) {
         let queue = self.receive_queue.clone();
-        let mut receive_queue = queue.lock().unwrap();
+        let mut receive_queue = queue.try_lock().unwrap();
         let len = receive_queue.len();
         if len == 0 {
             return;
         }
         let range = 0..len;
         let slice = receive_queue.drain(range).collect::<Vec<u8>>();
-        self.receive_slice(&slice);
+        self.receive_slice(&slice).await;
     }
 }

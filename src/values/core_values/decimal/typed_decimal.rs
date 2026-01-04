@@ -1,20 +1,22 @@
 use crate::libs::core::CoreLibPointerId;
+use crate::stdlib::format;
+use crate::stdlib::ops::{Add, AddAssign, Sub};
+use crate::stdlib::string::String;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::values::core_value_trait::CoreValueTrait;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::error::NumberParseError;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::num::ParseFloatError;
+use core::ops::Neg;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
-use std::num::ParseFloatError;
-use std::ops::Neg;
-use std::{
-    fmt::Display,
-    ops::{Add, AddAssign, Sub},
-};
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
@@ -43,7 +45,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString};
 pub enum DecimalTypeVariant {
     F32 = 1, // rationale: We need to start with 1 here, as the core lib pointer id for the base type is using OFFSET_X + variant as index
     F64,
-    Big,
+    DBig,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -82,7 +84,7 @@ impl<'de> Deserialize<'de> for TypedDecimal {
 }
 
 impl Hash for TypedDecimal {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             TypedDecimal::F32(value) => {
                 // hash -0.0 and 0.0 to the same value
@@ -108,8 +110,6 @@ impl Hash for TypedDecimal {
         }
     }
 }
-
-impl CoreValueTrait for TypedDecimal {}
 
 impl StructuralEq for TypedDecimal {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -259,7 +259,7 @@ impl TypedDecimal {
             .or_else(|_| {
                 TypedDecimal::from_string_and_variant(
                     value,
-                    DecimalTypeVariant::Big,
+                    DecimalTypeVariant::DBig,
                 )
             }),
         }
@@ -278,7 +278,7 @@ impl TypedDecimal {
                 .map(|v| TypedDecimal::F32(OrderedFloat(v))),
             DecimalTypeVariant::F64 => parse_checked_f64(value)
                 .map(|v| TypedDecimal::F64(OrderedFloat(v))),
-            DecimalTypeVariant::Big => {
+            DecimalTypeVariant::DBig => {
                 Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
@@ -301,7 +301,7 @@ impl TypedDecimal {
                 .parse::<f64>()
                 .map(|v| TypedDecimal::F64(OrderedFloat(v)))
                 .map_err(|_: ParseFloatError| NumberParseError::InvalidFormat),
-            DecimalTypeVariant::Big => {
+            DecimalTypeVariant::DBig => {
                 Decimal::from_string(value).map(TypedDecimal::Decimal)
             }
         }
@@ -344,12 +344,12 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => {
                 value.into_inner() as f64 >= i64::MIN as f64
                     && value.into_inner() as f64 <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f32::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::F64(value) => {
                 value.into_inner() >= i64::MIN as f64
                     && value.into_inner() <= i64::MAX as f64
-                    && value.into_inner().fract() == 0.0
+                    && core::f64::math::fract(value.into_inner()) == 0.0
             }
             TypedDecimal::Decimal(value) => match value {
                 Decimal::Finite(big_value) => {
@@ -359,7 +359,7 @@ impl TypedDecimal {
                 Decimal::NegZero => true,
                 Decimal::Infinity => false,
                 Decimal::NegInfinity => false,
-                Decimal::NaN => false,
+                Decimal::Nan => false,
             },
         }
     }
@@ -379,7 +379,7 @@ impl TypedDecimal {
             TypedDecimal::F32(value) => value.into_inner().is_infinite(),
             TypedDecimal::F64(value) => value.into_inner().is_infinite(),
             TypedDecimal::Decimal(value) => {
-                matches!(value, Decimal::Infinity | Decimal::NegInfinity)
+                core::matches!(value, Decimal::Infinity | Decimal::NegInfinity)
             }
         }
     }
@@ -404,12 +404,12 @@ impl TypedDecimal {
 
     /// Returns true if the TypedDecimal is of variant F32.
     pub fn is_f32(&self) -> bool {
-        matches!(self, TypedDecimal::F32(_))
+        core::matches!(self, TypedDecimal::F32(_))
     }
 
     /// Returns true if the TypedDecimal is of variant F64.
     pub fn is_f64(&self) -> bool {
-        matches!(self, TypedDecimal::F64(_))
+        core::matches!(self, TypedDecimal::F64(_))
     }
 
     /// Returns true if the value is NaN (Not a Number).
@@ -417,7 +417,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => value.is_nan(),
             TypedDecimal::F64(value) => value.is_nan(),
-            TypedDecimal::Decimal(value) => matches!(value, Decimal::NaN),
+            TypedDecimal::Decimal(value) => core::matches!(value, Decimal::Nan),
         }
     }
 
@@ -442,7 +442,7 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(_) => DecimalTypeVariant::F32,
             TypedDecimal::F64(_) => DecimalTypeVariant::F64,
-            TypedDecimal::Decimal(_) => DecimalTypeVariant::Big,
+            TypedDecimal::Decimal(_) => DecimalTypeVariant::DBig,
         }
     }
 
@@ -452,17 +452,21 @@ impl TypedDecimal {
         match self {
             TypedDecimal::F32(value) => format!("{}f32", value.into_inner()),
             TypedDecimal::F64(value) => format!("{}f64", value.into_inner()),
-            TypedDecimal::Decimal(value) => format!("{}big", value),
+            TypedDecimal::Decimal(value) => format!("{}dbig", value),
         }
     }
 }
 
 impl Display for TypedDecimal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TypedDecimal::F32(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::F64(value) => write!(f, "{}", value.into_inner()),
-            TypedDecimal::Decimal(value) => write!(f, "{value}"),
+            TypedDecimal::F32(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
+            TypedDecimal::F64(value) => {
+                core::write!(f, "{}", value.into_inner())
+            }
+            TypedDecimal::Decimal(value) => core::write!(f, "{value}"),
         }
     }
 }
@@ -564,7 +568,7 @@ impl From<f64> for TypedDecimal {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     use super::*;
     use crate::values::core_values::decimal::Decimal;
@@ -857,7 +861,7 @@ mod tests {
 
         let k = TypedDecimal::from_string_and_variant(
             "12345678901234567890.123456789",
-            DecimalTypeVariant::Big,
+            DecimalTypeVariant::DBig,
         )
         .unwrap();
         assert_matches!(k, TypedDecimal::Decimal(_));
@@ -901,8 +905,8 @@ mod tests {
         let nan_f32_b = TypedDecimal::from(f32::NAN);
         let nan_f64_a = TypedDecimal::from(f64::NAN);
         let nan_f64_b = TypedDecimal::from(f64::NAN);
-        let nan_big_a = TypedDecimal::Decimal(Decimal::NaN);
-        let nan_big_b = TypedDecimal::Decimal(Decimal::NaN);
+        let nan_big_a = TypedDecimal::Decimal(Decimal::Nan);
+        let nan_big_b = TypedDecimal::Decimal(Decimal::Nan);
 
         // Structural equality (always false)
         assert!(!nan_f32_a.structural_eq(&nan_f32_b));

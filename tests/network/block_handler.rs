@@ -2,15 +2,14 @@ use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN, get_mock_setup_and_socket,
 };
+use core::cell::RefCell;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::run_async;
-use futures_util::StreamExt;
 use log::info;
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
 
@@ -51,7 +50,7 @@ async fn receive_single_block() {
         // update the com interface
         com_interface.borrow_mut().update();
         // Check if the block was sent to the socket
-        assert_eq!(socket.lock().unwrap().receive_queue.lock().unwrap().len(), block_bytes_len);
+        assert_eq!(socket.try_lock().unwrap().receive_queue.try_lock().unwrap().len(), block_bytes_len);
 
         // update the com hub
         com_hub.update_async().await;
@@ -67,7 +66,7 @@ async fn receive_single_block() {
                 info!("section: {section:?}");
                 assert_eq!(block.get_endpoint_context_id(), block_endpoint_context_id);
             }
-            _ => panic!("Expected a SingleBlock section"),
+            _ => core::panic!("Expected a SingleBlock section"),
         }
     }
 }
@@ -144,7 +143,7 @@ async fn receive_multiple_blocks() {
                 // blocks queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 2. Send second block
@@ -165,7 +164,7 @@ async fn receive_multiple_blocks() {
                 // blocks queue length must be 2 (was not yet drained)
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -264,7 +263,7 @@ async fn receive_multiple_blocks_wrong_order() {
                 let block = blocks.get(1).unwrap();
                 assert_eq!(block.block_header.block_number, 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -372,7 +371,7 @@ async fn receive_multiple_sections() {
                 // block queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 2. Send second block
@@ -397,7 +396,7 @@ async fn receive_multiple_sections() {
                 // blocks queue length must be 1
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 3. Send third block
@@ -419,7 +418,7 @@ async fn receive_multiple_sections() {
                 // block queue must contain the first block
                 assert!(section.next().await.is_some());
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
 
         // 4. Send fourth block
@@ -443,7 +442,7 @@ async fn receive_multiple_sections() {
                 // blocks queue length must be 1
                 assert_eq!(section.drain().await.len(), 1);
             }
-            _ => panic!("Expected a BlockStream section"),
+            _ => core::panic!("Expected a BlockStream section"),
         }
     }
 }
@@ -507,7 +506,7 @@ async fn await_response_block() {
         //         assert_eq!(block.block_header.scope_id, scope_id);
         //         assert_eq!(block.block_header.section_index, section_index);
         //     }
-        //     _ => panic!("Expected a SingleBlock section"),
+        //     _ => core::panic!("Expected a SingleBlock section"),
         // }
 
     }

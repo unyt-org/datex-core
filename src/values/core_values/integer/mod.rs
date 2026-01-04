@@ -1,21 +1,24 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 pub mod typed_integer;
 pub mod utils;
 
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::values::core_values::{
     error::NumberParseError, integer::typed_integer::TypedInteger,
 };
+use binrw::io::{Read, Seek, Write};
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
+use core::fmt::Display;
+use core::hash::Hash;
+use core::ops::{Add, Neg, Sub};
+use core::str::FromStr;
 use num::{BigInt, Num};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::Display,
-    hash::Hash,
-    io::{Read, Seek},
-    ops::{Add, Neg, Sub},
-    str::FromStr,
-};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Integer(pub BigInt);
@@ -165,7 +168,7 @@ impl Integer {
         }
 
         // If no smaller fitting type is found, return BigInt
-        TypedInteger::Big(self.clone())
+        TypedInteger::IBig(self.clone())
     }
 }
 
@@ -217,15 +220,15 @@ impl Sub for &Integer {
 }
 
 impl Display for Integer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "{}", self.0)
     }
 }
 
 impl BinWrite for Integer {
     type Args<'a> = ();
 
-    fn write_options<W: std::io::Write + Seek>(
+    fn write_options<W: Write + Seek>(
         &self,
         writer: &mut W,
         _endian: Endian,
@@ -340,7 +343,7 @@ impl From<TypedInteger> for Integer {
             TypedInteger::U64(v) => Integer::from(v),
             TypedInteger::I128(v) => Integer::from(v),
             TypedInteger::U128(v) => Integer::from(v),
-            TypedInteger::Big(v) => v,
+            TypedInteger::IBig(v) => v,
         }
     }
 }

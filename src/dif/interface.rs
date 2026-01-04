@@ -1,5 +1,7 @@
-use crate::dif::r#type::DIFTypeContainer;
+use crate::dif::reference::DIFReference;
+use crate::dif::r#type::DIFTypeDefinition;
 use crate::dif::update::DIFUpdateData;
+use crate::dif::value::DIFReferenceNotFoundError;
 use crate::dif::value::DIFValueContainer;
 use crate::references::observers::{
     ObserveOptions, ObserverError, TransceiverId,
@@ -9,11 +11,11 @@ use crate::references::reference::{
     TypeError,
 };
 use crate::runtime::execution::ExecutionError;
+use crate::stdlib::boxed::Box;
 use crate::values::pointer::PointerAddress;
-use datex_core::dif::reference::DIFReference;
-use datex_core::dif::update::DIFUpdate;
-use datex_core::dif::value::DIFReferenceNotFoundError;
-use std::fmt::Display;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
 #[derive(Debug)]
 pub enum DIFObserveError {
@@ -26,13 +28,13 @@ impl From<ObserverError> for DIFObserveError {
     }
 }
 impl Display for DIFObserveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFObserveError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
             DIFObserveError::ObserveError(e) => {
-                write!(f, "Observe error: {}", e)
+                core::write!(f, "Observe error: {}", e)
             }
         }
     }
@@ -69,19 +71,23 @@ impl From<TypeError> for DIFUpdateError {
 }
 
 impl Display for DIFUpdateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFUpdateError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
             DIFUpdateError::InvalidUpdate => {
-                write!(f, "Invalid update operation")
+                core::write!(f, "Invalid update operation")
             }
-            DIFUpdateError::AccessError(e) => write!(f, "Access error: {}", e),
+            DIFUpdateError::AccessError(e) => {
+                core::write!(f, "Access error: {}", e)
+            }
             DIFUpdateError::AssignmentError(e) => {
-                write!(f, "Assignment error: {}", e)
+                core::write!(f, "Assignment error: {}", e)
             }
-            DIFUpdateError::TypeError(e) => write!(f, "Type error: {}", e),
+            DIFUpdateError::TypeError(e) => {
+                core::write!(f, "Type error: {}", e)
+            }
         }
     }
 }
@@ -92,13 +98,13 @@ pub enum DIFApplyError {
     ReferenceNotFound,
 }
 impl Display for DIFApplyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFApplyError::ExecutionError(e) => {
-                write!(f, "Execution error: {}", e)
+                core::write!(f, "Execution error: {}", e)
             }
             DIFApplyError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
         }
     }
@@ -117,13 +123,13 @@ impl From<DIFReferenceNotFoundError> for DIFCreatePointerError {
 }
 
 impl Display for DIFCreatePointerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFCreatePointerError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
             DIFCreatePointerError::ReferenceCreationError(e) => {
-                write!(f, "Reference from value container error: {}", e)
+                core::write!(f, "Reference from value container error: {}", e)
             }
         }
     }
@@ -134,10 +140,10 @@ pub enum DIFResolveReferenceError {
     ReferenceNotFound,
 }
 impl Display for DIFResolveReferenceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DIFResolveReferenceError::ReferenceNotFound => {
-                write!(f, "Reference not found")
+                core::write!(f, "Reference not found")
             }
         }
     }
@@ -155,7 +161,7 @@ pub trait DIFInterface {
         &self,
         source_id: TransceiverId,
         address: PointerAddress,
-        update: DIFUpdateData,
+        update: &DIFUpdateData,
     ) -> Result<(), DIFUpdateError>;
 
     /// Executes an apply operation, applying the `value` to the `callee`.
@@ -170,7 +176,7 @@ pub trait DIFInterface {
     fn create_pointer(
         &self,
         value: DIFValueContainer,
-        allowed_type: Option<DIFTypeContainer>,
+        allowed_type: Option<DIFTypeDefinition>,
         mutability: ReferenceMutability,
     ) -> Result<PointerAddress, DIFCreatePointerError>;
 
@@ -190,12 +196,12 @@ pub trait DIFInterface {
 
     /// Starts observing changes to the pointer at the given address.
     /// As long as the pointer is observed, it will not be garbage collected.
-    fn observe_pointer<F: Fn(&DIFUpdate) + 'static>(
+    fn observe_pointer(
         &self,
         transceiver_id: TransceiverId,
         address: PointerAddress,
         options: ObserveOptions,
-        observer: F,
+        observer: impl Fn(&DIFUpdateData, TransceiverId) + 'static,
     ) -> Result<u32, DIFObserveError>;
 
     /// Updates the options for an existing observer on the pointer at the given address.

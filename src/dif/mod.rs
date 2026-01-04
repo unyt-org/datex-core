@@ -1,3 +1,4 @@
+use crate::stdlib::string::String;
 use serde::{Deserialize, Serialize};
 
 pub mod interface;
@@ -32,20 +33,16 @@ mod tests {
     use crate::dif::value::DIFValueContainer;
     use crate::runtime::memory::Memory;
     use crate::{
-        dif::{
-            representation::DIFValueRepresentation,
-            r#type::{DIFType, DIFTypeContainer},
-            value::DIFValue,
-        },
+        dif::{representation::DIFValueRepresentation, value::DIFValue},
         libs::core::CoreLibPointerId,
         values::{
             core_values::integer::typed_integer::IntegerTypeVariant,
             value_container::ValueContainer,
         },
     };
+    use core::cell::RefCell;
     use datex_core::dif::r#type::DIFTypeDefinition;
     use datex_core::values::core_values::endpoint::Endpoint;
-    use std::cell::RefCell;
 
     fn dif_value_circle(value_container: ValueContainer) -> DIFValueContainer {
         let memory = RefCell::new(Memory::new(Endpoint::default()));
@@ -64,7 +61,7 @@ mod tests {
         let dif_update =
             DIFUpdateData::replace(DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::String("Hello".to_string()),
-                r#type: None,
+                ty: None,
             }));
         let serialized = dif_update.as_json();
         println!("Serialized DIFUpdate: {}", serialized);
@@ -76,7 +73,7 @@ mod tests {
             "name",
             DIFValueContainer::Value(DIFValue {
                 value: DIFValueRepresentation::Number(42.0),
-                r#type: None,
+                ty: None,
             }),
         );
         let serialized = dif_update.as_json();
@@ -89,14 +86,7 @@ mod tests {
     fn dif_value_serialization() {
         let value = DIFValue {
             value: DIFValueRepresentation::Null,
-            r#type: Some(
-                DIFType {
-                    mutability: None,
-                    name: None,
-                    type_definition: DIFTypeDefinition::Unit,
-                }
-                .as_container(),
-            ),
+            ty: Some(DIFTypeDefinition::Unit),
         };
         let serialized = value.as_json();
         println!("Serialized DIFValue: {}", serialized);
@@ -110,14 +100,14 @@ mod tests {
         if let DIFValueContainer::Value(dif_value) = &dif_value_container {
             assert_eq!(dif_value.value, DIFValueRepresentation::Number(42f64));
             assert_eq!(
-                dif_value.r#type,
-                Some(DIFTypeContainer::Reference(
+                dif_value.ty,
+                Some(DIFTypeDefinition::Reference(
                     CoreLibPointerId::Integer(Some(IntegerTypeVariant::I32))
                         .into()
                 ))
             );
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 
@@ -130,9 +120,9 @@ mod tests {
                 dif_value.value,
                 DIFValueRepresentation::String("Hello, World!".to_string())
             );
-            assert_eq!(dif_value.r#type, None);
+            assert_eq!(dif_value.ty, None);
         } else {
-            panic!("Expected DIFValueContainer::Value variant");
+            core::panic!("Expected DIFValueContainer::Value variant");
         }
     }
 }

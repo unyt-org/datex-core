@@ -1,17 +1,35 @@
+use crate::dif::update::{DIFKey, DIFUpdateData};
+use crate::dif::value::DIFValueContainer;
+use crate::libs::core::CoreLibPointerId;
+use crate::references::mutations::DIFUpdateDataOrMemory;
+use crate::references::observers::TransceiverId;
+use crate::references::reference::AccessError;
+use crate::references::type_reference::TypeReference;
+use crate::runtime::execution::ExecutionError;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::format;
+use crate::stdlib::string::ToString;
+use crate::traits::apply::Apply;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
-use crate::types::type_container::TypeContainer;
+use crate::types::definition::TypeDefinition;
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::callable::{
+    Callable, CallableBody, CallableSignature,
+};
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use crate::values::value_container::ValueError;
+use crate::values::value_container::{ValueContainer, ValueError, ValueKey};
+use core::fmt::{Display, Formatter};
+use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
+use core::prelude::rust_2024::*;
+use core::result::Result;
 use log::error;
-use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
+use crate::stdlib::string::String;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
     pub inner: CoreValue,
-    pub actual_type: Box<TypeContainer>,
+    pub actual_type: Box<TypeDefinition>,
 }
 
 /// Two values are structurally equal, if their inner values are structurally equal, regardless
@@ -38,10 +56,31 @@ impl Deref for Value {
     }
 }
 
+impl Apply for Value {
+    fn apply(
+        &self,
+        args: &[ValueContainer],
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self.inner {
+            CoreValue::Callable(ref callable) => callable.apply(args),
+            _ => Err(ExecutionError::InvalidApply),
+        }
+    }
+    fn apply_single(
+        &self,
+        arg: &ValueContainer,
+    ) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self.inner {
+            CoreValue::Callable(ref callable) => callable.apply_single(arg),
+            _ => Err(ExecutionError::InvalidApply),
+        }
+    }
+}
+
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
         let inner = inner.into();
-        let new_type = inner.default_type();
+        let new_type = inner.default_type_definition();
         Value {
             inner,
             actual_type: Box::new(new_type),
@@ -55,29 +94,160 @@ impl Value {
 }
 
 impl Value {
+    pub fn callable(
+        name: Option<String>,
+        signature: CallableSignature,
+        body: CallableBody,
+    ) -> Self {
+        Value {
+            inner: CoreValue::Callable(Callable {
+                name,
+                signature: signature.clone(),
+                body,
+            }),
+            actual_type: Box::new(TypeDefinition::callable(signature)),
+        }
+    }
+
     pub fn is_type(&self) -> bool {
-        matches!(self.inner, CoreValue::Type(_))
+        core::matches!(self.inner, CoreValue::Type(_))
     }
     pub fn is_null(&self) -> bool {
-        matches!(self.inner, CoreValue::Null)
+        core::matches!(self.inner, CoreValue::Null)
     }
     pub fn is_text(&self) -> bool {
-        matches!(self.inner, CoreValue::Text(_))
+        core::matches!(self.inner, CoreValue::Text(_))
     }
     pub fn is_integer_i8(&self) -> bool {
-        matches!(&self.inner, CoreValue::TypedInteger(TypedInteger::I8(_)))
+        core::matches!(
+            &self.inner,
+            CoreValue::TypedInteger(TypedInteger::I8(_))
+        )
     }
     pub fn is_bool(&self) -> bool {
-        matches!(self.inner, CoreValue::Boolean(_))
+        core::matches!(self.inner, CoreValue::Boolean(_))
     }
     pub fn is_map(&self) -> bool {
-        matches!(self.inner, CoreValue::Map(_))
+        core::matches!(self.inner, CoreValue::Map(_))
     }
     pub fn is_list(&self) -> bool {
-        matches!(self.inner, CoreValue::List(_))
+        core::matches!(self.inner, CoreValue::List(_))
     }
-    pub fn actual_type(&self) -> &TypeContainer {
+    pub fn actual_type(&self) -> &TypeDefinition {
         self.actual_type.as_ref()
+    }
+
+    /// Returns true if the current Value's actual type is the same as its default type
+    /// E.g. if the type is integer for an Integer value, or integer/u8 for a typed integer value
+    /// This will return false for an integer value if the actual type is one of the following:
+    /// * an ImplType<integer, x>
+    /// * a new nominal type containing an integer
+    /// TODO: this does not match all cases of default types from the point of view of the compiler -
+    /// integer variants (despite bigint) can be distinguished based on the instruction code, but for text variants,
+    /// the variant must be included in the compiler output - so we need to handle theses cases as well.
+    /// Generally speaking, all variants except the few integer variants should never be considered default types.
+    pub fn has_default_type(&self) -> bool {
+        if let TypeDefinition::Reference(type_reference) =
+            self.actual_type.as_ref()
+            && let TypeReference {
+                pointer_address: Some(pointer_address),
+                ..
+            } = &*type_reference.borrow()
+            && let Ok(actual_type_core_ptr_id) =
+                CoreLibPointerId::try_from(pointer_address)
+        {
+            // actual_type has core type pointer id which is equal to the default core type pointer id of self.inner
+            let self_default_type_ptr_id = CoreLibPointerId::from(&self.inner);
+            self_default_type_ptr_id == actual_type_core_ptr_id
+        } else {
+            false
+        }
+    }
+
+    /// Gets a property on the value if applicable (e.g. for map and structs)
+    pub fn try_get_property<'a>(
+        &self,
+        key: impl Into<ValueKey<'a>>,
+    ) -> Result<ValueContainer, AccessError> {
+        match self.inner {
+            CoreValue::Map(ref map) => {
+                // If the value is a map, get the property
+                Ok(map.get(key)?.clone())
+            }
+            CoreValue::List(ref list) => {
+                if let Some(index) = key.into().try_as_index() {
+                    Ok(list.get(index)?.clone())
+                } else {
+                    Err(AccessError::InvalidIndexKey)
+                }
+            }
+            CoreValue::Text(ref text) => {
+                if let Some(index) = key.into().try_as_index() {
+                    let char = text.char_at(index)?;
+                    Ok(ValueContainer::from(char.to_string()))
+                } else {
+                    Err(AccessError::InvalidIndexKey)
+                }
+            }
+            _ => {
+                // If the value is not an map, we cannot get a property
+                Err(AccessError::InvalidOperation(
+                    "Cannot get property".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Sets a property on the value if applicable (e.g. for maps)
+    pub fn try_set_property<'a>(
+        &mut self,
+        key: impl Into<ValueKey<'a>>,
+        val: ValueContainer,
+    ) -> Result<(), AccessError> {
+        let key = key.into();
+
+        match self.inner {
+            CoreValue::Map(ref mut map) => {
+                // If the value is an map, set the property
+                map.try_set(key, val)?;
+            }
+            CoreValue::List(ref mut list) => {
+                if let Some(index) = key.try_as_index() {
+                    list.set(index, val)
+                        .map_err(|err| AccessError::IndexOutOfBounds(err))?;
+                } else {
+                    return Err(AccessError::InvalidIndexKey);
+                }
+            }
+            CoreValue::Text(ref mut text) => {
+                if let Some(index) = key.try_as_index() {
+                    if let ValueContainer::Value(v) = &val
+                        && let CoreValue::Text(new_char) = &v.inner
+                        && new_char.0.len() == 1
+                    {
+                        let char = new_char.0.chars().next().unwrap_or('\0');
+                        text.set_char_at(index, char).map_err(|err| {
+                            AccessError::IndexOutOfBounds(err)
+                        })?;
+                    } else {
+                        return Err(AccessError::InvalidOperation(
+                            "Can only set char character in text".to_string(),
+                        ));
+                    }
+                } else {
+                    return Err(AccessError::InvalidIndexKey);
+                }
+            }
+            _ => {
+                // If the value is not an map, we cannot set a property
+                return Err(AccessError::InvalidOperation(format!(
+                    "Cannot set property '{}' on non-map value: {:?}",
+                    key, self
+                )));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -142,8 +312,8 @@ where
 }
 
 impl Display for Value {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+        core::write!(f, "{}", self.inner)
     }
 }
 
@@ -165,6 +335,7 @@ where
 /// The value is a holder for a combination of a CoreValue representation and its actual type.
 mod tests {
     use super::*;
+    use crate::libs::core::{get_core_lib_type, get_core_lib_type_reference};
     use crate::{
         assert_structural_eq, datex_list,
         logger::init_logger_debug,
@@ -174,8 +345,8 @@ mod tests {
             list::List,
         },
     };
-    use log::{debug, info};
-    use std::str::FromStr;
+    use core::str::FromStr;
+    use log::info;
 
     #[test]
     fn endpoint() {
@@ -332,5 +503,24 @@ mod tests {
             Value::from(42_i8),
             Value::from(Integer::from(42_i8))
         );
+    }
+
+    #[test]
+    fn default_types() {
+        let val = Value::from(Integer::from(42));
+        assert!(val.has_default_type());
+
+        let val = Value::from(42i8);
+        assert!(val.has_default_type());
+
+        let val = Value {
+            inner: CoreValue::Integer(Integer::from(42)),
+            actual_type: Box::new(TypeDefinition::ImplType(
+                Box::new(get_core_lib_type(CoreLibPointerId::Integer(None))),
+                vec![],
+            )),
+        };
+
+        assert!(!val.has_default_type());
     }
 }

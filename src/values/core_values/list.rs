@@ -1,16 +1,24 @@
-use super::super::core_value_trait::CoreValueTrait;
+use crate::references::reference::IndexOutOfBoundsError;
+use crate::stdlib::ops::Index;
+use crate::stdlib::vec::Vec;
+use crate::traits::structural_eq::StructuralEq;
 use crate::values::{
     core_value::CoreValue,
     value_container::{ValueContainer, ValueError},
 };
-use std::{fmt, ops::Index};
+use core::fmt::Display;
+use core::ops::Range;
+use core::prelude::rust_2024::*;
+use core::result::Result;
 
-use crate::traits::structural_eq::StructuralEq;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct List(Vec<ValueContainer>);
 impl List {
     pub fn new<T: Into<ValueContainer>>(values: Vec<T>) -> Self {
         List(values.into_iter().map(Into::into).collect())
+    }
+    pub fn with_capacity(capacity: u32) -> Self {
+        List(Vec::with_capacity(capacity as usize))
     }
     pub fn len(&self) -> u32 {
         self.0.len() as u32
@@ -18,33 +26,28 @@ impl List {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn get(&self, index: u32) -> Option<&ValueContainer> {
-        self.0.get(index as usize)
+    pub fn get(
+        &self,
+        index: i64,
+    ) -> Result<&ValueContainer, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        self.0
+            .get(index as usize)
+            .ok_or(IndexOutOfBoundsError { index })
     }
 
     /// Sets the value at the specified index.
     /// If the index is equal to the current length of the list, the value is pushed to the end.
     /// If the index is greater than the current length, None is returned.
     /// Returns the previous value at the index if it was replaced.
-    // FIXME #321: Add set error when out of bounds, deprecate push case here?
     pub fn set(
         &mut self,
-        index: u32,
+        index: i64,
         value: ValueContainer,
-    ) -> Option<ValueContainer> {
+    ) -> Result<ValueContainer, IndexOutOfBoundsError> {
+        let index = self.get_valid_index(index)?;
         // replace
-        if (index as usize) < self.0.len() {
-            Some(std::mem::replace(&mut self.0[index as usize], value))
-        }
-        // push
-        else if (index as usize) == self.0.len() {
-            self.0.push(value);
-            None
-        }
-        // out of bounds
-        else {
-            None
-        }
+        Ok(core::mem::replace(&mut self.0[index], value))
     }
 
     pub fn push<T: Into<ValueContainer>>(&mut self, value: T) {
@@ -67,16 +70,57 @@ impl List {
         &mut self.0
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, ValueContainer> {
+    pub fn iter(&self) -> core::slice::Iter<'_, ValueContainer> {
         self.0.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ValueContainer> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, ValueContainer> {
         self.0.iter_mut()
     }
-}
 
-impl CoreValueTrait for List {}
+    pub fn splice(
+        &mut self,
+        range: Range<u32>,
+        replace_with: impl IntoIterator<Item = ValueContainer>,
+    ) {
+        let range = Range {
+            start: range.start as usize,
+            end: range.end as usize,
+        };
+        let _: Vec<_> = self.0.splice(range, replace_with).collect();
+    }
+
+    /// if index is negative, count from the end
+    #[inline]
+    fn wrap_index(&self, index: i64) -> u32 {
+        if index < 0 {
+            (index + self.0.len() as i64) as u32
+        } else {
+            index as u32
+        }
+    }
+
+    #[inline]
+    fn get_valid_index(
+        &self,
+        index: i64,
+    ) -> Result<usize, IndexOutOfBoundsError> {
+        let index = self.wrap_index(index);
+        if (index as usize) < self.0.len() {
+            Ok(index as usize)
+        } else {
+            Err(IndexOutOfBoundsError { index })
+        }
+    }
+
+    pub fn delete(
+        &mut self,
+        index: i64,
+    ) -> Result<ValueContainer, IndexOutOfBoundsError> {
+        let index = self.get_valid_index(index)?;
+        Ok(self.0.remove(index))
+    }
+}
 
 impl StructuralEq for List {
     fn structural_eq(&self, other: &Self) -> bool {
@@ -92,16 +136,16 @@ impl StructuralEq for List {
     }
 }
 
-impl fmt::Display for List {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[")?;
+impl Display for List {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::write!(f, "[")?;
         for (i, value) in self.0.iter().enumerate() {
             if i > 0 {
-                write!(f, ", ")?;
+                core::write!(f, ", ")?;
             }
-            write!(f, "{value}")?;
+            core::write!(f, "{value}")?;
         }
-        write!(f, "]")
+        core::write!(f, "]")
     }
 }
 
@@ -133,7 +177,7 @@ impl Index<usize> for List {
 
 impl IntoIterator for List {
     type Item = ValueContainer;
-    type IntoIter = std::vec::IntoIter<ValueContainer>;
+    type IntoIter = crate::stdlib::vec::IntoIter<ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -142,7 +186,7 @@ impl IntoIterator for List {
 
 impl<'a> IntoIterator for &'a List {
     type Item = &'a ValueContainer;
-    type IntoIter = std::slice::Iter<'a, ValueContainer>;
+    type IntoIter = core::slice::Iter<'a, ValueContainer>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

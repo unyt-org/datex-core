@@ -1,3 +1,7 @@
+use crate::references::reference::ReferenceMutability;
+use crate::types::definition::TypeDefinition;
+use binrw::{BinRead, BinWrite};
+use core::prelude::rust_2024::*;
 use num_enum::TryFromPrimitive;
 use strum::Display;
 
@@ -13,14 +17,24 @@ use strum::Display;
     num_enum::IntoPrimitive,
 )]
 #[repr(u8)]
-pub enum TypeSpaceInstructionCode {
+pub enum TypeInstructionCode {
     TYPE_REFERENCE,
+    TYPE_WITH_IMPLS,
+    TYPE_UNIT,
+    TYPE_UNKNOWN,
+    TYPE_NEVER,
+    TYPE_STRUCTURAL,
+    TYPE_INTERSECTION,
+    TYPE_UNION,
+    TYPE_FUNCTION,
+    TYPE_COLLECTION,
+    TYPE_TYPE,
 
-    TYPE_LIST_START,
-    TYPE_SCOPE_END,
+    TYPE_LIST,
 
     TYPE_LITERAL_INTEGER,
     TYPE_LITERAL_TEXT,
+    TYPE_LITERAL_SHORT_TEXT,
     TYPE_STRUCT,
 
     // TODO #427: Do we need std_type for optimization purpose?
@@ -51,4 +65,68 @@ pub enum TypeSpaceInstructionCode {
     STD_TYPE_ASSERTION,
     STD_TYPE_TASK,
     STD_TYPE_ITERATOR,
+}
+
+impl From<&TypeDefinition> for TypeInstructionCode {
+    fn from(value: &TypeDefinition) -> Self {
+        match value {
+            TypeDefinition::ImplType(_, _) => {
+                TypeInstructionCode::TYPE_WITH_IMPLS
+            }
+            TypeDefinition::Reference(_) => TypeInstructionCode::TYPE_REFERENCE,
+            TypeDefinition::Unit => TypeInstructionCode::TYPE_UNIT,
+            TypeDefinition::Unknown => TypeInstructionCode::TYPE_UNKNOWN,
+            TypeDefinition::Never => TypeInstructionCode::TYPE_NEVER,
+            TypeDefinition::Structural(_) => {
+                TypeInstructionCode::TYPE_STRUCTURAL
+            }
+            TypeDefinition::Intersection(_) => {
+                TypeInstructionCode::TYPE_INTERSECTION
+            }
+            TypeDefinition::Union(_) => TypeInstructionCode::TYPE_UNION,
+            TypeDefinition::Callable { .. } => {
+                TypeInstructionCode::TYPE_FUNCTION
+            }
+            TypeDefinition::Collection(_) => {
+                TypeInstructionCode::TYPE_COLLECTION
+            }
+            TypeDefinition::Type(_) => unreachable!(), // TODO: nested types
+        }
+    }
+}
+
+#[derive(BinRead, BinWrite, Clone, Debug, PartialEq, Display)]
+#[brw(little, repr(u8))]
+pub enum TypeMutabilityCode {
+    MutableReference,
+    ImmutableReference,
+    Value,
+}
+
+impl From<&Option<ReferenceMutability>> for TypeMutabilityCode {
+    fn from(value: &Option<ReferenceMutability>) -> Self {
+        match value {
+            Some(ReferenceMutability::Mutable) => {
+                TypeMutabilityCode::MutableReference
+            }
+            Some(ReferenceMutability::Immutable) => {
+                TypeMutabilityCode::ImmutableReference
+            }
+            None => TypeMutabilityCode::Value,
+        }
+    }
+}
+
+impl From<TypeMutabilityCode> for Option<ReferenceMutability> {
+    fn from(value: TypeMutabilityCode) -> Self {
+        match value {
+            TypeMutabilityCode::MutableReference => {
+                Some(ReferenceMutability::Mutable)
+            }
+            TypeMutabilityCode::ImmutableReference => {
+                Some(ReferenceMutability::Immutable)
+            }
+            TypeMutabilityCode::Value => None,
+        }
+    }
 }

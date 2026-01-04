@@ -1,5 +1,4 @@
-use crate::compile;
-use crate::decompiler::{DecompileOptions, decompile_body};
+use crate::core_compiler::value_compiler::compile_value_container;
 use crate::global::dxb_block::{DXBBlock, IncomingSection, OutgoingContextId};
 use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
@@ -11,6 +10,12 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
+use crate::stdlib::borrow::ToOwned;
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::utils::time::Time;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::boolean::Boolean;
@@ -19,13 +24,15 @@ use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::core_values::map::Map;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
-use itertools::Itertools;
+use core::fmt::Display;
+use core::prelude::rust_2024::*;
+use core::time::Duration;
+use core::unreachable;
+use core::writeln;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use std::fmt::Display;
-use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkTraceHopSocket {
@@ -123,7 +130,7 @@ impl NetworkTraceResult {
 }
 
 impl Display for NetworkTraceResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         writeln!(
             f,
             "─────────────────────────────────────────────────────────"
@@ -157,7 +164,7 @@ impl Display for NetworkTraceResult {
                 hop_2.distance
             };
 
-            write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
+            core::write!(f, "    #{} via {}: ", hop, hop_1.socket.channel)?;
             writeln!(
                 f,
                 "{} ({}) ─{}▶ {} ({}) | distance from {}: {} | fork #{}",
@@ -353,7 +360,7 @@ impl ComHub {
     /// Handles a trace block received from another endpoint that
     /// is addressed to this endpoint.
     /// A new trace block is created and sent back to the sender.
-    pub(crate) fn handle_trace_block(
+    pub(crate) async fn handle_trace_block(
         &self,
         block: &DXBBlock,
         original_socket: ComInterfaceSocketUUID,
@@ -386,7 +393,7 @@ impl ComHub {
         // create trace back block
         let trace_back_block = self.create_trace_block(
             hops,
-            std::slice::from_ref(&sender),
+            core::slice::from_ref(&sender),
             BlockType::TraceBack,
             block.block_header.context_id,
             None,
@@ -394,7 +401,7 @@ impl ComHub {
 
         // send trace back block
         // TODO #380: handle error and resend error and stuff
-        let _ = self.send_own_block(trace_back_block);
+        let _ = self.send_own_block(trace_back_block).await;
 
         Some(())
     }
@@ -510,15 +517,14 @@ impl ComHub {
     ) -> Option<Vec<NetworkTraceHop>> {
         // convert DATEX to hops
         let dxb = block.body.clone();
-        let exec_input = ExecutionInput::new_with_dxb_and_options(
-            &dxb,
-            ExecutionOptions::default(),
-        );
-        let hops_datex = execute_dxb_sync(exec_input).unwrap().unwrap();
-        if let ValueContainer::Value(Value {
+        let exec_input =
+            ExecutionInput::new(&dxb, ExecutionOptions::default(), None);
+        let hops_datex =
+            execute_dxb_sync(exec_input).expect("Failed to execute DATEX");
+        if let Some(ValueContainer::Value(Value {
             inner: CoreValue::List(list),
             ..
-        }) = hops_datex
+        })) = hops_datex
         {
             let mut hops: Vec<NetworkTraceHop> = vec![];
             for value in list {
@@ -534,16 +540,16 @@ impl ComHub {
                     // let endpoint: Endpoint = obj.get("endpoint").cast_to_endpoint();
 
                     let endpoint: Endpoint = obj
-                        .get_owned("endpoint")
+                        .get("endpoint")
                         .unwrap()
                         .to_value()
                         .borrow()
                         .cast_to_endpoint()
                         .unwrap();
                     let distance: TypedInteger =
-                        obj.get_owned("distance").cloned().try_into().unwrap();
+                        obj.get("distance").ok().cloned().try_into().unwrap();
 
-                    let socket = obj.get_owned("socket").unwrap();
+                    let socket = obj.get("socket").unwrap();
                     let (interface_type, interface_name, channel, socket_uuid) =
                         if let ValueContainer::Value(Value {
                             inner: CoreValue::Map(socket_obj),
@@ -551,7 +557,7 @@ impl ComHub {
                         }) = socket
                         {
                             let interface_type = socket_obj
-                                .get_owned("interface_type")
+                                .get("interface_type")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
@@ -561,22 +567,21 @@ impl ComHub {
                                 if let ValueContainer::Value(Value {
                                     inner: CoreValue::Text(name),
                                     ..
-                                }) =
-                                    socket_obj.get_owned("interface_name")?
+                                }) = socket_obj.get("interface_name").ok()?
                                 {
                                     Some(name.clone().0)
                                 } else {
                                     None
                                 };
                             let channel = socket_obj
-                                .get_owned("channel")
+                                .get("channel")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
                                 .cast_to_text()
                                 .0;
                             let socket_uuid = socket_obj
-                                .get_owned("socket_uuid")
+                                .get("socket_uuid")
                                 .unwrap()
                                 .to_value()
                                 .borrow()
@@ -593,21 +598,22 @@ impl ComHub {
                             continue;
                         };
                     let direction = obj
-                        .get_owned("direction")
+                        .get("direction")
                         .unwrap()
                         .to_value()
                         .borrow()
                         .cast_to_text()
                         .0;
                     let fork_nr = obj
-                        .get_owned("fork_nr")
+                        .get("fork_nr")
                         .unwrap()
                         .to_value()
                         .borrow()
                         .cast_to_text()
                         .0;
                     let bounce_back: Boolean = obj
-                        .get_owned("bounce_back")
+                        .get("bounce_back")
+                        .ok()
                         .cloned()
                         .try_into()
                         .unwrap();
@@ -707,11 +713,11 @@ impl ComHub {
             hops_datex.push(ValueContainer::from(data_map));
         }
 
-        let (dxb, _) = compile!("?", hops_datex).unwrap();
-        info!(
-            "Trace data: {}",
-            decompile_body(&dxb, DecompileOptions::default()).unwrap()
-        );
+        let dxb = compile_value_container(&ValueContainer::from(hops_datex));
+        // info!(
+        //     "Trace data: {}",
+        //     decompile_body(&dxb, DecompileOptions::default()).unwrap()
+        // );
 
         block.body = dxb;
     }

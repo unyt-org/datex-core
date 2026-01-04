@@ -1,40 +1,64 @@
-use crate::ast::TypeExpression;
+use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::compiler::context::CompilationContext;
 use crate::compiler::error::CompilerError;
+use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 use crate::compiler::scope::CompilationScope;
-use crate::global::type_instruction_codes::TypeSpaceInstructionCode;
+use crate::core_compiler::value_compiler::append_big_integer;
+use crate::global::type_instruction_codes::TypeInstructionCode;
+use crate::stdlib::rc::Rc;
+use crate::utils::buffers::{append_u8, append_u32};
 use crate::values::core_values::integer::Integer;
-use datex_core::compiler::precompiler::AstMetadata;
-use std::cell::RefCell;
-use std::rc::Rc;
+use core::cell::RefCell;
 
 /// Compilation functions for type expressions.
-impl<'a> CompilationContext<'a> {
-    pub fn append_type_instruction_code(&self, code: TypeSpaceInstructionCode) {
-        self.append_u8(code as u8);
+impl CompilationContext {
+    pub fn append_type_instruction_code(&mut self, code: TypeInstructionCode) {
+        append_u8(&mut self.buffer, code as u8);
     }
 
     // TODO #452: Handle other types
 
-    pub fn insert_type_literal_integer(&self, integer: &Integer) {
+    pub fn insert_type_literal_integer(&mut self, integer: &Integer) {
         self.append_type_instruction_code(
-            TypeSpaceInstructionCode::TYPE_LITERAL_INTEGER,
+            TypeInstructionCode::TYPE_LITERAL_INTEGER,
         );
-        self.insert_big_integer(integer);
+        append_big_integer(&mut self.buffer, integer);
+    }
+
+    pub fn insert_type_literal_text(&mut self, text: &str) {
+        let bytes = text.as_bytes();
+        let len = bytes.len();
+
+        if len < 256 {
+            self.append_type_instruction_code(
+                TypeInstructionCode::TYPE_LITERAL_SHORT_TEXT,
+            );
+            append_u8(&mut self.buffer, len as u8);
+        } else {
+            self.append_type_instruction_code(
+                TypeInstructionCode::TYPE_LITERAL_TEXT,
+            );
+            append_u32(&mut self.buffer, len as u32);
+        }
+
+        self.buffer.extend_from_slice(bytes);
     }
 }
 
 pub fn compile_type_expression(
-    ctx: &CompilationContext,
+    ctx: &mut CompilationContext,
     expr: &TypeExpression,
     ast_metadata: Rc<RefCell<AstMetadata>>,
     scope: CompilationScope,
 ) -> Result<CompilationScope, CompilerError> {
-    match expr {
-        TypeExpression::Integer(integer) => {
+    match &expr.data {
+        TypeExpressionData::Integer(integer) => {
             ctx.insert_type_literal_integer(integer);
         }
-        _ => todo!("#453 Undescribed by author."),
+        TypeExpressionData::Text(text) => {
+            ctx.insert_type_literal_text(text);
+        }
+        _ => core::todo!("#453 Undescribed by author."),
     }
     Ok(scope)
 }

@@ -17,7 +17,7 @@ pub fn start_server(url: &str) {
             .build();
     spawn(async move {
         server.serve().await.unwrap_or_else(|e| {
-            panic!("Failed to start signaling server: {e:?}");
+            core::panic!("Failed to start signaling server: {e:?}");
         });
     });
 }

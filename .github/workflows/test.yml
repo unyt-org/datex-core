@@ -6,13 +6,14 @@ jobs:
         runs-on: ubuntu-latest
         name: Test
         concurrency:
-            group: ${{ github.workflow }}-${{ github.ref }}
+            group: ${{ github.workflow }}-${{ github.ref }}-test
             cancel-in-progress: true
         env:
             PROJECT_NAME_UNDERSCORE: datex_core
             CARGO_INCREMENTAL: 0
+            RUSTFLAGS: -Awarnings
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
 
             - name: Install libudev-dev and pkg-config
               run: |
@@ -22,7 +23,7 @@ jobs:
             - name: Install Deno
               uses: denoland/setup-deno@v2
               with:
-                deno-version: v2.x
+                  deno-version: v2.x
 
             - uses: dtolnay/rust-toolchain@stable
               with:
@@ -52,9 +53,49 @@ jobs:
                   cargo nextest run --profile ci --features debug;
             - name: Run Struct Tests
               run: deno task test
+
+            - name: Run cargo publish dry-run (release branches only)
+              if: startsWith(github.head_ref, 'release/')
+              run: |
+                  echo "Running cargo publish dry-run..."
+                  cargo publish --dry-run
+
             - name: Upload test results
               uses: EnricoMi/publish-unit-test-result-action@v2
               with:
                   check_name: Test Results
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   files: target/nextest/ci/report.xml
+    test-embedded:
+        runs-on: macos-latest
+        name: Test no-std/embedded build
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}-test-embedded
+            cancel-in-progress: true
+        env:
+            RUSTFLAGS: -Awarnings
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  toolchain: nightly
+                  components: clippy
+            - run: rustup target add thumbv7em-none-eabihf
+
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              env:
+                  cache-name: cache-dependencies
+              with:
+                  path: |
+                      ~/.cargo/.crates.toml
+                      ~/.cargo/.crates2.json
+                      ~/.cargo/bin
+                      ~/.cargo/registry/index
+                      ~/.cargo/registry/cache
+                      target
+                  key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
+
+            - name: Test nostd build
+              run: cargo build --no-default-features --features embedded,debug --target thumbv7em-none-eabihf

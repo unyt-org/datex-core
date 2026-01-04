@@ -1,30 +1,35 @@
+use core::prelude::rust_2024::*;
+use core::result::Result;
 pub mod rational;
 pub mod typed_decimal;
 pub mod utils;
 
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;
 use crate::traits::value_eq::ValueEq;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::error::NumberParseError;
 use bigdecimal::BigDecimal;
+use binrw::io::{Read, Seek, Write};
 use binrw::{BinRead, BinReaderExt, BinResult, BinWrite, Endian};
+use core::cmp::Ordering;
+use core::fmt::Display;
+use core::hash::Hash;
+use core::ops::{Add, Neg, Sub};
+use core::str::FromStr;
 use num::BigInt;
 use num::BigRational;
 use num_enum::TryFromPrimitive;
 use num_traits::{FromPrimitive, Zero};
 use rational::Rational;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fmt::Display;
-use std::hash::Hash;
-use std::io::{Read, Seek};
-use std::ops::{Add, Neg, Sub};
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum Decimal {
     Finite(Rational),
-    NaN,
+    Nan,
     Zero,
     NegZero,
     Infinity,
@@ -32,10 +37,10 @@ pub enum Decimal {
 }
 
 impl Hash for Decimal {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         match self {
             Decimal::Finite(value) => value.hash(state),
-            Decimal::NaN => 0.hash(state),
+            Decimal::Nan => 0.hash(state),
             Decimal::Zero => 1.hash(state),
             Decimal::NegZero => 1.hash(state),
             Decimal::Infinity => 2.hash(state),
@@ -53,7 +58,7 @@ impl PartialEq for Decimal {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
-            (Decimal::NaN, Decimal::NaN) => true,
+            (Decimal::Nan, Decimal::Nan) => true,
             _ => false,
         }
     }
@@ -69,7 +74,7 @@ impl Decimal {
             Decimal::NegZero => -0.0,
             Decimal::Infinity => f32::INFINITY,
             Decimal::NegInfinity => f32::NEG_INFINITY,
-            Decimal::NaN => f32::NAN,
+            Decimal::Nan => f32::NAN,
         }
     }
 
@@ -82,28 +87,31 @@ impl Decimal {
             Decimal::NegZero => -0.0,
             Decimal::Infinity => f64::INFINITY,
             Decimal::NegInfinity => f64::NEG_INFINITY,
-            Decimal::NaN => f64::NAN,
+            Decimal::Nan => f64::NAN,
         }
     }
 
     /// Returns true if the value is finite (not NaN or Infinity).
     pub fn is_finite(&self) -> bool {
-        matches!(self, Decimal::Finite(_) | Decimal::Zero | Decimal::NegZero)
+        core::matches!(
+            self,
+            Decimal::Finite(_) | Decimal::Zero | Decimal::NegZero
+        )
     }
 
     /// Returns true if the value is infinite (positive or negative).
     pub fn is_infinite(&self) -> bool {
-        matches!(self, Decimal::Infinity | Decimal::NegInfinity)
+        core::matches!(self, Decimal::Infinity | Decimal::NegInfinity)
     }
 
     /// Returns true if the value is zero (positive or negative).
     pub fn is_nan(&self) -> bool {
-        matches!(self, Decimal::NaN)
+        core::matches!(self, Decimal::Nan)
     }
 
     /// Returns true if the value is zero (positive or negative).
     pub fn is_zero(&self) -> bool {
-        matches!(self, Decimal::Zero | Decimal::NegZero)
+        core::matches!(self, Decimal::Zero | Decimal::NegZero)
     }
 
     /// Returns true if the value has a positive sign.
@@ -112,7 +120,7 @@ impl Decimal {
         match self {
             Decimal::Finite(value) => value.is_positive(),
             Decimal::Infinity | Decimal::Zero => true,
-            Decimal::NegZero | Decimal::NaN | Decimal::NegInfinity => false,
+            Decimal::NegZero | Decimal::Nan | Decimal::NegInfinity => false,
         }
     }
 
@@ -122,7 +130,7 @@ impl Decimal {
         match self {
             Decimal::Finite(value) => value.is_negative(),
             Decimal::NegZero | Decimal::NegInfinity => true,
-            Decimal::Zero | Decimal::Infinity | Decimal::NaN => false,
+            Decimal::Zero | Decimal::Infinity | Decimal::Nan => false,
         }
     }
 
@@ -145,30 +153,28 @@ impl Decimal {
         }
     }
 
-    /// Creates a Decimal from a fraction represented by numerator and denominator strings.
-    pub fn from_fraction(numerator: &str, denominator: &str) -> Self {
-        let rational = BigRational::new(
-            BigInt::from_str(numerator).unwrap(),
-            BigInt::from_str(denominator).unwrap(),
-        );
-        Decimal::from(Rational::from_big_rational(rational))
-    }
-
     /// Creates a Decimal from a string representation.
-    /// TODO #333: Add error handling
     pub fn from_string(s: &str) -> Result<Self, NumberParseError> {
         // TODO #133 represent as Infinity/-Infinity if out of bounds for representable DATEX values
         match s {
             "Infinity" | "infinity" => Ok(Decimal::Infinity),
             "-Infinity" | "-infinity" => Ok(Decimal::NegInfinity),
-            "nan" | "NaN" | "-nan" | "-NaN" => Ok(Decimal::NaN),
+            "nan" | "NaN" | "-nan" | "-NaN" => Ok(Decimal::Nan),
             _ => {
                 let s = &s.trim().replace('_', "");
                 if s.contains("/") {
                     // If the string contains a fraction, parse it as a fraction
                     let parts: Vec<&str> = s.split('/').collect();
                     if parts.len() == 2 {
-                        Ok(Decimal::from_fraction(parts[0], parts[1]))
+                        let numer = BigInt::from_str(parts[0])
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        let denom = BigInt::from_str(parts[1])
+                            .map_err(|_| NumberParseError::InvalidFormat)?;
+                        if denom.is_zero() {
+                            return Err(NumberParseError::InvalidFormat);
+                        }
+                        let rational = BigRational::new(numer, denom);
+                        Ok(Decimal::from(Rational::from_big_rational(rational)))
                     } else {
                         Err(NumberParseError::InvalidFormat)
                     }
@@ -205,7 +211,7 @@ impl StructuralEq for Decimal {
             (Decimal::Finite(a), Decimal::Finite(b)) => a == b,
             (Decimal::Infinity, Decimal::Infinity) => true,
             (Decimal::NegInfinity, Decimal::NegInfinity) => true,
-            (Decimal::NaN, Decimal::NaN) => false,
+            (Decimal::Nan, Decimal::Nan) => false,
             _ => false,
         }
     }
@@ -227,7 +233,7 @@ impl Neg for Decimal {
             Decimal::NegZero => Decimal::Zero,
             Decimal::Infinity => Decimal::NegInfinity,
             Decimal::NegInfinity => Decimal::Infinity,
-            Decimal::NaN => Decimal::NaN,
+            Decimal::Nan => Decimal::Nan,
         }
     }
 }
@@ -243,14 +249,14 @@ impl Add for Decimal {
             (Decimal::Zero, b) | (b, Decimal::Zero) => b,
             (Decimal::NegZero, b) | (b, Decimal::NegZero) => b,
             (Decimal::Infinity, Decimal::NegInfinity)
-            | (Decimal::NegInfinity, Decimal::Infinity) => Decimal::NaN,
+            | (Decimal::NegInfinity, Decimal::Infinity) => Decimal::Nan,
             (Decimal::Infinity, _) | (_, Decimal::Infinity) => {
                 Decimal::Infinity
             }
             (Decimal::NegInfinity, _) | (_, Decimal::NegInfinity) => {
                 Decimal::NegInfinity
             }
-            (Decimal::NaN, _) | (_, Decimal::NaN) => Decimal::NaN,
+            (Decimal::Nan, _) | (_, Decimal::Nan) => Decimal::Nan,
         }
     }
 }
@@ -282,14 +288,14 @@ impl Sub for &Decimal {
 }
 
 impl Display for Decimal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Decimal::Finite(value) => write!(f, "{value}"),
-            Decimal::NaN => write!(f, "nan"),
-            Decimal::Zero => write!(f, "0.0"),
-            Decimal::NegZero => write!(f, "-0.0"),
-            Decimal::Infinity => write!(f, "infinity"),
-            Decimal::NegInfinity => write!(f, "-infinity"),
+            Decimal::Finite(value) => core::write!(f, "{value}"),
+            Decimal::Nan => core::write!(f, "nan"),
+            Decimal::Zero => core::write!(f, "0.0"),
+            Decimal::NegZero => core::write!(f, "-0.0"),
+            Decimal::Infinity => core::write!(f, "infinity"),
+            Decimal::NegInfinity => core::write!(f, "-infinity"),
         }
     }
 }
@@ -302,7 +308,7 @@ impl TryFrom<BigDecimalType> for Decimal {
             BigDecimalType::NegZero => Ok(Decimal::NegZero),
             BigDecimalType::Infinity => Ok(Decimal::Infinity),
             BigDecimalType::NegInfinity => Ok(Decimal::NegInfinity),
-            BigDecimalType::NaN => Ok(Decimal::NaN),
+            BigDecimalType::NaN => Ok(Decimal::Nan),
             BigDecimalType::Finite => Err(()), // Finite is not a valid type for conversion
         }
     }
@@ -327,7 +333,7 @@ impl From<&Decimal> for BigDecimalType {
             Decimal::NegZero => BigDecimalType::NegZero,
             Decimal::Infinity => BigDecimalType::Infinity,
             Decimal::NegInfinity => BigDecimalType::NegInfinity,
-            Decimal::NaN => BigDecimalType::NaN,
+            Decimal::Nan => BigDecimalType::NaN,
         }
     }
 }
@@ -380,7 +386,7 @@ impl BinRead for Decimal {
 impl BinWrite for Decimal {
     type Args<'a> = ();
 
-    fn write_options<W: std::io::Write + Seek>(
+    fn write_options<W: Write + Seek>(
         &self,
         writer: &mut W,
         endian: Endian,
@@ -430,7 +436,7 @@ impl From<Rational> for Decimal {
 impl From<f32> for Decimal {
     fn from(value: f32) -> Self {
         if value.is_nan() {
-            Decimal::NaN
+            Decimal::Nan
         } else if value.is_infinite() {
             if value.is_sign_positive() {
                 Decimal::Infinity
@@ -468,7 +474,7 @@ impl From<TypedDecimal> for Decimal {
 impl From<f64> for Decimal {
     fn from(value: f64) -> Self {
         if value.is_nan() {
-            Decimal::NaN
+            Decimal::Nan
         } else if value.is_infinite() {
             if value.is_sign_positive() {
                 Decimal::Infinity
@@ -490,7 +496,7 @@ impl From<f64> for Decimal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::assert_matches::assert_matches;
+    use crate::stdlib::assert_matches::assert_matches;
 
     #[test]
     fn decimal_addition() {
@@ -558,91 +564,91 @@ mod tests {
     #[test]
     fn zero() {
         let a = Decimal::from(0.0f32);
-        assert!(matches!(a, Decimal::Zero));
-        assert!(!matches!(a, Decimal::NegZero));
+        assert!(core::matches!(a, Decimal::Zero));
+        assert!(!core::matches!(a, Decimal::NegZero));
 
         let b = Decimal::from(0.0f64);
-        assert!(matches!(b, Decimal::Zero));
-        assert!(!matches!(b, Decimal::NegZero));
+        assert!(core::matches!(b, Decimal::Zero));
+        assert!(!core::matches!(b, Decimal::NegZero));
 
         let c = Decimal::from_string("0.0").unwrap();
-        assert!(matches!(c, Decimal::Zero));
-        assert!(!matches!(c, Decimal::NegZero));
+        assert!(core::matches!(c, Decimal::Zero));
+        assert!(!core::matches!(c, Decimal::NegZero));
     }
 
     #[test]
     fn neg_zero() {
         let a = Decimal::from(-0.0f32);
-        assert!(matches!(a, Decimal::NegZero));
-        assert!(!matches!(a, Decimal::Zero));
+        assert!(core::matches!(a, Decimal::NegZero));
+        assert!(!core::matches!(a, Decimal::Zero));
 
         let b = Decimal::from(-0.0f64);
-        assert!(matches!(b, Decimal::NegZero));
-        assert!(!matches!(b, Decimal::Zero));
+        assert!(core::matches!(b, Decimal::NegZero));
+        assert!(!core::matches!(b, Decimal::Zero));
 
         let c = Decimal::from_string("-0.0").unwrap();
-        assert!(matches!(c, Decimal::NegZero));
-        assert!(!matches!(c, Decimal::Zero));
+        assert!(core::matches!(c, Decimal::NegZero));
+        assert!(!core::matches!(c, Decimal::Zero));
     }
 
     #[test]
     fn inf() {
         let a = Decimal::from(f32::INFINITY);
-        assert!(matches!(a, Decimal::Infinity));
+        assert!(core::matches!(a, Decimal::Infinity));
 
         let b = Decimal::from(f64::INFINITY);
-        assert!(matches!(b, Decimal::Infinity));
+        assert!(core::matches!(b, Decimal::Infinity));
 
         let c = Decimal::from_string("infinity").unwrap();
-        assert!(matches!(c, Decimal::Infinity));
+        assert!(core::matches!(c, Decimal::Infinity));
     }
 
     #[test]
     fn neg_inf() {
         let a = Decimal::from(f32::NEG_INFINITY);
-        assert!(matches!(a, Decimal::NegInfinity));
+        assert!(core::matches!(a, Decimal::NegInfinity));
 
         let b = Decimal::from(f64::NEG_INFINITY);
-        assert!(matches!(b, Decimal::NegInfinity));
+        assert!(core::matches!(b, Decimal::NegInfinity));
 
         let c = Decimal::from_string("-infinity").unwrap();
-        assert!(matches!(c, Decimal::NegInfinity));
+        assert!(core::matches!(c, Decimal::NegInfinity));
     }
 
     #[test]
     fn nan() {
         let a = Decimal::from(f32::NAN);
-        assert!(matches!(a, Decimal::NaN));
+        assert!(core::matches!(a, Decimal::Nan));
 
         let b = Decimal::from(f64::NAN);
-        assert!(matches!(b, Decimal::NaN));
+        assert!(core::matches!(b, Decimal::Nan));
 
         let c = Decimal::from_string("nan").unwrap();
-        assert!(matches!(c, Decimal::NaN));
+        assert!(core::matches!(c, Decimal::Nan));
 
         let a = Decimal::from(-f32::NAN);
-        assert!(matches!(a, Decimal::NaN));
+        assert!(core::matches!(a, Decimal::Nan));
 
         let b = Decimal::from(-f64::NAN);
-        assert!(matches!(b, Decimal::NaN));
+        assert!(core::matches!(b, Decimal::Nan));
 
         let c = Decimal::from_string("-nan").unwrap();
-        assert!(matches!(c, Decimal::NaN));
+        assert!(core::matches!(c, Decimal::Nan));
     }
 
     #[test]
     fn finite() {
         let a = Decimal::from(1.23f32);
-        assert!(matches!(a, Decimal::Finite(_)));
+        assert!(core::matches!(a, Decimal::Finite(_)));
 
         let b = Decimal::from(4.56f64);
-        assert!(matches!(b, Decimal::Finite(_)));
+        assert!(core::matches!(b, Decimal::Finite(_)));
 
         let c = Decimal::from_string("7.89").unwrap();
-        assert!(matches!(c, Decimal::Finite(_)));
+        assert!(core::matches!(c, Decimal::Finite(_)));
 
         let d = Decimal::from_string("-1.23").unwrap();
-        assert!(matches!(d, Decimal::Finite(_)));
+        assert!(core::matches!(d, Decimal::Finite(_)));
     }
 
     #[test]
@@ -667,8 +673,8 @@ mod tests {
         assert!(!a.value_eq(&b));
 
         // explicit big decimal NaN
-        let c = Decimal::NaN;
-        let d = Decimal::NaN;
+        let c = Decimal::Nan;
+        let d = Decimal::Nan;
         // partial equality for nan values
         assert_eq!(c, d);
         // no structural equality for nan values

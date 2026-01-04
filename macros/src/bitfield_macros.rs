@@ -9,10 +9,10 @@ pub fn derive_bitfield_serde(input: DeriveInput) -> TokenStream {
         if let syn::Fields::Named(named) = &data.fields {
             named.named.iter().collect::<Vec<_>>()
         } else {
-            panic!("#[derive(BitfieldSerde)] requires named fields");
+            core::panic!("#[derive(BitfieldSerde)] requires named fields");
         }
     } else {
-        panic!("#[derive(BitfieldSerde)] only works on structs");
+        core::panic!("#[derive(BitfieldSerde)] only works on structs");
     };
 
     // Collect TokenStreams for reuse

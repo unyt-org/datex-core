@@ -1,3 +1,8 @@
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use core::prelude::rust_2024::*;
+
 pub struct AnsiCodes {}
 impl AnsiCodes {
     pub const COLOR_DEFAULT: &'static str = "\x1b[39m";

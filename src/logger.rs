@@ -1,21 +1,21 @@
-use std::sync::Once;
-
 use cfg_if::cfg_if;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering;
 
-static INIT: Once = Once::new();
+static INIT: AtomicBool = AtomicBool::new(false);
 
 /// Initializes the logger with debug mode, logging all messages including debug messages.
 pub fn init_logger_debug() {
-    INIT.call_once(|| {
+    if !INIT.swap(true, Ordering::SeqCst) {
         init(true);
-    });
+    }
 }
 
 /// Initializes the logger with default mode, only logging errors and above.
 pub fn init_logger() {
-    INIT.call_once(|| {
+    if !INIT.swap(true, Ordering::SeqCst) {
         init(false);
-    });
+    }
 }
 
 cfg_if! {
@@ -59,15 +59,20 @@ cfg_if! {
     }
 
     else if #[cfg(feature = "esp_logger")] {
-        use esp_idf_svc::log::EspLogger;
         fn init(debug: bool) {
-            EspLogger::initialize_default();
+            if debug {
+                esp_println::logger::init_logger(log::LevelFilter::Debug);
+            }
+            else {
+                esp_println::logger::init_logger(log::LevelFilter::Info);
+            }
         }
     }
 
     else {
         fn init(debug: bool) {
-            println!("No logger enabled. Logs will not be recorded.");
+            #[cfg(feature = "std")]
+            {println!("No logger enabled. Logs will not be recorded.");}
         }
     }
 }

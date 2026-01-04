@@ -1,17 +1,19 @@
-use std::collections::{HashMap, VecDeque};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::task::spawn;
+use crate::std_sync::Mutex;
+use crate::stdlib::collections::{HashMap, VecDeque};
+use crate::stdlib::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use crate::stdlib::pin::Pin;
+use crate::stdlib::sync::Arc;
+use crate::task::spawn_with_panic_notify_default;
+use core::future::Future;
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::time::Duration;
 use datex_macros::{com_interface, create_opener};
 use log::{error, info, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
-use url::Url;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
 use crate::network::com_interfaces::com_interface::{
@@ -29,7 +31,7 @@ use crate::network::com_interfaces::com_interface_socket::{
 use crate::{delegate_com_interface_info, set_opener};
 
 pub struct TCPServerNativeInterface {
-    pub address: Url,
+    pub address: SocketAddr,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
     info: ComInterfaceInfo,
 }
@@ -44,8 +46,8 @@ impl MultipleSocketProvider for TCPServerNativeInterface {
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
-        let address: String = format!("ws://127.0.0.1:{port}");
-        let address = Url::parse(&address).map_err(|_| TCPError::InvalidURL)?;
+        let address =
+            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port));
         let interface = TCPServerNativeInterface {
             address,
             info,
@@ -56,14 +58,10 @@ impl TCPServerNativeInterface {
 
     #[create_opener]
     async fn open(&mut self) -> Result<(), TCPError> {
-        let address = self.address.clone();
+        let address = self.address;
         info!("Spinning up server at {address}");
 
-        let host = self.address.host_str().ok_or(TCPError::InvalidURL)?;
-        let port = self.address.port().ok_or(TCPError::InvalidURL)?;
-        let address = format!("{host}:{port}");
-
-        let listener = TcpListener::bind(address.clone())
+        let listener = TcpListener::bind(self.address)
             .await
             .map_err(|e| TCPError::Other(format!("{e:?}")))?;
         info!("Server listening on {address}");
@@ -71,7 +69,8 @@ impl TCPServerNativeInterface {
         let interface_uuid = self.get_uuid().clone();
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
-        spawn(async move {
+        // TODO: use normal spawn (thread)? currently leads to global context panic
+        spawn_with_panic_notify_default(async move {
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
@@ -81,18 +80,18 @@ impl TCPServerNativeInterface {
                             1,
                         );
                         let (read_half, write_half) = stream.into_split();
-                        tx.lock().unwrap().insert(
+                        tx.try_lock().unwrap().insert(
                             socket.uuid.clone(),
                             Arc::new(Mutex::new(write_half)),
                         );
 
                         let receive_queue = socket.receive_queue.clone();
                         sockets
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .add_socket(Arc::new(Mutex::new(socket)));
 
-                        spawn(async move {
+                        spawn_with_panic_notify_default(async move {
                             Self::handle_client(read_half, receive_queue).await
                         });
                     }
@@ -119,7 +118,7 @@ impl TCPServerNativeInterface {
                 }
                 Ok(n) => {
                     info!("Received: {:?}", &buffer[..n]);
-                    let mut queue = receive_queue.lock().unwrap();
+                    let mut queue = receive_queue.try_lock().unwrap();
                     queue.extend(&buffer[..n]);
                 }
                 Err(e) => {
@@ -159,17 +158,22 @@ impl ComInterface for TCPServerNativeInterface {
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let tx_queues = self.tx.clone();
-        let tx_queues = tx_queues.lock().unwrap();
+        let tx_queues = tx_queues.try_lock().unwrap();
         let tx = tx_queues.get(&socket);
         if tx.is_none() {
             error!("Client is not connected");
             return Box::pin(async { false });
         }
         let tx = tx.unwrap().clone();
-        Box::pin(async move { tx.lock().unwrap().write(block).await.is_ok() })
+        Box::pin(
+            async move { tx.try_lock().unwrap().write(block).await.is_ok() },
+        )
     }
     fn init_properties(&self) -> InterfaceProperties {
-        Self::get_default_properties()
+        InterfaceProperties {
+            name: Some(self.address.to_string()),
+            ..Self::get_default_properties()
+        }
     }
     fn handle_close<'a>(
         &'a mut self,

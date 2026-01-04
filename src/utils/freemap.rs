@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-use std::collections::hash_map::{Iter, IterMut};
+use crate::collections::HashMap;
+use crate::collections::hash_map::{Iter, IterMut};
+use crate::stdlib::vec::Vec;
+use core::prelude::rust_2024::*;
 
-pub trait NextKey: Copy + Eq + std::hash::Hash + Default {
+pub trait NextKey: Copy + Eq + core::hash::Hash + Default {
     fn next_key(&mut self) -> Self;
 }
 
@@ -120,7 +122,7 @@ impl<K: NextKey, T> FreeHashMap<K, T> {
 
 impl<K: NextKey, T> IntoIterator for FreeHashMap<K, T> {
     type Item = (K, T);
-    type IntoIter = std::collections::hash_map::IntoIter<K, T>;
+    type IntoIter = crate::collections::hash_map::IntoIter<K, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.entries.into_iter()

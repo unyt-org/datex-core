@@ -1,9 +1,10 @@
-use crate::values::core_values::map::{Map, OwnedMapKey};
+use crate::stdlib::format;
+use crate::stdlib::string::String;
+use crate::stdlib::string::ToString;
+use crate::stdlib::vec;
+use crate::values::core_values::map::{Map, MapKey};
 use crate::values::value::Value;
 use crate::{
-    compiler::{
-        CompileOptions, compile_script, extract_static_value_from_script,
-    },
     runtime::execution::{ExecutionInput, ExecutionOptions, execute_dxb_sync},
     serde::error::DeserializationError,
     values::{
@@ -16,9 +17,11 @@ use crate::{
         value_container::ValueContainer,
     },
 };
+use core::prelude::rust_2024::*;
+use core::result::Result;
+use core::unreachable;
 use serde::de::{EnumAccess, VariantAccess, Visitor};
 use serde::{Deserializer, de::IntoDeserializer, forward_to_deserialize_any};
-use std::path::PathBuf;
 
 /// Deserialize a value of type T from a byte slice containing DXB data
 pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, DeserializationError>
@@ -49,9 +52,10 @@ impl<'de> DatexDeserializer {
     /// Create a deserializer from a byte slice containing DXB data
     /// This will execute the DXB and extract the resulting value for deserialization
     pub fn from_bytes(input: &'de [u8]) -> Result<Self, DeserializationError> {
-        let context = ExecutionInput::new_with_dxb_and_options(
+        let context = ExecutionInput::new(
             input,
             ExecutionOptions { verbose: true },
+            None,
         );
         let value = execute_dxb_sync(context)
             .map_err(DeserializationError::ExecutionError)?
@@ -61,7 +65,10 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX file path
     /// This will read the file, compile it to DXB, execute it and extract the
-    pub fn from_dx_file(path: PathBuf) -> Result<Self, DeserializationError> {
+    #[cfg(feature = "std")]
+    pub fn from_dx_file(
+        path: std::path::PathBuf,
+    ) -> Result<Self, DeserializationError> {
         let input = std::fs::read_to_string(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
@@ -70,7 +77,10 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DXB file path
     /// This will read the file, execute it and extract the resulting value for deserialization
-    pub fn from_dxb_file(path: PathBuf) -> Result<Self, DeserializationError> {
+    #[cfg(feature = "std")]
+    pub fn from_dxb_file(
+        path: std::path::PathBuf,
+    ) -> Result<Self, DeserializationError> {
         let input = std::fs::read(path).map_err(|err| {
             DeserializationError::CanNotReadFile(err.to_string())
         })?;
@@ -79,11 +89,13 @@ impl<'de> DatexDeserializer {
 
     /// Create a deserializer from a DX script string
     /// This will compile the script to DXB, execute it and extract the resulting value for deserialization
+    #[cfg(feature = "compiler")]
     pub fn from_script(script: &'de str) -> Result<Self, DeserializationError> {
-        let (dxb, _) = compile_script(script, CompileOptions::default())
-            .map_err(|err| {
-                DeserializationError::CanNotReadFile(err.to_string())
-            })?;
+        let (dxb, _) = crate::compiler::compile_script(
+            script,
+            crate::compiler::CompileOptions::default(),
+        )
+        .map_err(|err| DeserializationError::CanNotReadFile(err.to_string()))?;
         DatexDeserializer::from_bytes(&dxb)
     }
 
@@ -97,10 +109,11 @@ impl<'de> DatexDeserializer {
     /// For example, the script `{ "key": 42 }` will work, but the script `{ "key": 40 + 2 }` will not
     /// because the latter requires execution to evaluate the expression
     /// and extract the value
+    #[cfg(feature = "compiler")]
     pub fn from_static_script(
         script: &'de str,
     ) -> Result<Self, DeserializationError> {
-        let value = extract_static_value_from_script(script)
+        let value = crate::compiler::extract_static_value_from_script(script)
             .map_err(DeserializationError::CompilerError)?;
         if value.is_none() {
             return Err(DeserializationError::NoStaticValueFound);
@@ -150,10 +163,10 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                     TypedInteger::U16(u) => visitor.visit_u16(u),
                     TypedInteger::I8(i) => visitor.visit_i8(i),
                     TypedInteger::U8(u) => visitor.visit_u8(u),
-                    TypedInteger::Big(i) => {
+                    TypedInteger::IBig(i) => {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
-                    e => todo!("#393 Unsupported typed integer: {:?}", e),
+                    e => core::todo!("#393 Unsupported typed integer: {:?}", e),
                 },
                 CoreValue::Integer(i) => {
                     if let Some(v) = i.as_i8() {
@@ -168,7 +181,9 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                         visitor.visit_i128(i.as_i128().unwrap())
                     }
                 }
-                CoreValue::Decimal(d) => todo!("#394 Unsupported decimal: {:?}", d),
+                CoreValue::Decimal(d) => {
+                    core::todo!("#394 Unsupported decimal: {:?}", d)
+                }
                 CoreValue::TypedDecimal(d) => match d {
                     TypedDecimal::F32(v) => visitor.visit_f32(v.0),
                     TypedDecimal::F64(v) => visitor.visit_f64(v.0),
@@ -369,7 +384,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
             }) => {
                 if o.size() == 1 {
                     let (key, _) = o.into_iter().next().unwrap();
-                    if let OwnedMapKey::Text(string) = key {
+                    if let MapKey::Text(string) = key {
                         visitor.visit_string(string)
                     } else {
                         Err(DeserializationError::Custom(
@@ -431,7 +446,7 @@ impl<'de> Deserializer<'de> for DatexDeserializer {
                 }
 
                 let (variant_name, value) = o.into_iter().next().unwrap();
-                if let OwnedMapKey::Text(variant) = variant_name {
+                if let MapKey::Text(variant) = variant_name {
                     let deserializer = DatexDeserializer::from_value(value);
                     visitor.visit_enum(EnumDeserializer {
                         variant,
@@ -568,6 +583,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::{CompileOptions, compile_script};
     use crate::serde::serializer::to_bytes;
     use crate::{logger::init_logger, values::core_values::endpoint::Endpoint};
     use serde::{Deserialize, Serialize};
@@ -684,7 +700,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestEnum");
-        assert!(matches!(result, TestEnum::Variant1));
+        assert!(core::matches!(result, TestEnum::Variant1));
     }
 
     #[test]
@@ -697,7 +713,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestEnum");
-        assert!(matches!(result, TestEnum::Variant2));
+        assert!(core::matches!(result, TestEnum::Variant2));
     }
 
     #[test]
@@ -714,7 +730,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: TestStruct2 = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize TestStruct2");
-        assert!(matches!(result.test_enum, TestEnum::Variant1));
+        assert!(core::matches!(result.test_enum, TestEnum::Variant1));
     }
 
     #[test]
@@ -807,7 +823,7 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        assert!(matches!(result, ExampleEnum::Variant1(_)));
+        assert!(core::matches!(result, ExampleEnum::Variant1(_)));
 
         let script = r#"{"Variant2": 42}"#;
         let dxb = compile_script(script, CompileOptions::default())
@@ -817,6 +833,6 @@ mod tests {
             .expect("Failed to create deserializer from DXB");
         let result: ExampleEnum = Deserialize::deserialize(deserializer)
             .expect("Failed to deserialize ExampleEnum");
-        assert!(matches!(result, ExampleEnum::Variant2(_)));
+        assert!(core::matches!(result, ExampleEnum::Variant2(_)));
     }
 }

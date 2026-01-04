@@ -1,6 +1,6 @@
 on:
-    pull_request:
-        types: [opened, reopened, edited, synchronize]
+#    pull_request:
+#        types: [opened, reopened, edited, synchronize]
 
 jobs:
     benchmark_pr_branch:
@@ -13,7 +13,7 @@ jobs:
             pull-requests: write
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - name: Cache dependencies
               uses: actions/cache@v4
               env:

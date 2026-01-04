@@ -1,3 +1,4 @@
+use crate::collections::HashMap;
 use crate::global::dxb_block::{
     BlockId, DXBBlock, IncomingBlockNumber, IncomingContextId,
     IncomingEndpointContextId, IncomingEndpointContextSectionId,
@@ -5,16 +6,21 @@ use crate::global::dxb_block::{
     OutgoingSectionIndex,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::std_random::RandomState;
+use crate::stdlib::boxed::Box;
+use crate::stdlib::collections::{BTreeMap, VecDeque};
+use crate::stdlib::rc::Rc;
+use crate::stdlib::vec;
+use crate::stdlib::vec::Vec;
+use crate::task::{
+    UnboundedReceiver, UnboundedSender, create_unbounded_channel,
+};
 use crate::utils::time::Time;
-use futures::channel::mpsc;
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use core::cell::RefCell;
+use core::fmt::Debug;
+use core::prelude::rust_2024::*;
 use log::info;
 use ringmap::RingMap;
-use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::fmt::Debug;
-use std::rc::Rc;
-// use tokio_stream::StreamExt;
 
 // TODO #170: store scope memory
 #[derive(Debug)]
@@ -71,11 +77,12 @@ pub struct BlockHandler {
     >,
 
     /// history of all incoming blocks
-    pub incoming_blocks_history: RefCell<RingMap<BlockId, BlockHistoryData>>,
+    pub incoming_blocks_history:
+        RefCell<RingMap<BlockId, BlockHistoryData, RandomState>>,
 }
 
 impl Debug for BlockHandler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("BlockHandler")
             .field("current_context_id", &self.current_context_id)
             .field("block_cache", &self.block_cache)
@@ -98,7 +105,9 @@ impl BlockHandler {
             block_cache: RefCell::new(HashMap::new()),
             incoming_sections_queue: RefCell::new(VecDeque::new()),
             section_observers: RefCell::new(HashMap::new()),
-            incoming_blocks_history: RefCell::new(RingMap::with_capacity(500)),
+            incoming_blocks_history: RefCell::new(
+                RingMap::with_capacity_and_hasher(500, RandomState::default()),
+            ),
         }
     }
 
@@ -268,7 +277,7 @@ impl BlockHandler {
                     );
                 } else {
                     // create a new block queue for the current section
-                    let (mut sender, receiver) = mpsc::unbounded();
+                    let (mut sender, receiver) = create_unbounded_channel();
 
                     // add the first block to the queue
                     new_blocks.push(IncomingSection::BlockStream((
@@ -368,7 +377,7 @@ impl BlockHandler {
         context_id: OutgoingContextId,
         section_index: OutgoingSectionIndex,
     ) -> UnboundedReceiver<IncomingSection> {
-        let (tx, rx) = mpsc::unbounded();
+        let (tx, rx) = create_unbounded_channel::<IncomingSection>();
         let tx = Rc::new(RefCell::new(tx));
 
         // create observer callback for scope id + block index
