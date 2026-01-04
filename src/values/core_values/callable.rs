@@ -5,6 +5,9 @@ use crate::values::core_values::r#type::Type;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::fmt::Formatter;
+use crate::stdlib::vec::Vec;
+use crate::stdlib::string::String;
+use crate::stdlib::boxed::Box;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CallableKind {
