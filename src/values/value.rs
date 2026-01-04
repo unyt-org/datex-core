@@ -21,6 +21,7 @@ use core::result::Result;
 use log::error;
 use crate::runtime::execution::ExecutionError;
 use crate::traits::apply::Apply;
+use crate::values::core_values::callable::{Callable, CallableBody, CallableSignature};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -93,6 +94,16 @@ impl Value {
 }
 
 impl Value {
+    pub fn callable(signature: CallableSignature, body: CallableBody) -> Self {
+        Value {
+            inner: CoreValue::Callable(Callable {
+                signature: signature.clone(),
+                body,
+            }),
+            actual_type: Box::new(TypeDefinition::callable(signature)),
+        }
+    }
+
     pub fn is_type(&self) -> bool {
         core::matches!(self.inner, CoreValue::Type(_))
     }

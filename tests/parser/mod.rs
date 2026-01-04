@@ -436,7 +436,9 @@ fn function_simple() {
             name: "myFunction".to_string(),
             kind: CallableKind::Function,
             parameters: Vec::new(),
+            rest_parameter: None,
             return_type: None,
+            yeet_type: None,
             body: Box::new(
                 DatexExpressionData::Integer(Integer::from(42))
                     .with_default_span()
@@ -463,7 +465,9 @@ fn function_with_params() {
                 TypeExpressionData::Identifier("integer".to_owned())
                     .with_default_span()
             )],
+            rest_parameter: None,
             return_type: None,
+            yeet_type: None,
             body: Box::new(
                 DatexExpressionData::Integer(Integer::from(42))
                     .with_default_span()
@@ -494,7 +498,9 @@ fn function_with_params() {
                         .with_default_span()
                 )
             ],
+            rest_parameter: None,
             return_type: None,
+            yeet_type: None,
             body: Box::new(
                 DatexExpressionData::Statements(Statements::new_terminated(
                     vec![
@@ -538,7 +544,8 @@ fn test_function_with_return_type() {
                 "x".to_string(),
                 TypeExpressionData::Identifier("integer".to_owned())
                     .with_default_span()
-            ),],
+            )],
+            rest_parameter: None,
             return_type: Some(
                 TypeExpressionData::Union(Union(vec![
                     TypeExpressionData::Identifier("integer".to_owned())
@@ -548,6 +555,7 @@ fn test_function_with_return_type() {
                 ]))
                 .with_default_span()
             ),
+            yeet_type: None,
             body: Box::new(
                 DatexExpressionData::Integer(Integer::from(42))
                     .with_default_span()

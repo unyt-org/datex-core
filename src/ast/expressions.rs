@@ -19,6 +19,7 @@ use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 use core::fmt::Display;
 use core::ops::{Neg, Range};
+pub use crate::values::core_values::callable::CallableKind;
 
 #[derive(Clone, Debug)]
 /// An expression in the AST
@@ -419,26 +420,13 @@ pub struct VariableAccess {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum CallableKind {
-    Function,
-    Procedure,
-}
-
-impl Display for CallableKind {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            CallableKind::Function => core::write!(f, "function"),
-            CallableKind::Procedure => core::write!(f, "procedure"),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct CallableDeclaration {
     pub name: String,
     pub kind: CallableKind,
     pub parameters: Vec<(String, TypeExpression)>,
+    pub rest_parameter: Option<(String, TypeExpression)>,
     pub return_type: Option<TypeExpression>,
+    pub yeet_type: Option<TypeExpression>,
     pub body: Box<DatexExpression>,
 }
 

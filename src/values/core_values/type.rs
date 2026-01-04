@@ -27,6 +27,7 @@ use core::hash::{Hash, Hasher};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::unimplemented;
+use crate::values::core_values::callable::CallableSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type {
@@ -191,12 +192,9 @@ impl Type {
     }
 
     /// Creates a function type from the given parameter types and return type
-    pub fn function(
-        parameters: Vec<(String, Type)>,
-        return_type: impl Into<Type>,
-    ) -> Self {
+    pub fn callable(signature: CallableSignature) -> Self {
         Type {
-            type_definition: TypeDefinition::function(parameters, return_type),
+            type_definition: TypeDefinition::callable(signature),
             base_type: None,
             reference_mutability: None,
         }
@@ -388,10 +386,7 @@ impl Type {
                 // TODO #464: also check mutability of current type?
                 inner_type.value_matches(value)
             }
-            TypeDefinition::Function {
-                parameters,
-                return_type,
-            } => {
+            TypeDefinition::Callable(signature) => {
                 core::todo!("#328 handle function type matching");
             }
             TypeDefinition::Collection(collection_type) => {

@@ -40,9 +40,11 @@ pub enum DIFTypeDefinition {
 
     Unknown,
 
-    Function {
-        parameters: Vec<(String, DIFType)>,
-        return_type: Box<DIFType>,
+    Callable {
+        parameters: Vec<(Option<String>, DIFType)>,
+        rest_parameter: Option<(Option<String>, Box<DIFType>)>,
+        return_type: Option<Box<DIFType>>,
+        yeet_type: Option<Box<DIFType>>,
     },
 }
 
@@ -58,7 +60,7 @@ pub enum DIFTypeDefinitionKind {
     Unit = 7,
     Never = 8,
     Unknown = 9,
-    Function = 10,
+    Callable = 10,
 }
 
 impl From<&DIFTypeDefinition> for DIFTypeDefinitionKind {
@@ -79,8 +81,8 @@ impl From<&DIFTypeDefinition> for DIFTypeDefinitionKind {
             DIFTypeDefinition::Unit => DIFTypeDefinitionKind::Unit,
             DIFTypeDefinition::Never => DIFTypeDefinitionKind::Never,
             DIFTypeDefinition::Unknown => DIFTypeDefinitionKind::Unknown,
-            DIFTypeDefinition::Function { .. } => {
-                DIFTypeDefinitionKind::Function
+            DIFTypeDefinition::Callable { .. } => {
+                DIFTypeDefinitionKind::Callable
             }
         }
     }
@@ -132,11 +134,18 @@ impl Serialize for DIFTypeDefinition {
             DIFTypeDefinition::Unknown => {
                 // no def field
             }
-            DIFTypeDefinition::Function {
+            DIFTypeDefinition::Callable{
                 parameters,
+                rest_parameter,
                 return_type,
+                yeet_type
             } => {
-                state.serialize_field("def", &(parameters, return_type))?;
+                state.serialize_field("def", &(
+                    parameters, 
+                    rest_parameter,
+                    return_type,
+                    yeet_type,
+                ))?;
             }
             DIFTypeDefinition::Reference(_) => {
                 // already handled above
@@ -155,7 +164,14 @@ enum DIFTypeDefinitionData {
     SingleType(DIFType),
     TypeVec(Vec<DIFType>),
     ImplType((DIFType, Vec<PointerAddress>)),
-    Function((Vec<(String, DIFType)>, Box<DIFType>)),
+    Callable(
+        (
+            Vec<(Option<String>, DIFType)>,
+            Option<(Option<String>, Box<DIFType>)>,
+            Option<Box<DIFType>>,
+            Option<Box<DIFType>>,
+        )
+    ),
 }
 
 impl<'de> Deserialize<'de> for DIFTypeDefinition {
@@ -295,17 +311,21 @@ impl<'de> Deserialize<'de> for DIFTypeDefinition {
                     DIFTypeDefinitionKind::Unknown => {
                         DIFTypeDefinition::Unknown
                     }
-                    DIFTypeDefinitionKind::Function => {
+                    DIFTypeDefinitionKind::Callable => {
                         let def =
                             def.ok_or_else(|| de::Error::missing_field("def"))?;
-                        if let DIFTypeDefinitionData::Function((
-                            parameters,
+                        if let DIFTypeDefinitionData::Callable((
+                            parameters, 
+                            rest_parameter,
                             return_type,
+                            yeet_type
                         )) = def
                         {
-                            DIFTypeDefinition::Function {
+                            DIFTypeDefinition::Callable {
                                 parameters,
+                                rest_parameter,
                                 return_type,
+                                yeet_type
                             }
                         } else {
                             return Err(de::Error::custom(
@@ -394,17 +414,27 @@ impl DIFTypeDefinition {
             TypeDefinition::Unit => DIFTypeDefinition::Unit,
             TypeDefinition::Never => DIFTypeDefinition::Never,
             TypeDefinition::Unknown => DIFTypeDefinition::Unknown,
-            TypeDefinition::Function {
-                parameters,
-                return_type,
-            } => DIFTypeDefinition::Function {
-                parameters: parameters
+            TypeDefinition::Callable(callable) => DIFTypeDefinition::Callable {
+                parameters: callable.parameter_types
                     .iter()
                     .map(|(name, ty)| {
                         (name.clone(), DIFType::from_type(ty, memory))
                     })
                     .collect(),
-                return_type: Box::new(DIFType::from_type(return_type, memory)),
+                rest_parameter: callable.rest_parameter_type.as_ref().map(
+                    |(name, ty)| {
+                        (
+                            name.clone(),
+                            Box::new(DIFType::from_type(ty.as_ref(), memory)),
+                        )
+                    },
+                ),
+                yeet_type: callable.yeet_type.as_ref().map(|ty| {
+                    Box::new(DIFType::from_type(ty.as_ref(), memory))
+                }),
+                return_type: callable.return_type.as_ref().map(|ty| {
+                    Box::new(DIFType::from_type(ty.as_ref(), memory))
+                }),
             },
         }
     }

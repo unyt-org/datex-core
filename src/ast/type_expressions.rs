@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::ast::expressions::VariableAccess;
 use crate::ast::resolved_variable::ResolvedVariable;
 use crate::ast::spanned::Spanned;
+use crate::values::core_values::callable::{CallableKind, CallableSignature};
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;
@@ -20,7 +21,7 @@ pub enum TypeExpressionData {
     Null,
 
     Unit,
-    
+
     // a variable name or generic type identifier, e.g. integer, string, User, MyType, T
     Identifier(String),
 
@@ -57,8 +58,8 @@ pub enum TypeExpressionData {
     // User<text, integer>
     GenericAccess(GenericAccess),
 
-    // (x: text) -> text
-    Function(FunctionType),
+    // e.g. function (x: text) -> text yeets error
+    Callable(CallableTypeExpression),
 
     // structurally typed map, e.g. { x: integer, y: text }
     StructuralMap(StructuralMap),
@@ -138,13 +139,16 @@ pub struct GenericAccess {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct FunctionType {
-    pub parameters: Vec<(String, TypeExpression)>,
-    pub return_type: Box<TypeExpression>,
-}
+pub struct StructuralMap(pub Vec<(TypeExpression, TypeExpression)>);
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct StructuralMap(pub Vec<(TypeExpression, TypeExpression)>);
+pub struct CallableTypeExpression {
+    pub kind: CallableKind,
+    pub parameter_types: Vec<(Option<String>, TypeExpression)>,
+    pub rest_parameter_type: Option<(Option<String>, Box<TypeExpression>)>,
+    pub return_type: Option<Box<TypeExpression>>,
+    pub yeet_type: Option<Box<TypeExpression>>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeVariantAccess {

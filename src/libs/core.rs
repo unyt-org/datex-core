@@ -26,7 +26,7 @@ use datex_macros::LibTypeString;
 use strum::IntoEnumIterator;
 use crate::decompiler::{decompile_value, DecompileOptions};
 use crate::values::core_value::CoreValue;
-use crate::values::core_values::callable::{Callable, CallableBody, CallableKind};
+use crate::values::core_values::callable::{Callable, CallableBody, CallableKind, CallableSignature};
 use crate::values::value::Value;
 use crate::stdlib::boxed::Box;
 
@@ -379,48 +379,51 @@ pub fn integer_variant(
 pub fn print() -> (CoreLibPointerId, ValueContainer) {
     (
         CoreLibPointerId::Print,
-        ValueContainer::Value(Value {
-            inner: CoreValue::Callable(Callable {
+        ValueContainer::Value(Value::callable(
+            CallableSignature {
                 kind: CallableKind::Function,
-                body: CallableBody::Native(|mut args: &[ValueContainer]| {
-                    // TODO: add I/O abstraction layer / interface
+                parameter_types: vec![],
+                rest_parameter_type: Some((None, Box::new(Type::unknown()))),
+                return_type: None,
+                yeet_type: None,
+            },
+            CallableBody::Native(|mut args: &[ValueContainer]| {
+                // TODO: add I/O abstraction layer / interface
 
-                    let mut output = String::new();
+                let mut output = String::new();
 
-                    // if first argument is a string value, print it directly
-                    if let Some(ValueContainer::Value(Value { inner: CoreValue::Text(text), .. })) = args.get(0)
-                    {
-                        output.push_str(&text.0);
-                        // remove first argument from args
-                        args = &args[1..];
-                        // if there are still arguments, add a space
-                        if !args.is_empty() {
-                            output.push(' ');
-                        }
+                // if first argument is a string value, print it directly
+                if let Some(ValueContainer::Value(Value { inner: CoreValue::Text(text), .. })) = args.get(0)
+                {
+                    output.push_str(&text.0);
+                    // remove first argument from args
+                    args = &args[1..];
+                    // if there are still arguments, add a space
+                    if !args.is_empty() {
+                        output.push(' ');
                     }
+                }
 
-                    #[cfg(feature = "decompiler")]
-                    let args_string = args
-                        .iter()
-                        .map(|v| decompile_value(v, DecompileOptions::colorized()))
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    #[cfg(not(feature = "decompiler"))]
-                    let args_string = args
-                        .iter()
-                        .map(|v| v.to_string())
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    output.push_str(&args_string);
+                #[cfg(feature = "decompiler")]
+                let args_string = args
+                    .iter()
+                    .map(|v| decompile_value(v, DecompileOptions::colorized()))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                #[cfg(not(feature = "decompiler"))]
+                let args_string = args
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                output.push_str(&args_string);
 
-                    #[cfg(feature = "std")]
-                    println!("[PRINT] {}", output);
-                    info!("[PRINT] {}", output);
-                    Ok(None)
-                }),
+                #[cfg(feature = "std")]
+                println!("[PRINT] {}", output);
+                info!("[PRINT] {}", output);
+                Ok(None)
             }),
-            actual_type: Box::new(TypeDefinition::Unknown)
-        })
+        ))
     )
 }
 

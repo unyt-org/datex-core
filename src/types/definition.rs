@@ -17,6 +17,7 @@ use crate::{
 };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
+use crate::values::core_values::callable::CallableSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeDefinition {
@@ -33,12 +34,8 @@ pub enum TypeDefinition {
     /// type, used for nested types with references (e.g. &mut & x)
     Type(Box<Type>),
 
-    /// a function type definition (function signature)
-    Function {
-        // FIXME #372: Include error type definition
-        parameters: Vec<(String, Type)>,
-        return_type: Box<Type>,
-    },
+    /// a callable type definition (signature)
+    Callable(CallableSignature),
 
     /// innerType + Marker1 + Marker2
     /// A special type that behaves like `innerType` but is marked with additional
@@ -97,15 +94,15 @@ impl Hash for TypeDefinition {
                     ty.hash(state);
                 }
             }
-            TypeDefinition::Function {
-                parameters,
-                return_type,
-            } => {
-                for (name, ty) in parameters {
+            TypeDefinition::Callable(callable) => {
+                callable.kind.hash(state);
+                for (name, ty) in callable.parameter_types.iter() {
                     name.hash(state);
                     ty.hash(state);
                 }
-                return_type.hash(state);
+                callable.rest_parameter_type.hash(state);
+                callable.return_type.hash(state);
+                callable.yeet_type.hash(state);
             }
             TypeDefinition::ImplType(ty, impls) => {
                 ty.hash(state);
@@ -158,19 +155,40 @@ impl Display for TypeDefinition {
                     types.iter().map(|t| t.to_string()).collect();
                 core::write!(f, "({})", types_str.join(" & "))
             }
-            TypeDefinition::Function {
-                parameters,
-                return_type,
-            } => {
-                let params_str: Vec<String> = parameters
+            TypeDefinition::Callable(callable) => {
+                let mut params_code: Vec<String> = callable
+                    .parameter_types
                     .iter()
-                    .map(|(name, ty)| format!("{}: {}", name, ty))
+                    .map(|(param_name, param_type)| match param_name {
+                        Some(name) => format!("{}: {}", name, param_type),
+                        None => format!("{}", param_type),
+                    })
                     .collect();
+                // handle rest parameter
+                if let Some((param_name, param_type)) = &callable.rest_parameter_type {
+                    params_code.push(match param_name {
+                        Some(name) => format!("...{}: {}", name, param_type),
+                        None => format!("...{}", param_type),
+                    });
+                }
+                
+                let return_type_code = match &callable.return_type {
+                    Some(return_type) => format!(" -> {}", return_type),
+                    None => " -> ()".to_string(),
+                };
+                
+                let yeet_type_code = match &callable.yeet_type {
+                    Some(yeet_type) => format!(" yeets {}", yeet_type),
+                    None => "".to_string(),
+                };
+                
                 core::write!(
                     f,
-                    "({}) -> {}",
-                    params_str.join(", "),
-                    return_type
+                    "{} ({}){}{}",
+                    callable.kind,
+                    params_code.join(", "),
+                    return_type_code,
+                    yeet_type_code
                 )
             }
         }
@@ -237,15 +255,11 @@ impl TypeDefinition {
         TypeDefinition::Reference(reference)
     }
 
-    /// Creates a new function type.
-    pub fn function(
-        parameters: Vec<(String, Type)>,
-        return_type: impl Into<Type>,
+    /// Creates a new callable type.
+    pub fn callable(
+        signature: CallableSignature
     ) -> Self {
-        TypeDefinition::Function {
-            parameters,
-            return_type: Box::new(return_type.into()),
-        }
+        TypeDefinition::Callable(signature)
     }
 
     /// Creates a new type with impls.

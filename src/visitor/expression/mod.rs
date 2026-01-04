@@ -111,9 +111,9 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
             DatexExpressionData::TypeExpression(type_expression) => self
                 .visit_type_expression(type_expression)
                 .map(|_| VisitAction::SkipChildren),
-            DatexExpressionData::CallableDeclaration(function_declaration) => {
-                self.visit_function_declaration(
-                    function_declaration,
+            DatexExpressionData::CallableDeclaration(callable_declaration) => {
+                self.visit_callable_declaration(
+                    callable_declaration,
                     &expr.span,
                 )
             }
@@ -356,8 +356,8 @@ pub trait ExpressionVisitor<E>: TypeExpressionVisitor<E> {
         Ok(VisitAction::VisitChildren)
     }
 
-    /// Visit function declaration
-    fn visit_function_declaration(
+    /// Visit callable declaration
+    fn visit_callable_declaration(
         &mut self,
         function_declaration: &mut CallableDeclaration,
         span: &Range<usize>,
