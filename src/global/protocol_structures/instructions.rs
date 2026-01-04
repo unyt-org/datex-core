@@ -153,6 +153,8 @@ pub enum RegularInstruction {
     DropSlot(SlotAddress),
     SetSlot(SlotAddress),
 
+    GetInternalSlot(SlotAddress),
+
     SetReferenceValue(AssignmentOperator),
     Deref,
 
@@ -297,6 +299,9 @@ impl Display for RegularInstruction {
             }
             RegularInstruction::GetSlot(address) => {
                 core::write!(f, "GET_SLOT {}", address.0)
+            }
+            RegularInstruction::GetInternalSlot(address) => {
+                core::write!(f, "GET_INTERNAL_SLOT {}", address.0)
             }
             RegularInstruction::DropSlot(address) => {
                 core::write!(f, "DROP_SLOT {}", address.0)

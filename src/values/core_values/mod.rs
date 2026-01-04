@@ -7,3 +7,4 @@ pub mod list;
 pub mod map;
 pub mod text;
 pub mod r#type;
+mod callable;

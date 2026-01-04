@@ -3,40 +3,40 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::stdlib::vec::Vec;
 
-pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
-    fn try_extract_value_result(result: R) -> Option<V>;
-    fn try_extract_type_result(result: R) -> Option<T>;
-    fn try_extract_key_value_pair_result(result: R) -> Option<(K, V)>;
+pub trait CollectionResultsPopper<Result, Val, Key, KeyVal, Type>: GetResults<Result> + Sized {
+    fn try_extract_value_result(result: Result) -> Option<Val>;
+    fn try_extract_type_result(result: Result) -> Option<Type>;
+    fn try_extract_key_value_pair_result(result: Result) -> Option<(Key, KeyVal)>;
 
-    fn try_pop_value_result(&mut self) -> Option<V> {
+    fn try_pop_value_result(&mut self) -> Option<Val> {
         let result = self.pop()?;
         Self::try_extract_value_result(result)
     }
-    fn try_pop_type_result(&mut self) -> Option<T> {
+    fn try_pop_type_result(&mut self) -> Option<Type> {
         let result = self.pop()?;
         Self::try_extract_type_result(result)
     }
-    fn try_pop_key_value_pair_result(&mut self) -> Option<(K, V)> {
+    fn try_pop_key_value_pair_result(&mut self) -> Option<(Key, KeyVal)> {
         let result = self.pop()?;
         Self::try_extract_key_value_pair_result(result)
     }
 
-    fn pop_value_result(&mut self) -> V {
+    fn pop_value_result(&mut self) -> Val {
         self.try_pop_value_result().expect("Expected value result")
     }
-    fn pop_type_result(&mut self) -> T {
+    fn pop_type_result(&mut self) -> Type {
         self.try_pop_type_result().expect("Expected type result")
     }
-    fn pop_key_value_pair_result(&mut self) -> (K, V) {
+    fn pop_key_value_pair_result(&mut self) -> (Key, KeyVal) {
         self.try_pop_key_value_pair_result()
             .expect("Expected key-value pair result")
     }
 
-    fn pop(&mut self) -> Option<R> {
+    fn pop(&mut self) -> Option<Result> {
         self.get_results_mut().pop()
     }
 
-    fn push(&mut self, result: R) {
+    fn push(&mut self, result: Result) {
         self.get_results_mut().push(result);
     }
 
@@ -50,7 +50,7 @@ pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
 
     /// Collects all value results
     /// Panics if any of the popped results are not value results
-    fn collect_value_results(mut self) -> Vec<V> {
+    fn collect_value_results(mut self) -> Vec<Val> {
         let count = self.len();
         let mut expressions = Vec::with_capacity(count);
         for _ in 0..count {
@@ -62,7 +62,7 @@ pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
 
     /// Collects all key-value pair results
     /// Panics if any of the popped results are not key-value pairs
-    fn collect_key_value_pair_results(mut self) -> Vec<(K, V)> {
+    fn collect_key_value_pair_results(mut self) -> Vec<(Key, KeyVal)> {
         let count = self.len();
         let mut expression_pairs = Vec::with_capacity(count);
         for _ in 0..count {
@@ -75,7 +75,7 @@ pub trait CollectionResultsPopper<R, V, K, T>: GetResults<R> + Sized {
 
     /// Collects all type results
     /// Panics if any of the popped results are not type results
-    fn collect_type_results(mut self) -> Vec<T> {
+    fn collect_type_results(mut self) -> Vec<Type> {
         let count = self.len();
         let mut type_expressions = Vec::with_capacity(count);
         for _ in 0..count {

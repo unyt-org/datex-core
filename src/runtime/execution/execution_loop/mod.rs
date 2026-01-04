@@ -1,6 +1,8 @@
 pub mod interrupts;
 mod operations;
 pub mod state;
+mod slots;
+mod runtime_value;
 
 use crate::core_compiler::value_compiler::compile_value_container;
 use crate::dxb_parser::body::{DXBParserError, iterate_instructions};
@@ -23,10 +25,7 @@ use crate::runtime::execution::execution_loop::interrupts::{
     ExecutionInterrupt, ExternalExecutionInterrupt, InterruptProvider,
     InterruptResult,
 };
-use crate::runtime::execution::execution_loop::operations::{
-    handle_assignment_operation, handle_binary_operation,
-    handle_comparison_operation, handle_unary_operation,
-};
+use crate::runtime::execution::execution_loop::operations::{handle_assignment_operation, handle_binary_operation, handle_comparison_operation, handle_unary_operation, set_property};
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
 use crate::runtime::execution::macros::{
     interrupt, interrupt_with_maybe_value, interrupt_with_value, yield_unwrap,
@@ -47,26 +46,29 @@ use crate::values::core_values::map::{Map, MapKey};
 use crate::values::core_values::r#type::Type;
 use crate::values::pointer::PointerAddress;
 use crate::values::value::Value;
-use crate::values::value_container::{OwnedValueKey, ValueContainer, ValueKey};
+use crate::values::value_container::{OwnedValueKey, ValueContainer};
 use core::cell::RefCell;
+use datex_core::runtime::execution::execution_loop::slots::get_slot_value;
+use crate::runtime::execution::execution_loop::runtime_value::RuntimeValue;
+use crate::runtime::execution::execution_loop::slots::get_internal_slot_value;
 
 #[derive(Debug)]
 enum CollectedExecutionResult {
-    /// contains an optional ValueContainer that is intercepted by the consumer of a value or passed as the final result at the end of execution
-    Value(Option<ValueContainer>),
+    /// contains an optional runtime value that is intercepted by the consumer of a value or passed as the final result at the end of execution
+    Value(Option<RuntimeValue>),
     /// contains a Type that is intercepted by a consumer of a type value
     Type(Type),
     /// contains a key-value pair that is intercepted by a map construction operation
-    KeyValuePair((MapKey, Option<ValueContainer>)),
+    KeyValuePair((MapKey, ValueContainer)),
 }
 
-impl From<Option<ValueContainer>> for CollectedExecutionResult {
-    fn from(value: Option<ValueContainer>) -> Self {
+impl From<Option<RuntimeValue>> for CollectedExecutionResult {
+    fn from(value: Option<RuntimeValue>) -> Self {
         CollectedExecutionResult::Value(value)
     }
 }
-impl From<ValueContainer> for CollectedExecutionResult {
-    fn from(value: ValueContainer) -> Self {
+impl From<RuntimeValue> for CollectedExecutionResult {
+    fn from(value: RuntimeValue) -> Self {
         CollectedExecutionResult::Value(Some(value))
     }
 }
@@ -75,8 +77,8 @@ impl From<Type> for CollectedExecutionResult {
         CollectedExecutionResult::Type(value)
     }
 }
-impl From<(MapKey, Option<ValueContainer>)> for CollectedExecutionResult {
-    fn from(value: (MapKey, Option<ValueContainer>)) -> Self {
+impl From<(MapKey, ValueContainer)> for CollectedExecutionResult {
+    fn from(value: (MapKey, ValueContainer)) -> Self {
         CollectedExecutionResult::KeyValuePair(value)
     }
 }
@@ -84,14 +86,15 @@ impl From<(MapKey, Option<ValueContainer>)> for CollectedExecutionResult {
 impl
     CollectionResultsPopper<
         CollectedExecutionResult,
-        Option<ValueContainer>,
+        Option<RuntimeValue>,
         MapKey,
+        ValueContainer,
         Type,
     > for CollectedResults<CollectedExecutionResult>
 {
     fn try_extract_value_result(
         result: CollectedExecutionResult,
-    ) -> Option<Option<ValueContainer>> {
+    ) -> Option<Option<RuntimeValue>> {
         match result {
             CollectedExecutionResult::Value(val) => Some(val),
             _ => None,
@@ -109,7 +112,7 @@ impl
 
     fn try_extract_key_value_pair_result(
         result: CollectedExecutionResult,
-    ) -> Option<(MapKey, Option<ValueContainer>)> {
+    ) -> Option<(MapKey, ValueContainer)> {
         match result {
             CollectedExecutionResult::KeyValuePair((key, value)) => {
                 Some((key, value))
@@ -120,29 +123,40 @@ impl
 }
 
 impl CollectedResults<CollectedExecutionResult> {
-    fn collect_value_results_assert_existing(
+    fn collect_value_container_results_assert_existing(
         mut self,
+        state: &RuntimeExecutionState,
     ) -> Result<Vec<ValueContainer>, ExecutionError> {
         let count = self.len();
         let mut expressions = Vec::with_capacity(count);
         for _ in 0..count {
-            expressions.push(self.pop_value_result().ok_or(
-                ExecutionError::InvalidProgram(
-                    InvalidProgramError::ExpectedValue,
-                ),
-            )?);
+            expressions.push(
+                self.pop_cloned_value_container_result_assert_existing(state)?,
+            );
         }
         expressions.reverse();
         Ok(expressions)
     }
 
-    fn pop_value_result_assert_existing(
+    /// Pops a runtime value result, returning an error if none exists
+    fn pop_runtime_value_result_assert_existing(
         &mut self,
-    ) -> Result<ValueContainer, ExecutionError> {
+    ) -> Result<RuntimeValue, ExecutionError> {
         self.pop_value_result()
             .ok_or(ExecutionError::InvalidProgram(
                 InvalidProgramError::ExpectedValue,
             ))
+    }
+
+    /// Pops a value container result, returning an error if none exists.
+    /// If the value is a slot address, it is resolved to a cloned value container.
+    /// Do not use this method if you want to work on the actual value without cloning it.
+    fn pop_cloned_value_container_result_assert_existing(
+        &mut self,
+        state: &RuntimeExecutionState,
+    ) -> Result<ValueContainer, ExecutionError> {
+        self.pop_runtime_value_result_assert_existing()?
+            .into_cloned_value_container(state)
     }
 
     fn collect_key_value_pair_results_assert_existing(
@@ -154,9 +168,7 @@ impl CollectedResults<CollectedExecutionResult> {
             let (key, value) = self.pop_key_value_pair_result();
             pairs.push((
                 key,
-                value.ok_or(ExecutionError::InvalidProgram(
-                    InvalidProgramError::ExpectedValue,
-                ))?,
+                value,
             ));
         }
         pairs.reverse();
@@ -172,43 +184,16 @@ pub fn execution_loop(
     interrupt_provider: InterruptProvider,
 ) -> impl Iterator<Item = Result<ExternalExecutionInterrupt, ExecutionError>> {
     gen move {
-        let mut slots = state.slots;
         let mut active_value: Option<ValueContainer> = None;
 
         for interrupt in
-            inner_execution_loop(dxb_body, interrupt_provider.clone())
+            inner_execution_loop(dxb_body, interrupt_provider.clone(), state)
         {
             match interrupt {
                 Ok(interrupt) => {
                     match interrupt {
                         ExecutionInterrupt::External(external_interrupt) => {
                             yield Ok(external_interrupt);
-                        }
-                        ExecutionInterrupt::GetSlotValue(address) => {
-                            // if address is >= 0xffffff00, resolve internal slot
-                            if address >= 0xffffff00 {
-                                yield Ok(ExternalExecutionInterrupt::GetInternalSlotValue(
-                                    address,
-                                ));
-                            }
-                            // else handle normal slot
-                            else {
-                                let val = yield_unwrap!(
-                                    slots.get_slot_value(address)
-                                );
-                                interrupt_provider.provide_result(
-                                    InterruptResult::ResolvedValue(val),
-                                );
-                            }
-                        }
-                        ExecutionInterrupt::SetSlotValue(address, value) => {
-                            yield_unwrap!(slots.set_slot_value(address, value));
-                        }
-                        ExecutionInterrupt::DropSlot(address) => {
-                            yield_unwrap!(slots.drop_slot(address));
-                        }
-                        ExecutionInterrupt::AllocateSlot(address, value) => {
-                            slots.allocate_slot(address, Some(value));
                         }
                         ExecutionInterrupt::SetActiveValue(value) => {
                             active_value = value;
@@ -243,6 +228,7 @@ pub fn execution_loop(
 pub fn inner_execution_loop(
     dxb_body: Rc<RefCell<Vec<u8>>>,
     interrupt_provider: InterruptProvider,
+    mut state: RuntimeExecutionState
 ) -> impl Iterator<Item = Result<ExecutionInterrupt, ExecutionError>> {
     gen move {
         let mut collector =
@@ -271,101 +257,101 @@ pub fn inner_execution_loop(
                             StatementResultCollectionStrategy::Last,
                         );
 
-                    let expr: Option<Option<ValueContainer>> = if let Some(
+                    let expr: Option<Option<RuntimeValue>> = if let Some(
                         regular_instruction,
                     ) =
                         regular_instruction
                     {
                         Some(match regular_instruction {
                             // boolean
-                            RegularInstruction::True => Some(true.into()),
-                            RegularInstruction::False => Some(false.into()),
+                            RegularInstruction::True => Some(ValueContainer::from(true).into()),
+                            RegularInstruction::False => Some(ValueContainer::from(false).into()),
 
                             // integers
                             RegularInstruction::Int8(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::Int16(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::Int32(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::Int64(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::Int128(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
 
                             // unsigned integers
                             RegularInstruction::UInt8(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::UInt16(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::UInt32(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::UInt64(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
                             RegularInstruction::UInt128(integer) => {
-                                Some(TypedInteger::from(integer.0).into())
+                                Some(ValueContainer::from(TypedInteger::from(integer.0)).into())
                             }
 
                             // big integers
                             RegularInstruction::BigInteger(IntegerData(integer)) => {
-                                Some(TypedInteger::IBig(integer).into())
+                                Some(ValueContainer::from(TypedInteger::IBig(integer)).into())
                             }
 
                             // default integer
                             RegularInstruction::Integer(IntegerData(i8)) => {
-                                Some(i8.into())
+                                Some(ValueContainer::from(i8).into())
                             }
 
                             // specific floats
                             RegularInstruction::DecimalF32(Float32Data(f32)) => {
-                                Some(TypedDecimal::from(f32).into())
+                                Some(ValueContainer::from(TypedDecimal::from(f32)).into())
                             }
                             RegularInstruction::DecimalF64(Float64Data(f64)) => {
-                                Some(TypedDecimal::from(f64).into())
+                                Some(ValueContainer::from(TypedDecimal::from(f64)).into())
                             }
                             // big decimal
                             RegularInstruction::BigDecimal(DecimalData(big_decimal)) => {
-                                Some(TypedDecimal::Decimal(big_decimal).into())
+                                Some(ValueContainer::from(TypedDecimal::Decimal(big_decimal)).into())
                             }
 
                             // default decimals
                             RegularInstruction::DecimalAsInt16(FloatAsInt16Data(i16)) => {
-                                Some(Decimal::from(i16 as f32).into())
+                                Some(ValueContainer::from(Decimal::from(i16 as f32)).into())
                             }
                             RegularInstruction::DecimalAsInt32(FloatAsInt32Data(i32)) => {
-                                Some(Decimal::from(i32 as f32).into())
+                                Some(ValueContainer::from(Decimal::from(i32 as f32)).into())
                             }
                             RegularInstruction::Decimal(DecimalData(big_decimal)) => {
-                                Some(big_decimal.into())
+                                Some(ValueContainer::from(big_decimal).into())
                             }
 
                             // endpoint
-                            RegularInstruction::Endpoint(endpoint) => Some(endpoint.into()),
+                            RegularInstruction::Endpoint(endpoint) => Some(ValueContainer::from(endpoint).into()),
 
                             // null
-                            RegularInstruction::Null => Some(Value::null().into()),
+                            RegularInstruction::Null => Some(ValueContainer::from(Value::null()).into()),
 
                             // text
                             RegularInstruction::ShortText(ShortTextData(text)) => {
-                                Some(text.into())
+                                Some(ValueContainer::from(text).into())
                             }
-                            RegularInstruction::Text(TextData(text)) => Some(text.into()),
+                            RegularInstruction::Text(TextData(text)) => Some(ValueContainer::from(text).into()),
 
                             RegularInstruction::GetRef(address) => Some(interrupt_with_value!(
                                     interrupt_provider,
                                     ExecutionInterrupt::External(
                                         ExternalExecutionInterrupt::ResolvePointer(address)
                                     )
-                                )),
+                                ).into()),
                             RegularInstruction::GetLocalRef(address) => {
                                 Some(interrupt_with_value!(
                                     interrupt_provider,
@@ -374,7 +360,7 @@ pub fn inner_execution_loop(
                                             address
                                         )
                                     )
-                                ))
+                                ).into())
                             }
                             RegularInstruction::GetInternalRef(address) => {
                                 Some(interrupt_with_value!(
@@ -384,21 +370,25 @@ pub fn inner_execution_loop(
                                             address
                                         )
                                     )
-                                ))
+                                ).into())
                             }
 
                             RegularInstruction::GetSlot(SlotAddress(address)) => {
-                                Some(interrupt_with_value!(
-                                    interrupt_provider,
-                                    ExecutionInterrupt::GetSlotValue(address)
-                                ))
+                                Some(RuntimeValue::SlotAddress(address))
                             }
 
+                            RegularInstruction::GetInternalSlot(SlotAddress(address)) => {
+                                Some(RuntimeValue::ValueContainer(yield_unwrap!(
+                                    get_internal_slot_value(
+                                        &state,
+                                        address,
+                                    )
+                                )))
+                            }
+
+
                             RegularInstruction::DropSlot(SlotAddress(address)) => {
-                                interrupt!(
-                                    interrupt_provider,
-                                    ExecutionInterrupt::DropSlot(address)
-                                );
+                                yield_unwrap!(state.slots.drop_slot(address));
                                 None
                             }
 
@@ -551,23 +541,24 @@ pub fn inner_execution_loop(
                             ) => match regular_instruction {
                                 RegularInstruction::List(_)
                                 | RegularInstruction::ShortList(_) => {
-                                    let elements = yield_unwrap!(collected_results.collect_value_results_assert_existing());
-                                    ValueContainer::from(List::new(elements))
+                                    let elements = yield_unwrap!(collected_results.collect_value_container_results_assert_existing(&state));
+                                    RuntimeValue::ValueContainer(ValueContainer::from(List::new(elements)))
                                         .into()
                                 }
                                 RegularInstruction::Map(_)
                                 | RegularInstruction::ShortMap(_) => {
                                     let entries = yield_unwrap!(collected_results.collect_key_value_pair_results_assert_existing());
-                                    ValueContainer::from(Map::from(entries))
+                                    RuntimeValue::ValueContainer(ValueContainer::from(Map::from(entries)))
                                         .into()
                                 }
 
                                 RegularInstruction::KeyValueDynamic => {
-                                    let value =
-                                        collected_results.pop_value_result();
+                                    let value = yield_unwrap!(
+                                        collected_results.pop_cloned_value_container_result_assert_existing(&state)
+                                    );
                                     let key = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     CollectedExecutionResult::KeyValuePair((
                                         MapKey::Value(key),
@@ -578,8 +569,9 @@ pub fn inner_execution_loop(
                                 RegularInstruction::KeyValueShortText(
                                     short_text_data,
                                 ) => {
-                                    let value =
-                                        collected_results.pop_value_result();
+                                    let value = yield_unwrap!(
+                                        collected_results.pop_cloned_value_container_result_assert_existing(&state)
+                                    );
                                     let key = MapKey::Text(short_text_data.0);
                                     CollectedExecutionResult::KeyValuePair((
                                         key, value,
@@ -592,11 +584,11 @@ pub fn inner_execution_loop(
                                 | RegularInstruction::Divide => {
                                     let right = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     let left = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
                                     let res = handle_binary_operation(
@@ -606,7 +598,7 @@ pub fn inner_execution_loop(
                                         &left,
                                         &right,
                                     );
-                                    yield_unwrap!(res).into()
+                                    RuntimeValue::ValueContainer(yield_unwrap!(res)).into()
                                 }
 
                                 RegularInstruction::Is
@@ -616,11 +608,11 @@ pub fn inner_execution_loop(
                                 | RegularInstruction::NotEqual => {
                                     let right = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     let left = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
                                     let res = handle_comparison_operation(
@@ -630,13 +622,13 @@ pub fn inner_execution_loop(
                                         &left,
                                         &right,
                                     );
-                                    yield_unwrap!(res).into()
+                                    RuntimeValue::ValueContainer(yield_unwrap!(res)).into()
                                 }
 
                                 RegularInstruction::Matches => {
-                                    let val = yield_unwrap!(
+                                    let target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let type_pattern =
                                         collected_results.pop_type_result();
@@ -650,23 +642,25 @@ pub fn inner_execution_loop(
                                 | RegularInstruction::CreateRef
                                 | RegularInstruction::CreateRefMut
                                 | RegularInstruction::Deref => {
-                                    let expr = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
-                                    yield_unwrap!(handle_unary_operation(
-                                        UnaryOperator::from(
-                                            regular_instruction
-                                        ),
-                                        expr,
-                                    ))
-                                    .into()
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                        handle_unary_operation(
+                                            UnaryOperator::from(
+                                                regular_instruction
+                                            ),
+                                            target.clone(), // TODO: is unary operation supposed to take ownership?
+                                        )
+                                    });
+                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
                                 }
 
                                 RegularInstruction::TypedValue => {
                                     let mut value_container = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     let ty =
                                         collected_results.pop_type_result();
@@ -681,19 +675,19 @@ pub fn inner_execution_loop(
                                             "Expected ValueContainer::Value for type casting"
                                         ),
                                     }
-                                    value_container.into()
+                                    RuntimeValue::ValueContainer(value_container).into()
                                 }
 
                                 // type(...)
                                 RegularInstruction::TypeExpression => {
                                     let ty =
                                         collected_results.pop_type_result();
-                                    ValueContainer::Value(Value {
+                                    RuntimeValue::ValueContainer(ValueContainer::Value(Value {
                                         inner: CoreValue::Type(ty),
                                         actual_type: Box::new(
                                             TypeDefinition::Unknown,
                                         ), // TODO: type for type
-                                    })
+                                    }))
                                     .into()
                                 }
 
@@ -709,36 +703,26 @@ pub fn inner_execution_loop(
                                 | RegularInstruction::SubtractAssign(
                                     SlotAddress(address),
                                 ) => {
-                                    let slot_value = interrupt_with_value!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::GetSlotValue(
-                                            address
-                                        )
-                                    );
+                                    let slot_value = yield_unwrap!(get_slot_value(
+                                        &state,
+                                        address
+                                    ));
                                     let value = yield_unwrap!(
-                                        collected_results
-                                            .pop_value_result_assert_existing()
-                                    );
+                                            collected_results
+                                                .pop_cloned_value_container_result_assert_existing(&state)
+                                        );
 
                                     let new_val = yield_unwrap!(
-                                        handle_assignment_operation(
-                                            AssignmentOperator::from(
-                                                regular_instruction
-                                            ),
-                                            slot_value,
-                                            value,
-                                        )
-                                    );
-                                    // set slot value
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::SetSlotValue(
-                                            address,
-                                            new_val.clone()
-                                        )
-                                    );
-                                    // return assigned value
-                                    new_val.into()
+                                            handle_assignment_operation(
+                                                AssignmentOperator::from(
+                                                    regular_instruction
+                                                ),
+                                                &slot_value,
+                                                value,
+                                            )
+                                        );
+                                    yield_unwrap!(state.slots.set_slot_value(address, new_val));
+                                    None.into()
                                 }
 
                                 RegularInstruction::SetReferenceValue(
@@ -746,11 +730,11 @@ pub fn inner_execution_loop(
                                 ) => {
                                     let value_container = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     let ref_value_container = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
                                     // assignment value must be a reference
@@ -761,14 +745,14 @@ pub fn inner_execution_loop(
                                         let res = yield_unwrap!(
                                             handle_assignment_operation(
                                                 operator,
-                                                lhs.clone(),
+                                                &lhs,
                                                 value_container,
                                             )
                                         );
                                         yield_unwrap!(
                                             reference.set_value_container(res)
                                         );
-                                        ref_value_container.into()
+                                        RuntimeValue::ValueContainer(ref_value_container).into()
                                     } else {
                                         return yield Err(
                                             ExecutionError::DerefOfNonReference,
@@ -781,16 +765,10 @@ pub fn inner_execution_loop(
                                 )) => {
                                     let value = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::SetSlotValue(
-                                            address,
-                                            value.clone()
-                                        )
-                                    );
-                                    value.into()
+                                    yield_unwrap!(state.slots.set_slot_value(address, value));
+                                    None.into()
                                 }
 
                                 RegularInstruction::AllocateSlot(
@@ -798,124 +776,132 @@ pub fn inner_execution_loop(
                                 ) => {
                                     let value = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::AllocateSlot(
-                                            address,
-                                            value.clone()
-                                        )
-                                    );
-                                    value.into()
+                                    state.slots.allocate_slot(address, Some(value));
+
+                                    None.into()
                                 }
 
                                 RegularInstruction::GetPropertyText(
                                     property_data,
                                 ) => {
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let property_name = property_data.0;
-                                    let res = target.try_get_property(&property_name);
-                                    yield_unwrap!(res).into()
+
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                         target.try_get_property(&property_name)
+                                    });
+                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
                                 }
 
                                 RegularInstruction::GetPropertyIndex(
                                     property_data,
                                 ) => {
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let property_index = property_data.0;
 
-                                    let res = target.try_get_property(property_index);
-                                    yield_unwrap!(res).into()
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                         target.try_get_property(property_index)
+                                    });
+                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
                                 }
 
                                 RegularInstruction::GetPropertyDynamic => {
                                     let key = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
-                                    let res = target.try_get_property(&key);
-                                    yield_unwrap!(res).into()
+
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                         target.try_get_property(&key)
+                                    });
+                                    RuntimeValue::ValueContainer(yield_unwrap!(yield_unwrap!(res))).into()
                                 }
 
                                 RegularInstruction::SetPropertyText(
                                     property_data,
                                 ) => {
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let value = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    let property_name = property_data.0;
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+                                    let runtime_internal = state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                        set_property(
+                                            &runtime_internal,
                                             target,
-                                            key: OwnedValueKey::Text(property_name),
+                                            OwnedValueKey::Text(property_data.0),
                                             value,
-                                        })
-                                    );
+                                        )
+                                    });
+                                    yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
 
                                 RegularInstruction::SetPropertyIndex(
                                     property_data,
                                 ) => {
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let value = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
-                                    let property_index = property_data.0;
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+
+                                    let runtime_internal = state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                        set_property(
+                                            &runtime_internal,
                                             target,
-                                            key: OwnedValueKey::Index(property_index as i64),
-                                            value
-                                        })
-                                    );
+                                            OwnedValueKey::Index(property_data.0 as i64),
+                                            value,
+                                        )
+                                    });
+                                    yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
 
                                 RegularInstruction::SetPropertyDynamic => {
-                                    let target = yield_unwrap!(
+                                    let mut target = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_runtime_value_result_assert_existing()
                                     );
                                     let value = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
                                     let key = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
-                                    interrupt!(
-                                        interrupt_provider,
-                                        ExecutionInterrupt::External(ExternalExecutionInterrupt::SetProperty {
+                                    let runtime_internal = state.runtime_internal.clone();
+                                    let res = target.with_mut_value_container(&mut state, |target| {
+                                        set_property(
+                                            &runtime_internal,
                                             target,
-                                            key: OwnedValueKey::Value(key),
-                                            value
-                                        })
-                                    );
+                                            OwnedValueKey::Value(key),
+                                            value,
+                                        )
+                                    });
+                                    yield_unwrap!(yield_unwrap!(res));
                                     None.into()
                                 }
 
@@ -935,10 +921,10 @@ pub fn inner_execution_loop(
                                         );
                                         append_u32(&mut buffer, addr as u32);
 
-                                        let slot_value = interrupt_with_value!(
-                                            interrupt_provider,
-                                            ExecutionInterrupt::GetSlotValue(
-                                                local_slot
+                                        let slot_value = yield_unwrap!(
+                                            get_slot_value(
+                                                &state,
+                                                local_slot,
                                             )
                                         );
                                         buffer.extend_from_slice(
@@ -953,7 +939,7 @@ pub fn inner_execution_loop(
 
                                     let receivers = yield_unwrap!(
                                         collected_results
-                                            .pop_value_result_assert_existing()
+                                            .pop_cloned_value_container_result_assert_existing(&state)
                                     );
 
                                     interrupt_with_maybe_value!(
@@ -963,13 +949,15 @@ pub fn inner_execution_loop(
                                                 receivers, buffer
                                             )
                                         )
-                                    ).into()
+                                    )
+                                        .map(|val| RuntimeValue::ValueContainer(val))
+                                        .into()
                                 }
 
                                 RegularInstruction::Apply(ApplyData {
                                     ..
                                 }) => {
-                                    let mut args = yield_unwrap!(collected_results.collect_value_results_assert_existing());
+                                    let mut args = yield_unwrap!(collected_results.collect_value_container_results_assert_existing(&state));
                                     let callee = args.remove(0);
                                     interrupt_with_maybe_value!(
                                         interrupt_provider,
@@ -979,7 +967,8 @@ pub fn inner_execution_loop(
                                             )
                                         )
                                     )
-                                    .into()
+                                        .map(|val| RuntimeValue::ValueContainer(val))
+                                        .into()
                                 }
 
                                 RegularInstruction::UnboundedStatementsEnd(
@@ -1091,9 +1080,16 @@ pub fn inner_execution_loop(
                 },
             )) = collector.last()
             {
+                let active_value = yield_unwrap!(
+                    last_result
+                        .clone()
+                        .map(|v| v.into_cloned_value_container(&state))
+                        .transpose()
+                );
+
                 interrupt!(
                     interrupt_provider,
-                    ExecutionInterrupt::SetActiveValue(last_result.clone())
+                    ExecutionInterrupt::SetActiveValue(active_value)
                 );
             }
         }
@@ -1101,7 +1097,15 @@ pub fn inner_execution_loop(
         if let Some(result) = collector.take_root_result() {
             yield Ok(ExecutionInterrupt::External(
                 ExternalExecutionInterrupt::Result(match result {
-                    CollectedExecutionResult::Value(value) => value,
+                    CollectedExecutionResult::Value(value) => {
+                        let value = yield_unwrap!(
+                            value
+                                .map(|v| v.into_cloned_value_container(&state))
+                                .transpose()
+                        );
+
+                        value
+                    },
                     _ => unreachable!("Expected root result"),
                 }),
             ));

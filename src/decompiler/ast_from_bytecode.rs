@@ -25,6 +25,9 @@ use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::integer::typed_integer::TypedInteger;
 use crate::values::pointer::PointerAddress;
 use core::cell::RefCell;
+use num_enum::TryFromPrimitive;
+use crate::global::slots::InternalSlot;
+use crate::runtime::execution::ExecutionError;
 use crate::values::core_values::integer::Integer;
 
 #[derive(Debug)]
@@ -48,6 +51,7 @@ impl From<TypeExpression> for CollectedAstResult {
 impl
     CollectionResultsPopper<
         CollectedAstResult,
+        DatexExpression,
         DatexExpression,
         DatexExpression,
         TypeExpression,
@@ -238,6 +242,12 @@ pub fn ast_from_bytecode(
                                     DatexExpressionData::Slot(Slot::Addressed(
                                         slot_address.0,
                                     ))
+                                }
+                                
+                                RegularInstruction::GetInternalSlot(slot_address) => {
+                                    let slot = InternalSlot::try_from_primitive(slot_address.0)
+                                        .map_err(|_| DXBParserError::InvalidInternalSlotAddress(slot_address.0))?;
+                                    DatexExpressionData::Slot(Slot::Named(slot.to_string()))
                                 }
 
                                 RegularInstruction::DropSlot(slot_address) => {

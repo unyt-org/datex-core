@@ -9,10 +9,6 @@ use crate::values::value_container::{OwnedValueKey, ValueContainer};
 
 #[derive(Debug)]
 pub enum ExecutionInterrupt {
-    AllocateSlot(u32, ValueContainer),
-    GetSlotValue(u32),
-    SetSlotValue(u32, ValueContainer),
-    DropSlot(u32),
     // used for intermediate results in unbounded scopes
     SetActiveValue(Option<ValueContainer>),
     /// yields an external interrupt to be handled by the execution loop caller (for I/O operations, pointer resolution, remote execution, etc.)
@@ -25,7 +21,6 @@ pub enum ExternalExecutionInterrupt {
     ResolvePointer(RawFullPointerAddress),
     ResolveLocalPointer(RawLocalPointerAddress),
     ResolveInternalPointer(RawInternalPointerAddress),
-    GetInternalSlotValue(u32),
     RemoteExecution(ValueContainer, Vec<u8>),
     Apply(ValueContainer, Vec<ValueContainer>),
     SetProperty {

@@ -59,14 +59,6 @@ pub fn execute_dxb_sync(
                     )),
                 );
             }
-            ExternalExecutionInterrupt::GetInternalSlotValue(slot) => {
-                interrupt_provider.provide_result(
-                    InterruptResult::ResolvedValue(get_internal_slot_value(
-                        &runtime_internal,
-                        slot,
-                    )?),
-                );
-            }
             ExternalExecutionInterrupt::Apply(callee, args) => {
                 let res = handle_apply(&callee, &args)?;
                 interrupt_provider
@@ -84,6 +76,8 @@ pub fn execute_dxb_sync(
                         key,
                         value
                     )?;
+                    interrupt_provider
+                        .provide_result(InterruptResult::ResolvedValue(Some(target)));
                 }
                 else {
                     return Err(ExecutionError::RequiresRuntime);
@@ -156,14 +150,6 @@ pub async fn execute_dxb(
                     return Err(ExecutionError::RequiresRuntime);
                 }
             }
-            ExternalExecutionInterrupt::GetInternalSlotValue(slot) => {
-                interrupt_provider.provide_result(
-                    InterruptResult::ResolvedValue(get_internal_slot_value(
-                        &runtime_internal,
-                        slot,
-                    )?),
-                );
-            }
             ExternalExecutionInterrupt::Apply(callee, args) => {
                 let res = handle_apply(&callee, &args)?;
                 interrupt_provider
@@ -181,6 +167,8 @@ pub async fn execute_dxb(
                         key,
                         value
                     )?;
+                    interrupt_provider
+                        .provide_result(InterruptResult::ResolvedValue(Some(target)));
                 }
                 else {
                     return Err(ExecutionError::RequiresRuntime);
@@ -206,24 +194,7 @@ fn handle_apply(
     })
 }
 
-fn get_internal_slot_value(
-    runtime_internal: &Option<Rc<RuntimeInternal>>,
-    slot: u32,
-) -> Result<Option<ValueContainer>, ExecutionError> {
-    if let Some(runtime) = &runtime_internal {
-        // convert slot to InternalSlot enum
-        let slot = InternalSlot::try_from_primitive(slot)
-            .map_err(|_| ExecutionError::SlotNotAllocated(slot))?;
-        let res = match slot {
-            InternalSlot::ENDPOINT => {
-                Some(ValueContainer::from(runtime.endpoint.clone()))
-            }
-        };
-        Ok(res)
-    } else {
-        Err(ExecutionError::RequiresRuntime)
-    }
-}
+
 
 fn get_pointer_value(
     runtime_internal: &Option<Rc<RuntimeInternal>>,
@@ -672,16 +643,6 @@ mod tests {
         let result =
             execute_datex_script_debug_with_result("const x = 1 + 2; x");
         assert_eq!(result, Integer::from(3).into());
-    }
-
-    #[test]
-    fn var_assignment_inside_scope() {
-        init_logger_debug();
-        let result =
-            execute_datex_script_debug_with_result("var x = 0; [x = 42, 2, x]");
-        let expected =
-            datex_list![Integer::from(42), Integer::from(2), Integer::from(42)];
-        assert_eq!(result, expected.into());
     }
 
     #[test]

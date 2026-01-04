@@ -1211,7 +1211,7 @@ fn compile_expression(
             match name.as_str() {
                 "endpoint" => {
                     compilation_context
-                        .append_instruction_code(InstructionCode::GET_SLOT);
+                        .append_instruction_code(InstructionCode::GET_INTERNAL_SLOT);
                     append_u32(
                         &mut compilation_context.buffer,
                         InternalSlot::ENDPOINT as u32,
@@ -2975,14 +2975,14 @@ pub mod tests {
     }
 
     #[test]
-    fn slot_endpoint() {
+    fn internal_slot_endpoint() {
         let script = "#endpoint";
         let (res, _) =
             compile_script(script, CompileOptions::default()).unwrap();
         assert_eq!(
             res,
             vec![
-                InstructionCode::GET_SLOT.into(),
+                InstructionCode::GET_INTERNAL_SLOT.into(),
                 // slot index as u32
                 0,
                 0xff,

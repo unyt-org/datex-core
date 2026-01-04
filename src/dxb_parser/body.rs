@@ -45,6 +45,7 @@ pub enum DXBParserError {
     BinRwError(binrw::Error),
     FromUtf8Error(FromUtf8Error),
     NotInUnboundedRegularScopeError,
+    InvalidInternalSlotAddress(u32),
 }
 
 impl From<fmt::Error> for DXBParserError {
@@ -104,6 +105,9 @@ impl Display for DXBParserError {
             }
             DXBParserError::NotInUnboundedRegularScopeError => {
                 core::write!(f, "Not in unbounded regular scope error")
+            }
+            DXBParserError::InvalidInternalSlotAddress(addr) => {
+                core::write!(f, "Invalid internal slot address: {}", addr)
             }
         }
     }
@@ -529,6 +533,10 @@ pub fn iterate_instructions(
                         InstructionCode::GET_SLOT => {
                             let address = SlotAddress::read(&mut reader);
                             RegularInstruction::GetSlot(yield_unwrap!(address))
+                        }
+                        InstructionCode::GET_INTERNAL_SLOT => {
+                            let address = SlotAddress::read(&mut reader);
+                            RegularInstruction::GetInternalSlot(yield_unwrap!(address))
                         }
                         InstructionCode::DROP_SLOT => {
                             let address = SlotAddress::read(&mut reader);
