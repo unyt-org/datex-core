@@ -83,6 +83,10 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                 .with_default_span(),
             },
         ),
+        CoreValue::Callable(callable) => {
+            // TODO: Implement proper conversion of Callable to DatexExpressionData
+            DatexExpressionData::Text("[[ callable ]]".to_string())
+        }
     }
 }
 

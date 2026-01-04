@@ -1026,7 +1026,8 @@ pub fn inner_execution_loop(
                                     ..
                                 }) => {
                                     let mut args = yield_unwrap!(collected_results.collect_value_container_results_assert_existing(&state));
-                                    let callee = args.remove(0);
+                                    // last argument is the callee
+                                    let callee = args.remove(args.len() - 1);
                                     interrupt_with_maybe_value!(
                                         interrupt_provider,
                                         ExecutionInterrupt::External(

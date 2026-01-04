@@ -21,20 +21,35 @@ use core::cell::RefCell;
 use core::iter::once;
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use log::info;
 use datex_macros::LibTypeString;
 use strum::IntoEnumIterator;
+use crate::values::core_value::CoreValue;
+use crate::values::core_values::callable::{Callable, CallableBody, CallableKind};
+use crate::values::value::Value;
 
 type CoreLibTypes = HashMap<CoreLibPointerId, Type>;
+type CoreLibVals = HashMap<CoreLibPointerId, ValueContainer>;
 
 #[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
 pub static mut CORE_LIB_TYPES: Option<CoreLibTypes> = None;
 
-fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes) -> R) -> R {
+#[cfg_attr(not(feature = "embassy_runtime"), thread_local)]
+pub static mut CORE_LIB_VALS: Option<CoreLibVals> = None;
+
+fn with_core_lib<R>(handler: impl FnOnce(&CoreLibTypes, &CoreLibVals) -> R) -> R {
     unsafe {
         if CORE_LIB_TYPES.is_none() {
-            CORE_LIB_TYPES.replace(create_core_lib());
+            CORE_LIB_TYPES.replace(create_core_lib_types());
         }
-        handler(CORE_LIB_TYPES.as_ref().unwrap_unchecked())
+        if CORE_LIB_VALS.is_none() {
+            CORE_LIB_VALS.replace(create_core_lib_vals());
+        }
+        handler(
+            CORE_LIB_TYPES.as_ref().unwrap_unchecked(), 
+            CORE_LIB_VALS.as_ref().unwrap_unchecked(),
+        )
+        
     }
 }
 
@@ -50,10 +65,11 @@ pub enum CoreLibPointerId {
     Endpoint,                            // #core.endpoint
     List,                                // #core.List
     Map,                                 // #core.Map
-    Function,                            // #core.Function
+    Callable,                            // #core.Callable
     Unit,                                // #core.Unit
     Never,                               // #core.never
     Unknown,                             // #core.unknown
+    Print,                               // #core.print (function, might be removed later)
 }
 
 impl CoreLibPointerId {
@@ -66,7 +82,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Null => 1,
             CoreLibPointerId::Type => 2,
             CoreLibPointerId::Boolean => 3,
-            CoreLibPointerId::Function => 5,
+            CoreLibPointerId::Callable => 5,
             CoreLibPointerId::Endpoint => 7,
             CoreLibPointerId::Text => 8,
             CoreLibPointerId::List => 9,
@@ -74,6 +90,7 @@ impl CoreLibPointerId {
             CoreLibPointerId::Map => 12,
             CoreLibPointerId::Never => 13,
             CoreLibPointerId::Unknown => 14,
+            CoreLibPointerId::Print => 15,
             CoreLibPointerId::Integer(None) => Self::INTEGER_BASE,
             CoreLibPointerId::Integer(Some(v)) => {
                 let v: u8 = (*v).into();
@@ -93,7 +110,7 @@ impl CoreLibPointerId {
             1 => Some(CoreLibPointerId::Null),
             2 => Some(CoreLibPointerId::Type),
             3 => Some(CoreLibPointerId::Boolean),
-            5 => Some(CoreLibPointerId::Function),
+            5 => Some(CoreLibPointerId::Callable),
             7 => Some(CoreLibPointerId::Endpoint),
             8 => Some(CoreLibPointerId::Text),
             9 => Some(CoreLibPointerId::List),
@@ -101,6 +118,7 @@ impl CoreLibPointerId {
             12 => Some(CoreLibPointerId::Map),
             13 => Some(CoreLibPointerId::Never),
             14 => Some(CoreLibPointerId::Unknown),
+            15 => Some(CoreLibPointerId::Print),
 
             Self::INTEGER_BASE => Some(CoreLibPointerId::Integer(None)),
             n if (Self::INTEGER_BASE + 1..Self::DECIMAL_BASE).contains(&n) => {
@@ -151,7 +169,7 @@ impl TryFrom<&PointerAddress> for CoreLibPointerId {
 }
 
 pub fn get_core_lib_type(id: impl Into<CoreLibPointerId>) -> Type {
-    with_core_lib(|core_lib_types| {
+    with_core_lib(|core_lib_types, _| {
         core_lib_types.get(&id.into()).unwrap().clone()
     })
 }
@@ -166,6 +184,30 @@ pub fn get_core_lib_type_reference(
     }
 }
 
+/// Retrieves either a core library type or value by its CoreLibPointerId.
+pub fn get_core_lib_value(
+    id: impl Into<CoreLibPointerId>,
+) -> Option<ValueContainer> {
+    let id = id.into();
+    with_core_lib(|core_lib_types, core_lib_values| {
+        // try types first
+        if let Some(ty) = core_lib_types.get(&id) {
+            match &ty.type_definition {
+                TypeDefinition::Reference(tr) => Some(
+                    ValueContainer::Reference(Reference::TypeReference(tr.clone()))
+                ),
+                _ => core::panic!("Core lib type is not a TypeReference"),
+            }
+        }
+        else if let Some(val) = core_lib_values.get(&id) {
+            Some(val.clone())
+        }
+        else {
+            None
+        }
+    })
+}
+
 pub fn get_core_lib_type_definition(
     id: impl Into<CoreLibPointerId>,
 ) -> TypeDefinition {
@@ -176,13 +218,13 @@ fn has_core_lib_type<T>(id: T) -> bool
 where
     T: Into<CoreLibPointerId>,
 {
-    with_core_lib(|core_lib_types| core_lib_types.contains_key(&id.into()))
+    with_core_lib(|core_lib_types, _| core_lib_types.contains_key(&id.into()))
 }
 
 /// Loads the core library into the provided memory instance.
 pub fn load_core_lib(memory: &mut Memory) {
-    with_core_lib(|core_lib_types| {
-        let structure = core_lib_types
+    with_core_lib(|core_lib_types, core_lib_values| {
+        let mut types_structure = core_lib_types
             .values()
             .map(|ty| match &ty.type_definition {
                 TypeDefinition::Reference(type_reference) => {
@@ -200,11 +242,17 @@ pub fn load_core_lib(memory: &mut Memory) {
                 _ => core::panic!("Core lib type is not a TypeReference"),
             })
             .collect::<Vec<(String, ValueContainer)>>();
+        
+        // add core lib values
+        for (name, val) in core_lib_values.iter() {
+            let name = name.to_string();
+            types_structure.push((name, val.clone()));
+        }
 
         // TODO #455: dont store variants as separate entries in core_struct (e.g., integer/u8, integer/i32, only keep integer)
         // Import variants directly by variant access operator from base type (e.g., integer -> integer/u8)
         let core_struct =
-            Reference::from(ValueContainer::from(Map::from_iter(structure)));
+            Reference::from(ValueContainer::from(Map::from_iter(types_structure)));
         core_struct.set_pointer_address(CoreLibPointerId::Core.into());
         memory.register_reference(&core_struct);
     });
@@ -212,7 +260,7 @@ pub fn load_core_lib(memory: &mut Memory) {
 
 /// Creates a new instance of the core library as a ValueContainer
 /// including all core types as properties.
-pub fn create_core_lib() -> HashMap<CoreLibPointerId, Type> {
+pub fn create_core_lib_types() -> HashMap<CoreLibPointerId, Type> {
     let integer = integer();
     let decimal = decimal();
     vec![
@@ -226,6 +274,7 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, Type> {
         unknown(),
         map(),
         null(),
+        callable(),
     ]
     .into_iter()
     .chain(once(integer.clone()))
@@ -240,6 +289,15 @@ pub fn create_core_lib() -> HashMap<CoreLibPointerId, Type> {
     )
     .collect::<HashMap<CoreLibPointerId, Type>>()
 }
+
+pub fn create_core_lib_vals() -> HashMap<CoreLibPointerId, ValueContainer> {
+    vec![
+        print(),
+    ]
+    .into_iter()
+    .collect::<HashMap<CoreLibPointerId, ValueContainer>>()
+}
+
 
 type CoreLibTypeDefinition = (CoreLibPointerId, Type);
 pub fn ty() -> CoreLibTypeDefinition {
@@ -273,6 +331,10 @@ pub fn boolean() -> CoreLibTypeDefinition {
 
 pub fn decimal() -> CoreLibTypeDefinition {
     create_core_type("decimal", None, None, CoreLibPointerId::Decimal(None))
+}
+
+pub fn callable() -> CoreLibTypeDefinition {
+    create_core_type("Callable", None, None, CoreLibPointerId::Callable)
 }
 
 pub fn decimal_variant(
@@ -311,6 +373,23 @@ pub fn integer_variant(
         CoreLibPointerId::Integer(Some(variant)),
     )
 }
+
+pub fn print() -> (CoreLibPointerId, ValueContainer) {
+    (
+        CoreLibPointerId::Print,
+        ValueContainer::Value(Value {
+            inner: CoreValue::Callable(Callable {
+                kind: CallableKind::Function,
+                body: CallableBody::Native(|args: &[ValueContainer]| {
+                    info!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
+                    Ok(None)
+                }),
+            }),
+            actual_type: Box::new(TypeDefinition::Unknown)
+        })
+    )
+}
+
 
 /// Creates a core type with the given parameters.
 fn create_core_type(
@@ -364,6 +443,14 @@ mod tests {
         assert!(has_core_lib_type(CoreLibPointerId::Boolean));
         assert!(has_core_lib_type(CoreLibPointerId::Integer(None)));
         assert!(has_core_lib_type(CoreLibPointerId::Decimal(None)));
+        assert!(has_core_lib_type(CoreLibPointerId::Type));
+        assert!(has_core_lib_type(CoreLibPointerId::Text));
+        assert!(has_core_lib_type(CoreLibPointerId::List));
+        assert!(has_core_lib_type(CoreLibPointerId::Map));
+        assert!(has_core_lib_type(CoreLibPointerId::Callable));
+        assert!(has_core_lib_type(CoreLibPointerId::Unit));
+        assert!(has_core_lib_type(CoreLibPointerId::Never));
+        assert!(has_core_lib_type(CoreLibPointerId::Unknown));
         for variant in IntegerTypeVariant::iter() {
             assert!(has_core_lib_type(CoreLibPointerId::Integer(Some(
                 variant
@@ -495,7 +582,7 @@ mod tests {
     #[ignore]
     #[test]
     fn print_core_lib_addresses_as_hex() {
-        with_core_lib(|core_lib_types| {
+        with_core_lib(|core_lib_types, _| {
             let sorted_entries = core_lib_types
                 .keys()
                 .map(|k| (k.clone(), PointerAddress::from(k.clone())))

@@ -718,7 +718,15 @@ impl Apply for Reference {
         &self,
         args: &[ValueContainer],
     ) -> Result<Option<ValueContainer>, ExecutionError> {
-        core::todo!("#297 Undescribed by author.")
+        match self {
+            Reference::TypeReference(tr) => tr.borrow().apply(args),
+            Reference::ValueReference(vr) => {
+                vr.borrow()
+                    .resolve_current_value()
+                    .borrow()
+                    .apply(args)
+            }
+        }
     }
 
     fn apply_single(
@@ -728,7 +736,7 @@ impl Apply for Reference {
         match self {
             Reference::TypeReference(tr) => tr.borrow().apply_single(arg),
             Reference::ValueReference(vr) => {
-                core::todo!("#298 Undescribed by author.")
+                vr.borrow().resolve_current_value().borrow().apply_single(arg)
             }
         }
     }

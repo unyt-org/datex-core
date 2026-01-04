@@ -19,6 +19,8 @@ use core::ops::{Add, AddAssign, Deref, Neg, Not, Sub};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
+use crate::runtime::execution::ExecutionError;
+use crate::traits::apply::Apply;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value {
@@ -49,6 +51,30 @@ impl Deref for Value {
         &self.inner
     }
 }
+
+impl Apply for Value {
+    fn apply(&self, args: &[ValueContainer]) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self.inner {
+            CoreValue::Callable(ref callable) => {
+                callable.apply(args)
+            }
+            _ => {
+                Err(ExecutionError::InvalidApply)
+            }
+        }
+    }
+    fn apply_single(&self, arg: &ValueContainer) -> Result<Option<ValueContainer>, ExecutionError> {
+        match self.inner {
+            CoreValue::Callable(ref callable) => {
+                callable.apply_single(arg)
+            }
+            _ => {
+                Err(ExecutionError::InvalidApply)
+            }
+        }
+    }
+}
+
 
 impl<T: Into<CoreValue>> From<T> for Value {
     fn from(inner: T) -> Self {
