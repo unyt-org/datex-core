@@ -202,7 +202,7 @@ fn get_internal_pointer_value_from_memory(
     let pointer_address = PointerAddress::Internal(address.id);
     let memory = runtime_internal.memory.borrow();
     if let Some(reference) = memory.get_reference(&pointer_address) {
-        Ok(reference.value_container())
+        Ok(ValueContainer::Reference(reference.clone()))
     } else {
         Err(ExecutionError::ReferenceNotFound)
     }

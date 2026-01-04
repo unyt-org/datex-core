@@ -39,7 +39,6 @@ use crate::runtime::execution::{ExecutionError, InvalidProgramError};
 use crate::stdlib::boxed::Box;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::vec::Vec;
-use crate::traits::apply::Apply;
 use crate::types::definition::TypeDefinition;
 use crate::utils::buffers::append_u32;
 use crate::values::core_value::CoreValue;
@@ -442,7 +441,7 @@ pub fn inner_execution_loop(
                         None
                     };
 
-                    expr.map(|expr| CollectedExecutionResult::from(expr))
+                    expr.map(CollectedExecutionResult::from)
                 }
                 Instruction::TypeInstruction(type_instruction) => {
                     let type_instruction = collector
