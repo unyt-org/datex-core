@@ -383,6 +383,7 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
                 kind: CallableKind::Function,
                 body: CallableBody::Native(|args: &[ValueContainer]| {
                     // TODO: add I/O abstraction layer / interface
+                    #[cfg(feature = "std")]
                     println!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
                     info!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
                     Ok(None)
