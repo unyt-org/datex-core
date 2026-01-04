@@ -56,6 +56,7 @@ pub trait TypeExpressionVisitor<E>: Sized {
                 self.visit_get_reference_type(pointer_address, &expr.span)
             }
             TypeExpressionData::Null => self.visit_null_type(&expr.span),
+            TypeExpressionData::Unit => self.visit_unit_type(&expr.span),
             TypeExpressionData::VariableAccess(variable_access) => {
                 self.visit_variable_access_type(variable_access, &expr.span)
             }
@@ -379,6 +380,15 @@ pub trait TypeExpressionVisitor<E>: Sized {
 
     /// Visit null literal
     fn visit_null_type(
+        &mut self,
+        span: &Range<usize>,
+    ) -> TypeExpressionVisitResult<E> {
+        let _ = span;
+        Ok(VisitAction::SkipChildren)
+    }
+    
+    // Visit unit type
+    fn visit_unit_type(
         &mut self,
         span: &Range<usize>,
     ) -> TypeExpressionVisitResult<E> {

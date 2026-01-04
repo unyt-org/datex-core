@@ -1,9 +1,10 @@
 use crate::ast::expressions::{CreateRef, DatexExpressionData, List, Map};
 use crate::ast::spanned::Spanned;
-use crate::ast::type_expressions::TypeExpressionData;
+use crate::ast::type_expressions::{Intersection, TypeExpression, TypeExpressionData, Union};
 use crate::types::definition::TypeDefinition;
 use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
+use crate::values::core_values::r#type::Type;
 use crate::values::value::Value;
 use crate::values::value_container::ValueContainer;
 
@@ -64,24 +65,7 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
                 .collect(),
         )),
         CoreValue::Type(type_value) => DatexExpressionData::TypeExpression(
-            match &type_value.type_definition {
-                TypeDefinition::Structural(struct_type) => match struct_type {
-                    StructuralTypeDefinition::Integer(integer) => {
-                        TypeExpressionData::Integer(integer.clone())
-                            .with_default_span()
-                    }
-                    _ => TypeExpressionData::Text(format!(
-                        "[[STRUCTURAL TYPE {:?}]]",
-                        struct_type
-                    ))
-                    .with_default_span(),
-                },
-                _ => TypeExpressionData::Text(format!(
-                    "[[TYPE {:?}]]",
-                    type_value.type_definition
-                ))
-                .with_default_span(),
-            },
+            type_to_type_expression(type_value),
         ),
         CoreValue::Callable(callable) => {
             // TODO: Implement proper conversion of Callable to DatexExpressionData
@@ -89,6 +73,78 @@ fn value_to_datex_expression(value: &Value) -> DatexExpressionData {
         }
     }
 }
+
+fn type_to_type_expression(type_value: &Type) -> TypeExpression {
+    match &type_value.type_definition {
+        TypeDefinition::Structural(struct_type) => match struct_type {
+            StructuralTypeDefinition::Integer(integer) => {
+                TypeExpressionData::Integer(integer.clone())
+                    .with_default_span()
+            }
+            StructuralTypeDefinition::Text(text) => {
+                TypeExpressionData::Text(text.0.clone())
+                    .with_default_span()
+            }
+            StructuralTypeDefinition::Boolean(boolean) => {
+                TypeExpressionData::Boolean(boolean.0)
+                    .with_default_span()
+            }
+            StructuralTypeDefinition::Decimal(decimal) => {
+                TypeExpressionData::Decimal(decimal.clone())
+                    .with_default_span()
+            }
+            StructuralTypeDefinition::TypedInteger(typed_integer, ) => {
+                TypeExpressionData::TypedInteger(
+                    typed_integer.clone(),
+                ).with_default_span()
+            }
+            StructuralTypeDefinition::TypedDecimal(typed_decimal, ) => {
+                TypeExpressionData::TypedDecimal(
+                    typed_decimal.clone(),
+                ).with_default_span()
+            }
+            StructuralTypeDefinition::Endpoint(endpoint) => {
+                TypeExpressionData::Endpoint(endpoint.clone())
+                    .with_default_span()
+            }
+            StructuralTypeDefinition::Null => {
+                TypeExpressionData::Null.with_default_span()
+            }
+            _ => TypeExpressionData::Text(format!(
+                "[[STRUCTURAL TYPE {:?}]]",
+                struct_type
+            ))
+                .with_default_span(),
+        },
+        TypeDefinition::Union(union_types) => {
+            TypeExpressionData::Union(Union(
+                union_types
+                    .iter()
+                    .map(|t| type_to_type_expression(t))
+                    .collect::<Vec<TypeExpression>>(),
+            ))
+                .with_default_span()
+        }
+        TypeDefinition::Intersection(intersection_types) => {
+            TypeExpressionData::Intersection(Intersection(
+                intersection_types
+                    .iter()
+                    .map(|t| type_to_type_expression(t))
+                    .collect::<Vec<TypeExpression>>()
+            ))
+                .with_default_span()
+        }
+        TypeDefinition::Unit => {
+            TypeExpressionData::Unit.with_default_span()
+        }
+        _ => TypeExpressionData::Text(format!(
+            "[[TYPE {:?}]]",
+            type_value.type_definition
+        ))
+            .with_default_span(),
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

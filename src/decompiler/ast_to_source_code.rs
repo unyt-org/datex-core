@@ -202,9 +202,10 @@ impl AstToSourceCodeConverter {
             TypeExpressionData::Integer(ti) => ti.to_string(),
             TypeExpressionData::Decimal(td) => td.to_string(),
             TypeExpressionData::Boolean(boolean) => boolean.to_string(),
-            TypeExpressionData::Text(text) => text.to_string(),
+            TypeExpressionData::Text(text) => self.text_to_source_code(text),
             TypeExpressionData::Endpoint(endpoint) => endpoint.to_string(),
             TypeExpressionData::Null => "null".to_string(),
+            TypeExpressionData::Unit => "()".to_string(),
             TypeExpressionData::Ref(inner) => {
                 format!("&{}", self.type_expression_to_source_code(inner,))
             }
@@ -498,7 +499,7 @@ impl AstToSourceCodeConverter {
             }
             DatexExpressionData::TypeExpression(type_expr) => {
                 format!(
-                    "type({})",
+                    "type<{}>",
                     self.type_expression_to_source_code(type_expr)
                 )
             }

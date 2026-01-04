@@ -24,6 +24,7 @@ use core::result::Result;
 use log::info;
 use datex_macros::LibTypeString;
 use strum::IntoEnumIterator;
+use crate::decompiler::{decompile_value, DecompileOptions};
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::callable::{Callable, CallableBody, CallableKind};
 use crate::values::value::Value;
@@ -381,11 +382,40 @@ pub fn print() -> (CoreLibPointerId, ValueContainer) {
         ValueContainer::Value(Value {
             inner: CoreValue::Callable(Callable {
                 kind: CallableKind::Function,
-                body: CallableBody::Native(|args: &[ValueContainer]| {
+                body: CallableBody::Native(|mut args: &[ValueContainer]| {
                     // TODO: add I/O abstraction layer / interface
+
+                    let mut output = String::new();
+
+                    // if first argument is a string value, print it directly
+                    if let Some(ValueContainer::Value(Value { inner: CoreValue::Text(text), .. })) = args.get(0)
+                    {
+                        output.push_str(&text.0);
+                        // remove first argument from args
+                        args = &args[1..];
+                        // if there are still arguments, add a space
+                        if !args.is_empty() {
+                            output.push(' ');
+                        }
+                    }
+
+                    #[cfg(feature = "decompiler")]
+                    let args_string = args
+                        .iter()
+                        .map(|v| decompile_value(v, DecompileOptions::colorized()))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    #[cfg(not(feature = "decompiler"))]
+                    let args_string = args
+                        .iter()
+                        .map(|v| v.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    output.push_str(&args_string);
+
                     #[cfg(feature = "std")]
-                    println!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
-                    info!("[PRINT] {}", args.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
+                    println!("[PRINT] {}", output);
+                    info!("[PRINT] {}", output);
                     Ok(None)
                 }),
             }),

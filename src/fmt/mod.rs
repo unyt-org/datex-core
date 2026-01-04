@@ -138,6 +138,7 @@ impl<'a> Formatter<'a> {
             TypeExpressionData::Text(t) => a.text(format!("{:?}", t)),
             TypeExpressionData::Endpoint(ep) => a.text(ep.to_string()),
             TypeExpressionData::Null => a.text("null"),
+            TypeExpressionData::Unit => a.text("()"),
 
             TypeExpressionData::Ref(inner) => {
                 a.text("&") + self.format_type_expression(inner)
@@ -396,20 +397,20 @@ mod tests {
 
     #[test]
     fn type_declarations() {
-        let expr = "type(&mut integer/u8)";
+        let expr = "type<&mut integer/u8>";
         assert_eq!(
             to_string(expr, FormattingOptions::default()),
-            "type(&mut integer/u8)"
+            "type<&mut integer/u8>"
         );
 
-        let expr = "type(text | integer/u16 | decimal/f32)";
+        let expr = "type<text | integer/u16 | decimal/f32>";
         assert_eq!(
             to_string(expr, FormattingOptions::default()),
-            "type(text | integer/u16 | decimal/f32)"
+            "type<text | integer/u16 | decimal/f32>"
         );
         assert_eq!(
             to_string(expr, FormattingOptions::compact()),
-            "type(text|integer/u16|decimal/f32)"
+            "type<text|integer/u16|decimal/f32>"
         );
     }
 

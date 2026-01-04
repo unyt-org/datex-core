@@ -143,7 +143,7 @@ impl<'a> Formatter<'a> {
             DatexExpressionData::TypeExpression(type_expr) => {
                 let a = &self.alloc;
                 let inner = self.format_type_expression(type_expr);
-                (a.text("type(") + a.line_() + inner + a.line_() + a.text(")"))
+                (a.text("type<") + a.line_() + inner + a.line_() + a.text(">"))
                     .group()
             }
             DatexExpressionData::VariableAccess(VariableAccess {

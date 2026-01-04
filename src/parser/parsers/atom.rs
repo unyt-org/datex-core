@@ -97,7 +97,7 @@ impl Parser {
         match type_expression {
             Ok(type_expression) => {
                 // expect closing ')'
-                let end_token = self.expect(Token::RightParen)?;
+                let end_token = self.expect(Token::RightAngle)?;
                 let span = start_token.span.start..end_token.span.end;
                 Ok(DatexExpressionData::TypeExpression(type_expression)
                     .with_span(span))
@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn parse_type_expression() {
-        let expr = parse("type(1 | 2)");
+        let expr = parse("type<1 | 2>");
         assert_eq!(
             expr.data,
             DatexExpressionData::TypeExpression(

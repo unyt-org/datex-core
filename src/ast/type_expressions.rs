@@ -18,6 +18,9 @@ pub enum TypeExpressionData {
     Recover,
 
     Null,
+
+    Unit,
+    
     // a variable name or generic type identifier, e.g. integer, string, User, MyType, T
     Identifier(String),
 
