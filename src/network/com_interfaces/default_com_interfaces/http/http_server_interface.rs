@@ -152,7 +152,7 @@ impl HTTPServerNativeInterface {
                 1,
             );
             let socket_uuid = socket.uuid.clone();
-            let receive_queue = socket.receive_queue.clone();
+            let bytes_in_sender = socket.bytes_in_sender.clone();
             self.add_socket(Arc::new(Mutex::new(socket)));
             self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
                 .unwrap();
@@ -168,7 +168,10 @@ impl HTTPServerNativeInterface {
                             data.to_vec(),
                             socket_uuid
                         );
-                        receive_queue.try_lock().unwrap().extend(data.to_vec());
+                        bytes_in_sender
+                            .try_lock()
+                            .unwrap()
+                            .start_send(data.to_vec());
                     }
                 }
             });

@@ -86,7 +86,7 @@ pub async fn get_runtime_with_mock_interface(
 pub fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
-    mockup_interface_ref.borrow_mut().init_socket()
+    mockup_interface_ref.borrow_mut().init_socket_default()
 }
 
 pub fn register_socket_endpoint(

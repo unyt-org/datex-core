@@ -4,6 +4,7 @@ use crate::stdlib::collections::{HashMap, VecDeque};
 use crate::stdlib::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;
+use crate::task::UnboundedSender;
 use crate::task::spawn_with_panic_notify_default;
 use core::future::Future;
 use core::prelude::rust_2024::*;
@@ -85,14 +86,15 @@ impl TCPServerNativeInterface {
                             Arc::new(Mutex::new(write_half)),
                         );
 
-                        let receive_queue = socket.receive_queue.clone();
+                        let bytes_in_sender = socket.bytes_in_sender.clone();
                         sockets
                             .try_lock()
                             .unwrap()
                             .add_socket(Arc::new(Mutex::new(socket)));
 
                         spawn_with_panic_notify_default(async move {
-                            Self::handle_client(read_half, receive_queue).await
+                            Self::handle_client(read_half, bytes_in_sender)
+                                .await
                         });
                     }
                     Err(e) => {
@@ -107,7 +109,7 @@ impl TCPServerNativeInterface {
 
     async fn handle_client(
         mut rx: OwnedReadHalf,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
+        bytes_in_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
     ) {
         let mut buffer = [0u8; 1024];
         loop {
@@ -118,8 +120,8 @@ impl TCPServerNativeInterface {
                 }
                 Ok(n) => {
                     info!("Received: {:?}", &buffer[..n]);
-                    let mut queue = receive_queue.try_lock().unwrap();
-                    queue.extend(&buffer[..n]);
+                    let mut queue = bytes_in_sender.try_lock().unwrap();
+                    queue.start_send(buffer[..n].to_vec());
                 }
                 Err(e) => {
                     error!("Failed to read from socket: {e}");

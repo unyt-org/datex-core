@@ -136,6 +136,7 @@ impl WebSocketServerNativeInterface {
                                                 1,
                                             );
                                             let socket_uuid = socket.uuid.clone();
+                                            let bytes_in_sender = socket.bytes_in_sender.clone();
                                             let socket_shared = Arc::new(Mutex::new(socket));
                                             com_interface_sockets
                                                 .clone()
@@ -151,13 +152,7 @@ impl WebSocketServerNativeInterface {
                                             while let Some(msg) = read.next().await {
                                                 match msg {
                                                     Ok(Message::Binary(bin)) => {
-                                                        socket_shared
-                                                            .try_lock()
-                                                            .unwrap()
-                                                            .receive_queue
-                                                            .try_lock()
-                                                            .unwrap()
-                                                            .extend(bin);
+                                                        bytes_in_sender.try_lock().unwrap().start_send(bin);
                                                     }
                                                     Ok(_) => {}
                                                     Err(e) => {

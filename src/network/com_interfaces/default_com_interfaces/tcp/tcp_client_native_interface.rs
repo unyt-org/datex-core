@@ -68,7 +68,7 @@ impl TCPClientNativeInterface {
             InterfaceDirection::InOut,
             1,
         );
-        let receive_queue = socket.receive_queue.clone();
+        let bytes_in_sender = socket.bytes_in_sender.clone();
         self.get_sockets()
             .try_lock()
             .unwrap()
@@ -89,8 +89,8 @@ impl TCPClientNativeInterface {
                         break;
                     }
                     Ok(n) => {
-                        let mut queue = receive_queue.try_lock().unwrap();
-                        queue.extend(&buffer[..n]);
+                        let mut queue = bytes_in_sender.try_lock().unwrap();
+                        queue.start_send(buffer[..n].to_vec());
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");

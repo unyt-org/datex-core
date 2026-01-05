@@ -151,6 +151,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         }
         Ok(())
     }
+
     async fn setup_data_channel(
         commons: Arc<Mutex<WebRTCCommon>>,
         endpoint: Endpoint,
@@ -210,10 +211,10 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
                         socket
                             .try_lock()
                             .unwrap()
-                            .receive_queue
+                            .bytes_in_sender
                             .try_lock()
                             .unwrap()
-                            .extend(data);
+                            .start_send(data);
                     }
                 }
             }));

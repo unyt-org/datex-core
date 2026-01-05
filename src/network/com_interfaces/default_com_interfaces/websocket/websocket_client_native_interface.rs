@@ -78,7 +78,7 @@ impl WebSocketClientNativeInterface {
             1,
         );
         self.websocket_stream = Some(write);
-        let receive_queue = socket.receive_queue.clone();
+        let bytes_in_sender = socket.bytes_in_sender.clone();
         self.get_sockets()
             .try_lock()
             .unwrap()
@@ -88,8 +88,8 @@ impl WebSocketClientNativeInterface {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {
-                        let mut queue = receive_queue.try_lock().unwrap();
-                        queue.extend(data);
+                        let mut queue = bytes_in_sender.try_lock().unwrap();
+                        queue.start_send(data);
                     }
                     Ok(_) => {
                         error!("Invalid message type received");

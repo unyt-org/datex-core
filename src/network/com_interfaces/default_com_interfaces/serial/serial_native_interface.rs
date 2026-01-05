@@ -87,7 +87,7 @@ impl SerialNativeInterface {
             InterfaceDirection::InOut,
             1,
         );
-        let receive_queue = socket.get_receive_queue().clone();
+        let bytes_in_sender = socket.bytes_in_sender.clone();
         self.add_socket(Arc::new(Mutex::new(socket)));
         let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
@@ -110,7 +110,7 @@ impl SerialNativeInterface {
                         match result {
                             Ok(Some(incoming)) => {
                                 let size = incoming.len();
-                                receive_queue.try_lock().unwrap().extend(incoming);
+                                bytes_in_sender.try_lock().unwrap().start_send(incoming);
                                 debug!(
                                     "Received data from serial port: {size}"
                                 );

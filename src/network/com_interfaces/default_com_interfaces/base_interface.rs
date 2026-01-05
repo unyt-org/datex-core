@@ -148,9 +148,7 @@ impl BaseInterface {
     ) -> Result<(), BaseInterfaceError> {
         match self.get_socket_with_uuid(receiver_socket_uuid) {
             Some(socket) => {
-                let socket = socket.try_lock().unwrap();
-                let receive_queue = socket.get_receive_queue();
-                receive_queue.try_lock().unwrap().extend(data);
+                socket.try_lock().unwrap().queue_outgoing_block(&data);
                 Ok(())
             }
             _ => {
