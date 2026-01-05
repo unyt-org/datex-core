@@ -4,16 +4,17 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::collections::HashMap;
-use crate::network::com_hub::ComHub;
 use crate::runtime::AsyncContext;
 use crate::serde::deserializer::from_value_container;
 use crate::std_sync::Mutex;
 use crate::stdlib::{any::Any, cell::Cell, collections::VecDeque, pin::Pin};
 use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
+use crate::task::UnboundedSender;
 use crate::utils::{time::Time, uuid::UUID};
 use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
+use crate::{collections::HashMap, task::UnboundedReceiver};
+use crate::{network::com_hub::ComHub, task::create_unbounded_channel};
 use crate::{
     stdlib::{
         cell::RefCell,
@@ -61,6 +62,37 @@ pub enum ComInterfaceState {
     Destroyed,
 }
 
+#[derive(Debug)]
+pub struct ComInterfaceStateWrapper {
+    state: ComInterfaceState,
+    event_sender: UnboundedSender<ComInterfaceEvent>,
+}
+
+impl ComInterfaceStateWrapper {
+    pub fn new(
+        state: ComInterfaceState,
+        event_sender: UnboundedSender<ComInterfaceEvent>,
+    ) -> Self {
+        ComInterfaceStateWrapper {
+            state,
+            event_sender,
+        }
+    }
+    pub fn get(&self) -> ComInterfaceState {
+        self.state
+    }
+    pub fn set(&mut self, new_state: ComInterfaceState) {
+        self.state = new_state;
+        let event = match new_state {
+            ComInterfaceState::NotConnected => ComInterfaceEvent::NotConnected,
+            ComInterfaceState::Connected => ComInterfaceEvent::Connected,
+            ComInterfaceState::Destroyed => ComInterfaceEvent::Destroyed,
+            ComInterfaceState::Connecting => return, // No event for connecting state
+        };
+        self.event_sender.start_send(event);
+    }
+}
+
 impl ComInterfaceState {
     pub fn set(&mut self, new_state: ComInterfaceState) {
         *self = new_state;
@@ -73,13 +105,29 @@ impl ComInterfaceState {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ComInterfaceSockets {
     pub sockets:
         HashMap<ComInterfaceSocketUUID, Arc<Mutex<ComInterfaceSocket>>>,
-    pub socket_registrations: VecDeque<(ComInterfaceSocketUUID, i8, Endpoint)>,
-    pub new_sockets: VecDeque<Arc<Mutex<ComInterfaceSocket>>>,
-    pub deleted_sockets: VecDeque<ComInterfaceSocketUUID>,
+    socket_event_sender: UnboundedSender<ComInterfaceSocketEvent>,
+}
+
+impl ComInterfaceSockets {
+    pub fn new_with_sender(
+        sender: UnboundedSender<ComInterfaceSocketEvent>,
+    ) -> Self {
+        ComInterfaceSockets {
+            sockets: HashMap::new(),
+            socket_event_sender: sender,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ComInterfaceSocketEvent {
+    NewSocket(Arc<Mutex<ComInterfaceSocket>>),
+    RemovedSocket(ComInterfaceSocketUUID),
+    RegisteredSocket(ComInterfaceSocketUUID, i8, Endpoint),
 }
 
 impl ComInterfaceSockets {
@@ -91,11 +139,14 @@ impl ComInterfaceSockets {
             self.sockets.insert(uuid.clone(), socket.clone());
             debug!("Socket added: {uuid}");
         }
-        self.new_sockets.push_back(socket);
+        self.socket_event_sender
+            .start_send(ComInterfaceSocketEvent::NewSocket(socket.clone()));
     }
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets.remove(socket_uuid);
-        self.deleted_sockets.push_back(socket_uuid.clone());
+        self.socket_event_sender.start_send(
+            ComInterfaceSocketEvent::RemovedSocket(socket_uuid.clone()),
+        );
         if let Some(socket) = self.sockets.get(socket_uuid) {
             socket.try_lock().unwrap().state = SocketState::Destroyed;
         }
@@ -125,12 +176,13 @@ impl ComInterfaceSockets {
         }
 
         debug!("Socket registered: {socket_uuid} {endpoint}");
-
-        self.socket_registrations.push_back((
-            socket_uuid,
-            distance as i8,
-            endpoint.clone(),
-        ));
+        self.socket_event_sender.start_send(
+            ComInterfaceSocketEvent::RegisteredSocket(
+                socket_uuid,
+                distance as i8,
+                endpoint.clone(),
+            ),
+        );
         Ok(())
     }
 }
@@ -139,9 +191,12 @@ impl ComInterfaceSockets {
 pub struct ComInterfaceInfo {
     pub outgoing_blocks_count: Cell<u32>,
     uuid: ComInterfaceUUID,
-    pub state: Arc<Mutex<ComInterfaceState>>,
+    pub state: Arc<Mutex<ComInterfaceStateWrapper>>,
     com_interface_sockets: Arc<Mutex<ComInterfaceSockets>>,
     pub interface_properties: Option<InterfaceProperties>,
+
+    socket_event_receiver: Option<UnboundedReceiver<ComInterfaceSocketEvent>>,
+    interface_event_receiver: Option<UnboundedReceiver<ComInterfaceEvent>>,
 }
 
 impl Default for ComInterfaceInfo {
@@ -152,26 +207,28 @@ impl Default for ComInterfaceInfo {
 
 impl ComInterfaceInfo {
     pub fn new_with_state(state: ComInterfaceState) -> Self {
+        let (socket_event_sender, socket_event_receiver) =
+            create_unbounded_channel::<ComInterfaceSocketEvent>();
+        let (interface_event_sender, interface_event_receiver) =
+            create_unbounded_channel::<ComInterfaceEvent>();
         Self {
             outgoing_blocks_count: Cell::new(0),
             uuid: ComInterfaceUUID(UUID::new()),
-            state: Arc::new(Mutex::new(state)),
+            state: Arc::new(Mutex::new(ComInterfaceStateWrapper::new(
+                state,
+                interface_event_sender,
+            ))),
+            interface_event_receiver: Some(interface_event_receiver),
             interface_properties: None,
+            socket_event_receiver: Some(socket_event_receiver),
             com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
+                ComInterfaceSockets::new_with_sender(socket_event_sender),
             )),
         }
     }
+
     pub fn new() -> Self {
-        Self {
-            outgoing_blocks_count: Cell::new(0),
-            uuid: ComInterfaceUUID(UUID::new()),
-            state: Arc::new(Mutex::new(ComInterfaceState::NotConnected)),
-            interface_properties: None,
-            com_interface_sockets: Arc::new(Mutex::new(
-                ComInterfaceSockets::default(),
-            )),
-        }
+        Self::new_with_state(ComInterfaceState::NotConnected)
     }
     pub fn com_interface_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
         self.com_interface_sockets.clone()
@@ -180,10 +237,10 @@ impl ComInterfaceInfo {
         &self.uuid
     }
     pub fn get_state(&self) -> ComInterfaceState {
-        *self.state.try_lock().unwrap()
+        self.state.try_lock().unwrap().get()
     }
     pub fn set_state(&mut self, new_state: ComInterfaceState) {
-        self.state.try_lock().unwrap().clone_from(&new_state);
+        self.state.try_lock().unwrap().set(new_state);
     }
 }
 
@@ -414,6 +471,13 @@ where
 //     }
 // }
 
+#[derive(Debug, Clone)]
+pub enum ComInterfaceEvent {
+    Connected,
+    NotConnected,
+    Destroyed,
+}
+
 pub trait ComInterface: Any {
     fn send_block<'a>(
         &'a mut self,
@@ -452,12 +516,28 @@ pub trait ComInterface: Any {
         }
     }
 
+    fn take_socket_event_receiver(
+        &mut self,
+    ) -> UnboundedReceiver<ComInterfaceSocketEvent> {
+        self.get_info_mut().socket_event_receiver.take().expect(
+            "Socket event receiver has already been taken from this interface",
+        )
+    }
+
     /// Close the interface and free all resources.
     /// Has to be implemented by the interface and might be async.
     /// The state is set by the close that calls the handler function
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
+    pub fn take_interface_event_receiver(
+        &mut self,
+    ) -> UnboundedReceiver<ComInterfaceEvent> {
+        self.interface_event_receiver.take().expect(
+            "Interface event receiver has already been taken from this interface",
+        )
+    }
 
     /// Public API to close the interface and clean up all sockets.
     /// This will set the state to `NotConnected` or `Destroyed` depending on
