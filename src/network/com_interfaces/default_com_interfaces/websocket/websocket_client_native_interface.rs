@@ -72,7 +72,7 @@ impl WebSocketClientNativeInterface {
                 WebSocketError::ConnectionError
             })?;
         let (write, mut read) = stream.split();
-        let socket = ComInterfaceSocket::new(
+        let socket = ComInterfaceSocket::init(
             self.get_uuid().clone(),
             InterfaceDirection::InOut,
             1,

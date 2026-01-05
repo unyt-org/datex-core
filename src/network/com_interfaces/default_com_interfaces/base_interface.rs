@@ -70,8 +70,11 @@ impl BaseInterface {
         direction: InterfaceDirection,
     ) -> BaseInterface {
         let interface = BaseInterface::new_with_name(name);
-        let socket =
-            ComInterfaceSocket::new(interface.get_uuid().clone(), direction, 1);
+        let socket = ComInterfaceSocket::init(
+            interface.get_uuid().clone(),
+            direction,
+            1,
+        );
         let socket_uuid = socket.uuid.clone();
         let socket = Arc::new(Mutex::new(socket));
         interface.add_socket(socket);
@@ -113,7 +116,7 @@ impl BaseInterface {
         direction: InterfaceDirection,
     ) -> ComInterfaceSocketUUID {
         let socket =
-            ComInterfaceSocket::new(self.get_uuid().clone(), direction, 1);
+            ComInterfaceSocket::init(self.get_uuid().clone(), direction, 1);
         let socket_uuid = socket.uuid.clone();
         let socket = Arc::new(Mutex::new(socket));
         self.add_socket(socket);

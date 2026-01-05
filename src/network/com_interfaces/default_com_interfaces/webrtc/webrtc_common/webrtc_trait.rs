@@ -108,7 +108,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     ) -> ComInterfaceSocketUUID {
         // FIXME #203 clean up old sockets
         let mut sockets = sockets.try_lock().unwrap();
-        let socket = ComInterfaceSocket::new(
+        let socket = ComInterfaceSocket::init(
             interface_uuid,
             InterfaceDirection::InOut,
             1,

@@ -63,7 +63,7 @@ impl TCPClientNativeInterface {
         let (read_half, write_half) = stream.into_split();
         self.tx = Some(Rc::new(RefCell::new(write_half)));
 
-        let socket = ComInterfaceSocket::new(
+        let socket = ComInterfaceSocket::init(
             self.get_uuid().clone(),
             InterfaceDirection::InOut,
             1,

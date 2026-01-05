@@ -358,57 +358,61 @@ where
     fn get_default_properties() -> InterfaceProperties;
 }
 
-#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-pub async fn flush_outgoing_block_task(
-    interface: Rc<RefCell<dyn ComInterface>>,
-    socket_ref: Arc<Mutex<ComInterfaceSocket>>,
-    block: Vec<u8>,
-    uuid: ComInterfaceSocketUUID,
-) {
-    // FIXME #194 borrow_mut across await point!
-    let has_been_send = interface.borrow_mut().send_block(&block, uuid).await;
-    interface
-        .borrow()
-        .get_info()
-        .outgoing_blocks_count
-        .update(|x| x - 1);
-    if !has_been_send {
-        debug!("Failed to send block");
-        socket_ref.try_lock().unwrap().send_queue.push_back(block);
-        core::panic!("Failed to send block");
-    }
-}
+// #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+// pub async fn flush_outgoing_block_task(
+//     interface: Rc<RefCell<dyn ComInterface>>,
+//     socket_ref: Arc<Mutex<ComInterfaceSocket>>,
+//     block: Vec<u8>,
+//     uuid: ComInterfaceSocketUUID,
+// ) {
+//     // FIXME #194 borrow_mut across await point!
+//     let has_been_send = interface.borrow_mut().send_block(&block, uuid).await;
+//     interface
+//         .borrow()
+//         .get_info()
+//         .outgoing_blocks_count
+//         .update(|x| x - 1);
+//     if !has_been_send {
+//         debug!("Failed to send block");
+//         socket_ref
+//             .try_lock()
+//             .unwrap()
+//             .bytes_in_sender
+//             .push_back(block);
+//         core::panic!("Failed to send block");
+//     }
+// }
 
-pub fn flush_outgoing_blocks(
-    interface: Rc<RefCell<dyn ComInterface>>,
-    async_context: &AsyncContext,
-) {
-    fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
-        let mut socket_mut = socket_ref.try_lock().unwrap();
-        let blocks: Vec<Vec<u8>> =
-            socket_mut.send_queue.drain(..).collect::<Vec<_>>();
-        blocks
-    }
-    let sockets = interface.borrow().get_sockets();
-    for socket_ref in sockets.try_lock().unwrap().sockets.values() {
-        let blocks = get_blocks(socket_ref);
-        let interface = interface.clone();
-        for block in blocks {
-            let interface = interface.clone();
-            let socket_ref = socket_ref.clone();
-            let uuid = socket_ref.try_lock().unwrap().uuid.clone();
-            interface
-                .borrow()
-                .get_info()
-                .outgoing_blocks_count
-                .update(|x| x + 1);
-            spawn_with_panic_notify(
-                async_context,
-                flush_outgoing_block_task(interface, socket_ref, block, uuid),
-            );
-        }
-    }
-}
+// pub fn flush_outgoing_blocks(
+//     interface: Rc<RefCell<dyn ComInterface>>,
+//     async_context: &AsyncContext,
+// ) {
+//     fn get_blocks(socket_ref: &Arc<Mutex<ComInterfaceSocket>>) -> Vec<Vec<u8>> {
+//         let mut socket_mut = socket_ref.try_lock().unwrap();
+//         let blocks: Vec<Vec<u8>> =
+//             socket_mut.bytes_in_sender.drain(..).collect::<Vec<_>>();
+//         blocks
+//     }
+//     let sockets = interface.borrow().get_sockets();
+//     for socket_ref in sockets.try_lock().unwrap().sockets.values() {
+//         let blocks = get_blocks(socket_ref);
+//         let interface = interface.clone();
+//         for block in blocks {
+//             let interface = interface.clone();
+//             let socket_ref = socket_ref.clone();
+//             let uuid = socket_ref.try_lock().unwrap().uuid.clone();
+//             interface
+//                 .borrow()
+//                 .get_info()
+//                 .outgoing_blocks_count
+//                 .update(|x| x + 1);
+//             spawn_with_panic_notify(
+//                 async_context,
+//                 flush_outgoing_block_task(interface, socket_ref, block, uuid),
+//             );
+//         }
+//     }
+// }
 
 pub trait ComInterface: Any {
     fn send_block<'a>(
@@ -547,27 +551,21 @@ pub trait ComInterface: Any {
         properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
     }
 
-    fn create_socket(
+    fn init_socket(
         &self,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
         direction: InterfaceDirection,
         channel_factor: u32,
     ) -> ComInterfaceSocket {
-        ComInterfaceSocket::new_with_receive_queue(
+        ComInterfaceSocket::init(
             self.get_uuid().clone(),
-            receive_queue,
             direction,
             channel_factor,
         )
     }
 
-    fn create_socket_default(
-        &self,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
-    ) -> ComInterfaceSocket {
-        ComInterfaceSocket::new_with_receive_queue(
+    fn init_socket_default(&self) -> ComInterfaceSocket {
+        ComInterfaceSocket::init(
             self.get_uuid().clone(),
-            receive_queue,
             self.init_properties().direction,
             self.get_channel_factor(),
         )

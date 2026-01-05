@@ -82,7 +82,7 @@ impl SerialNativeInterface {
     fn open(&mut self) -> Result<(), SerialError> {
         let state = self.get_info().state.clone();
         let port = self.port.clone();
-        let socket = ComInterfaceSocket::new(
+        let socket = ComInterfaceSocket::init(
             self.get_uuid().clone(),
             InterfaceDirection::InOut,
             1,

@@ -36,7 +36,7 @@ impl Default for LocalLoopbackInterface {
 impl LocalLoopbackInterface {
     pub fn new() -> LocalLoopbackInterface {
         let info = ComInterfaceInfo::new();
-        let socket = Arc::new(Mutex::new(ComInterfaceSocket::new(
+        let socket = Arc::new(Mutex::new(ComInterfaceSocket::init(
             info.get_uuid().clone(),
             InterfaceDirection::InOut,
             1,

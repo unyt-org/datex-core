@@ -6,8 +6,9 @@ use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use crate::std_sync::Mutex;
 use crate::stdlib::string::String;
+use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
-use crate::stdlib::{collections::VecDeque, sync::Arc};
+use crate::task::{UnboundedReceiver, UnboundedSender};
 use crate::utils::uuid::UUID;
 use crate::{
     global::dxb_block::DXBBlock, values::core_values::endpoint::Endpoint,
@@ -43,26 +44,22 @@ pub struct ComInterfaceSocket {
     pub connection_timestamp: u64,
     pub channel_factor: u32,
     pub direction: InterfaceDirection,
-    pub receive_queue: Arc<Mutex<VecDeque<u8>>>,
-    pub send_queue: VecDeque<Vec<u8>>,
-    pub block_collector: BlockCollector,
+    pub bytes_in_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
+    block_out_receiver: Option<UnboundedReceiver<DXBBlock>>,
 }
 
 impl ComInterfaceSocket {
-    pub fn get_receive_queue(&self) -> Arc<Mutex<VecDeque<u8>>> {
-        self.receive_queue.clone()
-    }
-
-    pub fn get_incoming_block_queue(&mut self) -> &mut VecDeque<DXBBlock> {
-        self.block_collector.get_block_queue()
-    }
-
-    pub async fn collect_incoming_data(&mut self) {
-        self.block_collector.update().await;
+    pub fn take_block_out_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
+        self.block_out_receiver.take().expect(
+            "Block out receiver has already been taken from this socket",
+        )
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {
-        self.send_queue.push_back(block.to_vec());
+        self.bytes_in_sender
+            .lock()
+            .unwrap()
+            .start_send(block.to_vec());
     }
 
     pub fn can_send(&self) -> bool {
@@ -75,37 +72,23 @@ impl ComInterfaceSocket {
             || self.direction == InterfaceDirection::InOut
     }
 
-    pub fn new(
+    /// Initializes a new ComInterfaceSocket, starts the BlockCollector task.
+    pub fn init(
         interface_uuid: ComInterfaceUUID,
         direction: InterfaceDirection,
         channel_factor: u32,
     ) -> ComInterfaceSocket {
-        let receive_queue = Arc::new(Mutex::new(VecDeque::new()));
-        ComInterfaceSocket::new_with_receive_queue(
-            interface_uuid,
-            receive_queue,
-            direction,
-            channel_factor,
-        )
-    }
-
-    pub fn new_with_receive_queue(
-        interface_uuid: ComInterfaceUUID,
-        receive_queue: Arc<Mutex<VecDeque<u8>>>,
-        direction: InterfaceDirection,
-        channel_factor: u32,
-    ) -> ComInterfaceSocket {
+        let (bytes_in_sender, block_out_receiver) = BlockCollector::init();
         ComInterfaceSocket {
-            receive_queue: receive_queue.clone(),
-            block_collector: BlockCollector::new(receive_queue.clone()),
-            interface_uuid,
             direct_endpoint: None,
             state: SocketState::Created,
             uuid: ComInterfaceSocketUUID(UUID::new()),
+            interface_uuid,
             connection_timestamp: 0,
             channel_factor,
             direction,
-            send_queue: VecDeque::new(),
+            bytes_in_sender: Arc::new(Mutex::new(bytes_in_sender)),
+            block_out_receiver: Some(block_out_receiver),
         }
     }
 }

@@ -130,7 +130,7 @@ impl WebSocketServerNativeInterface {
                                                 "Accepted WebSocket connection from {addr}"
                                             );
                                             let (write, mut read) = ws_stream.split();
-                                            let socket = ComInterfaceSocket::new(
+                                            let socket = ComInterfaceSocket::init(
                                                 interface_uuid.clone(),
                                                 InterfaceDirection::InOut,
                                                 1,

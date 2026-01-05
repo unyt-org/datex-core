@@ -74,7 +74,7 @@ impl TCPServerNativeInterface {
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
-                        let socket = ComInterfaceSocket::new(
+                        let socket = ComInterfaceSocket::init(
                             interface_uuid.clone(),
                             InterfaceDirection::InOut,
                             1,
