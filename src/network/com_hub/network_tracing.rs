@@ -4,7 +4,8 @@ use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use crate::network::com_hub::{ComHub, Response, ResponseOptions};
+use crate::network::com_hub::ComHub;
+use crate::network::com_hub::network_response::{Response, ResponseOptions};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::runtime::execution::{

@@ -19,14 +19,9 @@ use crate::stdlib::sync::{Arc, Mutex};
 use crate::utils::time::Time;
 use crate::values::core_values::endpoint::EndpointInstance;
 use crate::{
-    network::{
-        com_hub::DynamicEndpointProperties,
-        com_interfaces::{
-            com_interface_properties::InterfaceDirection,
-            com_interface_socket::{
-                ComInterfaceSocket, ComInterfaceSocketUUID,
-            },
-        },
+    network::com_interfaces::{
+        com_interface_properties::InterfaceDirection,
+        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
     values::core_values::endpoint::Endpoint,
 };
@@ -41,6 +36,15 @@ pub struct EndpointIterateOptions<'a> {
     pub only_direct: bool,
     pub exact_instance: bool,
     pub exclude_sockets: &'a [ComInterfaceSocketUUID],
+}
+
+#[derive(Debug, Clone)]
+pub struct DynamicEndpointProperties {
+    pub known_since: u64,
+    pub distance: i8,
+    pub is_direct: bool,
+    pub channel_factor: u32,
+    pub direction: InterfaceDirection,
 }
 
 #[derive(Default)]
@@ -227,7 +231,7 @@ impl SocketManager {
     /// Returns the socket for a given UUID
     /// The socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) fn get_socket_by_uuid(
+    pub(crate) fn socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Arc<Mutex<ComInterfaceSocket>> {
@@ -389,7 +393,7 @@ impl SocketManager {
                 }
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
-                        let socket = self.get_socket_by_uuid(&socket_uuid);
+                        let socket = self.socket_by_uuid(&socket_uuid);
                         let socket = socket.try_lock().unwrap();
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
@@ -508,7 +512,7 @@ impl SocketManager {
         // otherwise, return the highest priority socket that is not excluded
         else {
             for (socket_uuid, _, _) in self.fallback_sockets.iter() {
-                let socket = self.get_socket_by_uuid(socket_uuid);
+                let socket = self.socket_by_uuid(socket_uuid);
                 info!(
                     "{}: Find best for {}: {} ({}); excluded:{}",
                     local_endpoint,
@@ -590,7 +594,7 @@ impl SocketManager {
                 distance,
                 endpoint,
             ) => {
-                let socket = self.get_socket_by_uuid(&socket_uuid);
+                let socket = self.socket_by_uuid(&socket_uuid);
                 self.register_socket_endpoint(socket, endpoint.clone(), distance)
                 .unwrap_or_else(|e| {
                     error!(

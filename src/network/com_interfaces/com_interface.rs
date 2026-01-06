@@ -531,7 +531,7 @@ pub trait ComInterface: Any {
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
-    pub fn take_interface_event_receiver(
+    fn take_interface_event_receiver(
         &mut self,
     ) -> UnboundedReceiver<ComInterfaceEvent> {
         self.interface_event_receiver.take().expect(

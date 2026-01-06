@@ -1,4 +1,4 @@
-use crate::network::com_hub::ComHubError;
+use crate::network::com_hub::errors::ComHubError;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;

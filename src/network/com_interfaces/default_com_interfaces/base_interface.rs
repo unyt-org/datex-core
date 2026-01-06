@@ -3,7 +3,7 @@ use core::result::Result;
 use log::error;
 
 use super::super::com_interface::ComInterface;
-use crate::network::com_hub::ComHubError;
+use crate::network::com_hub::errors::ComHubError;
 use crate::network::com_interfaces::com_interface::ComInterfaceState;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo,

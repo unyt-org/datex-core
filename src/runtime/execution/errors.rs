@@ -1,5 +1,5 @@
 use crate::dxb_parser::body::DXBParserError;
-use crate::network::com_hub::ResponseError;
+use crate::network::com_hub::network_response::ResponseError;
 use crate::references::reference::{
     AccessError, AssignmentError, ReferenceCreationError,
 };
