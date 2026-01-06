@@ -1,15 +1,11 @@
-use super::com_interfaces::com_interface::{
-    self, ComInterfaceError, ComInterfaceState,
-};
-use crate::collections::{HashMap, HashSet};
+use super::com_interfaces::com_interface::ComInterfaceState;
+use crate::collections::HashMap;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::network::com_hub::errors::{
     ComHubError, SocketEndpointRegistrationError,
 };
-use crate::network::com_hub::managers::interface_manager::{
-    ComInterfaceFactoryFn, InterfaceManager,
-};
+use crate::network::com_hub::managers::interface_manager::InterfaceManager;
 use crate::network::com_hub::network_response::{
     Response, ResponseError, ResponseOptions, ResponseResolutionStrategy,
 };
@@ -18,51 +14,36 @@ mod managers;
 
 #[cfg(feature = "debug")]
 pub mod metadata;
-use crate::network::com_hub::managers::socket_manager::{
-    EndpointIterateOptions, SocketManager,
-};
+use crate::network::com_hub::managers::socket_manager::SocketManager;
 mod com_hub_socket;
 pub mod errors;
 pub mod network_response;
 pub mod network_tracing;
-use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
-use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
-use crate::stdlib::sync::Arc;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::spawn_local;
-use crate::task::{self, UnboundedReceiver, sleep, spawn_with_panic_notify};
+use crate::task::{self, spawn_with_panic_notify};
 use crate::utils::time::Time;
 use core::cmp::PartialEq;
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Formatter};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use core::time::Duration;
 use futures::channel::oneshot::Sender;
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
-use webrtc::util::vnet::interface;
 pub mod options;
-use super::com_interfaces::{
-    com_interface::ComInterface, com_interface_socket::ComInterfaceSocket,
-};
-use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
-use crate::global::dxb_block::{DXBBlock, IncomingSection};
+use super::com_interfaces::com_interface::ComInterface;
+use crate::values::core_values::endpoint::Endpoint;
+use crate::global::dxb_block::DXBBlock;
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
 use crate::network::com_hub::network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
-use crate::network::com_interfaces::com_interface::{ComInterfaceEvent, ComInterfaceSocketEvent, ComInterfaceUUID};
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, ReconnectionConfig,
-};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
 use crate::runtime::AsyncContext;
-use crate::values::value_container::ValueContainer;
 pub mod com_hub_interface;
 
 pub type IncomingBlockInterceptor =

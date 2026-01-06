@@ -2,9 +2,6 @@ use itertools::Itertools;
 use log::{debug, error, info};
 
 use crate::collections::{HashMap, HashSet};
-use crate::global::dxb_block::DXBBlock;
-use crate::global::protocol_structures::block_header::BlockType;
-use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::network::com_hub::{
     ComHubError, InterfacePriority, SocketEndpointRegistrationError,
 };

@@ -1047,7 +1047,7 @@ pub fn inner_execution_loop(
                                     let result = yield_unwrap!(collector.try_pop_unbounded().ok_or(DXBParserError::NotInUnboundedRegularScopeError));
                                     if let FullOrPartialResult::Partial(
                                         _,
-                                        mut collected_result,
+                                        collected_result,
                                     ) = result
                                     {
                                         if terminated {

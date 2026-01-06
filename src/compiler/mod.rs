@@ -1,5 +1,5 @@
 use crate::compiler::error::{
-    CompilerError, DetailedCompilerErrors, SimpleOrDetailedCompilerError,
+    CompilerError, SimpleOrDetailedCompilerError,
     SpannedCompilerError,
 };
 use crate::global::dxb_block::DXBBlock;
@@ -26,13 +26,12 @@ use crate::compiler::type_compiler::compile_type_expression;
 use crate::global::instruction_codes::InstructionCode;
 use crate::global::slots::InternalSlot;
 use crate::libs::core::CoreLibPointerId;
-use crate::parser::parser_result::ValidDatexParseResult;
 
 use crate::ast::resolved_variable::VariableId;
 use crate::core_compiler::value_compiler::{
     append_boolean, append_decimal, append_encoded_integer, append_endpoint,
     append_float_as_i16, append_float_as_i32, append_instruction_code,
-    append_integer, append_text, append_typed_decimal, append_typed_integer,
+    append_integer, append_text, append_typed_decimal,
     append_value_container,
 };
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};

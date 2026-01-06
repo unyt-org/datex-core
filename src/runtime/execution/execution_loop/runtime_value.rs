@@ -3,7 +3,6 @@ use crate::runtime::execution::execution_loop::slots::{
     get_slot_value, get_slot_value_mut,
 };
 use crate::runtime::execution::execution_loop::state::RuntimeExecutionState;
-use crate::stdlib::borrow::Cow;
 use crate::values::value_container::ValueContainer;
 
 /// Represents a value in the runtime execution context, which can either be a direct

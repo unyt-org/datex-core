@@ -12,10 +12,9 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::types::definition::TypeDefinition;
-use crate::types::structural_type_definition::StructuralTypeDefinition;
 use crate::values::core_value::CoreValue;
 use crate::values::core_values::callable::{
-    Callable, CallableBody, CallableKind, CallableSignature,
+    CallableBody, CallableKind, CallableSignature,
 };
 use crate::values::core_values::decimal::typed_decimal::DecimalTypeVariant;
 use crate::values::core_values::integer::typed_integer::IntegerTypeVariant;
@@ -28,7 +27,6 @@ use core::cell::RefCell;
 use core::iter::once;
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use datex_core::values::core_values::integer::Integer;
 use datex_macros::LibTypeString;
 use log::info;
 use strum::IntoEnumIterator;

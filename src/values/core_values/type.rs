@@ -7,7 +7,6 @@ use crate::references::reference::ReferenceMutability;
 use crate::references::type_reference::TypeReference;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
-use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::traits::structural_eq::StructuralEq;

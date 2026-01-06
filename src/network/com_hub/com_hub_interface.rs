@@ -1,51 +1,18 @@
-use crate::collections::{HashMap, HashSet};
-use crate::global::protocol_structures::block_header::BlockType;
-use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::network::com_hub::managers::interface_manager::{
     ComInterfaceFactoryFn, InterfaceManager,
 };
-use crate::network::com_hub::managers::socket_manager::{
-    EndpointIterateOptions, SocketManager,
-};
-use crate::network::com_hub::options::ComHubOptions;
-use crate::std_sync::Mutex;
-use crate::stdlib::boxed::Box;
 use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::sync::Arc;
-use crate::stdlib::vec;
-use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::spawn_local;
-use crate::task::{self, UnboundedReceiver, sleep, spawn_with_panic_notify};
-use crate::utils::time::Time;
-use core::cmp::PartialEq;
-use core::fmt::{Debug, Display, Formatter};
+use crate::task::{UnboundedReceiver, spawn_with_panic_notify};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use core::time::Duration;
-use futures::channel::oneshot::Sender;
-use itertools::Itertools;
-use log::{debug, error, info, warn};
-#[cfg(feature = "tokio_runtime")]
-use tokio::task::yield_now;
-use webrtc::util::vnet::interface;
 
-use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
-use crate::global::dxb_block::{DXBBlock, IncomingSection};
-use crate::network::block_handler::{BlockHandler, BlockHistoryData};
-use crate::network::com_hub::network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceEvent, ComInterfaceSocketEvent, ComInterfaceUUID};
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, ReconnectionConfig,
+use crate::network::com_hub::{ComHub, ComHubError, InterfacePriority};
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceEvent, ComInterfaceUUID,
 };
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
-use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
-use crate::network::com_hub::{
-    ComHub, ComHubError, InterfacePriority
-};
 
 /// Interface management methods
 impl ComHub {
@@ -69,6 +36,24 @@ impl ComHub {
         self.interface_manager
             .borrow_mut()
             .add_interface(interface.clone(), priority)?;
+
+        // handle socket events
+        self.handle_socket_events(interface.clone());
+        // handle interface events
+        self.handle_interface_events(interface);
+        Ok(())
+    }
+
+    /// Opens the interface if not already opened, and adds it to the manager
+    pub async fn open_and_add_interface(
+        &self,
+        interface: Rc<RefCell<dyn ComInterface>>,
+        priority: InterfacePriority,
+    ) -> Result<(), ComHubError> {
+        self.interface_manager
+            .borrow_mut()
+            .open_and_add_interface(interface.clone(), priority)
+            .await?;
 
         // handle socket events
         self.handle_socket_events(interface.clone());

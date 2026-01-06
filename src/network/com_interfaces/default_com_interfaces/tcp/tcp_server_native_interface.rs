@@ -1,6 +1,6 @@
 use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::std_sync::Mutex;
-use crate::stdlib::collections::{HashMap, VecDeque};
+use crate::stdlib::collections::HashMap;
 use crate::stdlib::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use crate::stdlib::pin::Pin;
 use crate::stdlib::sync::Arc;

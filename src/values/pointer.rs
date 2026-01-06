@@ -3,9 +3,6 @@ use crate::global::protocol_structures::instructions::{
 };
 use crate::stdlib::format;
 use crate::stdlib::string::String;
-use crate::stdlib::vec::Vec;
-use binrw::BinWrite;
-use binrw::io::Cursor;
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;

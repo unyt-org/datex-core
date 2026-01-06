@@ -1,8 +1,5 @@
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
-use crate::network::com_interfaces::block_collector;
-use crate::std_sync::Mutex;
 use crate::stdlib::vec::Vec;
-use crate::stdlib::{collections::VecDeque, sync::Arc};
 use crate::task::{UnboundedReceiver, UnboundedSender};
 use crate::task::{create_unbounded_channel, spawn_local};
 use core::prelude::rust_2024::*;

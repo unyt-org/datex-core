@@ -181,7 +181,7 @@ impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
         info!("props: {:?}", props.direction);
         info!("endpoint: {endpoint:?}");
         interface.info.interface_properties = Some(props);
-        interface.init_socket();
+        interface.init_socket_default();
         if let Some(endpoint) = endpoint {
             interface
                 .register_socket_endpoint(

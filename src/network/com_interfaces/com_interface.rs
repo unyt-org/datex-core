@@ -4,10 +4,9 @@ use super::{
         ComInterfaceSocket, ComInterfaceSocketUUID, SocketState,
     },
 };
-use crate::runtime::AsyncContext;
 use crate::serde::deserializer::from_value_container;
 use crate::std_sync::Mutex;
-use crate::stdlib::{any::Any, cell::Cell, collections::VecDeque, pin::Pin};
+use crate::stdlib::{any::Any, cell::Cell, pin::Pin};
 use crate::stdlib::{boxed::Box, future::Future, sync::Arc, vec::Vec};
 use crate::task::UnboundedSender;
 use crate::utils::{time::Time, uuid::UUID};
@@ -15,15 +14,12 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::values::value_container::ValueContainer;
 use crate::{collections::HashMap, task::UnboundedReceiver};
 use crate::{network::com_hub::ComHub, task::create_unbounded_channel};
-use crate::{
-    stdlib::{
+use crate::stdlib::{
         cell::RefCell,
         hash::{Hash, Hasher},
         rc::Rc,
         string::String,
-    },
-    task::spawn_with_panic_notify,
-};
+    };
 use core::fmt::Display;
 use core::prelude::rust_2024::*;
 use core::result::Result;
