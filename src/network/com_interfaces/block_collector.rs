@@ -3,7 +3,6 @@ use crate::stdlib::vec::Vec;
 use crate::task::{UnboundedReceiver, UnboundedSender};
 use crate::task::{create_unbounded_channel, spawn_local};
 use core::prelude::rust_2024::*;
-use futures::StreamExt;
 use log::error;
 
 #[derive(Debug)]
@@ -21,6 +20,7 @@ pub struct BlockCollector {
     current_block_specified_length: Option<u16>,
 }
 
+/// Implements the logic to collect DXB blocks from incoming byte slices.
 impl BlockCollector {
     async fn receive_slice(&mut self, slice: &[u8]) {
         // Add the received data to the current block.

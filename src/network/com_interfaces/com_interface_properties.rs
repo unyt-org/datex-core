@@ -10,7 +10,6 @@ use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
-
 pub enum InterfaceDirection {
     In,
     Out,

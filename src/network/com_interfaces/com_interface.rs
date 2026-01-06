@@ -64,6 +64,7 @@ pub struct ComInterfaceStateWrapper {
     event_sender: UnboundedSender<ComInterfaceEvent>,
 }
 
+/// Wrapper around ComInterfaceState that sends events on state changes
 impl ComInterfaceStateWrapper {
     pub fn new(
         state: ComInterfaceState,
@@ -74,9 +75,13 @@ impl ComInterfaceStateWrapper {
             event_sender,
         }
     }
+
+    /// Get the current state
     pub fn get(&self) -> ComInterfaceState {
         self.state
     }
+
+    /// Set a new state and send the corresponding event
     pub fn set(&mut self, new_state: ComInterfaceState) {
         self.state = new_state;
         let event = match new_state {
@@ -85,14 +90,11 @@ impl ComInterfaceStateWrapper {
             ComInterfaceState::Destroyed => ComInterfaceEvent::Destroyed,
             ComInterfaceState::Connecting => return, // No event for connecting state
         };
-        self.event_sender.start_send(event);
+        let _ = self.event_sender.start_send(event);
     }
 }
 
 impl ComInterfaceState {
-    pub fn set(&mut self, new_state: ComInterfaceState) {
-        *self = new_state;
-    }
     pub fn is_destroyed_or_not_connected(&self) -> bool {
         core::matches!(
             self,
