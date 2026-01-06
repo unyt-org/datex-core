@@ -109,6 +109,22 @@ impl ComHub {
             .borrow()
             .dyn_interface_by_uuid(&socket.interface_uuid)
     }
+
+	/// Creates a new interface of the given type with the provided setup data
+	pub async fn create_interface(
+		&self,
+		interface_type: &str,
+        setup_data: ValueContainer,
+        priority: InterfacePriority,
+    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
+		self.interface_manager
+			.borrow_mut()
+			.create_interface(
+				interface_type,
+				setup_data,
+				priority,
+			).await
+	}
 }
 
 

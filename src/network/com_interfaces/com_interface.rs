@@ -534,7 +534,7 @@ pub trait ComInterface: Any {
     fn take_interface_event_receiver(
         &mut self,
     ) -> UnboundedReceiver<ComInterfaceEvent> {
-        self.interface_event_receiver.take().expect(
+        self.get_info_mut().interface_event_receiver.take().expect(
             "Interface event receiver has already been taken from this interface",
         )
     }

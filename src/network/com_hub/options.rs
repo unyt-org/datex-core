@@ -2,7 +2,7 @@ use core::time::Duration;
 
 #[derive(Debug)]
 pub struct ComHubOptions {
-    default_receive_timeout: Duration,
+    pub default_receive_timeout: Duration,
 }
 
 impl Default for ComHubOptions {

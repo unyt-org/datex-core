@@ -90,7 +90,7 @@ impl RuntimeInternal {
     /// main update loop
     async fn update(self_rc: Rc<RuntimeInternal>) {
         // update the ComHub
-        self_rc.com_hub.update().await;
+        // self_rc.com_hub.update().await;
         // handle incoming sections
         RuntimeInternal::handle_incoming_sections(self_rc);
     }
