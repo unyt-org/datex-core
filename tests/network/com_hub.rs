@@ -11,7 +11,6 @@ use datex_core::network::com_interfaces::default_com_interfaces::base_interface:
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
-use datex_core::stdlib::io::Write;
 use std::sync::mpsc;
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
@@ -243,7 +242,7 @@ pub async fn default_interface_create_socket_first() {
                 .await;
 
         let _ =
-            send_empty_block_and_update(&[TEST_ENDPOINT_B.clone()], &com_hub)
+            send_empty_block_and_update(std::slice::from_ref(&TEST_ENDPOINT_B), &com_hub)
                 .await;
 
         let mockup_interface_out = com_interface.clone();
@@ -385,7 +384,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
         let block_bytes = block.to_bytes().unwrap();
         {
             let mut socket_ref = socket.try_lock().unwrap();
-            let receive_queue = socket_ref.queue_outgoing_block(block_bytes.as_slice());
+            socket_ref.queue_outgoing_block(block_bytes.as_slice());
         }
         // FIXME update loop
         // com_hub.update_async().await;
@@ -563,15 +562,14 @@ pub async fn test_basic_routing() {
 pub async fn register_factory() {
     run_async! {
         init_global_context();
-        let com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
-        MockupInterface::register_on_com_hub(&com_hub);
+        let com_hub = Rc::new(ComHub::new(Endpoint::default(), AsyncContext::new()));
+        MockupInterface::register_on_com_hub(com_hub.clone());
 
         assert_eq!(com_hub.interface_manager().borrow().interface_factories.len(), 1);
         assert!(com_hub
             .interface_manager().borrow()
             .interface_factories
-            .get("mockup")
-            .is_some());
+            .contains_key("mockup"));
 
         // create a new mockup interface from the com_hub
         let mockup_interface = com_hub
@@ -621,7 +619,7 @@ pub async fn test_reconnect() {
 
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interface_manager().borrow().interfaces.len(), 1);
-        assert!(com_hub.has_interface(&base_interface.borrow().uuid()));
+        assert!(com_hub.has_interface(base_interface.borrow().uuid()));
 
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself

@@ -98,7 +98,7 @@ impl Debug for AsyncContext {
 #[derive(Debug)]
 pub struct RuntimeInternal {
     pub memory: RefCell<Memory>,
-    pub com_hub: ComHub,
+    pub com_hub: Rc<ComHub>,
     pub endpoint: Endpoint,
     pub config: RuntimeConfig,
     /// set to true if the update loop should be running
@@ -136,7 +136,10 @@ impl RuntimeInternal {
             endpoint: Endpoint::default(),
             config: RuntimeConfig::default(),
             memory: RefCell::new(Memory::new(Endpoint::default())),
-            com_hub: ComHub::new(Endpoint::default(), async_context.clone()),
+            com_hub: Rc::new(ComHub::new(
+                Endpoint::default(),
+                async_context.clone(),
+            )),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             execution_contexts: RefCell::new(HashMap::new()),
@@ -481,7 +484,7 @@ impl Runtime {
                 endpoint,
                 memory,
                 config,
-                com_hub,
+                com_hub: Rc::new(com_hub),
                 ..RuntimeInternal::new(async_context)
             }),
         }
@@ -509,8 +512,8 @@ impl Runtime {
         Self::new(config, async_context)
     }
 
-    pub fn com_hub(&self) -> &ComHub {
-        &self.internal.com_hub
+    pub fn com_hub(&self) -> Rc<ComHub> {
+        self.internal.com_hub.clone()
     }
     pub fn endpoint(&self) -> Endpoint {
         self.internal.endpoint.clone()
@@ -548,8 +551,7 @@ impl Runtime {
             return;
         }
         info!("starting runtime...");
-        self.com_hub()
-            .init()
+        ComHub::init(self.com_hub())
             .await
             .expect("Failed to initialize ComHub");
 

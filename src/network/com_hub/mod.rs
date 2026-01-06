@@ -174,20 +174,24 @@ impl ComHub {
     }
 
     pub async fn init(self_rc: Rc<Self>) -> Result<(), ComHubError> {
-        ComHub::handle_events(self_rc.clone());
-
         // add default local loopback interface
         let local_interface = LocalLoopbackInterface::new();
         self_rc
+            .clone()
             .interface_manager
             .borrow_mut()
             .open_and_add_interface(
                 Rc::new(RefCell::new(local_interface)),
                 InterfacePriority::None,
             )
-            .await
+            .await?;
+
+        // start handling ComHub events
+        ComHub::handle_events(self_rc.clone());
+        Ok(())
     }
 
+    /// Starts handling ComHub events
     fn handle_events(self_rc: Rc<Self>) {
         let receiver = self_rc
             .send_request_receiver
