@@ -1,8 +1,6 @@
 use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::TypeExpression;
-use crate::ast::type_expressions::{
-    StructuralMap, TypeExpressionData,
-};
+use crate::ast::type_expressions::{StructuralMap, TypeExpressionData};
 use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
 

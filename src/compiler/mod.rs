@@ -1,6 +1,5 @@
 use crate::compiler::error::{
-    CompilerError, SimpleOrDetailedCompilerError,
-    SpannedCompilerError,
+    CompilerError, SimpleOrDetailedCompilerError, SpannedCompilerError,
 };
 use crate::global::dxb_block::DXBBlock;
 use crate::global::operators::assignment::AssignmentOperator;
@@ -31,8 +30,7 @@ use crate::ast::resolved_variable::VariableId;
 use crate::core_compiler::value_compiler::{
     append_boolean, append_decimal, append_encoded_integer, append_endpoint,
     append_float_as_i16, append_float_as_i32, append_instruction_code,
-    append_integer, append_text, append_typed_decimal,
-    append_value_container,
+    append_integer, append_text, append_typed_decimal, append_value_container,
 };
 use crate::core_compiler::value_compiler::{append_get_ref, append_key_string};
 use crate::parser::{Parser, ParserOptions};

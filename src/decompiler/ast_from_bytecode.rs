@@ -492,10 +492,8 @@ pub fn ast_from_bytecode(
                                 terminated,
                             ) => {
                                 let result = collector.try_pop_unbounded().ok_or(DXBParserError::NotInUnboundedRegularScopeError)?;
-                                if let FullOrPartialResult::Full(
-                                    _,
-                                    results,
-                                ) = result
+                                if let FullOrPartialResult::Full(_, results) =
+                                    result
                                 {
                                     DatexExpressionData::Statements(
                                         Statements {
