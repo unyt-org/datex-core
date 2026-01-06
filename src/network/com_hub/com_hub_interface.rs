@@ -4,10 +4,10 @@ use crate::global::protocol_structures::routing_header::SignatureType;
 use crate::network::com_hub::managers::interface_manager::{
     ComInterfaceFactoryFn, InterfaceManager,
 };
-use crate::network::com_hub::options::ComHubOptions;
 use crate::network::com_hub::managers::socket_manager::{
     EndpointIterateOptions, SocketManager,
 };
+use crate::network::com_hub::options::ComHubOptions;
 use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::string::String;
@@ -44,7 +44,7 @@ use crate::network::com_interfaces::default_com_interfaces::local_loopback_inter
 use crate::runtime::AsyncContext;
 use crate::values::value_container::ValueContainer;
 use crate::network::com_hub::{
-    ComHub, ComHubError, InterfacePriority 
+    ComHub, ComHubError, InterfacePriority
 };
 
 /// Interface management methods
@@ -102,31 +102,26 @@ impl ComHub {
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<dyn ComInterface>> {
-        let socket =
-            self.socket_manager.borrow().socket_by_uuid(socket_uuid);
+        let socket = self.socket_manager.borrow().socket_by_uuid(socket_uuid);
         let socket = socket.try_lock().unwrap();
         self.interface_manager
             .borrow()
             .dyn_interface_by_uuid(&socket.interface_uuid)
     }
 
-	/// Creates a new interface of the given type with the provided setup data
-	pub async fn create_interface(
-		&self,
-		interface_type: &str,
+    /// Creates a new interface of the given type with the provided setup data
+    pub async fn create_interface(
+        &self,
+        interface_type: &str,
         setup_data: ValueContainer,
         priority: InterfacePriority,
     ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-		self.interface_manager
-			.borrow_mut()
-			.create_interface(
-				interface_type,
-				setup_data,
-				priority,
-			).await
-	}
+        self.interface_manager
+            .borrow_mut()
+            .create_interface(interface_type, setup_data, priority)
+            .await
+    }
 }
-
 
 async fn handle_interface_events(
     uuid: ComInterfaceUUID,
