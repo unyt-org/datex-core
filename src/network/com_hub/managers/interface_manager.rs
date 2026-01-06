@@ -36,6 +36,9 @@ pub struct InterfaceManager {
     pub interfaces: InterfaceMap,
 }
 
+/// Manages the registered interfaces and their factories
+/// Allows creating, adding, removing and querying interfaces
+/// Also handles interface events (lifecycle management)
 impl InterfaceManager {
     /// Registers a new interface factory for a specific interface implementation.
     /// This allows the ComHub to create new instances of the interface on demand.

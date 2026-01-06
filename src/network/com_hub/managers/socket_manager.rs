@@ -1,9 +1,11 @@
+use crate::task::UnboundedSender;
 use itertools::Itertools;
 use log::{debug, error, info};
 
 use crate::collections::{HashMap, HashSet};
 use crate::network::com_hub::{
-    ComHubError, InterfacePriority, SocketEndpointRegistrationError,
+    BlockSendEvent, ComHubError, InterfacePriority,
+    SocketEndpointRegistrationError,
 };
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceSocketEvent,
@@ -41,7 +43,6 @@ pub struct DynamicEndpointProperties {
     pub direction: InterfaceDirection,
 }
 
-#[derive(Default)]
 pub struct SocketManager {
     /// a list of all available sockets, keyed by their UUID
     /// contains the socket itself and a list of endpoints currently associated with it
@@ -62,8 +63,27 @@ pub struct SocketManager {
         Endpoint,
         Vec<(ComInterfaceSocketUUID, DynamicEndpointProperties)>,
     >,
+
+    /// sender to send hello requests to newly added sockets
+    block_event_sender: UnboundedSender<BlockSendEvent>,
+}
+impl SocketManager {
+    pub fn new(
+        block_event_sender: UnboundedSender<BlockSendEvent>,
+    ) -> SocketManager {
+        SocketManager {
+            sockets: HashMap::new(),
+            endpoint_sockets_blacklist: HashMap::new(),
+            fallback_sockets: Vec::new(),
+            endpoint_sockets: HashMap::new(),
+            block_event_sender,
+        }
+    }
 }
 
+/// Manages all sockets registered in the ComHub
+/// Handles socket registration, endpoint registration and socket selection for endpoints
+/// Also manages fallback sockets for outgoing connections and other lifelcycle events
 impl SocketManager {
     /// Add a socket to the blocklist for a specific endpoint
     pub fn add_to_endpoint_blocklist(
@@ -258,7 +278,7 @@ impl SocketManager {
     /// If the priority is not set to `InterfacePriority::None`, the socket
     /// is also registered as a fallback socket for outgoing connections with the
     /// specified priority.
-    async fn handle_new_socket(
+    fn handle_new_socket(
         &mut self,
         socket: Arc<Mutex<ComInterfaceSocket>>,
         priority: InterfacePriority,
@@ -297,29 +317,9 @@ impl SocketManager {
             }
 
             // send empty block to socket to say hello
-
-            // FIXME reenable !!! TODO
-
-            // let mut block: DXBBlock = DXBBlock::default();
-            // block
-            //     .block_header
-            //     .flags_and_timestamp
-            //     .set_block_type(BlockType::Hello);
-            // block
-            //     .routing_header
-            //     .flags
-            //     .set_signature_type(SignatureType::Unencrypted);
-            // // TODO #182 include fingerprint of the own public key into body
-
-            // let block = self.prepare_own_block(block).await?;
-
-            // drop(socket_ref);
-            // self.send_block_to_endpoints_via_socket(
-            //     block,
-            //     &socket_uuid,
-            //     &[Endpoint::ANY],
-            //     None,
-            // );
+            self.block_event_sender
+                .start_send(BlockSendEvent::HelloRequest(socket_uuid.clone()))
+                .expect("Can not send hello request to socket");
         }
         Ok(())
     }

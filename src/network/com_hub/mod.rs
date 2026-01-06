@@ -25,7 +25,9 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{self, spawn_with_panic_notify};
+use crate::task::{
+    self, UnboundedReceiver, create_unbounded_channel, spawn_with_panic_notify,
+};
 use crate::utils::time::Time;
 use core::cmp::PartialEq;
 use core::fmt::{Debug, Formatter};
@@ -55,6 +57,11 @@ pub type IncomingBlockInterceptor =
 pub type OutgoingBlockInterceptor =
     Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID, &[Endpoint]) + 'static>;
 
+#[derive(Debug, Clone)]
+pub enum BlockSendEvent {
+    HelloRequest(ComInterfaceSocketUUID),
+}
+
 pub struct ComHub {
     /// the runtime endpoint of the hub (@me)
     pub endpoint: Endpoint,
@@ -76,6 +83,8 @@ pub struct ComHub {
 
     incoming_block_interceptors: RefCell<Vec<IncomingBlockInterceptor>>,
     outgoing_block_interceptors: RefCell<Vec<OutgoingBlockInterceptor>>,
+
+    send_request_receiver: RefCell<Option<UnboundedReceiver<BlockSendEvent>>>,
 }
 
 impl Debug for ComHub {
@@ -143,15 +152,20 @@ impl ComHub {
         endpoint: impl Into<Endpoint>,
         async_context: AsyncContext,
     ) -> ComHub {
+        let (block_send_sender, send_request_receiver) =
+            create_unbounded_channel::<BlockSendEvent>();
         ComHub {
             endpoint: endpoint.into(),
             async_context,
             options: ComHubOptions::default(),
             block_handler: BlockHandler::new(),
-            socket_manager: Rc::new(RefCell::new(SocketManager::default())),
+            socket_manager: Rc::new(RefCell::new(SocketManager::new(
+                block_send_sender,
+            ))),
             interface_manager: Rc::new(RefCell::new(
                 InterfaceManager::default(),
             )),
+            send_request_receiver: RefCell::new(Some(send_request_receiver)),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             incoming_block_interceptors: RefCell::new(Vec::new()),
@@ -159,16 +173,30 @@ impl ComHub {
         }
     }
 
-    pub async fn init(&self) -> Result<(), ComHubError> {
+    pub async fn init(self_rc: Rc<Self>) -> Result<(), ComHubError> {
+        ComHub::handle_events(self_rc.clone());
+
         // add default local loopback interface
         let local_interface = LocalLoopbackInterface::new();
-        self.interface_manager
+        self_rc
+            .interface_manager
             .borrow_mut()
             .open_and_add_interface(
                 Rc::new(RefCell::new(local_interface)),
                 InterfacePriority::None,
             )
             .await
+    }
+
+    fn handle_events(self_rc: Rc<Self>) {
+        let receiver = self_rc
+            .send_request_receiver
+            .take()
+            .expect("ComHub event receiver already taken");
+        spawn_with_panic_notify(
+            &self_rc.clone().async_context,
+            com_hub_event_task(receiver, self_rc),
+        );
     }
 
     /// Register an incoming block interceptor
@@ -1181,4 +1209,46 @@ impl ComHub {
     //         );
     //     }
     // }
+
+    pub async fn send_hello_block(
+        &self,
+        socket_uuid: ComInterfaceSocketUUID,
+    ) -> Result<(), ComHubError> {
+        let mut block: DXBBlock = DXBBlock::default();
+        block
+            .block_header
+            .flags_and_timestamp
+            .set_block_type(BlockType::Hello);
+        block
+            .routing_header
+            .flags
+            .set_signature_type(SignatureType::Unencrypted);
+        // TODO #182 include fingerprint of the own public key into body
+
+        let block = self.prepare_own_block(block).await?;
+
+        self.send_block_to_endpoints_via_socket(
+            block,
+            &socket_uuid,
+            &[Endpoint::ANY],
+            None,
+        );
+        Ok(())
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn com_hub_event_task(
+    mut receiver: UnboundedReceiver<BlockSendEvent>,
+    self_rc: Rc<ComHub>,
+) {
+    while let Some(event) = receiver.next().await {
+        match event {
+            BlockSendEvent::HelloRequest(socket_uuid) => {
+                if let Err(err) = self_rc.send_hello_block(socket_uuid).await {
+                    error!("Failed to send hello block: {:?}", err);
+                }
+            }
+        }
+    }
 }
