@@ -255,10 +255,9 @@ impl MockupInterface {
             let socket = sockets.sockets.values().next();
             if let Some(socket) = socket {
                 let socket = socket.try_lock().unwrap();
-                let mut receive_queue =
-                    socket.receive_queue.try_lock().unwrap();
+                let receive_queue = socket.bytes_in_sender.clone();
                 while let Ok(block) = receiver.try_recv() {
-                    receive_queue.extend(block);
+                    receive_queue.try_lock().unwrap().send(block);
                 }
             }
         }

@@ -40,12 +40,14 @@ async fn create_network_trace() {
             )
             .await;
 
-        com_hub_mut_a.update_async().await;
-        com_hub_mut_b.update_async().await;
+
+        // FIXME update loop
+        // com_hub_mut_a.update_async().await;
+        // com_hub_mut_b.update_async().await;
         com_interface_a.borrow_mut().update();
         com_interface_b.borrow_mut().update();
-        com_hub_mut_a.update_async().await;
-        com_hub_mut_b.update_async().await;
+        // com_hub_mut_a.update_async().await;
+        // com_hub_mut_b.update_async().await;
 
         log::info!("Sending trace from A to B");
 

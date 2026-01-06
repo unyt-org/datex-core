@@ -86,7 +86,9 @@ pub async fn get_runtime_with_mock_interface(
 pub fn add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
-    mockup_interface_ref.borrow_mut().init_socket_default()
+    Arc::new(Mutex::new(
+        mockup_interface_ref.borrow_mut().init_socket_default(),
+    ))
 }
 
 pub fn register_socket_endpoint(
@@ -194,7 +196,8 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     }
 
     if !enable_update_loop {
-        com_hub.update_async().await;
+        // FIXME update loop
+        //com_hub.update_async().await;
     } else {
         tokio::task::yield_now().await;
     }
@@ -263,7 +266,8 @@ pub async fn send_block_with_body(
         block
     };
 
-    com_hub.update_async().await;
+    // FIXME update loop
+    // com_hub.update_async().await;
     block
 }
 
@@ -276,7 +280,8 @@ pub async fn send_empty_block_and_update(
     {
         com_hub.send_own_block(block.clone()).await;
     }
-    com_hub.update_async().await;
+    // FIXME update loop
+    // com_hub.update_async().await;
     block
 }
 

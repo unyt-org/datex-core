@@ -106,6 +106,16 @@ impl ComHub {
             .create_interface(interface_type, setup_data, priority)
             .await
     }
+
+    pub async fn remove_interface(
+        &self,
+        interface_uuid: ComInterfaceUUID,
+    ) -> Result<(), ComHubError> {
+        self.interface_manager
+            .borrow_mut()
+            .remove_interface(interface_uuid)
+            .await
+    }
 }
 
 async fn handle_interface_events(

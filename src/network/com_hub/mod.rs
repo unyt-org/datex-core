@@ -15,6 +15,7 @@ mod managers;
 #[cfg(feature = "debug")]
 pub mod metadata;
 use crate::network::com_hub::managers::socket_manager::SocketManager;
+
 mod com_hub_socket;
 pub mod errors;
 pub mod network_response;
@@ -45,6 +46,8 @@ use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
 use crate::runtime::AsyncContext;
 pub mod com_hub_interface;
+
+pub use managers::interface_manager::ComInterfaceFactoryFn;
 
 pub type IncomingBlockInterceptor =
     Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
