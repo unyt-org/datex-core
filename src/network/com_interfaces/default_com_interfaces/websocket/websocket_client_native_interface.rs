@@ -73,7 +73,7 @@ impl WebSocketClientNativeInterface {
             })?;
         let (write, mut read) = stream.split();
         let socket = ComInterfaceSocket::init(
-            self.get_uuid().clone(),
+            self.uuid().clone(),
             InterfaceDirection::InOut,
             1,
         );

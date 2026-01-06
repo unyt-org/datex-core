@@ -64,7 +64,7 @@ impl TCPClientNativeInterface {
         self.tx = Some(Rc::new(RefCell::new(write_half)));
 
         let socket = ComInterfaceSocket::init(
-            self.get_uuid().clone(),
+            self.uuid().clone(),
             InterfaceDirection::InOut,
             1,
         );

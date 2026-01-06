@@ -1,5 +1,6 @@
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
+use crate::network::interface_manager::{ComInterfaceFactoryFn, InterfaceManager};
 use crate::network::socket_manager::{EndpointIterateOptions, SocketManager};
 use crate::stdlib::boxed::Box;
 use crate::stdlib::{cell::RefCell, rc::Rc};
@@ -34,7 +35,7 @@ use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData};
 use crate::network::com_hub_network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
-use crate::network::com_interfaces::com_interface::{ComInterfaceSocketEvent, ComInterfaceUUID};
+use crate::network::com_interfaces::com_interface::{ComInterfaceEvent, ComInterfaceSocketEvent, ComInterfaceUUID};
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, ReconnectionConfig,
 };
@@ -52,11 +53,6 @@ pub struct DynamicEndpointProperties {
     pub direction: InterfaceDirection,
 }
 
-pub type ComInterfaceFactoryFn =
-    fn(
-        setup_data: ValueContainer,
-    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
-
 #[derive(Debug)]
 pub struct ComHubOptions {
     default_receive_timeout: Duration,
@@ -69,11 +65,6 @@ impl Default for ComHubOptions {
         }
     }
 }
-
-type InterfaceMap = HashMap<
-    ComInterfaceUUID,
-    (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
->;
 
 pub type IncomingBlockInterceptor =
     Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
@@ -90,13 +81,8 @@ pub struct ComHub {
     /// ComHub configuration options
     pub options: ComHubOptions,
 
-    /// a list of all available interface factories, keyed by their interface type
-    pub interface_factories: RefCell<HashMap<String, ComInterfaceFactoryFn>>,
-
-    /// a list of all available interfaces, keyed by their UUID
-    pub interfaces: RefCell<InterfaceMap>,
-
-    pub socket_manager: Rc<RefCell<SocketManager>>,
+    socket_manager: Rc<RefCell<SocketManager>>,
+    interface_manager: Rc<RefCell<InterfaceManager>>,
 
     /// set to true if the update loop should be running
     /// when set to false, the update loop will stop
@@ -237,10 +223,11 @@ impl ComHub {
             endpoint: endpoint.into(),
             async_context,
             options: ComHubOptions::default(),
-            interface_factories: RefCell::new(HashMap::new()),
-            interfaces: RefCell::new(HashMap::new()),
             block_handler: BlockHandler::new(),
             socket_manager: Rc::new(RefCell::new(SocketManager::default())),
+            interface_manager: Rc::new(RefCell::new(
+                InterfaceManager::default(),
+            )),
             update_loop_running: RefCell::new(false),
             update_loop_stop_sender: RefCell::new(None),
             incoming_block_interceptors: RefCell::new(Vec::new()),
@@ -251,60 +238,13 @@ impl ComHub {
     pub async fn init(&self) -> Result<(), ComHubError> {
         // add default local loopback interface
         let local_interface = LocalLoopbackInterface::new();
-        self.open_and_add_interface(
-            Rc::new(RefCell::new(local_interface)),
-            InterfacePriority::None,
-        )
-        .await
-    }
-
-    /// Registers a new interface factory for a specific interface implementation.
-    /// This allows the ComHub to create new instances of the interface on demand.
-    pub fn register_interface_factory(
-        &self,
-        interface_type: String,
-        factory: ComInterfaceFactoryFn,
-    ) {
-        self.interface_factories
+        self.interface_manager
             .borrow_mut()
-            .insert(interface_type, factory);
-    }
-
-    /// Creates a new interface instance using the registered factory
-    /// for the specified interface type if it exists.
-    /// The interface is opened and added to the ComHub.
-    pub async fn create_interface(
-        &self,
-        interface_type: &str,
-        setup_data: ValueContainer,
-        priority: InterfacePriority,
-    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
-        info!("creating interface {interface_type}");
-        let interface_factories = self.interface_factories.borrow();
-        if let Some(factory) = interface_factories.get(interface_type) {
-            let interface =
-                factory(setup_data).map_err(ComHubError::InterfaceError)?;
-            drop(interface_factories);
-
-            self.open_and_add_interface(interface.clone(), priority)
-                .await
-                .map(|_| interface)
-        } else {
-            Err(ComHubError::InterfaceTypeDoesNotExist)
-        }
-    }
-
-    fn try_downcast<T: 'static>(
-        input: Rc<RefCell<dyn ComInterface>>,
-    ) -> Option<Rc<RefCell<T>>> {
-        // Try to get a reference to the inner value
-        if input.borrow().as_any().is::<T>() {
-            // SAFETY: We're ensuring T is the correct type via the check
-            let ptr = Rc::into_raw(input) as *const RefCell<T>;
-            unsafe { Some(Rc::from_raw(ptr)) }
-        } else {
-            None
-        }
+            .open_and_add_interface(
+                Rc::new(RefCell::new(local_interface)),
+                InterfacePriority::None,
+            )
+            .await
     }
 
     /// Register an incoming block interceptor
@@ -327,146 +267,24 @@ impl ComHub {
             .push(Box::new(interceptor));
     }
 
-    pub fn get_interface_by_uuid<T: ComInterface>(
-        &self,
-        interface_uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<T>>> {
-        ComHub::try_downcast(
-            self.interfaces.borrow().get(interface_uuid)?.0.clone(),
-        )
-    }
-
-    pub fn has_interface(&self, interface_uuid: &ComInterfaceUUID) -> bool {
-        self.interfaces.borrow().contains_key(interface_uuid)
-    }
-
-    pub fn get_dyn_interface_by_uuid(
-        &self,
-        uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<dyn ComInterface>>> {
-        self.interfaces
-            .borrow()
-            .get(uuid)
-            .map(|(interface, _)| interface.clone())
-    }
-
-    pub async fn open_and_add_interface(
-        &self,
-        interface: Rc<RefCell<dyn ComInterface>>,
-        priority: InterfacePriority,
-    ) -> Result<(), ComHubError> {
-        if interface.borrow().get_state() != ComInterfaceState::Connected {
-            // If interface is not connected, open it
-            // and wait for it to be connected
-            // FIXME #240: borrow_mut across await point
-            if !(interface.borrow_mut().handle_open().await) {
-                return Err(ComHubError::InterfaceOpenFailed);
-            }
-        }
-        self.add_interface(interface.clone(), priority)
-    }
-
-    pub fn add_interface(
-        &self,
-        interface: Rc<RefCell<dyn ComInterface>>,
-        priority: InterfacePriority,
-    ) -> Result<(), ComHubError> {
-        let uuid = interface.borrow().get_uuid().clone();
-        let mut interfaces = self.interfaces.borrow_mut();
-        if interfaces.contains_key(&uuid) {
-            return Err(ComHubError::InterfaceAlreadyExists);
-        }
-
-        // make sure the interface can send if a priority is set
-        if priority != InterfacePriority::None
-            && interface.borrow_mut().get_properties().direction
-                == InterfaceDirection::In
-        {
-            return Err(
-                ComHubError::InvalidInterfaceDirectionForFallbackInterface,
-            );
-        }
-
-        interfaces.insert(uuid, (interface.clone(), priority));
-
-        // handle socket events
-        self.handle_socket_events(interface);
-        // handle interface events
-        self.handle_interface_events(interface);
-        Ok(())
-    }
-
-    fn handle_interface_events(
-        &self,
-        interface: Rc<RefCell<dyn ComInterface>>,
-    ) {
-        let interface_event_receiver =
-            interface.borrow_mut().take_interface_event_receiver();
-        spawn_with_panic_notify(
-            &self.async_context,
-            handle_com_interface_events(interface_event_receiver),
-        );
-    }
-
     fn handle_socket_events(&self, interface: Rc<RefCell<dyn ComInterface>>) {
+        let mut interface_borrow = interface.borrow_mut();
         let socket_event_receiver =
-            interface.borrow_mut().take_socket_event_receiver();
+            interface_borrow.take_socket_event_receiver();
+        let interface_uuid = interface_borrow.uuid();
         let priority = self
-            .interfaces
+            .interface_manager
             .borrow()
-            .get(&interface.borrow().get_uuid())
-            .map(|(_, p)| *p)
+            .interface_priority(interface_uuid)
             .unwrap_or(InterfacePriority::None);
         spawn_with_panic_notify(
             &self.async_context,
-            handle_com_interface_socket_events(
+            handle_socket_events(
                 socket_event_receiver,
                 self.socket_manager.clone(),
                 priority,
             ),
         );
-    }
-
-    /// User can proactively remove an interface from the hub.
-    /// This will destroy the interface and it's sockets (perform deep cleanup)
-    pub async fn remove_interface(
-        &self,
-        interface_uuid: ComInterfaceUUID,
-    ) -> Result<(), ComHubError> {
-        info!("Removing interface {interface_uuid}");
-        let interface = self
-            .interfaces
-            .borrow_mut()
-            .get_mut(&interface_uuid.clone())
-            .ok_or(ComHubError::InterfaceDoesNotExist)?
-            .0
-            .clone();
-        {
-            // Async close the interface (stop tasks, server, cleanup internal data)
-            // FIXME #176: borrow_mut should not be used here
-            let mut interface = interface.borrow_mut();
-            interface.handle_destroy().await;
-        }
-
-        self.cleanup_interface(interface_uuid)
-            .ok_or(ComHubError::InterfaceDoesNotExist)?;
-
-        Ok(())
-    }
-
-    /// The internal cleanup function that removes the interface from the hub
-    /// and disabled the default interface if it was set to this interface
-    fn cleanup_interface(
-        &self,
-        interface_uuid: ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<dyn ComInterface>>> {
-        let interface = self
-            .interfaces
-            .borrow_mut()
-            .remove(&interface_uuid)
-            .or(None)?
-            .0;
-        Some(interface)
     }
 
     pub(crate) async fn receive_block(
@@ -884,31 +702,31 @@ impl ComHub {
     /// Waits for all background tasks scheduled by the update() function to finish
     /// This includes block flushes from `flush_outgoing_blocks()`
     /// and interface (re)-connections from `update_interfaces()`
-    pub async fn wait_for_update_async(&self) {
-        loop {
-            let mut is_done = true;
-            for interface in self.interfaces.borrow().values() {
-                let interface = interface.0.clone();
-                let interface = interface.borrow_mut();
-                let outgoing_blocks_count =
-                    interface.get_info().outgoing_blocks_count.get();
-                // blocks are still sent out on this interface
-                if outgoing_blocks_count > 0 {
-                    is_done = false;
-                    break;
-                }
-                // interface is still in connection task
-                if interface.get_state() == ComInterfaceState::Connecting {
-                    is_done = false;
-                    break;
-                }
-            }
-            if is_done {
-                break;
-            }
-            sleep(Duration::from_millis(10)).await;
-        }
-    }
+    // pub async fn wait_for_update_async(&self) {
+    //     loop {
+    //         let mut is_done = true;
+    //         for interface in self.interfaces.borrow().values() {
+    //             let interface = interface.0.clone();
+    //             let interface = interface.borrow_mut();
+    //             let outgoing_blocks_count =
+    //                 interface.get_info().outgoing_blocks_count.get();
+    //             // blocks are still sent out on this interface
+    //             if outgoing_blocks_count > 0 {
+    //                 is_done = false;
+    //                 break;
+    //             }
+    //             // interface is still in connection task
+    //             if interface.get_state() == ComInterfaceState::Connecting {
+    //                 is_done = false;
+    //                 break;
+    //             }
+    //         }
+    //         if is_done {
+    //             break;
+    //         }
+    //         sleep(Duration::from_millis(10)).await;
+    //     }
+    // }
 
     /// Updates all sockets and interfaces,
     /// collecting incoming data and sending out queued blocks.
@@ -916,36 +734,6 @@ impl ComHub {
     pub async fn update_async(&self) {
         self.update().await;
         self.wait_for_update_async().await;
-    }
-
-    /// Returns the com interface for a given UUID
-    /// The interface must be registered in the ComHub,
-    /// otherwise a panic will be triggered
-    pub(crate) fn get_com_interface_by_uuid(
-        &self,
-        interface_uuid: &ComInterfaceUUID,
-    ) -> Rc<RefCell<dyn ComInterface>> {
-        self.interfaces
-            .borrow()
-            .get(interface_uuid)
-            .unwrap_or_else(|| {
-                core::panic!("Interface for uuid {interface_uuid} not found")
-            })
-            .0
-            .clone()
-    }
-
-    /// Returns the com interface for a given socket UUID
-    /// The interface and socket must be registered in the ComHub,
-    /// otherwise a panic will be triggered
-    pub(crate) fn get_com_interface_from_socket_uuid(
-        &self,
-        socket_uuid: &ComInterfaceSocketUUID,
-    ) -> Rc<RefCell<dyn ComInterface>> {
-        let socket =
-            self.socket_manager.borrow().get_socket_by_uuid(socket_uuid);
-        let socket = socket.try_lock().unwrap();
-        self.get_com_interface_by_uuid(&socket.interface_uuid)
     }
 
     /// Runs the update loop for the ComHub.
@@ -1353,11 +1141,9 @@ impl ComHub {
                         endpoint: self.endpoint.clone(),
                         distance,
                         socket: NetworkTraceHopSocket::new(
-                            self.get_com_interface_from_socket_uuid(
-                                socket_uuid,
-                            )
-                            .borrow_mut()
-                            .get_properties(),
+                            self.dyn_interface_for_socket_uuid(socket_uuid)
+                                .borrow_mut()
+                                .get_properties(),
                             socket_uuid.clone(),
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
@@ -1513,6 +1299,70 @@ impl ComHub {
     // }
 }
 
+/// Interface management methods
+impl ComHub {
+    /// Registers a new interface factory for the given interface type
+    pub fn register_interface_factory(
+        &mut self,
+        interface_type: String,
+        factory: ComInterfaceFactoryFn,
+    ) {
+        self.interface_manager
+            .borrow_mut()
+            .register_interface_factory(interface_type, factory);
+    }
+
+    /// Adds a new interface to the ComHub
+    pub fn add_interface(
+        &mut self,
+        interface: Rc<RefCell<dyn ComInterface>>,
+        priority: InterfacePriority,
+    ) -> Result<(), ComHubError> {
+        self.interface_manager
+            .borrow_mut()
+            .add_interface(interface.clone(), priority)?;
+
+        // handle socket events
+        self.handle_socket_events(interface.clone());
+        // handle interface events
+        self.handle_interface_events(interface);
+        Ok(())
+    }
+
+    /// Internal method to handle interface events
+    fn handle_interface_events(
+        &self,
+        interface: Rc<RefCell<dyn ComInterface>>,
+    ) {
+        let interface_event_receiver =
+            interface.borrow_mut().take_interface_event_receiver();
+        let uuid = interface.borrow().uuid().clone();
+        spawn_with_panic_notify(
+            &self.async_context,
+            handle_interface_events(
+                uuid,
+                interface_event_receiver,
+                self.interface_manager.clone(),
+            ),
+        );
+    }
+
+    /// Returns the com interface for a given socket UUID
+    /// The interface and socket must be registered in the ComHub,
+    /// otherwise a panic will be triggered
+    pub(crate) fn dyn_interface_for_socket_uuid(
+        &self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> Rc<RefCell<dyn ComInterface>> {
+        let socket =
+            self.socket_manager.borrow().get_socket_by_uuid(socket_uuid);
+        let socket = socket.try_lock().unwrap();
+        self.interface_manager
+            .borrow()
+            .dyn_interface_by_uuid(&socket.interface_uuid)
+    }
+}
+
 #[derive(Default, PartialEq, Debug)]
 pub enum ResponseResolutionStrategy {
     /// Promise.allSettled
@@ -1628,7 +1478,7 @@ impl Display for ResponseError {
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn handle_com_interface_socket_events(
+async fn handle_socket_events(
     mut receiver_queue: UnboundedReceiver<ComInterfaceSocketEvent>,
     socket_manager: Rc<RefCell<SocketManager>>,
     priority: InterfacePriority,
@@ -1637,5 +1487,17 @@ async fn handle_com_interface_socket_events(
         socket_manager
             .borrow_mut()
             .handle_socket_event(event, priority);
+    }
+}
+
+async fn handle_interface_events(
+    uuid: ComInterfaceUUID,
+    mut receiver_queue: UnboundedReceiver<ComInterfaceEvent>,
+    interface_manager: Rc<RefCell<InterfaceManager>>,
+) {
+    while let Some(event) = receiver_queue.next().await {
+        interface_manager
+            .borrow_mut()
+            .handle_interface_event(&uuid, event);
     }
 }

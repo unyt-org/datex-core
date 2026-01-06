@@ -292,7 +292,7 @@ macro_rules! set_sync_opener {
 #[macro_export]
 macro_rules! delegate_com_interface_info {
     () => {
-        fn get_uuid(&self) -> &$crate::network::com_interfaces::com_interface::ComInterfaceUUID {
+        fn uuid(&self) -> &$crate::network::com_interfaces::com_interface::ComInterfaceUUID {
             &self.info.get_uuid()
         }
         fn get_state(&self) -> $crate::network::com_interfaces::com_interface::ComInterfaceState {
@@ -492,7 +492,7 @@ pub trait ComInterface: Any {
     // TODO #195: no mut, wrap self.info in RefCell
     fn get_properties(&mut self) -> &InterfaceProperties;
     fn get_properties_mut(&mut self) -> &mut InterfaceProperties;
-    fn get_uuid(&self) -> &ComInterfaceUUID;
+    fn uuid(&self) -> &ComInterfaceUUID;
 
     fn get_info(&self) -> &ComInterfaceInfo;
     fn get_info_mut(&mut self) -> &mut ComInterfaceInfo;
@@ -543,7 +543,7 @@ pub trait ComInterface: Any {
     /// This will set the state to `NotConnected` or `Destroyed` depending on
     /// if the interface could be closed or not.
     fn close<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let uuid = self.get_uuid().clone();
+        let uuid = self.uuid().clone();
         if self.get_state().is_destroyed_or_not_connected() {
             warn!("Interface {uuid} is already closed. Not closing again.");
             return Box::pin(async move { false });
@@ -584,7 +584,7 @@ pub trait ComInterface: Any {
         if self.get_state().is_destroyed() {
             core::panic!(
                 "Interface {} is already destroyed. Not destroying again.",
-                self.get_uuid()
+                self.uuid()
             );
         }
         Box::pin(async move {
@@ -636,16 +636,12 @@ pub trait ComInterface: Any {
         direction: InterfaceDirection,
         channel_factor: u32,
     ) -> ComInterfaceSocket {
-        ComInterfaceSocket::init(
-            self.get_uuid().clone(),
-            direction,
-            channel_factor,
-        )
+        ComInterfaceSocket::init(self.uuid().clone(), direction, channel_factor)
     }
 
     fn init_socket_default(&self) -> ComInterfaceSocket {
         ComInterfaceSocket::init(
-            self.get_uuid().clone(),
+            self.uuid().clone(),
             self.init_properties().direction,
             self.get_channel_factor(),
         )
@@ -654,14 +650,14 @@ pub trait ComInterface: Any {
 
 impl PartialEq for dyn ComInterface {
     fn eq(&self, other: &Self) -> bool {
-        self.get_uuid() == other.get_uuid()
+        self.uuid() == other.uuid()
     }
 }
 impl Eq for dyn ComInterface {}
 
 impl Hash for dyn ComInterface {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let uuid = self.get_uuid();
+        let uuid = self.uuid();
         uuid.hash(state);
     }
 }

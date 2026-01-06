@@ -41,7 +41,7 @@ pub async fn test_add_and_remove() {
     let uuid = {
         let mockup_interface =
             Rc::new(RefCell::new(MockupInterface::default()));
-        let uuid = mockup_interface.borrow().get_uuid().clone();
+        let uuid = mockup_interface.borrow().uuid().clone();
         com_hub
             .open_and_add_interface(
                 mockup_interface.clone(),
@@ -483,7 +483,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
 
         assert_eq!(socket.try_lock().unwrap().state, SocketState::Open);
 
-        let uuid = com_interface.borrow().get_uuid().clone();
+        let uuid = com_interface.borrow().uuid().clone();
 
         // remove interface
         assert!(com_hub.remove_interface(uuid).await.is_ok());
@@ -612,7 +612,7 @@ pub async fn test_reconnect() {
 
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interfaces.borrow().len(), 1);
-        assert!(com_hub.has_interface(base_interface.borrow().get_uuid()));
+        assert!(com_hub.has_interface(base_interface.borrow().uuid()));
 
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself

@@ -101,7 +101,7 @@ impl WebSocketServerNativeInterface {
             )
         })?;
 
-        let interface_uuid = self.get_uuid().clone();
+        let interface_uuid = self.uuid().clone();
         let com_interface_sockets = self.get_sockets().clone();
         let websocket_streams = self.websocket_streams.clone();
         let shutdown = self.shutdown_signal.clone();

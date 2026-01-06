@@ -147,7 +147,7 @@ impl HTTPServerNativeInterface {
             let (client_tx, mut rx) = mpsc::channel::<Bytes>(100); // FIXME #198 not braodcast needed
             map.insert(route.to_string(), (server_tx, client_tx));
             let socket = ComInterfaceSocket::init(
-                self.get_uuid().clone(),
+                self.uuid().clone(),
                 InterfaceDirection::InOut,
                 1,
             );

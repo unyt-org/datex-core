@@ -70,7 +70,7 @@ impl MockupInterface {
     pub fn init_socket(&mut self) -> Arc<Mutex<ComInterfaceSocket>> {
         let direction = self.get_properties().direction.clone();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::init(
-            self.get_uuid().clone(),
+            self.uuid().clone(),
             direction,
             1,
         )));

@@ -67,7 +67,7 @@ impl TCPServerNativeInterface {
             .map_err(|e| TCPError::Other(format!("{e:?}")))?;
         info!("Server listening on {address}");
 
-        let interface_uuid = self.get_uuid().clone();
+        let interface_uuid = self.uuid().clone();
         let sockets = self.get_sockets().clone();
         let tx = self.tx.clone();
         // TODO #615: use normal spawn (thread)? currently leads to global context panic
