@@ -116,6 +116,12 @@ impl ComHub {
             .remove_interface(interface_uuid)
             .await
     }
+
+    pub fn has_interface(&self, interface_uuid: &ComInterfaceUUID) -> bool {
+        self.interface_manager
+            .borrow()
+            .has_interface(interface_uuid)
+    }
 }
 
 async fn handle_interface_events(

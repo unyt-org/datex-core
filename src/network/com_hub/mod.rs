@@ -128,6 +128,16 @@ async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
     }
 }
 
+// #[cfg(test)]
+impl ComHub {
+    pub fn socket_manager(&self) -> Rc<RefCell<SocketManager>> {
+        self.socket_manager.clone()
+    }
+    pub fn interface_manager(&self) -> Rc<RefCell<InterfaceManager>> {
+        self.interface_manager.clone()
+    }
+}
+
 impl ComHub {
     pub fn new(
         endpoint: impl Into<Endpoint>,

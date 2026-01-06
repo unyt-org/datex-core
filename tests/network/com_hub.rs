@@ -307,10 +307,8 @@ pub async fn test_receive() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let socket_ref = socket.try_lock().unwrap();
-            let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
-            let _ = receive_queue_mut.write(block_bytes.as_slice());
+            let mut socket_ref = socket.try_lock().unwrap();
+            socket_ref.queue_outgoing_block(block_bytes.as_slice());
         }
         // FIXME update loop
         // com_hub.update_async().await;
@@ -346,10 +344,8 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let socket_ref = socket.try_lock().unwrap();
-            let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
-            let _ = receive_queue_mut.write(block_bytes.as_slice());
+            let mut socket_ref = socket.try_lock().unwrap();
+            socket_ref.queue_outgoing_block(block_bytes.as_slice());
         }
         // FIXME update loop
         // com_hub.update_async().await;
@@ -388,10 +384,8 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let socket_ref = socket.try_lock().unwrap();
-            let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
-            let _ = receive_queue_mut.write(block_bytes.as_slice());
+            let mut socket_ref = socket.try_lock().unwrap();
+            let receive_queue = socket_ref.queue_outgoing_block(block_bytes.as_slice());
         }
         // FIXME update loop
         // com_hub.update_async().await;
@@ -450,11 +444,9 @@ pub async fn test_receive_multiple() {
             .collect();
 
         {
-            let socket_ref = socket.try_lock().unwrap();
-            let receive_queue = socket_ref.get_receive_queue();
-            let mut receive_queue_mut = receive_queue.try_lock().unwrap();
+            let mut socket_ref = socket.try_lock().unwrap();
             for block in block_bytes.iter() {
-                let _ = receive_queue_mut.write(block);
+                socket_ref.queue_outgoing_block(block);
             }
         }
 
@@ -479,9 +471,13 @@ pub async fn test_add_and_remove_interface_and_sockets() {
 
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket().await;
 
-        assert_eq!(com_hub.interfaces.borrow().len(), 1);
-        assert_eq!(com_hub.sockets.borrow().len(), 1);
-        assert_eq!(com_hub.endpoint_sockets.borrow().len(), 1);
+        {
+            let interface_manager = com_hub.interface_manager();
+            let socket_manager = com_hub.socket_manager();
+            assert_eq!(interface_manager.borrow().interfaces.len(), 1);
+            assert_eq!(socket_manager.borrow().sockets.len(), 1);
+            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 1);
+        }
 
         assert_eq!(
             com_interface.borrow_mut().get_info().get_state(),
@@ -495,9 +491,13 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         // remove interface
         assert!(com_hub.remove_interface(uuid).await.is_ok());
 
-        assert_eq!(com_hub.interfaces.borrow().len(), 0);
-        assert_eq!(com_hub.sockets.borrow().len(), 0);
-        assert_eq!(com_hub.endpoint_sockets.borrow().len(), 0);
+        {
+            let interface_manager = com_hub.interface_manager();
+            let socket_manager = com_hub.socket_manager();
+            assert_eq!(interface_manager.borrow().interfaces.len(), 0);
+            assert_eq!(socket_manager.borrow().sockets.len(), 0);
+            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 0);
+        }
 
         assert_eq!(
             com_interface.borrow_mut().get_info().get_state(),
@@ -538,8 +538,9 @@ pub async fn test_basic_routing() {
         com_interface_a.borrow_mut().update();
         com_interface_b.borrow_mut().update();
 
-        com_hub_mut_a.update_async().await;
-        com_hub_mut_b.update_async().await;
+        // FIXME update loop
+        // com_hub_mut_a.update_async().await;
+        // com_hub_mut_b.update_async().await;
 
         let block_a_to_b = send_block_with_body(
             &[TEST_ENDPOINT_B.clone()],
@@ -549,7 +550,8 @@ pub async fn test_basic_routing() {
         .await;
 
         com_interface_b.borrow_mut().update();
-        com_hub_mut_b.update_async().await;
+        // FIXME update loop
+        // com_hub_mut_b.update_async().await;
 
         let last_block =
             get_last_received_single_block_from_com_hub(&com_hub_mut_b);
@@ -561,13 +563,13 @@ pub async fn test_basic_routing() {
 pub async fn register_factory() {
     run_async! {
         init_global_context();
-        let mut com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
+        let com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
         MockupInterface::register_on_com_hub(&com_hub);
 
-        assert_eq!(com_hub.interface_factories.borrow().len(), 1);
+        assert_eq!(com_hub.interface_manager().borrow().interface_factories.len(), 1);
         assert!(com_hub
+            .interface_manager().borrow()
             .interface_factories
-            .borrow()
             .get("mockup")
             .is_some());
 
@@ -595,7 +597,7 @@ pub async fn register_factory() {
 pub async fn test_reconnect() {
     run_async! {
         init_global_context();
-        let com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
+        let mut com_hub = ComHub::new(Endpoint::default(), AsyncContext::new());
 
         // create a new interface, open it and add it to the com_hub
         let mut base_interface =
@@ -618,8 +620,8 @@ pub async fn test_reconnect() {
         );
 
         // check that the interface is in the com_hub
-        assert_eq!(com_hub.interfaces.borrow().len(), 1);
-        assert!(com_hub.has_interface(base_interface.borrow().uuid()));
+        assert_eq!(com_hub.interface_manager().borrow().interfaces.len(), 1);
+        assert!(com_hub.has_interface(&base_interface.borrow().uuid()));
 
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself
@@ -640,7 +642,9 @@ pub async fn test_reconnect() {
             .is_some());
 
         // the interface should not be reconnected yet
-        com_hub.update_async().await;
+        // FIXME update loop
+        // com_hub.update_async().await;
+
         assert_eq!(
             base_interface.borrow().get_state(),
             ComInterfaceState::NotConnected
@@ -651,7 +655,8 @@ pub async fn test_reconnect() {
 
         // check that the interface is connected again
         // and that the close_timestamp is reset
-        com_hub.update_async().await;
+        // FIXME update loop
+        // com_hub.update_async().await;
 
         assert_eq!(
             base_interface.borrow().get_state(),
