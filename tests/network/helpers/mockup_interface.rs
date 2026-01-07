@@ -67,7 +67,7 @@ impl MockupInterface {
         mockup_interface
     }
 
-    pub fn init_socket(&mut self) -> Arc<Mutex<ComInterfaceSocket>> {
+    pub fn create_and_add_socket(&mut self) -> Arc<Mutex<ComInterfaceSocket>> {
         let direction = self.get_properties().direction.clone();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::init(
             self.uuid().clone(),
@@ -188,11 +188,10 @@ impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
                     interface.get_socket_uuid().clone().unwrap(),
                     endpoint,
                     1,
-                )
-                .unwrap();
+                )?;
         }
         interface.start_update_loop();
-        log::info!("started update loop");
+        info!("started update loop");
         Ok(interface)
     }
 
@@ -239,14 +238,14 @@ impl MockupInterface {
         self.outgoing_queue.last().cloned()
     }
 
-    pub fn update(&mut self) {
+    pub async fn update(&mut self) {
         MockupInterface::_update(
             self.receiver.clone(),
             self.info.com_interface_sockets(),
-        );
+        ).await;
     }
 
-    pub fn _update(
+    pub async fn _update(
         receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
         sockets: Arc<Mutex<ComInterfaceSockets>>,
     ) {
@@ -257,7 +256,7 @@ impl MockupInterface {
                 let socket = socket.try_lock().unwrap();
                 let receive_queue = socket.bytes_in_sender.clone();
                 while let Ok(block) = receiver.try_recv() {
-                    receive_queue.try_lock().unwrap().send(block);
+                    receive_queue.try_lock().unwrap().send(block).await.expect("Failed to send block to socket");
                 }
             }
         }

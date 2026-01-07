@@ -138,7 +138,8 @@ impl ComInterfaceSockets {
             debug!("Socket added: {uuid}");
         }
         self.socket_event_sender
-            .start_send(ComInterfaceSocketEvent::NewSocket(socket.clone()));
+            .start_send(ComInterfaceSocketEvent::NewSocket(socket.clone()))
+            .unwrap();
     }
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
         self.sockets.remove(socket_uuid);
@@ -180,7 +181,7 @@ impl ComInterfaceSockets {
                 distance as i8,
                 endpoint.clone(),
             ),
-        );
+        ).unwrap();
         Ok(())
     }
 }
@@ -626,7 +627,11 @@ pub trait ComInterface: Any {
 
     fn get_channel_factor(&self) -> u32 {
         let properties = self.init_properties();
-        properties.max_bandwidth / properties.round_trip_time.as_millis() as u32
+        let round_trip_time_millis = properties.round_trip_time.as_millis();
+        if round_trip_time_millis == 0 {
+            return u32::MAX;
+        }
+        properties.max_bandwidth / round_trip_time_millis as u32
     }
 
     fn init_socket(

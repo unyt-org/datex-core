@@ -1,12 +1,10 @@
-use crate::task::UnboundedSender;
+use crate::stdlib::rc::Rc;
+use crate::task::{spawn_local, spawn_with_panic_notify, UnboundedReceiver, UnboundedSender};
 use itertools::Itertools;
 use log::{debug, error, info};
 
 use crate::collections::{HashMap, HashSet};
-use crate::network::com_hub::{
-    BlockSendEvent, ComHubError, InterfacePriority,
-    SocketEndpointRegistrationError,
-};
+use crate::network::com_hub::{BlockSendEvent, ComHub, ComHubError, InterfacePriority, SocketEndpointRegistrationError};
 use crate::network::com_interfaces::com_interface::{
     ComInterface, ComInterfaceSocketEvent,
 };
@@ -21,6 +19,8 @@ use crate::{
     },
     values::core_values::endpoint::Endpoint,
 };
+use crate::global::dxb_block::DXBBlock;
+use crate::runtime::AsyncContext;
 
 pub type SocketsByUUID = HashMap<
     ComInterfaceSocketUUID,
@@ -263,8 +263,7 @@ impl SocketManager {
 
     /// Adds a socket to the SocketManager
     /// Panics if the socket already exists
-    fn add_socket_to_list(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        let socket_uuid = socket.try_lock().unwrap().uuid.clone();
+    fn add_socket_to_list(&mut self, socket_uuid: ComInterfaceSocketUUID, socket: Arc<Mutex<ComInterfaceSocket>>) {
         if self.has_socket(&socket_uuid) {
             core::panic!(
                 "Socket {} already exists in SocketManager",
@@ -284,6 +283,7 @@ impl SocketManager {
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
         let socket_ref = socket.try_lock().unwrap();
+        let can_send = socket_ref.can_send();
         let socket_uuid = socket_ref.uuid.clone();
         if self.has_socket(&socket_ref.uuid) {
             core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
@@ -301,11 +301,12 @@ impl SocketManager {
             );
         }
         let direction = socket_ref.direction.clone();
+        drop(socket_ref);
 
-        self.add_socket_to_list(socket.clone());
+        self.add_socket_to_list(socket_uuid.clone(), socket.clone());
 
         // add outgoing socket to fallback sockets list if they have a priority flag
-        if socket_ref.can_send() {
+        if can_send {
             match priority {
                 InterfacePriority::None => {
                     // do nothing
@@ -316,11 +317,16 @@ impl SocketManager {
                 }
             }
 
-            // send empty block to socket to say hello
-            self.block_event_sender
-                .start_send(BlockSendEvent::HelloRequest(socket_uuid.clone()))
-                .expect("Can not send hello request to socket");
         }
+
+        // notify com hub about new socket so that it can init the socket task and optionally send a
+        // hello block
+
+        self.block_event_sender
+            .start_send(BlockSendEvent::NewSocket {
+                socket_uuid,
+            })
+            .expect("Can not send hello request to socket");
         Ok(())
     }
 
@@ -578,7 +584,7 @@ impl SocketManager {
     ) {
         match event {
             ComInterfaceSocketEvent::NewSocket(socket) => {
-                self.handle_new_socket(socket, priority);
+                self.handle_new_socket(socket, priority).unwrap(); // TODO: handle result
             }
             ComInterfaceSocketEvent::RemovedSocket(socket_uuid) => {
                 self.delete_socket(&socket_uuid);

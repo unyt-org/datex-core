@@ -6,7 +6,7 @@ use crate::global::protocol_structures::block_header::{
 };
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use crate::runtime::RuntimeInternal;
+use crate::runtime::{AsyncContext, RuntimeInternal};
 use crate::runtime::execution::ExecutionError;
 use crate::stdlib::borrow::ToOwned;
 use crate::stdlib::rc::Rc;
@@ -20,6 +20,7 @@ use core::result::Result;
 use core::time::Duration;
 use futures::channel::oneshot;
 use log::info;
+use datex_core::task::UnboundedReceiver;
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn handle_incoming_section_task(
@@ -45,73 +46,28 @@ async fn handle_incoming_section_task(
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn update_loop_task(runtime_rc: Rc<RuntimeInternal>) {
-    while *runtime_rc.update_loop_running.borrow() {
-        RuntimeInternal::update(runtime_rc.clone()).await;
-        sleep(Duration::from_millis(1)).await;
-    }
-    if let Some(sender) = runtime_rc.update_loop_stop_sender.borrow_mut().take()
-    {
-        sender.send(()).expect("Failed to send stop signal");
+async fn handle_incoming_sections_task(
+    runtime_rc: Rc<RuntimeInternal>,
+) {
+    let async_context_clone = runtime_rc.async_context.clone();
+    let mut sections_receiver = runtime_rc.com_hub.incoming_sections_receiver.borrow_mut().consume();
+
+    while let Some(section) = sections_receiver.next().await {
+        let runtime_rc_clone = runtime_rc.clone();
+        spawn_with_panic_notify(
+            &async_context_clone,
+            handle_incoming_section_task(runtime_rc_clone, section),
+        );
     }
 }
 
 impl RuntimeInternal {
-    /// Starts the
-    pub fn start_update_loop(self_rc: Rc<RuntimeInternal>) {
-        info!("starting runtime update loop...");
-
-        // if already running, do nothing
-        if *self_rc.update_loop_running.borrow() {
-            return;
-        }
-
-        // set update loop running flag
-        *self_rc.update_loop_running.borrow_mut() = true;
-
+    /// Spawns a task that receives incoming sections from the ComHub and executes them in separate tasks
+    pub(crate) fn handle_incoming_sections(self_rc: Rc<RuntimeInternal>) {
         spawn_with_panic_notify(
-            &self_rc.clone().async_context,
-            update_loop_task(self_rc),
+            &self_rc.async_context.clone(),
+            handle_incoming_sections_task(self_rc),
         );
-    }
-
-    /// Stops the update loop for the Runtime, if it is running.
-    pub async fn stop_update_loop(self_rc: Rc<RuntimeInternal>) {
-        info!("Stopping Runtime update loop for {}", self_rc.endpoint);
-        *self_rc.update_loop_running.borrow_mut() = false;
-
-        let (sender, receiver) = oneshot::channel::<()>();
-
-        self_rc.update_loop_stop_sender.borrow_mut().replace(sender);
-
-        receiver.await.unwrap();
-    }
-
-    /// main update loop
-    async fn update(self_rc: Rc<RuntimeInternal>) {
-        // update the ComHub
-        // self_rc.com_hub.update().await;
-        // handle incoming sections
-        RuntimeInternal::handle_incoming_sections(self_rc);
-    }
-
-    /// pops incoming sections from the ComHub and executes them in separate tasks
-    fn handle_incoming_sections(self_rc: Rc<RuntimeInternal>) {
-        let mut sections = self_rc
-            .com_hub
-            .block_handler
-            .incoming_sections_queue
-            .borrow_mut();
-        let async_context = &self_rc.async_context;
-        // get incoming sections from ComHub
-        for section in sections.drain(..) {
-            // execute the section in a separate task
-            let self_rc = self_rc.clone();
-            spawn_with_panic_notify(
-                async_context,
-                handle_incoming_section_task(self_rc, section),
-            );
-        }
     }
 
     async fn send_response_block(

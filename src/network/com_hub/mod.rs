@@ -41,8 +41,8 @@ use tokio::task::yield_now;
 pub mod options;
 use super::com_interfaces::com_interface::ComInterface;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::global::dxb_block::DXBBlock;
-use crate::network::block_handler::{BlockHandler, BlockHistoryData};
+use crate::global::dxb_block::{DXBBlock, IncomingSection};
+use crate::network::block_handler::{BlockHandler, BlockHistoryData, IncomingSectionsSinkType};
 use crate::network::com_hub::network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
@@ -50,6 +50,7 @@ use crate::runtime::AsyncContext;
 pub mod com_hub_interface;
 
 pub use managers::interface_manager::ComInterfaceFactoryFn;
+use crate::utils::once_consumer::OnceConsumer;
 
 pub type IncomingBlockInterceptor =
     Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
@@ -59,7 +60,9 @@ pub type OutgoingBlockInterceptor =
 
 #[derive(Debug, Clone)]
 pub enum BlockSendEvent {
-    HelloRequest(ComInterfaceSocketUUID),
+    NewSocket {
+        socket_uuid: ComInterfaceSocketUUID,
+    },
 }
 
 pub struct ComHub {
@@ -74,12 +77,8 @@ pub struct ComHub {
     socket_manager: Rc<RefCell<SocketManager>>,
     interface_manager: Rc<RefCell<InterfaceManager>>,
 
-    /// set to true if the update loop should be running
-    /// when set to false, the update loop will stop
-    update_loop_running: RefCell<bool>,
-    update_loop_stop_sender: RefCell<Option<Sender<()>>>,
-
     pub block_handler: BlockHandler,
+    pub incoming_sections_receiver: RefCell<OnceConsumer<UnboundedReceiver<IncomingSection>>>,
 
     incoming_block_interceptors: RefCell<Vec<IncomingBlockInterceptor>>,
     outgoing_block_interceptors: RefCell<Vec<OutgoingBlockInterceptor>>,
@@ -115,9 +114,6 @@ impl Default for InterfacePriority {
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn update_loop_task(self_rc: Rc<ComHub>) {}
-
-#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
     let interface = interface_rc.clone();
     let mut interface = interface.borrow_mut();
@@ -148,17 +144,21 @@ impl ComHub {
 }
 
 impl ComHub {
-    pub fn new(
+    pub fn init(
         endpoint: impl Into<Endpoint>,
         async_context: AsyncContext,
+        incoming_sections_sink_type: IncomingSectionsSinkType,
     ) -> ComHub {
         let (block_send_sender, send_request_receiver) =
             create_unbounded_channel::<BlockSendEvent>();
+
+        let (block_handler, incoming_sections_receiver) = BlockHandler::init(incoming_sections_sink_type);
         ComHub {
             endpoint: endpoint.into(),
             async_context,
             options: ComHubOptions::default(),
-            block_handler: BlockHandler::new(),
+            block_handler,
+            incoming_sections_receiver: RefCell::new(OnceConsumer::from(incoming_sections_receiver)),
             socket_manager: Rc::new(RefCell::new(SocketManager::new(
                 block_send_sender,
             ))),
@@ -166,14 +166,30 @@ impl ComHub {
                 InterfaceManager::default(),
             )),
             send_request_receiver: RefCell::new(Some(send_request_receiver)),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
             incoming_block_interceptors: RefCell::new(Vec::new()),
             outgoing_block_interceptors: RefCell::new(Vec::new()),
         }
     }
 
-    pub async fn init(self_rc: Rc<Self>) -> Result<(), ComHubError> {
+    /// Create and start a new ComHub instance
+    /// Only needed for tests, initialization and start happens in two steps in the runtime
+    pub async fn create(
+        endpoint: impl Into<Endpoint>,
+        async_context: AsyncContext,
+        incoming_sections_sink_type: IncomingSectionsSinkType,
+    ) -> Rc<Self> {
+        let com_hub = Rc::new(ComHub::init(
+            endpoint,
+            async_context,
+            incoming_sections_sink_type,
+        ));
+        ComHub::start(com_hub.clone())
+            .await
+            .expect("Failed to start ComHub");
+        com_hub
+    }
+
+    pub async fn start(self_rc: Rc<Self>) -> Result<(), ComHubError> {
         // add default local loopback interface
         let local_interface = LocalLoopbackInterface::new();
         self_rc
@@ -197,9 +213,10 @@ impl ComHub {
             .send_request_receiver
             .take()
             .expect("ComHub event receiver already taken");
+        let async_context = self_rc.async_context.clone();
         spawn_with_panic_notify(
-            &self_rc.clone().async_context,
-            com_hub_event_task(receiver, self_rc),
+            &async_context.clone(),
+            com_hub_event_task(receiver, self_rc, async_context),
         );
     }
 
@@ -660,26 +677,6 @@ impl ComHub {
     //         sleep(Duration::from_millis(10)).await;
     //     }
     // }
-
-    /// Runs the update loop for the ComHub.
-    /// This method will continuously handle incoming data, send out
-    /// queued blocks and update the sockets.
-    /// This is only used for internal tests - in a full runtime setup, the main runtime update loop triggers
-    /// ComHub updates.
-    pub fn _start_update_loop(self_rc: Rc<Self>) {
-        // if already running, do nothing
-        if *self_rc.update_loop_running.borrow() {
-            return;
-        }
-
-        // set update loop running flag
-        *self_rc.update_loop_running.borrow_mut() = true;
-
-        spawn_with_panic_notify(
-            &self_rc.clone().async_context,
-            update_loop_task(self_rc),
-        );
-    }
 
     /// Prepares a block for sending out by updating the creation timestamp,
     /// sender and add signature and encryption if needed.
@@ -1195,7 +1192,7 @@ impl ComHub {
     //         let block_queue = socket_ref.get_incoming_block_queue();
     //         blocks.push((uuid, block_queue.drain(..).collect::<Vec<_>>()));
     //     }
-
+    //
     //     for (uuid, blocks) in blocks {
     //         for block in blocks.iter() {
     //             self.receive_block(block, uuid.clone()).await;
@@ -1245,14 +1242,46 @@ impl ComHub {
 async fn com_hub_event_task(
     mut receiver: UnboundedReceiver<BlockSendEvent>,
     self_rc: Rc<ComHub>,
+    async_context: AsyncContext,
 ) {
     while let Some(event) = receiver.next().await {
         match event {
-            BlockSendEvent::HelloRequest(socket_uuid) => {
-                if let Err(err) = self_rc.send_hello_block(socket_uuid).await {
+            BlockSendEvent::NewSocket { socket_uuid} => {
+                info!("New socket connected: {}", socket_uuid);
+                let socket = self_rc
+                    .socket_manager
+                    .borrow()
+                    .socket_by_uuid(&socket_uuid);
+
+                // spawn task to collect incoming blocks from this socket
+                spawn_with_panic_notify(
+                    &async_context,
+                    handle_incoming_socket_blocks_task(
+                        socket
+                            .try_lock()
+                            .unwrap()
+                            .take_block_out_receiver(),
+                        socket_uuid.clone(),
+                        self_rc.clone(),
+                    )
+                );
+
+                if socket.try_lock().unwrap().can_send() && let Err(err) = self_rc.send_hello_block(socket_uuid).await {
                     error!("Failed to send hello block: {:?}", err);
                 }
             }
         }
+    }
+}
+
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn handle_incoming_socket_blocks_task(
+    mut socket_receive_queue: UnboundedReceiver<DXBBlock>,
+    socket_uuid: ComInterfaceSocketUUID,
+    com_hub_rc: Rc<ComHub>,
+) {
+    while let Some(block) = socket_receive_queue.next().await {
+        com_hub_rc.receive_block(&block, socket_uuid.clone()).await;
     }
 }

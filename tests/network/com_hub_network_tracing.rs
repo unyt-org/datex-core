@@ -8,6 +8,7 @@ use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
 use std::thread;
+use datex_core::network::block_handler::IncomingSectionsSinkType;
 
 #[tokio::test]
 #[timeout(1000)]
@@ -26,6 +27,7 @@ async fn create_network_trace() {
                 Some(receiver_b),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
@@ -37,6 +39,7 @@ async fn create_network_trace() {
                 Some(receiver_a),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
@@ -44,8 +47,8 @@ async fn create_network_trace() {
         // FIXME update loop
         // com_hub_mut_a.update_async().await;
         // com_hub_mut_b.update_async().await;
-        com_interface_a.borrow_mut().update();
-        com_interface_b.borrow_mut().update();
+        com_interface_a.borrow_mut().update().await;
+        com_interface_b.borrow_mut().update().await;
         // com_hub_mut_a.update_async().await;
         // com_hub_mut_b.update_async().await;
 
@@ -87,6 +90,7 @@ async fn create_network_trace_separate_threads() {
                 Some(receiver_b),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
@@ -126,6 +130,7 @@ async fn create_network_trace_separate_threads() {
                 Some(receiver_a),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 

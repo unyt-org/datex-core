@@ -59,7 +59,8 @@ impl ComInterfaceSocket {
         self.bytes_in_sender
             .lock()
             .unwrap()
-            .start_send(block.to_vec());
+            .start_send(block.to_vec())
+            .unwrap();
     }
 
     pub fn can_send(&self) -> bool {

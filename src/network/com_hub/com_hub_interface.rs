@@ -38,7 +38,7 @@ impl ComHub {
             .add_interface(interface.clone(), priority)?;
 
         // handle socket events
-        self.handle_socket_events(interface.clone());
+        self.handle_interface_socket_events(interface.clone());
         // handle interface events
         self.handle_interface_events(interface);
         Ok(())
@@ -56,7 +56,7 @@ impl ComHub {
             .await?;
 
         // handle socket events
-        self.handle_socket_events(interface.clone());
+        self.handle_interface_socket_events(interface.clone());
         // handle interface events
         self.handle_interface_events(interface);
         Ok(())

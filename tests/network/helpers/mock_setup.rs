@@ -9,6 +9,8 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use datex_core::values::core_values::endpoint::Endpoint;
 use std::sync::{Arc, Mutex, mpsc};
+use tokio::task::yield_now;
+use datex_core::network::block_handler::IncomingSectionsSinkType;
 
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
@@ -33,6 +35,7 @@ pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     get_mock_setup_with_endpoint(
         TEST_ENDPOINT_ORIGIN.clone(),
         InterfacePriority::default(),
+        IncomingSectionsSinkType::Channel,
     )
     .await
 }
@@ -40,9 +43,10 @@ pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
 pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
     priority: InterfacePriority,
+    sink_type: IncomingSectionsSinkType,
 ) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
     // init com hub
-    let com_hub = ComHub::new(endpoint, AsyncContext::new());
+    let com_hub = ComHub::create(endpoint, AsyncContext::new(), sink_type).await;
 
     // init mockup interface
     let mockup_interface_ref =
@@ -56,7 +60,7 @@ pub async fn get_mock_setup_with_endpoint(
             core::panic!("Error adding interface: {e:?}");
         });
 
-    (Rc::new(com_hub), mockup_interface_ref.clone())
+    (com_hub, mockup_interface_ref.clone())
 }
 
 pub async fn get_runtime_with_mock_interface(
@@ -83,12 +87,10 @@ pub async fn get_runtime_with_mock_interface(
     (runtime, mockup_interface_ref.clone())
 }
 
-pub fn add_socket(
+pub fn create_and_add_socket(
     mockup_interface_ref: Rc<RefCell<MockupInterface>>,
 ) -> Arc<Mutex<ComInterfaceSocket>> {
-    Arc::new(Mutex::new(
-        mockup_interface_ref.borrow_mut().init_socket_default(),
-    ))
+    mockup_interface_ref.borrow_mut().create_and_add_socket()
 }
 
 pub fn register_socket_endpoint(
@@ -104,7 +106,7 @@ pub fn register_socket_endpoint(
         .unwrap();
 }
 
-pub async fn get_mock_setup_and_socket() -> (
+pub async fn get_mock_setup_and_socket(sink_type: IncomingSectionsSinkType) -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
@@ -115,12 +117,14 @@ pub async fn get_mock_setup_and_socket() -> (
         None,
         None,
         InterfacePriority::default(),
+        sink_type
     )
     .await
 }
 
 pub async fn get_mock_setup_and_socket_for_priority(
     priority: InterfacePriority,
+    sink_type: IncomingSectionsSinkType
 ) -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
@@ -132,6 +136,7 @@ pub async fn get_mock_setup_and_socket_for_priority(
         None,
         None,
         priority,
+        sink_type
     )
     .await
 }
@@ -142,6 +147,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint(
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
     priority: InterfacePriority,
+    incoming_sections_sink_type: IncomingSectionsSinkType
 ) -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
@@ -154,6 +160,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint(
         receiver,
         priority,
         false,
+        incoming_sections_sink_type
     )
     .await
 }
@@ -165,28 +172,27 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
     priority: InterfacePriority,
     enable_update_loop: bool,
+    incoming_sections_sink_type: IncomingSectionsSinkType
 ) -> (
     Rc<ComHub>,
     Rc<RefCell<MockupInterface>>,
     Arc<Mutex<ComInterfaceSocket>>,
 ) {
     let (com_hub, mockup_interface_ref) =
-        get_mock_setup_with_endpoint(local_endpoint, priority).await;
+        get_mock_setup_with_endpoint(local_endpoint, priority, incoming_sections_sink_type).await;
 
     mockup_interface_ref.borrow_mut().sender = sender;
     mockup_interface_ref.borrow_mut().receiver =
         Rc::new(RefCell::new(receiver));
 
     if enable_update_loop {
-        ComHub::_start_update_loop(com_hub.clone());
-
         // start mockup interface update loop
         mockup_interface_ref.borrow_mut().start_update_loop();
 
         tokio::task::yield_now().await;
     }
 
-    let socket = add_socket(mockup_interface_ref.clone());
+    let socket = create_and_add_socket(mockup_interface_ref.clone());
     if remote_endpoint.is_some() {
         register_socket_endpoint(
             mockup_interface_ref.clone(),
@@ -195,12 +201,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
         );
     }
 
-    if !enable_update_loop {
-        // FIXME update loop
-        //com_hub.update_async().await;
-    } else {
-        tokio::task::yield_now().await;
-    }
+    tokio::task::yield_now().await;
 
     (com_hub.clone(), mockup_interface_ref, socket)
 }
@@ -223,7 +224,7 @@ pub async fn get_mock_setup_runtime(
     // start mockup interface update loop
     mockup_interface_ref.borrow_mut().start_update_loop();
 
-    add_socket(mockup_interface_ref.clone());
+    create_and_add_socket(mockup_interface_ref.clone());
 
     runtime.start().await;
     runtime
@@ -266,8 +267,7 @@ pub async fn send_block_with_body(
         block
     };
 
-    // FIXME update loop
-    // com_hub.update_async().await;
+    yield_now().await;
     block
 }
 
@@ -278,19 +278,18 @@ pub async fn send_empty_block_and_update(
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
     {
-        com_hub.send_own_block(block.clone()).await;
+        com_hub.send_own_block(block.clone()).await.expect("Failed to send block");
     }
-    // FIXME update loop
-    // com_hub.update_async().await;
+
+    yield_now().await;
     block
 }
 
 pub fn get_last_received_single_block_from_com_hub(
     com_hub: &ComHub,
 ) -> DXBBlock {
-    let mut sections =
-        com_hub.block_handler.incoming_sections_queue.borrow_mut();
-    let sections = sections.drain(..).collect::<Vec<_>>();
+    let sections =
+        com_hub.block_handler.drain_collected_sections();
 
     assert_eq!(sections.len(), 1);
 
@@ -304,9 +303,8 @@ pub fn get_last_received_single_block_from_com_hub(
 pub fn get_all_received_single_blocks_from_com_hub(
     com_hub: &ComHub,
 ) -> Vec<DXBBlock> {
-    let mut sections =
-        com_hub.block_handler.incoming_sections_queue.borrow_mut();
-    let sections = sections.drain(..).collect::<Vec<_>>();
+    let sections =
+        com_hub.block_handler.drain_collected_sections();
 
     let mut blocks = vec![];
 
