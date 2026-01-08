@@ -2,7 +2,7 @@ use super::mockup_interface::MockupInterface;
 use core::str::FromStr;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface_old::ComInterfaceOld;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
 use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
 use datex_core::stdlib::cell::RefCell;

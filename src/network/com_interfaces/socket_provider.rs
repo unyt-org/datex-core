@@ -1,5 +1,5 @@
 use super::{
-    com_interface::ComInterfaceSockets,
+    com_interface_old::ComInterfaceSockets,
     com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
 };
 use crate::std_sync::Mutex;

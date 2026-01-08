@@ -1,8 +1,8 @@
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceOld, ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
 };
-use crate::network::com_interfaces::com_interface::{
+use crate::network::com_interfaces::com_interface_old::{
     ComInterfaceInfo, ComInterfaceSockets,
 };
 use crate::network::com_interfaces::com_interface_properties::{
@@ -107,7 +107,7 @@ impl TCPClientNativeInterface {
     }
 }
 
-impl ComInterface for TCPClientNativeInterface {
+impl ComInterfaceOld for TCPClientNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -136,7 +136,7 @@ impl ComInterface for TCPClientNativeInterface {
     set_opener!(open);
 }
 
-impl ComInterfaceFactory<TCPClientInterfaceSetupData>
+impl ComInterfaceFactoryOld<TCPClientInterfaceSetupData>
     for TCPClientNativeInterface
 {
     fn create(

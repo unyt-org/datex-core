@@ -1,7 +1,7 @@
 use core::cell::RefCell;
 use core::time::Duration;
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory,
+use datex_core::network::com_interfaces::com_interface_old::{
+    ComInterfaceError, ComInterfaceFactoryOld,
 };
 use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
@@ -15,8 +15,8 @@ use datex_core::{
         dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
     },
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceInfo, ComInterfaceSockets,
+        com_interface_old::{
+            ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets,
             ComInterfaceState,
         },
         com_interface_properties::InterfaceProperties,
@@ -168,7 +168,7 @@ impl MockupInterfaceSetupData {
     }
 }
 
-impl ComInterfaceFactory<MockupInterfaceSetupData> for MockupInterface {
+impl ComInterfaceFactoryOld<MockupInterfaceSetupData> for MockupInterface {
     fn create(
         setup_data: MockupInterfaceSetupData,
     ) -> Result<MockupInterface, ComInterfaceError> {
@@ -279,7 +279,7 @@ impl MockupInterface {
     }
 }
 
-impl ComInterface for MockupInterface {
+impl ComInterfaceOld for MockupInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

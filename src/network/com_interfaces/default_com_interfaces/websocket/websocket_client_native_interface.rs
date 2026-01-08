@@ -6,7 +6,7 @@ use core::result::Result;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
+        com_interface_old::{ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
         socket_provider::SingleSocketProvider,
@@ -16,8 +16,8 @@ use crate::{
 };
 use datex_macros::{com_interface, create_opener};
 
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
 };
 use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::{debug, error, info};
@@ -109,7 +109,7 @@ impl WebSocketClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<WebSocketClientInterfaceSetupData>
+impl ComInterfaceFactoryOld<WebSocketClientInterfaceSetupData>
     for WebSocketClientNativeInterface
 {
     fn create(
@@ -130,7 +130,7 @@ impl ComInterfaceFactory<WebSocketClientInterfaceSetupData>
     }
 }
 
-impl ComInterface for WebSocketClientNativeInterface {
+impl ComInterfaceOld for WebSocketClientNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

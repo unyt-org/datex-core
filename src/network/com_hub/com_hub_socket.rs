@@ -3,18 +3,19 @@ use crate::{
         com_hub::{
             ComHub, InterfacePriority, managers::socket_manager::SocketManager,
         },
-        com_interfaces::com_interface::{
-            ComInterface, ComInterfaceSocketEvent,
+        com_interfaces::com_interface_old::{
+            ComInterfaceOld, ComInterfaceSocketEvent,
         },
     },
     stdlib::{cell::RefCell, rc::Rc},
     task::{UnboundedReceiver, spawn_with_panic_notify},
 };
+use crate::network::com_interfaces::com_interface::ComInterface;
 
 impl ComHub {
     pub(crate) fn handle_interface_socket_events(
         &self,
-        interface: Rc<RefCell<dyn ComInterface>>,
+        interface: Rc<RefCell<ComInterface>>,
     ) {
         let mut interface_borrow = interface.borrow_mut();
         let socket_event_receiver =

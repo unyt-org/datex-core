@@ -6,8 +6,8 @@ use crate::stdlib::{
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{
-            ComInterface, ComInterfaceError, ComInterfaceFactory,
+        com_interface_old::{
+            ComInterfaceOld, ComInterfaceError, ComInterfaceFactoryOld,
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceState,
         },
         com_interface_properties::InterfaceProperties,
@@ -573,7 +573,7 @@ impl WebRTCNativeInterface {
     }
 }
 
-impl ComInterface for WebRTCNativeInterface {
+impl ComInterfaceOld for WebRTCNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
@@ -610,7 +610,7 @@ impl ComInterface for WebRTCNativeInterface {
     set_opener!(open);
 }
 
-impl ComInterfaceFactory<WebRTCInterfaceSetupData> for WebRTCNativeInterface {
+impl ComInterfaceFactoryOld<WebRTCInterfaceSetupData> for WebRTCNativeInterface {
     fn create(
         setup_data: WebRTCInterfaceSetupData,
     ) -> Result<WebRTCNativeInterface, ComInterfaceError> {

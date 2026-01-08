@@ -17,10 +17,10 @@ use tokio::net::TcpListener;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceOld, ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
 };
-use crate::network::com_interfaces::com_interface::{
+use crate::network::com_interfaces::com_interface_old::{
     ComInterfaceInfo, ComInterfaceSockets,
 };
 use crate::network::com_interfaces::com_interface_properties::{
@@ -132,7 +132,7 @@ impl TCPServerNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<TCPServerInterfaceSetupData>
+impl ComInterfaceFactoryOld<TCPServerInterfaceSetupData>
     for TCPServerNativeInterface
 {
     fn create(
@@ -153,7 +153,7 @@ impl ComInterfaceFactory<TCPServerInterfaceSetupData>
     }
 }
 
-impl ComInterface for TCPServerNativeInterface {
+impl ComInterfaceOld for TCPServerNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

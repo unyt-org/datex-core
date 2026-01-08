@@ -47,7 +47,7 @@ pub struct ComInterfaceSocket {
     pub direction: InterfaceDirection,
     pub bytes_in_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
     block_in_receiver: OnceConsumer<UnboundedReceiver<DXBBlock>>,
-    
+
     bytes_out_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
     pub bytes_out_receiver: OnceConsumer<UnboundedReceiver<Vec<u8>>>,
 }
@@ -56,7 +56,7 @@ impl ComInterfaceSocket {
     pub fn take_block_in_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
         self.block_in_receiver.consume()
     }
-    
+
     pub fn take_bytes_out_receiver(&mut self) -> UnboundedReceiver<Vec<u8>> {
         self.bytes_out_receiver.consume()
     }

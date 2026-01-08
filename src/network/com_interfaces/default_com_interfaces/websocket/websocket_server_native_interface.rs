@@ -10,7 +10,7 @@ use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
+        com_interface_old::{ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
@@ -31,8 +31,8 @@ use tokio::{
 use tungstenite::Message;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
 };
 use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
@@ -206,7 +206,7 @@ impl WebSocketServerNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<WebSocketServerInterfaceSetupData>
+impl ComInterfaceFactoryOld<WebSocketServerInterfaceSetupData>
     for WebSocketServerNativeInterface
 {
     fn create(
@@ -230,7 +230,7 @@ impl ComInterfaceFactory<WebSocketServerInterfaceSetupData>
     }
 }
 
-impl ComInterface for WebSocketServerNativeInterface {
+impl ComInterfaceOld for WebSocketServerNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

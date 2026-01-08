@@ -1,5 +1,5 @@
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface,
+    com_interface_old::ComInterfaceOld,
     default_com_interfaces::serial::serial_native_interface::SerialNativeInterface,
     socket_provider::SingleSocketProvider,
 };

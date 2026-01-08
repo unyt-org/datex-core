@@ -4,13 +4,13 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 
 use super::serial_common::{SerialError, SerialInterfaceSetupData};
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceError, ComInterfaceFactoryOld,
 };
 use crate::{
     delegate_com_interface_info,
     network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
+        com_interface_old::{ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets},
         com_interface_properties::{InterfaceDirection, InterfaceProperties},
         com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
     },
@@ -18,7 +18,7 @@ use crate::{
 };
 use crate::{
     network::com_interfaces::{
-        com_interface::ComInterfaceState, socket_provider::SingleSocketProvider,
+        com_interface_old::ComInterfaceState, socket_provider::SingleSocketProvider,
     },
     task::spawn,
     task::spawn_blocking,
@@ -131,7 +131,7 @@ impl SerialNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<SerialInterfaceSetupData> for SerialNativeInterface {
+impl ComInterfaceFactoryOld<SerialInterfaceSetupData> for SerialNativeInterface {
     fn create(
         setup_data: SerialInterfaceSetupData,
     ) -> Result<SerialNativeInterface, ComInterfaceError> {
@@ -157,7 +157,7 @@ impl ComInterfaceFactory<SerialInterfaceSetupData> for SerialNativeInterface {
     }
 }
 
-impl ComInterface for SerialNativeInterface {
+impl ComInterfaceOld for SerialNativeInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],

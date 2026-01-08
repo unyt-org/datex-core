@@ -1,7 +1,7 @@
 use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc, time::Duration};
 
 use datex_core::network::com_interfaces::{
-    com_interface::{ComInterface, ComInterfaceState},
+    com_interface_old::{ComInterfaceOld, ComInterfaceState},
     com_interface_properties::{
         InterfaceDirection, InterfaceProperties, ReconnectionConfig,
     },

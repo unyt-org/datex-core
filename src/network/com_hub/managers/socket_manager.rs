@@ -5,8 +5,8 @@ use log::{debug, error, info};
 
 use crate::collections::{HashMap, HashSet};
 use crate::network::com_hub::{BlockSendEvent, ComHub, ComHubError, InterfacePriority, SocketEndpointRegistrationError};
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceSocketEvent,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceOld, ComInterfaceSocketEvent,
 };
 use crate::stdlib::sync::{Arc, Mutex};
 

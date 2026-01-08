@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::network::com_interfaces::com_interface::ComInterfaceError;
+use crate::network::com_interfaces::com_interface_old::ComInterfaceError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {

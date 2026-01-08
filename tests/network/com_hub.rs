@@ -27,8 +27,8 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use datex_core::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceFactory, ComInterfaceState,
+use datex_core::network::com_interfaces::com_interface_old::{
+    ComInterfaceOld, ComInterfaceFactoryOld, ComInterfaceState,
 };
 use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 use datex_core::runtime::AsyncContext;

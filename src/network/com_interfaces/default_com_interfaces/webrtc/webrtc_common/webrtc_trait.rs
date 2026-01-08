@@ -7,7 +7,7 @@ use log::{error, info};
 
 use crate::{
     network::com_interfaces::{
-        com_interface::{
+        com_interface_old::{
             ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
         },
         com_interface_properties::InterfaceDirection,

@@ -2,7 +2,7 @@ use std::{cell::RefCell, io::Bytes, rc::Rc, sync::Arc, time::Duration};
 
 use datex_core::{
     network::com_interfaces::{
-        com_interface::ComInterface,
+        com_interface_old::ComInterfaceOld,
         com_interface_socket::ComInterfaceSocketUUID,
         default_com_interfaces::webrtc::{
             webrtc_common::{

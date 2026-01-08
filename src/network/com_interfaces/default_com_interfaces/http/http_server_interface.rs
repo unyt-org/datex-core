@@ -26,10 +26,10 @@ use log::{debug, error, info};
 use tokio::sync::{RwLock, broadcast, mpsc};
 use url::Url;
 
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceState,
+use crate::network::com_interfaces::com_interface_old::{
+    ComInterfaceOld, ComInterfaceState,
 };
-use crate::network::com_interfaces::com_interface::{
+use crate::network::com_interfaces::com_interface_old::{
     ComInterfaceInfo, ComInterfaceSockets,
 };
 use crate::network::com_interfaces::com_interface_properties::{
@@ -227,7 +227,7 @@ impl HTTPServerNativeInterface {
     }
 }
 
-impl ComInterface for HTTPServerNativeInterface {
+impl ComInterfaceOld for HTTPServerNativeInterface {
     fn init_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             interface_type: "http-server".to_string(),

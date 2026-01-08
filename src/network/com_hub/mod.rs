@@ -1,4 +1,4 @@
-use super::com_interfaces::com_interface::ComInterfaceState;
+use super::com_interfaces::com_interface_old::ComInterfaceState;
 use crate::collections::HashMap;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
@@ -39,7 +39,7 @@ use log::{debug, error, info, warn};
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 pub mod options;
-use super::com_interfaces::com_interface::ComInterface;
+use super::com_interfaces::com_interface_old::ComInterfaceOld;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData, IncomingSectionsSinkType};
@@ -49,7 +49,8 @@ use crate::network::com_interfaces::default_com_interfaces::local_loopback_inter
 use crate::runtime::AsyncContext;
 pub mod com_hub_interface;
 
-pub use managers::interface_manager::ComInterfaceFactoryFn;
+pub use managers::interface_manager::ComInterfaceImplementationFactoryFn;
+use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::utils::once_consumer::OnceConsumer;
 
 pub type IncomingBlockInterceptor =
@@ -114,11 +115,11 @@ impl Default for InterfacePriority {
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn reconnect_interface_task(interface_rc: Rc<RefCell<dyn ComInterface>>) {
+async fn reconnect_interface_task(interface_rc: Rc<RefCell<ComInterface>>) {
     let interface = interface_rc.clone();
     let mut interface = interface.borrow_mut();
 
-    let config = interface.get_properties_mut();
+    let config = interface.properties_mut();
     config.close_timestamp = None;
 
     let current_attempts = config.reconnect_attempts.unwrap_or(0);
@@ -1056,7 +1057,7 @@ impl ComHub {
                         socket: NetworkTraceHopSocket::new(
                             self.dyn_interface_for_socket_uuid(socket_uuid)
                                 .borrow_mut()
-                                .get_properties(),
+                                .properties(),
                             socket_uuid.clone(),
                         ),
                         direction: NetworkTraceHopDirection::Outgoing,
@@ -1305,7 +1306,7 @@ async fn handle_incoming_socket_blocks_task(
 async fn handle_outgoing_socket_bytes_task(
     mut bytes_out_receiver: UnboundedReceiver<Vec<u8>>,
     socket_uuid: ComInterfaceSocketUUID,
-    com_interface: Rc<RefCell<dyn ComInterface>>,
+    com_interface: Rc<RefCell<ComInterface>>,
 ) {
     while let Some(bytes) = bytes_out_receiver.next().await {
         com_interface

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::context::init_global_context;
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface,
+    com_interface_old::ComInterfaceOld,
     default_com_interfaces::tcp::{
         tcp_client_native_interface::TCPClientNativeInterface,
         tcp_common::TCPError,

@@ -4,7 +4,7 @@ use log::info;
 use crate::collections::HashMap;
 use crate::network::com_hub::ComHub;
 use crate::network::com_hub::managers::socket_manager::DynamicEndpointProperties;
-use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface_old::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };

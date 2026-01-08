@@ -1,7 +1,7 @@
 use core::str::FromStr;
 use datex_core::{
     network::com_interfaces::{
-        com_interface::ComInterface,
+        com_interface_old::ComInterfaceOld,
         default_com_interfaces::http::http_server_interface::HTTPServerNativeInterface,
         socket_provider::MultipleSocketProvider,
     },

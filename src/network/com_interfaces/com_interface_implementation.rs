@@ -1,0 +1,100 @@
+use std::any::Any;
+use std::cell::RefCell;
+use std::pin::Pin;
+use std::rc::Rc;
+use log::error;
+use crate::network::com_hub::ComHub;
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError};
+use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::serde::Deserialize;
+use crate::serde::deserializer::from_value_container;
+use crate::values::value_container::ValueContainer;
+
+/// A specific implementation of a communication interface for a channel
+pub trait ComInterfaceImplementation: Any {
+    fn send_block<'a>(
+        &'a mut self,
+        block: &'a [u8],
+        _: ComInterfaceSocketUUID,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
+    fn get_properties(&self) -> InterfaceProperties;
+    fn handle_close<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+}
+
+/// This trait can be implemented by any ComInterfaceImplementation impl that wants to
+/// support a factory method for creating instances of the interface.
+/// Example:
+/// ```
+/// # use core::cell::RefCell;
+/// # use datex_core::stdlib::rc::Rc;
+/// # use datex_core::network::com_interfaces::com_interface::{ComInterfaceError};
+/// # use datex_core::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
+/// # use datex_core::network::com_interfaces::com_interface_properties::InterfaceProperties;
+/// use serde::{Deserialize, Serialize};
+/// use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct BaseInterfaceSetupData {
+///    pub example_data: String,
+/// }
+///
+/// impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
+///     fn create(setup_data: BaseInterfaceSetupData) -> Result<BaseInterface, ComInterfaceError> {
+///         // ...
+///         Ok(BaseInterface::new_with_name("example"))
+///     }
+///     fn get_default_properties() -> InterfaceProperties {
+///         InterfaceProperties {
+///             interface_type: "example".to_string(),
+///             ..Default::default()
+///         }
+///     }
+/// }
+pub trait ComInterfaceFactory
+where
+    Self: Sized + ComInterfaceImplementation,
+{
+    type SetupData: Deserialize<'static> + 'static;
+    
+    /// The factory method that is called from the ComHub on a registered interface
+    /// to create a new instance of the interface.
+    /// The setup data is passed as a ValueContainer and has to be downcasted
+    fn factory(
+        setup_data: ValueContainer,
+        com_interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<Box<dyn ComInterfaceImplementation>, ComInterfaceError> {
+        let data = from_value_container::<Self::SetupData>(setup_data);
+        match data {
+            Ok(init_data) => {
+                let interface = Self::create(init_data, com_interface);
+                match interface {
+                    Ok(interface) => Ok(Box::new(interface)),
+                    Err(e) => Err(e),
+                }
+            }
+            Err(e) => {
+                error!("Failed to deserialize setup data: {e}");
+                core::panic!("Invalid setup data for com interface factory")
+            }
+        }
+    }
+
+    /// Register the interface on which the factory is implemented
+    /// on the given ComHub.
+    fn register_on_com_hub(com_hub: Rc<ComHub>) {
+        let interface_type = Self::get_default_properties().interface_type;
+        com_hub.register_interface_factory(interface_type, Self::factory);
+    }
+
+    /// Create a new instance of the interface with the given setup data.
+    /// If no instance could be created with the given setup data,
+    /// None is returned.
+    fn create(setup_data: Self::SetupData, com_interface: Rc<RefCell<ComInterface>>) -> Result<Self, ComInterfaceError>;
+
+    /// Get the default interface properties for the interface.
+    fn get_default_properties() -> InterfaceProperties;
+}

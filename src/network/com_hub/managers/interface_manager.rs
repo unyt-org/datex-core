@@ -7,30 +7,28 @@ use crate::{
     network::{
         com_hub::{ComHubError, InterfacePriority},
         com_interfaces::{
-            com_interface::{
-                ComInterface, ComInterfaceError, ComInterfaceEvent,
-                ComInterfaceState, ComInterfaceUUID,
-            },
             com_interface_properties::InterfaceDirection,
         },
     },
     values::value_container::ValueContainer,
 };
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceState, ComInterfaceUUID, ComInterfaceError, ComInterfaceEvent, ComInterfaceImplementation};
 
 type InterfaceMap = HashMap<
     ComInterfaceUUID,
-    (Rc<RefCell<dyn ComInterface>>, InterfacePriority),
+    (Rc<RefCell<ComInterface>>, InterfacePriority),
 >;
 
-pub type ComInterfaceFactoryFn =
+pub type ComInterfaceImplementationFactoryFn =
     fn(
         setup_data: ValueContainer,
-    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComInterfaceError>;
+        interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<Box<dyn ComInterfaceImplementation>, ComInterfaceError>;
 
 #[derive(Default)]
 pub struct InterfaceManager {
     /// a list of all available interface factories, keyed by their interface type
-    pub interface_factories: HashMap<String, ComInterfaceFactoryFn>,
+    pub interface_factories: HashMap<String, ComInterfaceImplementationFactoryFn>,
 
     /// a list of all available interfaces, keyed by their UUID
     pub interfaces: InterfaceMap,
@@ -45,7 +43,7 @@ impl InterfaceManager {
     pub fn register_interface_factory(
         &mut self,
         interface_type: String,
-        factory: ComInterfaceFactoryFn,
+        factory: ComInterfaceImplementationFactoryFn,
     ) {
         self.interface_factories.insert(interface_type, factory);
     }
@@ -58,7 +56,7 @@ impl InterfaceManager {
         interface_type: &str,
         setup_data: ValueContainer,
         priority: InterfacePriority,
-    ) -> Result<Rc<RefCell<dyn ComInterface>>, ComHubError> {
+    ) -> Result<Rc<RefCell<ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
         if let Some(factory) = self.interface_factories.get(interface_type) {
             let interface =
@@ -71,33 +69,7 @@ impl InterfaceManager {
             Err(ComHubError::InterfaceTypeDoesNotExist)
         }
     }
-
-    /// Returns the com interface for a given UUID
-    /// The interface is downcasted to the specific type T
-    pub fn interface_by_uuid<T: ComInterface>(
-        &self,
-        interface_uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<T>>> {
-        InterfaceManager::try_downcast(
-            self.interfaces.get(interface_uuid)?.0.clone(),
-        )
-    }
-
-    /// Attempts to downcast a dynamic ComInterface trait object
-    /// to a specific concrete type T.
-    fn try_downcast<T: 'static>(
-        input: Rc<RefCell<dyn ComInterface>>,
-    ) -> Option<Rc<RefCell<T>>> {
-        // Try to get a reference to the inner value
-        if input.borrow().as_any().is::<T>() {
-            // SAFETY: We're ensuring T is the correct type via the check
-            let ptr = Rc::into_raw(input) as *const RefCell<T>;
-            unsafe { Some(Rc::from_raw(ptr)) }
-        } else {
-            None
-        }
-    }
-
+    
     /// Checks if the interface with the given UUID exists in the manager
     pub fn has_interface(&self, interface_uuid: &ComInterfaceUUID) -> bool {
         self.interfaces.contains_key(interface_uuid)
@@ -108,7 +80,7 @@ impl InterfaceManager {
     pub fn try_dyn_interface_by_uuid(
         &self,
         uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<dyn ComInterface>>> {
+    ) -> Option<Rc<RefCell<ComInterface>>> {
         self.interfaces
             .get(uuid)
             .map(|(interface, _)| interface.clone())
@@ -120,7 +92,7 @@ impl InterfaceManager {
     pub(crate) fn dyn_interface_by_uuid(
         &self,
         interface_uuid: &ComInterfaceUUID,
-    ) -> Rc<RefCell<dyn ComInterface>> {
+    ) -> Rc<RefCell<ComInterface>> {
         self.try_dyn_interface_by_uuid(interface_uuid)
             .unwrap_or_else(|| {
                 core::panic!("Interface for uuid {interface_uuid} not found")
@@ -130,10 +102,10 @@ impl InterfaceManager {
     /// Opens the interface if not already opened, and adds it to the manager
     pub async fn open_and_add_interface(
         &mut self,
-        interface: Rc<RefCell<dyn ComInterface>>,
+        interface: Rc<RefCell<ComInterface>>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
-        if interface.borrow().get_state() != ComInterfaceState::Connected {
+        if interface.borrow().state() != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
             // FIXME #240: borrow_mut across await point
@@ -147,7 +119,7 @@ impl InterfaceManager {
     /// Adds an interface to the manager, checking for duplicates
     pub fn add_interface(
         &mut self,
-        interface: Rc<RefCell<dyn ComInterface>>,
+        interface: Rc<RefCell<ComInterface>>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
         let uuid = interface.borrow().uuid().clone();
@@ -157,7 +129,7 @@ impl InterfaceManager {
 
         // make sure the interface can send if a priority is set
         if priority != InterfacePriority::None
-            && interface.borrow_mut().get_properties().direction
+            && interface.borrow_mut().properties().direction
                 == InterfaceDirection::In
         {
             return Err(
@@ -210,7 +182,7 @@ impl InterfaceManager {
     fn cleanup_interface(
         &mut self,
         interface_uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<dyn ComInterface>>> {
+    ) -> Option<Rc<RefCell<ComInterface>>> {
         Some(self.interfaces.remove(&interface_uuid).or(None)?.0)
     }
 
