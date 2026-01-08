@@ -8,12 +8,13 @@ use crate::std_sync::Mutex;
 use crate::stdlib::string::String;
 use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
-use crate::task::{UnboundedReceiver, UnboundedSender};
+use crate::task::{create_unbounded_channel, UnboundedReceiver, UnboundedSender};
 use crate::utils::uuid::UUID;
 use crate::{
     global::dxb_block::DXBBlock, values::core_values::endpoint::Endpoint,
 };
 use core::fmt::Display;
+use crate::utils::once_consumer::OnceConsumer;
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {
@@ -45,18 +46,23 @@ pub struct ComInterfaceSocket {
     pub channel_factor: u32,
     pub direction: InterfaceDirection,
     pub bytes_in_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
-    block_out_receiver: Option<UnboundedReceiver<DXBBlock>>,
+    block_in_receiver: OnceConsumer<UnboundedReceiver<DXBBlock>>,
+    
+    bytes_out_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
+    pub bytes_out_receiver: OnceConsumer<UnboundedReceiver<Vec<u8>>>,
 }
 
 impl ComInterfaceSocket {
-    pub fn take_block_out_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
-        self.block_out_receiver.take().expect(
-            "Block out receiver has already been taken from this socket",
-        )
+    pub fn take_block_in_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
+        self.block_in_receiver.consume()
+    }
+    
+    pub fn take_bytes_out_receiver(&mut self) -> UnboundedReceiver<Vec<u8>> {
+        self.bytes_out_receiver.consume()
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {
-        self.bytes_in_sender
+        self.bytes_out_sender
             .lock()
             .unwrap()
             .start_send(block.to_vec())
@@ -79,7 +85,8 @@ impl ComInterfaceSocket {
         direction: InterfaceDirection,
         channel_factor: u32,
     ) -> ComInterfaceSocket {
-        let (bytes_in_sender, block_out_receiver) = BlockCollector::init();
+        let (bytes_in_sender, block_in_receiver) = BlockCollector::init();
+        let (bytes_out_sender, bytes_out_receiver) = create_unbounded_channel::<Vec<u8>>();
         ComInterfaceSocket {
             direct_endpoint: None,
             state: SocketState::Created,
@@ -89,7 +96,9 @@ impl ComInterfaceSocket {
             channel_factor,
             direction,
             bytes_in_sender: Arc::new(Mutex::new(bytes_in_sender)),
-            block_out_receiver: Some(block_out_receiver),
+            block_in_receiver: OnceConsumer::new(block_in_receiver),
+            bytes_out_sender: Arc::new(Mutex::new(bytes_out_sender)),
+            bytes_out_receiver: OnceConsumer::new(bytes_out_receiver),
         }
     }
 }

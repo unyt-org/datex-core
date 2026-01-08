@@ -8,6 +8,7 @@ use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
 use std::thread;
+use tokio::task::yield_now;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
 
 #[tokio::test]
@@ -44,13 +45,12 @@ async fn create_network_trace() {
             .await;
 
 
-        // FIXME update loop
-        // com_hub_mut_a.update_async().await;
-        // com_hub_mut_b.update_async().await;
+        yield_now().await;
+        yield_now().await;
         com_interface_a.borrow_mut().update().await;
         com_interface_b.borrow_mut().update().await;
-        // com_hub_mut_a.update_async().await;
-        // com_hub_mut_b.update_async().await;
+        yield_now().await;
+        yield_now().await;
 
         log::info!("Sending trace from A to B");
 

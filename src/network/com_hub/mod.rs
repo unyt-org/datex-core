@@ -203,7 +203,7 @@ impl ComHub {
             .await?;
 
         // start handling ComHub events
-        ComHub::handle_events(self_rc.clone());
+        ComHub::handle_events(self_rc);
         Ok(())
     }
 
@@ -1260,9 +1260,24 @@ async fn com_hub_event_task(
                         socket
                             .try_lock()
                             .unwrap()
-                            .take_block_out_receiver(),
+                            .take_block_in_receiver(),
                         socket_uuid.clone(),
                         self_rc.clone(),
+                    )
+                );
+
+                // spawn task to handle outgoing blocks for this socket
+                let com_interface = self_rc
+                    .dyn_interface_for_socket_uuid(&socket_uuid);
+                spawn_with_panic_notify(
+                    &async_context,
+                    handle_outgoing_socket_bytes_task(
+                        socket
+                            .try_lock()
+                            .unwrap()
+                            .take_bytes_out_receiver(),
+                        socket_uuid.clone(),
+                        com_interface,
                     )
                 );
 
@@ -1283,5 +1298,19 @@ async fn handle_incoming_socket_blocks_task(
 ) {
     while let Some(block) = socket_receive_queue.next().await {
         com_hub_rc.receive_block(&block, socket_uuid.clone()).await;
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+async fn handle_outgoing_socket_bytes_task(
+    mut bytes_out_receiver: UnboundedReceiver<Vec<u8>>,
+    socket_uuid: ComInterfaceSocketUUID,
+    com_interface: Rc<RefCell<dyn ComInterface>>,
+) {
+    while let Some(bytes) = bytes_out_receiver.next().await {
+        com_interface
+            .borrow_mut()
+            .send_block(&bytes, socket_uuid.clone())
+            .await;
     }
 }

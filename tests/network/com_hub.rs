@@ -12,6 +12,7 @@ use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use std::sync::mpsc;
+use tokio::task::yield_now;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
@@ -35,73 +36,77 @@ use datex_core::values::core_values::endpoint::Endpoint;
 
 #[tokio::test]
 pub async fn test_add_and_remove() {
-    init_global_context();
-    let com_hub =
-        Rc::new(ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel));
-    let uuid = {
-        let mockup_interface =
-            Rc::new(RefCell::new(MockupInterface::default()));
-        let uuid = mockup_interface.borrow().uuid().clone();
+    run_async! {
+        init_global_context();
+        let com_hub =
+            Rc::new(ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel));
+        let uuid = {
+            let mockup_interface =
+                Rc::new(RefCell::new(MockupInterface::default()));
+            let uuid = mockup_interface.borrow().uuid().clone();
+            com_hub
+                .open_and_add_interface(
+                    mockup_interface.clone(),
+                    InterfacePriority::default(),
+                )
+                .await
+                .unwrap_or_else(|e| {
+                    core::panic!("Error adding interface: {e:?}");
+                });
+            uuid
+        };
+        assert!(com_hub.remove_interface(uuid).await.is_ok());
+    }
+}
+
+#[tokio::test]
+pub async fn test_multiple_add() {
+    run_async! {
+        init_global_context();
+
+        let com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Collector);
+
+        let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
+        let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
+
         com_hub
             .open_and_add_interface(
-                mockup_interface.clone(),
+                mockup_interface1.clone(),
                 InterfacePriority::default(),
             )
             .await
             .unwrap_or_else(|e| {
                 core::panic!("Error adding interface: {e:?}");
             });
-        uuid
-    };
-    assert!(com_hub.remove_interface(uuid).await.is_ok());
-}
-
-#[tokio::test]
-pub async fn test_multiple_add() {
-    init_global_context();
-
-    let com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Collector);
-
-    let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
-    let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
-
-    com_hub
-        .open_and_add_interface(
-            mockup_interface1.clone(),
-            InterfacePriority::default(),
-        )
-        .await
-        .unwrap_or_else(|e| {
-            core::panic!("Error adding interface: {e:?}");
-        });
-    com_hub
-        .open_and_add_interface(
-            mockup_interface2.clone(),
-            InterfacePriority::default(),
-        )
-        .await
-        .unwrap_or_else(|e| {
-            core::panic!("Error adding interface: {e:?}");
-        });
-
-    assert!(
-        com_hub
-            .open_and_add_interface(
-                mockup_interface1.clone(),
-                InterfacePriority::default()
-            )
-            .await
-            .is_err()
-    );
-    assert!(
         com_hub
             .open_and_add_interface(
                 mockup_interface2.clone(),
-                InterfacePriority::default()
+                InterfacePriority::default(),
             )
             .await
-            .is_err()
-    );
+            .unwrap_or_else(|e| {
+                core::panic!("Error adding interface: {e:?}");
+            });
+
+        assert!(
+            com_hub
+                .open_and_add_interface(
+                    mockup_interface1.clone(),
+                    InterfacePriority::default()
+                )
+                .await
+                .is_err()
+        );
+        assert!(
+            com_hub
+                .open_and_add_interface(
+                    mockup_interface2.clone(),
+                    InterfacePriority::default()
+                )
+                .await
+                .is_err()
+        );
+    }
 }
 
 #[tokio::test]
@@ -168,8 +173,7 @@ pub async fn send_block_to_multiple_endpoints() {
             socket.clone(),
             TEST_ENDPOINT_B.clone(),
         );
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
 
         // send block to multiple receivers
         let block = send_block_with_body(
@@ -211,8 +215,7 @@ pub async fn send_blocks_to_multiple_endpoints() {
             socket_b.clone(),
             TEST_ENDPOINT_B.clone(),
         );
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
 
         // send block to multiple receivers
         let _ = send_empty_block_and_update(
@@ -272,8 +275,7 @@ pub async fn default_interface_set_default_interface_first() {
 
         // Update to let the com_hub know about the socket and call the add_socket method
         // This will set the default interface and socket
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
         let _ = send_empty_block_and_update(
             core::slice::from_ref(&TEST_ENDPOINT_B),
             &com_hub,
@@ -309,10 +311,11 @@ pub async fn test_receive() {
         let block_bytes = block.to_bytes().unwrap();
         {
             let mut socket_ref = socket.try_lock().unwrap();
-            socket_ref.queue_outgoing_block(block_bytes.as_slice());
+            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
+            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
-        // FIXME update loop
-        // com_hub.update_async().await;
+
+        yield_now().await;
 
         let last_block = get_last_received_single_block_from_com_hub(&com_hub);
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
@@ -346,10 +349,11 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
         let block_bytes = block.to_bytes().unwrap();
         {
             let mut socket_ref = socket.try_lock().unwrap();
-            socket_ref.queue_outgoing_block(block_bytes.as_slice());
+            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
+            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
-        // FIXME update loop
-        // com_hub.update_async().await;
+
+        yield_now().await;
 
         let last_block = get_last_received_single_block_from_com_hub(&com_hub);
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
@@ -386,10 +390,11 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
         let block_bytes = block.to_bytes().unwrap();
         {
             let mut socket_ref = socket.try_lock().unwrap();
-            socket_ref.queue_outgoing_block(block_bytes.as_slice());
+            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
+            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
-        // FIXME update loop
-        // com_hub.update_async().await;
+
+        yield_now().await;
 
         let last_block = get_last_received_single_block_from_com_hub(&com_hub);
         assert_eq!(last_block.raw_bytes.clone().unwrap(), block_bytes);
@@ -447,14 +452,16 @@ pub async fn test_receive_multiple() {
         {
             let mut socket_ref = socket.try_lock().unwrap();
             for block in block_bytes.iter() {
-                socket_ref.queue_outgoing_block(block);
+                let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
+                bytes_in_sender.start_send(block.as_slice().to_vec()).unwrap();
             }
         }
 
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
 
         let incoming_blocks = get_all_received_single_blocks_from_com_hub(&com_hub);
+
+        assert_eq!(incoming_blocks.len(), blocks.len());
 
         for (incoming_block, block) in incoming_blocks.iter().zip(blocks.iter()) {
             assert_eq!(
@@ -475,9 +482,10 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         {
             let interface_manager = com_hub.interface_manager();
             let socket_manager = com_hub.socket_manager();
-            assert_eq!(interface_manager.borrow().interfaces.len(), 1);
-            assert_eq!(socket_manager.borrow().sockets.len(), 1);
-            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 1);
+            assert_eq!(interface_manager.borrow().interfaces.len(), 2); // loopback + mockup interface
+            // FIXME: should be 2 sockets, but loopback socket is not correctly initialized
+            assert_eq!(socket_manager.borrow().sockets.len(), 2); // loopback + mockup socket
+            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 2);
         }
 
         assert_eq!(
@@ -495,9 +503,9 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         {
             let interface_manager = com_hub.interface_manager();
             let socket_manager = com_hub.socket_manager();
-            assert_eq!(interface_manager.borrow().interfaces.len(), 0);
-            assert_eq!(socket_manager.borrow().sockets.len(), 0);
-            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 0);
+            assert_eq!(interface_manager.borrow().interfaces.len(), 1); // loopback interface
+            assert_eq!(socket_manager.borrow().sockets.len(), 1); // loopback socket
+            assert_eq!(socket_manager.borrow().endpoint_sockets.len(), 1);
         }
 
         assert_eq!(
@@ -541,9 +549,8 @@ pub async fn test_basic_routing() {
         com_interface_a.borrow_mut().update().await;
         com_interface_b.borrow_mut().update().await;
 
-        // FIXME update loop
-        // com_hub_mut_a.update_async().await;
-        // com_hub_mut_b.update_async().await;
+        yield_now().await;
+        yield_now().await;
 
         let block_a_to_b = send_block_with_body(
             &[TEST_ENDPOINT_B.clone()],
@@ -553,8 +560,7 @@ pub async fn test_basic_routing() {
         .await;
 
         com_interface_b.borrow_mut().update().await;
-        // FIXME update loop
-        // com_hub_mut_b.update_async().await;
+        yield_now().await;
 
         let last_block =
             get_last_received_single_block_from_com_hub(&com_hub_mut_b);
@@ -644,8 +650,7 @@ pub async fn test_reconnect() {
             .is_some());
 
         // the interface should not be reconnected yet
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
 
         assert_eq!(
             base_interface.borrow().get_state(),
@@ -657,8 +662,7 @@ pub async fn test_reconnect() {
 
         // check that the interface is connected again
         // and that the close_timestamp is reset
-        // FIXME update loop
-        // com_hub.update_async().await;
+        yield_now().await;
 
         assert_eq!(
             base_interface.borrow().get_state(),

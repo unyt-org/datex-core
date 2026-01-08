@@ -1,4 +1,5 @@
 /// A utility struct that allows consuming a value exactly once.
+#[derive(Debug)]
 pub struct OnceConsumer<T>(Option<T>);
 
 impl<T> OnceConsumer<T> {

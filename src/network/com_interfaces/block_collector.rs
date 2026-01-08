@@ -7,11 +7,11 @@ use log::error;
 
 #[derive(Debug)]
 pub struct BlockCollector {
-    /// Incoming blocks received from the network are sent through this channel.
+    /// The receiver for incoming byte slices.
     bytes_in_receiver: UnboundedReceiver<Vec<u8>>,
 
-    /// The receive queue from which the DXB blocks are collected.
-    block_out_sender: UnboundedSender<DXBBlock>,
+    /// The sender for incoming DXB blocks that have been parsed from the byte slices.
+    block_in_sender: UnboundedSender<DXBBlock>,
 
     // The current block being received.
     current_block: Vec<u8>,
@@ -60,7 +60,7 @@ impl BlockCollector {
 
                     match block_result {
                         Ok(block) => {
-                            self.block_out_sender.send(block).await;
+                            self.block_in_sender.send(block).await.unwrap();
                             self.current_block_specified_length = None;
                         }
                         Err(err) => {
@@ -84,15 +84,15 @@ impl BlockCollector {
     /// Returns the sender to send byte slices (socket) to and the receiver to receive collected DXB blocks (ComHub).
     pub fn init() -> (UnboundedSender<Vec<u8>>, UnboundedReceiver<DXBBlock>) {
         let (bytes_in_sender, bytes_in_receiver) = create_unbounded_channel();
-        let (block_out_sender, block_out_receiver) = create_unbounded_channel();
+        let (block_in_sender, block_in_receiver) = create_unbounded_channel();
         let block_collector = BlockCollector {
             bytes_in_receiver,
-            block_out_sender,
+            block_in_sender,
             current_block: Vec::new(),
             current_block_specified_length: None,
         };
         spawn_local(run_block_collector_task(block_collector));
-        (bytes_in_sender, block_out_receiver)
+        (bytes_in_sender, block_in_receiver)
     }
 }
 

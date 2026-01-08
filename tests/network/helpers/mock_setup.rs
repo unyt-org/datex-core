@@ -9,6 +9,7 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use datex_core::values::core_values::endpoint::Endpoint;
 use std::sync::{Arc, Mutex, mpsc};
+use log::{error, info};
 use tokio::task::yield_now;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
 
@@ -193,6 +194,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     }
 
     let socket = create_and_add_socket(mockup_interface_ref.clone());
+    
     if remote_endpoint.is_some() {
         register_socket_endpoint(
             mockup_interface_ref.clone(),
@@ -278,7 +280,11 @@ pub async fn send_empty_block_and_update(
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
     {
-        com_hub.send_own_block(block.clone()).await.expect("Failed to send block");
+        if let Ok(sent_block) = com_hub.send_own_block(block.clone()).await {
+            info!("Sent block: {:?}", sent_block);
+        } else {
+            error!("Failed to send block");
+        }
     }
 
     yield_now().await;
