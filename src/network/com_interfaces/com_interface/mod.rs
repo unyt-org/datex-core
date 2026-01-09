@@ -18,6 +18,7 @@ use crate::network::com_interfaces::com_interface::state::{
 use crate::stdlib::any::Any;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::rc::Rc;
+use crate::stdlib::sync::MutexGuard;
 use crate::stdlib::sync::{Arc, Mutex};
 use crate::task::{
     UnboundedReceiver, UnboundedSender, create_unbounded_channel,
@@ -32,7 +33,6 @@ use core::fmt::Display;
 use core::pin::Pin;
 use core::time::Duration;
 use log::debug;
-use std::cell::Ref;
 pub mod error;
 pub mod implementation;
 pub mod properties;
@@ -93,15 +93,19 @@ impl ComInterfaceInfo {
             create_unbounded_channel::<ComInterfaceSocketEvent>();
         let (interface_event_sender, interface_event_receiver) =
             create_unbounded_channel::<ComInterfaceEvent>();
+        let uuid = ComInterfaceUUID(UUID::new());
         Self {
-            uuid: ComInterfaceUUID(UUID::new()),
             state: Arc::new(Mutex::new(ComInterfaceStateWrapper::new(
                 state,
                 interface_event_sender,
             ))),
             socket_manager: Arc::new(Mutex::new(
-                ComInterfaceSocketManager::new_with_sender(socket_event_sender),
+                ComInterfaceSocketManager::new_with_sender(
+                    uuid.clone(),
+                    socket_event_sender,
+                ),
             )),
+            uuid,
             interface_event_receiver: OnceConsumer::new(
                 interface_event_receiver,
             ),
@@ -293,30 +297,15 @@ impl ComInterface {
         }
     }
 
-    pub fn create_and_init_socket(
-        &self,
-        direction: InterfaceDirection,
-        channel_factor: u32,
-    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
-        let info = match self {
+    pub fn info(&self) -> &ComInterfaceInfo {
+        match self {
             ComInterface::Headless { info } => info.as_ref().unwrap(),
             ComInterface::Initialized { info, .. } => info,
-        };
-        let (socket, sender) = ComInterfaceSocket::init(
-            info.uuid().clone(),
-            direction,
-            channel_factor,
-        );
-        let socket_uuid = socket.uuid.clone();
-        info.socket_manager.try_lock().unwrap().add_socket(socket);
-        (socket_uuid, sender)
+        }
     }
 
-    fn add_socket(&mut self, socket: ComInterfaceSocket) {
-        let info = match self {
-            ComInterface::Headless { info } => info.as_ref().unwrap(),
-            ComInterface::Initialized { info, .. } => info,
-        };
+    pub fn socket_manager(&self) -> Arc<Mutex<ComInterfaceSocketManager>> {
+        self.info().socket_manager.clone()
     }
 
     pub fn take_interface_event_receiver(
@@ -343,5 +332,11 @@ impl ComInterface {
                 info.take_socket_event_receiver()
             }
         }
+    }
+
+    pub fn locked_socked_manager(
+        &self,
+    ) -> MutexGuard<'_, ComInterfaceSocketManager> {
+        self.socket_manager().lock().unwrap()
     }
 }

@@ -1,6 +1,8 @@
 use crate::collections::HashMap;
 use crate::network::com_hub::ComInterfaceImplementationFactoryFn;
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
 use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketEvent, ComInterfaceSocketUUID,
     SocketState,
@@ -24,14 +26,17 @@ use log::debug;
 
 #[derive(Debug)]
 pub struct ComInterfaceSocketManager {
+    interface_uuid: ComInterfaceUUID,
     socket_event_sender: UnboundedSender<ComInterfaceSocketEvent>,
 }
 
 impl ComInterfaceSocketManager {
     pub fn new_with_sender(
+        interface_uuid: ComInterfaceUUID,
         sender: UnboundedSender<ComInterfaceSocketEvent>,
     ) -> Self {
         ComInterfaceSocketManager {
+            interface_uuid,
             socket_event_sender: sender,
         }
     }
@@ -93,5 +98,20 @@ impl ComInterfaceSocketManager {
             ))
             .unwrap();
         Ok(())
+    }
+
+    pub fn create_and_init_socket(
+        &mut self,
+        direction: InterfaceDirection,
+        channel_factor: u32,
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (socket, sender) = ComInterfaceSocket::init(
+            self.interface_uuid.clone(),
+            direction,
+            channel_factor,
+        );
+        let socket_uuid = socket.uuid.clone();
+        self.add_socket(socket);
+        (socket_uuid, sender)
     }
 }

@@ -48,6 +48,9 @@ impl TCPClientNativeInterface {
         let (_, mut sender) = self
             .com_interface
             .borrow()
+            .socket_manager()
+            .lock()
+            .unwrap()
             .create_and_init_socket(InterfaceDirection::InOut, 1);
         self.tx.borrow_mut().replace(write_half);
 
