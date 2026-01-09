@@ -18,7 +18,8 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
 use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceOld, ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
+    ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceOld,
+    ComInterfaceState,
 };
 use crate::network::com_interfaces::com_interface_old::{
     ComInterfaceInfo, ComInterfaceSockets,
@@ -76,7 +77,7 @@ impl TCPServerNativeInterface {
                 match listener.accept().await {
                     Ok((stream, _)) => {
                         let socket = ComInterfaceSocket::init(
-                            interface_uuid.clone(),
+                            interface_uuid,
                             InterfaceDirection::InOut,
                             1,
                         );

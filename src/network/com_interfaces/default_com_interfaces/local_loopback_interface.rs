@@ -1,3 +1,7 @@
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceError,
+};
+use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
@@ -14,11 +18,10 @@ use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
+use datex_core::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
+use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
-use datex_core::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError};
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
@@ -32,7 +35,14 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        self.socket.try_lock().unwrap().bytes_in_sender.try_lock().unwrap().start_send(block.to_vec()).unwrap();
+        self.socket
+            .try_lock()
+            .unwrap()
+            .bytes_in_sender
+            .try_lock()
+            .unwrap()
+            .start_send(block.to_vec())
+            .unwrap();
         Box::pin(async { true })
     }
 
@@ -51,15 +61,23 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
         Box::pin(async move { true })
     }
 
-    fn handle_open<'a>(&'a mut self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
-        todo!()
+    fn handle_open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
+    }
+    fn as_any_ref(&self) -> &dyn Any {
+        self
     }
 }
 
 impl ComInterfaceFactory for LocalLoopbackInterface {
     type SetupData = ();
 
-    fn create(_setup_data: Self::SetupData, com_interface: Rc<RefCell<ComInterface>>) -> Result<Self, ComInterfaceError> {
+    fn create(
+        _setup_data: Self::SetupData,
+        com_interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<Self, ComInterfaceError> {
         let mut com_interface = com_interface.borrow_mut();
         let socket = Arc::new(Mutex::new(ComInterfaceSocket::init(
             com_interface.uuid().clone(),
@@ -68,7 +86,11 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
         )));
         let socket_uuid = socket.try_lock().unwrap().uuid.clone();
         com_interface.add_socket(socket.clone());
-        com_interface.register_socket_endpoint(socket_uuid, Endpoint::LOCAL, 1)?;
+        com_interface.register_socket_endpoint(
+            socket_uuid,
+            Endpoint::LOCAL,
+            1,
+        )?;
 
         Ok(LocalLoopbackInterface { socket })
     }

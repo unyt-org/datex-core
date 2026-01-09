@@ -1,15 +1,17 @@
-use std::any::Any;
-use std::cell::RefCell;
-use std::pin::Pin;
-use std::rc::Rc;
-use log::error;
 use crate::network::com_hub::ComHub;
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceError};
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceError,
+};
 use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
 use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::serde::Deserialize;
 use crate::serde::deserializer::from_value_container;
 use crate::values::value_container::ValueContainer;
+use log::error;
+use std::any::Any;
+use std::cell::RefCell;
+use std::pin::Pin;
+use std::rc::Rc;
 
 /// A specific implementation of a communication interface for a channel
 pub trait ComInterfaceImplementation: Any {
@@ -29,9 +31,7 @@ pub trait ComInterfaceImplementation: Any {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     // TODO: fixme
-    fn as_any_ref(&self) -> &dyn Any {
-        self
-    }
+    fn as_any_ref(&self) -> &dyn Any;
 }
 
 /// This trait can be implemented by any ComInterfaceImplementation impl that wants to
@@ -102,7 +102,10 @@ where
     /// Create a new instance of the interface with the given setup data.
     /// If no instance could be created with the given setup data,
     /// None is returned.
-    fn create(setup_data: Self::SetupData, com_interface: Rc<RefCell<ComInterface>>) -> Result<Self, ComInterfaceError>;
+    fn create(
+        setup_data: Self::SetupData,
+        com_interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<Self, ComInterfaceError>;
 
     /// Get the default interface properties for the interface.
     fn get_default_properties() -> InterfaceProperties;
