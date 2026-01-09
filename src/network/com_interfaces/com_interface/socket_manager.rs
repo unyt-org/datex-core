@@ -52,49 +52,30 @@ impl ComInterfaceSocketManager {
 
     /// Removes a socket by its UUID and notifies listeners on ComHub
     pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
-        self.sockets.remove(socket_uuid);
         self.socket_event_sender
             .start_send(ComInterfaceSocketEvent::RemovedSocket(
                 socket_uuid.clone(),
             ))
             .unwrap();
-        if let Some(socket) = self.sockets.get(socket_uuid) {
-            socket.try_lock().unwrap().state = SocketState::Destroyed;
-        }
-    }
-
-    /// Gets a socket by its UUID
-    pub fn socket_by_uuid(
-        &self,
-        uuid: &ComInterfaceSocketUUID,
-    ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
-        self.sockets.get(uuid).cloned()
+        // FIXME socket state
+        // if let Some(socket) = self.sockets.get(socket_uuid) {
+        //     socket.try_lock().unwrap().state = SocketState::Destroyed;
+        // }
     }
 
     /// Registers an endpoint for a socket and notifies listeners on ComHub
-    pub fn register_socket_endpoint(
+    pub fn register_socket_with_endpoint(
         &mut self,
         socket_uuid: ComInterfaceSocketUUID,
         endpoint: Endpoint,
         distance: u8,
     ) -> Result<(), ComInterfaceError> {
-        let socket = self.sockets.get(&socket_uuid);
-        if socket.is_none() {
-            return Err(ComInterfaceError::SocketNotFound);
-        }
-        {
-            let mut socket = socket.unwrap().try_lock().unwrap();
-            if socket.direct_endpoint.is_none() {
-                socket.direct_endpoint = Some(endpoint.clone());
-            }
-        }
-
         debug!("Socket registered: {socket_uuid} {endpoint}");
         self.socket_event_sender
             .start_send(ComInterfaceSocketEvent::RegisteredSocket(
                 socket_uuid,
                 distance as i8,
-                endpoint.clone(),
+                endpoint,
             ))
             .unwrap();
         Ok(())
