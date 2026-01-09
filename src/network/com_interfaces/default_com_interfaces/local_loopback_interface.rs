@@ -32,7 +32,7 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        self.socket.try_lock().unwrap().queue_outgoing_block(block);
+        self.socket.try_lock().unwrap().bytes_in_sender.try_lock().unwrap().start_send(block.to_vec()).unwrap();
         Box::pin(async { true })
     }
 
@@ -50,6 +50,10 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
+
+    fn handle_open<'a>(&'a mut self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+        todo!()
+    }
 }
 
 impl ComInterfaceFactory for LocalLoopbackInterface {
@@ -65,7 +69,7 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
         let socket_uuid = socket.try_lock().unwrap().uuid.clone();
         com_interface.add_socket(socket.clone());
         com_interface.register_socket_endpoint(socket_uuid, Endpoint::LOCAL, 1)?;
-        
+
         Ok(LocalLoopbackInterface { socket })
     }
 

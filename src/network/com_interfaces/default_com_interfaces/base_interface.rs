@@ -11,7 +11,6 @@ use crate::network::com_interfaces::com_interface_properties::{
 use crate::network::com_interfaces::com_interface_socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::pin::Pin;
@@ -147,19 +146,16 @@ impl BaseInterface {
     }
 }
 
-impl MultipleSocketProvider for BaseInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
-    }
-}
-
 impl ComInterfaceImplementation for BaseInterface {
     fn send_block<'a>(
         &'a mut self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if !self.has_socket_with_uuid(socket_uuid.clone()) {
+        let interface = self
+            .com_interface
+            .borrow();
+        if !interface.has_socket_with_uuid(&socket_uuid) {
             return Box::pin(async move { false });
         }
         if let Some(on_send) = &self.on_send {
@@ -178,6 +174,9 @@ impl ComInterfaceImplementation for BaseInterface {
         Box::pin(async move { true })
     }
 
+    fn handle_open<'a>(&'a mut self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+        todo!()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -186,7 +185,7 @@ pub struct BaseInterfaceSetupData(pub InterfaceProperties);
 
 impl ComInterfaceFactory for BaseInterface {
     type SetupData = BaseInterfaceSetupData;
-    
+
     fn create(
         setup_data: BaseInterfaceSetupData,
         com_interface: Rc<RefCell<ComInterface>>

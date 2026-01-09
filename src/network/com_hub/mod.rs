@@ -1,4 +1,4 @@
-use super::com_interfaces::com_interface_old::ComInterfaceState;
+use super::com_interfaces::com_interface::ComInterfaceState;
 use crate::collections::HashMap;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
@@ -192,13 +192,13 @@ impl ComHub {
 
     pub async fn start(self_rc: Rc<Self>) -> Result<(), ComHubError> {
         // add default local loopback interface
-        let local_interface = LocalLoopbackInterface::new();
+        let local_interface = ComInterface::create_with_implementation::<LocalLoopbackInterface>(())?;
         self_rc
             .clone()
             .interface_manager
             .borrow_mut()
             .open_and_add_interface(
-                Rc::new(RefCell::new(local_interface)),
+                local_interface,
                 InterfacePriority::None,
             )
             .await?;

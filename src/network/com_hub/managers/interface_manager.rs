@@ -12,7 +12,8 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceState, ComInterfaceUUID, ComInterfaceError, ComInterfaceEvent, ComInterfaceImplementation};
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceState, ComInterfaceUUID, ComInterfaceError, ComInterfaceEvent};
+use crate::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
 
 type InterfaceMap = HashMap<
     ComInterfaceUUID,
@@ -59,8 +60,10 @@ impl InterfaceManager {
     ) -> Result<Rc<RefCell<ComInterface>>, ComHubError> {
         info!("creating interface {interface_type}");
         if let Some(factory) = self.interface_factories.get(interface_type) {
-            let interface =
-                factory(setup_data).map_err(ComHubError::InterfaceError)?;
+            let interface = ComInterface::create_from_factory_fn(
+                factory.clone(),
+                setup_data
+            ).map_err(ComHubError::InterfaceError)?;
 
             self.open_and_add_interface(interface.clone(), priority)
                 .await

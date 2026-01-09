@@ -383,7 +383,7 @@ impl ComHub {
             socket: NetworkTraceHopSocket::new(
                 self.dyn_interface_for_socket_uuid(&original_socket)
                     .borrow_mut()
-                    .get_properties(),
+                    .properties(),
                 original_socket.clone(),
             ),
             direction: NetworkTraceHopDirection::Incoming,
@@ -430,7 +430,7 @@ impl ComHub {
                 socket: NetworkTraceHopSocket::new(
                     self.dyn_interface_for_socket_uuid(&original_socket)
                         .borrow_mut()
-                        .get_properties(),
+                        .properties(),
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
@@ -471,7 +471,7 @@ impl ComHub {
                 socket: NetworkTraceHopSocket::new(
                     self.dyn_interface_for_socket_uuid(&original_socket)
                         .borrow_mut()
-                        .get_properties(),
+                        .properties(),
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,

@@ -42,6 +42,7 @@ use global_context::{GlobalContext, set_global_context};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use crate::network::block_handler::IncomingSectionsSinkType;
+use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
 
 pub mod dif_interface;
 pub mod execution;

@@ -3,9 +3,7 @@ use crate::{
         com_hub::{
             ComHub, InterfacePriority, managers::socket_manager::SocketManager,
         },
-        com_interfaces::com_interface_old::{
-            ComInterfaceOld, ComInterfaceSocketEvent,
-        },
+        com_interfaces::com_interface::{ComInterfaceSocketEvent, },
     },
     stdlib::{cell::RefCell, rc::Rc},
     task::{UnboundedReceiver, spawn_with_panic_notify},

@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::network::com_interfaces::com_interface_old::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::ComInterfaceError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComHubError {
@@ -14,6 +14,12 @@ pub enum ComHubError {
     InvalidInterfaceDirectionForFallbackInterface,
     NoResponse,
     SignatureError,
+}
+
+impl From<ComInterfaceError> for ComHubError {
+    fn from(err: ComInterfaceError) -> Self {
+        ComHubError::InterfaceError(err)
+    }
 }
 
 impl Display for ComHubError {

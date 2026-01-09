@@ -23,6 +23,15 @@ pub trait ComInterfaceImplementation: Any {
     fn handle_close<'a>(
         &'a mut self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
+    fn handle_open<'a>(
+        &'a mut self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+
+    // TODO: fixme
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// This trait can be implemented by any ComInterfaceImplementation impl that wants to
@@ -59,7 +68,7 @@ where
     Self: Sized + ComInterfaceImplementation,
 {
     type SetupData: Deserialize<'static> + 'static;
-    
+
     /// The factory method that is called from the ComHub on a registered interface
     /// to create a new instance of the interface.
     /// The setup data is passed as a ValueContainer and has to be downcasted

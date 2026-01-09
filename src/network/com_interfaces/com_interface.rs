@@ -241,7 +241,7 @@ impl ComInterfaceInfo {
 /// which contains a concrete implementation of a com interface logic
 pub enum ComInterface {
     Headless {
-        info: ComInterfaceInfo,
+        info: Option<ComInterfaceInfo>,
     },
     Initialized {
         implementation: Box<dyn ComInterfaceImplementation>,
@@ -255,44 +255,45 @@ impl ComInterface {
     pub fn create_from_factory_fn(
         factory_fn: ComInterfaceImplementationFactoryFn,
         setup_data: ValueContainer,
-    ) -> Rc<RefCell<ComInterface>> {
+    ) -> Result<Rc<RefCell<ComInterface>>, ComInterfaceError>{
         // Create a headless ComInterface first
         let com_interface = Rc::new(RefCell::new(
             ComInterface::Headless {
-                info: ComInterfaceInfo::new_with_state_and_properties(
+                info: Some(ComInterfaceInfo::new_with_state_and_properties(
                     ComInterfaceState::NotConnected,
                     InterfaceProperties::default(),
-                ),
+                ))
             }
         ));
 
         // Create the implementation using the factory function
-        let implementation = factory_fn(setup_data, com_interface.clone()).unwrap();
-        com_interface.borrow_mut().initialize(implementation.clone());
+        let implementation = factory_fn(setup_data, com_interface.clone())?;
+        com_interface.borrow_mut().initialize(implementation);
 
-        com_interface
+        Ok(com_interface)
     }
-    
+
     /// Creates a new ComInterface with the implementation of type T
     pub fn create_with_implementation<T>(
         setup_data: T::SetupData,
-    ) -> Rc<RefCell<ComInterface>>
-    where 
+    ) -> Result<Rc<RefCell<ComInterface>>, ComInterfaceError>
+    where
         T: ComInterfaceImplementation + ComInterfaceFactory,
-    {        
+    {
         // Create a headless ComInterface first
         let com_interface = Rc::new(RefCell::new(
             ComInterface::Headless {
-                info: ComInterfaceInfo::new_with_state_and_properties(
+                info: Some(ComInterfaceInfo::new_with_state_and_properties(
                     ComInterfaceState::NotConnected,
                     InterfaceProperties::default(),
-                ),
+                )),
             }
         ));
-        
+
         // Create the implementation using the factory function
-        let implementation = T::create(setup_data, com_interface.clone()).unwrap();
-        com_interface.borrow_mut().initialize(implementation.clone());                
+        let implementation = T::create(setup_data, com_interface.clone())?;
+        com_interface.borrow_mut().initialize(Box::new(implementation));
+        Ok(com_interface)
     }
 
     /// Initializes a headless ComInterface with the provided implementation
@@ -306,7 +307,7 @@ impl ComInterface {
             ComInterface::Headless { info } => {
                 *self = ComInterface::Initialized {
                     implementation,
-                    info: info.clone(),
+                    info: info.take().expect("ComInterfaceInfo should be present when initializing"),
                 };
             }
             ComInterface::Initialized { .. } => {
@@ -317,28 +318,35 @@ impl ComInterface {
 
     pub fn uuid(&self) -> &ComInterfaceUUID {
         match self {
-            ComInterface::Headless { info } => info.uuid(),
+            ComInterface::Headless { info } => info.as_ref().unwrap().uuid(),
             ComInterface::Initialized { info, .. } => info.uuid(),
         }
     }
 
     pub fn state(&self) -> ComInterfaceState {
         match self {
-            ComInterface::Headless { info } => info.state(),
+            ComInterface::Headless { info } => info.as_ref().unwrap().state(),
             ComInterface::Initialized { info, .. } => info.state(),
+        }
+    }
+
+    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+        match self {
+            ComInterface::Headless { info } => info.as_mut().unwrap().set_state(new_state),
+            ComInterface::Initialized { info, .. } => info.set_state(new_state),
         }
     }
 
     pub fn properties(&self) -> &InterfaceProperties {
         match self {
-            ComInterface::Headless { info } => &info.interface_properties,
+            ComInterface::Headless { info } => &info.as_ref().unwrap().interface_properties,
             ComInterface::Initialized { info, .. } => &info.interface_properties,
         }
     }
 
     pub fn properties_mut(&mut self) -> &mut InterfaceProperties {
         match self {
-            ComInterface::Headless { info } => &mut info.interface_properties,
+            ComInterface::Headless { info } => &mut info.as_mut().unwrap().interface_properties,
             ComInterface::Initialized { info, .. } => &mut info.interface_properties,
         }
     }
@@ -375,7 +383,7 @@ impl ComInterface {
                 panic!("Cannot destroy headless ComInterface");
             }
             ComInterface::Initialized { implementation, .. } => {
-                implementation.handle_destroy().await
+                implementation.handle_close().await
             }
         }
     }
@@ -385,7 +393,7 @@ impl ComInterface {
         socket: Arc<Mutex<ComInterfaceSocket>>,
     ) {
         let info = match self {
-            ComInterface::Headless { info } => info,
+            ComInterface::Headless { info } => info.as_ref().unwrap(),
             ComInterface::Initialized { info, .. } => info,
         };
         info.com_interface_sockets
@@ -401,7 +409,7 @@ impl ComInterface {
         distance: u8,
     ) -> Result<(), ComInterfaceError> {
         let info = match self {
-            ComInterface::Headless { info } => info,
+            ComInterface::Headless { info } => info.as_ref().unwrap(),
             ComInterface::Initialized { info, .. } => info,
         };
         info.com_interface_sockets
@@ -415,7 +423,7 @@ impl ComInterface {
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         let info = match self {
-            ComInterface::Headless { info } => info,
+            ComInterface::Headless { info } => info.as_ref().unwrap(),
             ComInterface::Initialized { info, .. } => info,
         };
         info.com_interface_sockets
@@ -424,28 +432,50 @@ impl ComInterface {
             .get_socket_by_uuid(socket_uuid)
     }
 
+    pub fn has_socket_with_uuid(
+        &self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> bool {
+        let info = match self {
+            ComInterface::Headless { info } => info.as_ref().unwrap(),
+            ComInterface::Initialized { info, .. } => info,
+        };
+        info.com_interface_sockets
+            .try_lock()
+            .unwrap()
+            .sockets
+            .contains_key(socket_uuid)
+    }
 
     // Attempts to get a reference to the inner implementation
     // as a specific concrete type T.
     fn try_get_as_implementation<T: ComInterfaceImplementation>(
         &self,
-    ) -> Option<&Box<T>> {
+    ) -> Option<&T> {
         match self {
             ComInterface::Headless { .. } => None,
             ComInterface::Initialized { implementation, .. } => {
-                // Try to get a reference to the inner value
-                if implementation.borrow().as_any().is::<T>() {
-                    // SAFETY: We're ensuring T is the correct type via the check
-                    Some(
-                        unsafe {
-                            &*( &implementation as *const Box<dyn ComInterfaceImplementation>
-                                as *const Box<T>)
-                        }
-                    )
-                } else {
-                    None
+                match implementation.as_any_ref().downcast_ref::<T>() {
+                    Some(concrete_impl) => Some(concrete_impl),
+                    None => None,
                 }
             }
         }
+    }
+
+    pub fn take_interface_event_receiver(&mut self) -> UnboundedReceiver<ComInterfaceEvent> {
+        let maybe_receiver = match self {
+            ComInterface::Headless { info } => info.as_mut().unwrap().interface_event_receiver.take(),
+            ComInterface::Initialized { info, .. } => info.interface_event_receiver.take(),
+        };
+        maybe_receiver.expect("Interface event receiver has already been taken")
+    }
+
+    pub fn take_socket_event_receiver(&mut self) -> UnboundedReceiver<ComInterfaceSocketEvent> {
+        let maybe_receiver = match self {
+            ComInterface::Headless { info } => info.as_mut().unwrap().socket_event_receiver.take(),
+            ComInterface::Initialized { info, .. } => info.socket_event_receiver.take(),
+        };
+        maybe_receiver.expect("Socket event receiver has already been taken")
     }
 }

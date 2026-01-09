@@ -4,7 +4,7 @@ use log::info;
 use crate::collections::HashMap;
 use crate::network::com_hub::ComHub;
 use crate::network::com_hub::managers::socket_manager::DynamicEndpointProperties;
-use crate::network::com_interfaces::com_interface_old::ComInterfaceUUID;
+use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface_properties::{
     InterfaceDirection, InterfaceProperties,
 };
@@ -172,7 +172,7 @@ impl ComHub {
 
             metadata.interfaces.push(ComHubMetadataInterface {
                 uuid: interface.uuid().0.to_string(),
-                properties: interface.init_properties(),
+                properties: interface.properties().clone(),
                 sockets: sockets_by_com_interface_uuid
                     .remove(interface.uuid())
                     .unwrap_or_default(),
