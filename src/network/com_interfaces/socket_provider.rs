@@ -1,7 +1,7 @@
-use super::{
-    com_interface_old::ComInterfaceSockets,
-    com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
+use crate::network::com_interfaces::com_interface::socket::{
+    ComInterfaceSocket, ComInterfaceSocketUUID,
 };
+use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSockets;
 use crate::std_sync::Mutex;
 use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;

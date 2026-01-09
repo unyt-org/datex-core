@@ -1,4 +1,4 @@
-use crate::stdlib::{cell::RefCell, rc::Rc};
+use crate::{network::com_interfaces::com_interface::{error::ComInterfaceError, implementation::ComInterfaceImplementation, properties::InterfaceDirection, state::ComInterfaceState}, stdlib::{cell::RefCell, rc::Rc}};
 
 use log::info;
 
@@ -7,13 +7,11 @@ use crate::{
     network::{
         com_hub::{ComHubError, InterfacePriority},
         com_interfaces::{
-            com_interface_properties::InterfaceDirection,
         },
     },
     values::value_container::ValueContainer,
 };
-use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceState, ComInterfaceUUID, ComInterfaceError, ComInterfaceEvent};
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceUUID, ComInterfaceEvent};
 
 type InterfaceMap = HashMap<
     ComInterfaceUUID,

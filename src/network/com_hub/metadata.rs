@@ -5,10 +5,10 @@ use crate::collections::HashMap;
 use crate::network::com_hub::ComHub;
 use crate::network::com_hub::managers::socket_manager::DynamicEndpointProperties;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+
+use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;

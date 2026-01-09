@@ -1,37 +1,27 @@
 use crate::network::com_hub::ComHub;
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError,
-};
-use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::serde::Deserialize;
 use crate::serde::deserializer::from_value_container;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::values::value_container::ValueContainer;
+use core::pin::Pin;
 use log::error;
-use std::any::Any;
-use std::cell::RefCell;
-use std::pin::Pin;
-use std::rc::Rc;
 
 /// A specific implementation of a communication interface for a channel
-pub trait ComInterfaceImplementation: Any {
+pub trait ComInterfaceImplementation: 'static {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 
     fn get_properties(&self) -> InterfaceProperties;
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
-
-    fn handle_open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
-
-    // TODO: fixme
-    fn as_any_ref(&self) -> &dyn Any;
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
 }
 
 /// This trait can be implemented by any ComInterfaceImplementation impl that wants to

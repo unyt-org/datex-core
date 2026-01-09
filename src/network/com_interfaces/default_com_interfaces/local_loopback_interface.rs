@@ -1,11 +1,13 @@
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError,
+use crate::network::com_interfaces::com_interface::ComInterface;
+
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
 };
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
-use crate::network::com_interfaces::com_interface_properties::{
+use crate::network::com_interfaces::com_interface::properties::{
     InterfaceDirection, InterfaceProperties,
 };
-use crate::network::com_interfaces::com_interface_socket::{
+use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::std_sync::Mutex;
@@ -18,8 +20,6 @@ use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-use datex_core::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -31,7 +31,7 @@ pub struct LocalLoopbackInterface {
 
 impl ComInterfaceImplementation for LocalLoopbackInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -55,19 +55,12 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
 
-    fn handle_open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
-    }
-    fn as_any_ref(&self) -> &dyn Any {
-        self
     }
 }
 

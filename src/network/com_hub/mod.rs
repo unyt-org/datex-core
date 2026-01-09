@@ -1,4 +1,3 @@
-use super::com_interfaces::com_interface::ComInterfaceState;
 use crate::collections::HashMap;
 use crate::global::protocol_structures::block_header::BlockType;
 use crate::global::protocol_structures::routing_header::SignatureType;
@@ -20,6 +19,8 @@ mod com_hub_socket;
 pub mod errors;
 pub mod network_response;
 pub mod network_tracing;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
@@ -44,14 +45,13 @@ use crate::values::core_values::endpoint::Endpoint;
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData, IncomingSectionsSinkType};
 use crate::network::com_hub::network_tracing::{NetworkTraceHop, NetworkTraceHopDirection, NetworkTraceHopSocket};
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::default_com_interfaces::local_loopback_interface::LocalLoopbackInterface;
 use crate::runtime::AsyncContext;
 pub mod com_hub_interface;
 
-pub use managers::interface_manager::ComInterfaceImplementationFactoryFn;
 use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::utils::once_consumer::OnceConsumer;
+pub use managers::interface_manager::ComInterfaceImplementationFactoryFn;
 
 pub type IncomingBlockInterceptor =
     Box<dyn Fn(&DXBBlock, &ComInterfaceSocketUUID) + 'static>;
@@ -61,9 +61,7 @@ pub type OutgoingBlockInterceptor =
 
 #[derive(Debug, Clone)]
 pub enum BlockSendEvent {
-    NewSocket {
-        socket_uuid: ComInterfaceSocketUUID,
-    },
+    NewSocket { socket_uuid: ComInterfaceSocketUUID },
 }
 
 pub struct ComHub {
@@ -79,7 +77,8 @@ pub struct ComHub {
     interface_manager: Rc<RefCell<InterfaceManager>>,
 
     pub block_handler: BlockHandler,
-    pub incoming_sections_receiver: RefCell<OnceConsumer<UnboundedReceiver<IncomingSection>>>,
+    pub incoming_sections_receiver:
+        RefCell<OnceConsumer<UnboundedReceiver<IncomingSection>>>,
 
     incoming_block_interceptors: RefCell<Vec<IncomingBlockInterceptor>>,
     outgoing_block_interceptors: RefCell<Vec<OutgoingBlockInterceptor>>,
@@ -153,13 +152,16 @@ impl ComHub {
         let (block_send_sender, send_request_receiver) =
             create_unbounded_channel::<BlockSendEvent>();
 
-        let (block_handler, incoming_sections_receiver) = BlockHandler::init(incoming_sections_sink_type);
+        let (block_handler, incoming_sections_receiver) =
+            BlockHandler::init(incoming_sections_sink_type);
         ComHub {
             endpoint: endpoint.into(),
             async_context,
             options: ComHubOptions::default(),
             block_handler,
-            incoming_sections_receiver: RefCell::new(OnceConsumer::from(incoming_sections_receiver)),
+            incoming_sections_receiver: RefCell::new(OnceConsumer::from(
+                incoming_sections_receiver,
+            )),
             socket_manager: Rc::new(RefCell::new(SocketManager::new(
                 block_send_sender,
             ))),
@@ -192,15 +194,14 @@ impl ComHub {
 
     pub async fn start(self_rc: Rc<Self>) -> Result<(), ComHubError> {
         // add default local loopback interface
-        let local_interface = ComInterface::create_with_implementation::<LocalLoopbackInterface>(())?;
+        let local_interface = ComInterface::create_with_implementation::<
+            LocalLoopbackInterface,
+        >(())?;
         self_rc
             .clone()
             .interface_manager
             .borrow_mut()
-            .open_and_add_interface(
-                local_interface,
-                InterfacePriority::None,
-            )
+            .open_and_add_interface(local_interface, InterfacePriority::None)
             .await?;
 
         // start handling ComHub events
@@ -1247,7 +1248,7 @@ async fn com_hub_event_task(
 ) {
     while let Some(event) = receiver.next().await {
         match event {
-            BlockSendEvent::NewSocket { socket_uuid} => {
+            BlockSendEvent::NewSocket { socket_uuid } => {
                 info!("New socket connected: {}", socket_uuid);
                 let socket = self_rc
                     .socket_manager
@@ -1258,38 +1259,34 @@ async fn com_hub_event_task(
                 spawn_with_panic_notify(
                     &async_context,
                     handle_incoming_socket_blocks_task(
-                        socket
-                            .try_lock()
-                            .unwrap()
-                            .take_block_in_receiver(),
+                        socket.try_lock().unwrap().take_block_in_receiver(),
                         socket_uuid.clone(),
                         self_rc.clone(),
-                    )
+                    ),
                 );
 
                 // spawn task to handle outgoing blocks for this socket
-                let com_interface = self_rc
-                    .dyn_interface_for_socket_uuid(&socket_uuid);
+                let com_interface =
+                    self_rc.dyn_interface_for_socket_uuid(&socket_uuid);
                 spawn_with_panic_notify(
                     &async_context,
                     handle_outgoing_socket_bytes_task(
-                        socket
-                            .try_lock()
-                            .unwrap()
-                            .take_bytes_out_receiver(),
+                        socket.try_lock().unwrap().take_bytes_out_receiver(),
                         socket_uuid.clone(),
                         com_interface,
-                    )
+                    ),
                 );
 
-                if socket.try_lock().unwrap().can_send() && let Err(err) = self_rc.send_hello_block(socket_uuid).await {
+                if socket.try_lock().unwrap().can_send()
+                    && let Err(err) =
+                        self_rc.send_hello_block(socket_uuid).await
+                {
                     error!("Failed to send hello block: {:?}", err);
                 }
             }
         }
     }
 }
-
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn handle_incoming_socket_blocks_task(

@@ -1,31 +1,29 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use log::error;
-use std::any::Any;
 
-use super::super::com_interface_old::ComInterfaceOld;
-use crate::network::com_hub::errors::ComHubError;
-use crate::network::com_interfaces::com_interface::{
-    ComInterface, ComInterfaceError, ComInterfaceInfo, ComInterfaceSockets,
-    ComInterfaceState,
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
 };
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
+use crate::network::{
+    com_hub::errors::ComHubError,
+    com_interfaces::com_interface::properties::InterfaceDirection,
 };
-use crate::network::com_interfaces::com_interface_socket::{
+
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
 use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::{delegate_com_interface_info, set_sync_opener};
 use core::future::Future;
-use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,8 +37,6 @@ pub struct BaseInterface {
     com_interface: Rc<RefCell<ComInterface>>,
 }
 
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceImplementation;
 use datex_macros::{com_interface, create_opener};
 use strum::Display;
 use thiserror::Error;
@@ -146,7 +142,7 @@ impl BaseInterface {
 
 impl ComInterfaceImplementation for BaseInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -165,20 +161,12 @@ impl ComInterfaceImplementation for BaseInterface {
         self.properties.clone()
     }
 
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
 
-    fn handle_open<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
-    }
-
-    fn as_any_ref(&self) -> &dyn Any {
-        self
     }
 }
 

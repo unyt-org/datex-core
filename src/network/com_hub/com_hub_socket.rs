@@ -1,14 +1,12 @@
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketEvent;
 use crate::{
-    network::{
-        com_hub::{
-            ComHub, InterfacePriority, managers::socket_manager::SocketManager,
-        },
-        com_interfaces::com_interface::{ComInterfaceSocketEvent, },
+    network::com_hub::{
+        ComHub, InterfacePriority, managers::socket_manager::SocketManager,
     },
     stdlib::{cell::RefCell, rc::Rc},
     task::{UnboundedReceiver, spawn_with_panic_notify},
 };
-use crate::network::com_interfaces::com_interface::ComInterface;
 
 impl ComHub {
     pub(crate) fn handle_interface_socket_events(

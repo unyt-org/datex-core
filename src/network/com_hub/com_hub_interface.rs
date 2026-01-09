@@ -1,6 +1,7 @@
 use crate::network::com_hub::managers::interface_manager::{
     ComInterfaceImplementationFactoryFn, InterfaceManager,
 };
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::stdlib::string::String;
 use crate::stdlib::{cell::RefCell, rc::Rc};
 use crate::task::{UnboundedReceiver, spawn_with_panic_notify};
@@ -12,7 +13,6 @@ use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::{
     ComInterfaceEvent, ComInterfaceUUID,
 };
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
 use crate::values::value_container::ValueContainer;
 
 /// Interface management methods
@@ -64,10 +64,7 @@ impl ComHub {
     }
 
     /// Internal method to handle interface events
-    fn handle_interface_events(
-        &self,
-        interface: Rc<RefCell<ComInterface>>,
-    ) {
+    fn handle_interface_events(&self, interface: Rc<RefCell<ComInterface>>) {
         let interface_event_receiver =
             interface.borrow_mut().take_interface_event_receiver();
         let uuid = interface.borrow().uuid().clone();

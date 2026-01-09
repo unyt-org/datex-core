@@ -1,20 +1,23 @@
 use core::prelude::rust_2024::*;
 use strum_macros::EnumIs;
 
-use super::block_collector::BlockCollector;
+use crate::network::com_interfaces::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::network::com_interfaces::com_interface_properties::InterfaceDirection;
+use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
+use crate::network::com_interfaces::com_interface_old::ComInterfaceSockets;
 use crate::std_sync::Mutex;
 use crate::stdlib::string::String;
 use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
-use crate::task::{create_unbounded_channel, UnboundedReceiver, UnboundedSender};
+use crate::task::{
+    UnboundedReceiver, UnboundedSender, create_unbounded_channel,
+};
+use crate::utils::once_consumer::OnceConsumer;
 use crate::utils::uuid::UUID;
 use crate::{
     global::dxb_block::DXBBlock, values::core_values::endpoint::Endpoint,
 };
 use core::fmt::Display;
-use crate::utils::once_consumer::OnceConsumer;
 
 #[derive(Debug, Clone, Copy, PartialEq, EnumIs)]
 pub enum SocketState {
@@ -34,6 +37,13 @@ impl ComInterfaceSocketUUID {
     pub fn from_string(s: String) -> ComInterfaceSocketUUID {
         ComInterfaceSocketUUID(UUID::from_string(s))
     }
+}
+
+#[derive(Debug)]
+pub enum ComInterfaceSocketEvent {
+    NewSocket(Arc<Mutex<ComInterfaceSocket>>),
+    RemovedSocket(ComInterfaceSocketUUID),
+    RegisteredSocket(ComInterfaceSocketUUID, i8, Endpoint),
 }
 
 #[derive(Debug)]
@@ -86,7 +96,8 @@ impl ComInterfaceSocket {
         channel_factor: u32,
     ) -> ComInterfaceSocket {
         let (bytes_in_sender, block_in_receiver) = BlockCollector::init();
-        let (bytes_out_sender, bytes_out_receiver) = create_unbounded_channel::<Vec<u8>>();
+        let (bytes_out_sender, bytes_out_receiver) =
+            create_unbounded_channel::<Vec<u8>>();
         ComInterfaceSocket {
             direct_endpoint: None,
             state: SocketState::Created,

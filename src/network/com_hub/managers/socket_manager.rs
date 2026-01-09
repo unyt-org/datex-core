@@ -1,24 +1,31 @@
+use crate::network::com_interfaces::com_interface::socket::{
+    ComInterfaceSocket, ComInterfaceSocketEvent, ComInterfaceSocketUUID,
+};
 use crate::stdlib::rc::Rc;
-use crate::task::{spawn_local, spawn_with_panic_notify, UnboundedReceiver, UnboundedSender};
+use crate::task::{
+    UnboundedReceiver, UnboundedSender, spawn_local, spawn_with_panic_notify,
+};
 use itertools::Itertools;
 use log::{debug, error, info};
 
 use crate::collections::{HashMap, HashSet};
-use crate::network::com_hub::{BlockSendEvent, ComHub, ComHubError, InterfacePriority, SocketEndpointRegistrationError};
-use crate::network::com_interfaces::com_interface::{ComInterfaceSocketEvent};
+use crate::network::com_hub::{
+    BlockSendEvent, ComHub, ComHubError, InterfacePriority,
+    SocketEndpointRegistrationError,
+};
 use crate::stdlib::sync::{Arc, Mutex};
 
-use crate::utils::time::Time;
-use crate::values::core_values::endpoint::EndpointInstance;
-use crate::{
-    network::com_interfaces::{
-        com_interface_properties::InterfaceDirection,
-        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-    },
-    values::core_values::endpoint::Endpoint,
-};
 use crate::global::dxb_block::DXBBlock;
 use crate::runtime::AsyncContext;
+use crate::utils::time::Time;
+use crate::values::core_values::endpoint::{Endpoint, EndpointInstance};
+use crate::{
+    network::com_interfaces::com_interface::{
+        error::ComInterfaceError, implementation::ComInterfaceImplementation,
+        properties::InterfaceDirection, state::ComInterfaceState,
+    },
+    stdlib::cell::RefCell,
+};
 
 pub type SocketsByUUID = HashMap<
     ComInterfaceSocketUUID,
@@ -261,7 +268,11 @@ impl SocketManager {
 
     /// Adds a socket to the SocketManager
     /// Panics if the socket already exists
-    fn add_socket_to_list(&mut self, socket_uuid: ComInterfaceSocketUUID, socket: Arc<Mutex<ComInterfaceSocket>>) {
+    fn add_socket_to_list(
+        &mut self,
+        socket_uuid: ComInterfaceSocketUUID,
+        socket: Arc<Mutex<ComInterfaceSocket>>,
+    ) {
         if self.has_socket(&socket_uuid) {
             core::panic!(
                 "Socket {} already exists in SocketManager",
@@ -314,16 +325,13 @@ impl SocketManager {
                     self.add_fallback_socket(&socket_uuid, priority, direction);
                 }
             }
-
         }
 
         // notify com hub about new socket so that it can init the socket task and optionally send a
         // hello block
 
         self.block_event_sender
-            .start_send(BlockSendEvent::NewSocket {
-                socket_uuid,
-            })
+            .start_send(BlockSendEvent::NewSocket { socket_uuid })
             .expect("Can not send hello request to socket");
         Ok(())
     }

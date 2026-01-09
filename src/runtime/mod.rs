@@ -9,6 +9,7 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
+use crate::network::block_handler::IncomingSectionsSinkType;
 use crate::network::com_hub::network_response::ResponseOptions;
 use crate::network::com_hub::{ComHub, InterfacePriority};
 use crate::network::com_interfaces::com_interface_old::ComInterfaceFactoryOld;
@@ -37,12 +38,9 @@ use core::unreachable;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
-use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
-use crate::network::block_handler::IncomingSectionsSinkType;
-use crate::network::com_interfaces::com_interface_implementation::ComInterfaceFactory;
 
 pub mod dif_interface;
 pub mod execution;
@@ -129,7 +127,6 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
-
     #[cfg(feature = "compiler")]
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
@@ -459,7 +456,11 @@ impl Runtime {
     /// otherwise the runtime will panic here.
     pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
-        let com_hub = ComHub::init(endpoint.clone(), async_context.clone(), IncomingSectionsSinkType::Channel);
+        let com_hub = ComHub::init(
+            endpoint.clone(),
+            async_context.clone(),
+            IncomingSectionsSinkType::Channel,
+        );
         let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
