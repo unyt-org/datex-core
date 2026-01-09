@@ -40,7 +40,6 @@ use log::{debug, error, info, warn};
 #[cfg(feature = "tokio_runtime")]
 use tokio::task::yield_now;
 pub mod options;
-use super::com_interfaces::com_interface_old::ComInterfaceOld;
 use crate::values::core_values::endpoint::Endpoint;
 use crate::global::dxb_block::{DXBBlock, IncomingSection};
 use crate::network::block_handler::{BlockHandler, BlockHistoryData, IncomingSectionsSinkType};

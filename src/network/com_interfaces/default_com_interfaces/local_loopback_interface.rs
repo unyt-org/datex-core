@@ -79,7 +79,7 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
         )));
         let socket_uuid = socket.try_lock().unwrap().uuid.clone();
         com_interface.add_socket(socket.clone());
-        com_interface.register_socket_endpoint(
+        com_interface.register_socket_with_endpoint(
             socket_uuid,
             Endpoint::LOCAL,
             1,

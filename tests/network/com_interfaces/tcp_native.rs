@@ -17,7 +17,7 @@ use futures::future::join_all;
 pub async fn test_client_no_connection() {
     init_global_context();
 
-    let mut client = TCPClientNativeInterface::new("0.0.0.0:8080").unwrap();
+    let mut client = TCPClientNativeInterface::create("0.0.0.0:8080").unwrap();
     assert!(client.get_state().is_not_connected());
     let res = client.open().await;
     assert!(res.is_err());
@@ -41,7 +41,7 @@ pub async fn test_construct() {
         });
 
         let mut client =
-            TCPClientNativeInterface::new(&format!("0.0.0.0:{PORT}"))
+            TCPClientNativeInterface::create(&format!("0.0.0.0:{PORT}"))
                 .unwrap();
         client.open().await.unwrap_or_else(|e| {
             core::panic!("Failed to create WebSocketClientInterface: {e}");

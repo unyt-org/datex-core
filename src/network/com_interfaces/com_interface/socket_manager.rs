@@ -23,35 +23,25 @@ use core::time::Duration;
 use log::debug;
 
 #[derive(Debug)]
-pub struct ComInterfaceSockets {
-    pub sockets:
-        HashMap<ComInterfaceSocketUUID, Arc<Mutex<ComInterfaceSocket>>>,
+pub struct ComInterfaceSocketManager {
     socket_event_sender: UnboundedSender<ComInterfaceSocketEvent>,
 }
 
-impl ComInterfaceSockets {
+impl ComInterfaceSocketManager {
     pub fn new_with_sender(
         sender: UnboundedSender<ComInterfaceSocketEvent>,
     ) -> Self {
-        ComInterfaceSockets {
-            sockets: HashMap::new(),
+        ComInterfaceSocketManager {
             socket_event_sender: sender,
         }
     }
 }
 
-impl ComInterfaceSockets {
+impl ComInterfaceSocketManager {
     /// Adds a new socket with the Open state and notifies listeners on ComHub
-    pub fn add_socket(&mut self, socket: Arc<Mutex<ComInterfaceSocket>>) {
-        {
-            let mut socket_mut = socket.try_lock().unwrap();
-            let uuid = socket_mut.uuid.clone();
-            socket_mut.state = SocketState::Open;
-            self.sockets.insert(uuid.clone(), socket.clone());
-            debug!("Socket added: {uuid}");
-        }
+    pub fn add_socket(&mut self, socket: ComInterfaceSocket) {
         self.socket_event_sender
-            .start_send(ComInterfaceSocketEvent::NewSocket(socket.clone()))
+            .start_send(ComInterfaceSocketEvent::NewSocket(socket))
             .unwrap();
     }
 

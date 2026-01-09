@@ -1,7 +1,7 @@
 use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSockets;
+use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSocketManager;
 use crate::std_sync::Mutex;
 use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
@@ -12,7 +12,7 @@ use core::prelude::rust_2024::*;
 // We might consider using #[com_interface(multiple)] and #[com_interface(single)]
 // to generate the code for us
 pub trait MultipleSocketProvider {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSocketManager>>;
 
     fn get_sockets_uuids(&self) -> Vec<ComInterfaceSocketUUID> {
         self.provide_sockets()
@@ -86,7 +86,7 @@ pub trait MultipleSocketProvider {
 }
 
 pub trait SingleSocketProvider {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>>;
+    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSocketManager>>;
 
     fn get_socket(&self) -> Option<Arc<Mutex<ComInterfaceSocket>>> {
         self.provide_sockets()

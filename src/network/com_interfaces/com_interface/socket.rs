@@ -4,7 +4,6 @@ use strum_macros::EnumIs;
 use crate::network::com_interfaces::block_collector::BlockCollector;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
 use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
-use crate::network::com_interfaces::com_interface_old::ComInterfaceSockets;
 use crate::std_sync::Mutex;
 use crate::stdlib::string::String;
 use crate::stdlib::sync::Arc;
@@ -41,7 +40,7 @@ impl ComInterfaceSocketUUID {
 
 #[derive(Debug)]
 pub enum ComInterfaceSocketEvent {
-    NewSocket(Arc<Mutex<ComInterfaceSocket>>),
+    NewSocket(ComInterfaceSocket),
     RemovedSocket(ComInterfaceSocketUUID),
     RegisteredSocket(ComInterfaceSocketUUID, i8, Endpoint),
 }
@@ -55,20 +54,13 @@ pub struct ComInterfaceSocket {
     pub connection_timestamp: u64,
     pub channel_factor: u32,
     pub direction: InterfaceDirection,
-    pub bytes_in_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
     block_in_receiver: OnceConsumer<UnboundedReceiver<DXBBlock>>,
-
-    bytes_out_sender: Arc<Mutex<UnboundedSender<Vec<u8>>>>,
-    pub bytes_out_receiver: OnceConsumer<UnboundedReceiver<Vec<u8>>>,
 }
 
 impl ComInterfaceSocket {
+    /// Received blocks coming from the interface (to be processed by the ComHub)
     pub fn take_block_in_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
         self.block_in_receiver.consume()
-    }
-
-    pub fn take_bytes_out_receiver(&mut self) -> UnboundedReceiver<Vec<u8>> {
-        self.bytes_out_receiver.consume()
     }
 
     pub fn queue_outgoing_block(&mut self, block: &[u8]) {
@@ -94,22 +86,20 @@ impl ComInterfaceSocket {
         interface_uuid: ComInterfaceUUID,
         direction: InterfaceDirection,
         channel_factor: u32,
-    ) -> ComInterfaceSocket {
+    ) -> (ComInterfaceSocket, UnboundedSender<Vec<u8>>) {
         let (bytes_in_sender, block_in_receiver) = BlockCollector::init();
-        let (bytes_out_sender, bytes_out_receiver) =
-            create_unbounded_channel::<Vec<u8>>();
-        ComInterfaceSocket {
-            direct_endpoint: None,
-            state: SocketState::Created,
-            uuid: ComInterfaceSocketUUID(UUID::new()),
-            interface_uuid,
-            connection_timestamp: 0,
-            channel_factor,
-            direction,
-            bytes_in_sender: Arc::new(Mutex::new(bytes_in_sender)),
-            block_in_receiver: OnceConsumer::new(block_in_receiver),
-            bytes_out_sender: Arc::new(Mutex::new(bytes_out_sender)),
-            bytes_out_receiver: OnceConsumer::new(bytes_out_receiver),
-        }
+        (
+            ComInterfaceSocket {
+                direct_endpoint: None,
+                state: SocketState::Created,
+                uuid: ComInterfaceSocketUUID(UUID::new()),
+                interface_uuid,
+                connection_timestamp: 0,
+                channel_factor,
+                direction,
+                block_in_receiver: OnceConsumer::new(block_in_receiver),
+            },
+            bytes_in_sender,
+        )
     }
 }

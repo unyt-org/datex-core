@@ -1,24 +1,24 @@
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceOld, ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
+
+use crate::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
 };
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceInfo, ComInterfaceSockets,
-};
-use crate::network::com_interfaces::com_interface_properties::{
+use crate::network::com_interfaces::com_interface::properties::{
     InterfaceDirection, InterfaceProperties,
 };
-use crate::network::com_interfaces::com_interface_socket::{
+use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::socket_provider::SingleSocketProvider;
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceInfo,
+};
 use crate::std_sync::Mutex;
 use crate::stdlib::net::SocketAddr;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::Arc;
 use crate::task::spawn;
-use crate::{delegate_com_interface_info, set_opener};
 use core::cell::RefCell;
 use core::future::Future;
 use core::prelude::rust_2024::*;
@@ -33,48 +33,26 @@ use tokio::net::tcp::OwnedWriteHalf;
 
 pub struct TCPClientNativeInterface {
     pub address: SocketAddr,
-    tx: Option<Rc<RefCell<OwnedWriteHalf>>>,
-    info: ComInterfaceInfo,
-}
-impl SingleSocketProvider for TCPClientNativeInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
-    }
+    tx: RefCell<Option<OwnedWriteHalf>>,
+    com_interface: Rc<RefCell<ComInterface>>,
 }
 
-#[com_interface]
 impl TCPClientNativeInterface {
-    pub fn new(address: &str) -> Result<TCPClientNativeInterface, TCPError> {
-        let interface = TCPClientNativeInterface {
-            address: SocketAddr::from_str(address)
-                .map_err(|_| TCPError::InvalidAddress)?,
-            info: ComInterfaceInfo::new(),
-            tx: None,
-        };
-        Ok(interface)
-    }
-
-    #[create_opener]
-    async fn open(&mut self) -> Result<(), TCPError> {
+    async fn open(&self) -> Result<(), TCPError> {
         let stream = TcpStream::connect(self.address)
             .await
             .map_err(|_| TCPError::ConnectionError)?;
 
         let (read_half, write_half) = stream.into_split();
-        self.tx = Some(Rc::new(RefCell::new(write_half)));
 
-        let socket = ComInterfaceSocket::init(
-            self.uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        let bytes_in_sender = socket.bytes_in_sender.clone();
-        self.get_sockets()
-            .try_lock()
-            .unwrap()
-            .add_socket(Arc::new(Mutex::new(socket)));
+        let (_, mut sender) = self
+            .com_interface
+            .borrow()
+            .create_and_init_socket(InterfaceDirection::InOut, 1);
+        self.tx.borrow_mut().replace(write_half);
 
-        let state = self.get_info().state.clone();
+        let state = self.com_interface.borrow().state();
+
         spawn(async move {
             let mut reader = read_half;
             let mut buffer = [0u8; 1024];
@@ -82,15 +60,11 @@ impl TCPClientNativeInterface {
                 match reader.read(&mut buffer).await {
                     Ok(0) => {
                         warn!("Connection closed by peer");
-                        state
-                            .try_lock()
-                            .unwrap()
-                            .set(ComInterfaceState::Destroyed);
+                        state.lock().unwrap().set(ComInterfaceState::Destroyed);
                         break;
                     }
                     Ok(n) => {
-                        let mut queue = bytes_in_sender.try_lock().unwrap();
-                        queue.start_send(buffer[..n].to_vec());
+                        sender.start_send(buffer[..n].to_vec());
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
@@ -107,9 +81,9 @@ impl TCPClientNativeInterface {
     }
 }
 
-impl ComInterfaceOld for TCPClientNativeInterface {
+impl ComInterfaceImplementation for TCPClientNativeInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -122,28 +96,39 @@ impl ComInterfaceOld for TCPClientNativeInterface {
             async move { tx.unwrap().borrow_mut().write(block).await.is_ok() },
         )
     }
-    fn init_properties(&self) -> InterfaceProperties {
-        Self::get_default_properties()
-    }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO #208
         Box::pin(async move { true })
     }
 
-    delegate_com_interface_info!();
-    set_opener!(open);
+    fn get_properties(&self) -> InterfaceProperties {
+        todo!()
+    }
+
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { self.open().await.is_ok() })
+    }
 }
 
-impl ComInterfaceFactoryOld<TCPClientInterfaceSetupData>
-    for TCPClientNativeInterface
-{
+impl ComInterfaceFactory for TCPClientNativeInterface {
+    type SetupData = TCPClientInterfaceSetupData;
+
     fn create(
-        setup_data: TCPClientInterfaceSetupData,
-    ) -> Result<TCPClientNativeInterface, ComInterfaceError> {
-        TCPClientNativeInterface::new(&setup_data.address)
-            .map_err(|_| ComInterfaceError::InvalidSetupData)
+        setup_data: Self::SetupData,
+        com_interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<
+        Self,
+        crate::network::com_interfaces::com_interface::error::ComInterfaceError,
+    > {
+        let address = SocketAddr::from_str(&setup_data.address)
+            .map_err(|_| crate::network::com_interfaces::com_interface::error::ComInterfaceError::SetupError(
+                "Invalid TCP address".to_string(),
+            ))?;
+        Ok(TCPClientNativeInterface {
+            address,
+            tx: RefCell::new(None),
+            com_interface,
+        })
     }
 
     fn get_default_properties() -> InterfaceProperties {

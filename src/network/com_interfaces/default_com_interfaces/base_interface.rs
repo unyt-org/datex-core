@@ -108,7 +108,7 @@ impl BaseInterface {
         let socket_uuid = self.register_new_socket(direction);
         let mut interface = self.com_interface.borrow_mut();
         interface
-            .register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
+            .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
         socket_uuid
     }

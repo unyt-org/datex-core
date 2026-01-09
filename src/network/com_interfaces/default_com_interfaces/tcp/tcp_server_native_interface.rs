@@ -17,20 +17,6 @@ use tokio::net::TcpListener;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceOld,
-    ComInterfaceState,
-};
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceInfo, ComInterfaceSockets,
-};
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use crate::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
-use crate::{delegate_com_interface_info, set_opener};
 
 pub struct TCPServerNativeInterface {
     pub address: SocketAddr,
@@ -44,7 +30,6 @@ impl MultipleSocketProvider for TCPServerNativeInterface {
     }
 }
 
-#[com_interface]
 impl TCPServerNativeInterface {
     pub fn new(port: u16) -> Result<TCPServerNativeInterface, TCPError> {
         let info = ComInterfaceInfo::new();
