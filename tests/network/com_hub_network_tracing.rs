@@ -1,4 +1,3 @@
-use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B,
     get_mock_setup_and_socket_for_endpoint_and_update_loop,
@@ -6,6 +5,7 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::MockupInterface;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
 use datex_core::network::com_hub::InterfacePriority;
+use datex_core::utils::context::init_global_context;
 use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
@@ -49,14 +49,12 @@ async fn create_network_trace() {
         yield_now().await;
         yield_now().await;
         { // update a
-            let mut com_interface_borrowed = com_interface_a.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface_a
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
         { // update b
-            let mut com_interface_borrowed = com_interface_b.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface_b
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }

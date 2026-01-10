@@ -23,7 +23,7 @@ use std::io::{Cursor, Seek, SeekFrom};
 #[test]
 pub fn parse_encrypted_header() {
     let endpoint = Endpoint {
-        type_: EndpointType::Person,
+        ty: EndpointType::Person,
         identifier: [1; 18],
         instance: EndpointInstance::Any,
     };
@@ -66,7 +66,7 @@ pub fn parse_block_header() {
 pub fn parse_routing_header() {
     let routing_header = RoutingHeader::default()
         .with_sender(Endpoint {
-            type_: EndpointType::Person,
+            ty: EndpointType::Person,
             identifier: [0; 18],
             instance: EndpointInstance::Any,
         })

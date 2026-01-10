@@ -1,5 +1,6 @@
 use datex_core::stdlib::{future::Future, pin::Pin};
 
+use datex_core::utils::context::init_global_context;
 use datex_core::{
     network::com_interfaces::{
         com_interface::{
@@ -12,8 +13,6 @@ use datex_core::{
     },
     values::core_values::endpoint::Endpoint,
 };
-
-use crate::context::init_global_context;
 
 #[tokio::test]
 pub async fn test_construct() {

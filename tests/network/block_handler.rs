@@ -1,4 +1,3 @@
-use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN, get_mock_setup_and_socket,
 };
@@ -11,6 +10,7 @@ use datex_core::global::protocol_structures::block_header::{
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
 use datex_core::run_async;
+use datex_core::utils::context::init_global_context;
 use log::info;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -25,8 +25,7 @@ async fn receive_single_block() {
 
         let (com_hub, com_interface, _) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
@@ -56,8 +55,7 @@ async fn receive_single_block() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -90,8 +88,7 @@ async fn receive_multiple_blocks() {
 
         let (com_hub, com_interface, _) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
@@ -142,8 +139,7 @@ async fn receive_multiple_blocks() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -171,8 +167,7 @@ async fn receive_multiple_blocks() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let  mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -204,8 +199,7 @@ async fn receive_multiple_blocks_wrong_order() {
 
         let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
@@ -257,8 +251,7 @@ async fn receive_multiple_blocks_wrong_order() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -273,8 +266,7 @@ async fn receive_multiple_blocks_wrong_order() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -284,7 +276,7 @@ async fn receive_multiple_blocks_wrong_order() {
         let mut sections = com_hub.block_handler.drain_collected_sections();
         assert_eq!(sections.len(), 1);
 
-        let mut section = sections.first_mut().unwrap();
+        let section = sections.first_mut().unwrap();
         // block must be a block stream
         match section {
             IncomingSection::BlockStream((Some(blocks), incoming_context_section_id)) => {
@@ -316,8 +308,7 @@ async fn receive_multiple_sections() {
 
         let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
@@ -401,8 +392,7 @@ async fn receive_multiple_sections() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let  mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -429,8 +419,7 @@ async fn receive_multiple_sections() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let  mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -458,8 +447,7 @@ async fn receive_multiple_sections() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let  mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -485,8 +473,7 @@ async fn receive_multiple_sections() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let  mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }
@@ -520,8 +507,7 @@ async fn await_response_block() {
 
         let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mut mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
         }
@@ -557,8 +543,7 @@ async fn await_response_block() {
         sender.send(block_bytes).unwrap();
         // update the com interface
         {
-            let mut com_interface_borrowed = com_interface.borrow_mut();
-            let  mockup_interface_impl = com_interface_borrowed
+            let mockup_interface_impl = com_interface
                 .implementation_mut::<MockupInterface>();
             mockup_interface_impl.update().await;
         }

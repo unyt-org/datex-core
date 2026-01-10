@@ -1,32 +1,37 @@
 use core::cell::RefCell;
 use core::time::Duration;
-use datex_core::task::{spawn_with_panic_notify, spawn_with_panic_notify_default, UnboundedSender};
-use datex_core::values::core_values::endpoint::Endpoint;
-use datex_core::{
-    global::{
-        dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
-    },
+use datex_core::global::{
+    dxb_block::DXBBlock, protocol_structures::block_header::BlockType,
 };
+use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface::error::ComInterfaceError;
+use datex_core::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
+};
+use datex_core::network::com_interfaces::com_interface::properties::{
+    InterfaceDirection, InterfaceProperties,
+};
+use datex_core::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use datex_core::task::{
+    UnboundedSender, spawn_with_panic_notify, spawn_with_panic_notify_default,
+};
+use datex_core::values::core_values::endpoint::Endpoint;
 use datex_macros::{com_interface, create_opener};
 use log::info;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::{
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex, mpsc},
 };
-use std::collections::HashMap;
-use std::fmt::Debug;
-use datex_core::network::com_interfaces::com_interface::ComInterface;
-use datex_core::network::com_interfaces::com_interface::error::ComInterfaceError;
-use datex_core::network::com_interfaces::com_interface::implementation::{ComInterfaceFactory, ComInterfaceImplementation};
-use datex_core::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
-use datex_core::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 
 pub struct MockupInterface {
     pub outgoing_queue: RefCell<Vec<(ComInterfaceSocketUUID, Vec<u8>)>>,
-    pub socket_senders: Rc<RefCell<HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>>>,
+    pub socket_senders:
+        Rc<RefCell<HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>>>,
     pub sender: Option<mpsc::Sender<Vec<u8>>>,
     pub receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
     com_interface: Rc<ComInterface>,
@@ -81,21 +86,20 @@ impl MockupInterface {
         Ok(mockup_interface)
     }
 
-    pub fn create_and_add_socket(&mut self, endpoint: Option<Endpoint>) -> Result<ComInterfaceSocketUUID, ComInterfaceError> {
+    pub fn create_and_add_socket(
+        &mut self,
+        endpoint: Option<Endpoint>,
+    ) -> Result<ComInterfaceSocketUUID, ComInterfaceError> {
         let direction = self.get_properties().direction.clone();
         let (socket_uuid, sender) = self
             .com_interface
-            .borrow()
             .socket_manager()
             .lock()
             .unwrap()
             .create_and_init_socket(direction, 1);
 
-
         if let Some(endpoint) = endpoint {
-            self
-                .com_interface
-                .borrow()
+            self.com_interface
                 .socket_manager()
                 .lock()
                 .unwrap()
@@ -105,8 +109,10 @@ impl MockupInterface {
                     1,
                 )?;
         }
-        
-        self.socket_senders.borrow_mut().insert(socket_uuid.clone(), sender);
+
+        self.socket_senders
+            .borrow_mut()
+            .insert(socket_uuid.clone(), sender);
 
         Ok(socket_uuid)
     }
@@ -217,7 +223,10 @@ impl ComInterfaceFactory for MockupInterface {
 
 impl MockupInterface {
     pub fn last_block(&self) -> Option<Vec<u8>> {
-        self.outgoing_queue.borrow().last().map(|(_, block)| block.clone())
+        self.outgoing_queue
+            .borrow()
+            .last()
+            .map(|(_, block)| block.clone())
     }
     pub fn last_socket_uuid(&self) -> Option<ComInterfaceSocketUUID> {
         self.outgoing_queue
@@ -249,23 +258,29 @@ impl MockupInterface {
         self.outgoing_queue.borrow().last().cloned()
     }
 
-    pub async fn update(&mut self) {
+    pub async fn update(&self) {
         MockupInterface::_update(
             self.receiver.clone(),
-            self.socket_senders.clone()
-        ).await;
+            self.socket_senders.clone(),
+        )
+        .await;
     }
 
     pub async fn _update(
         receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
-        socket_senders: Rc<RefCell<HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>>>,
+        socket_senders: Rc<
+            RefCell<HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>>,
+        >,
     ) {
         if let Some(receiver) = &*receiver.borrow() {
             let mut socket_senders = socket_senders.borrow_mut();
             let sender = socket_senders.values_mut().next();
             if let Some(sender) = sender {
                 while let Ok(block) = receiver.try_recv() {
-                    sender.send(block).await.expect("Failed to send block to socket");
+                    sender
+                        .send(block)
+                        .await
+                        .expect("Failed to send block to socket");
                 }
             }
         }
@@ -276,7 +291,8 @@ impl MockupInterface {
         let sockets = self.socket_senders.clone();
         spawn_with_panic_notify_default(async move {
             loop {
-                MockupInterface::_update(receiver.clone(), sockets.clone()).await;
+                MockupInterface::_update(receiver.clone(), sockets.clone())
+                    .await;
                 #[cfg(feature = "tokio_runtime")]
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
@@ -302,7 +318,9 @@ impl ComInterfaceImplementation for MockupInterface {
                 }
             };
             if !is_hello {
-                self.outgoing_queue.borrow_mut().push((socket_uuid, block.to_vec()));
+                self.outgoing_queue
+                    .borrow_mut()
+                    .push((socket_uuid, block.to_vec()));
             }
             let mut result: bool = true;
             if let Some(sender) = &self.sender {
@@ -324,14 +342,12 @@ impl ComInterfaceImplementation for MockupInterface {
         }
     }
 
-    fn handle_close<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         self.outgoing_queue.borrow_mut().clear();
         Pin::from(Box::new(async move { true }))
     }
 
-    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Pin::from(Box::new(async move { true }))
     }
 }

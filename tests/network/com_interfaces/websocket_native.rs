@@ -1,4 +1,4 @@
-use crate::context::init_global_context;
+use datex_core::utils::context::init_global_context;
 use datex_core::network::com_interfaces::default_com_interfaces::websocket::websocket_common::WebSocketError;
 use datex_core::network::com_interfaces::{
     default_com_interfaces::{

@@ -7,7 +7,7 @@ use datex_core::{
 };
 use datex_core::network::com_interfaces::com_interface::ComInterface;
 use datex_core::network::com_interfaces::default_com_interfaces::http::http_common::HTTPServerInterfaceSetupData;
-use crate::context::init_global_context;
+use datex_core::utils::context::init_global_context;
 
 // $ head -c 48192 /dev/zero | curl -X POST http://localhost:8081/my-secret-channel/tx --data-binary @-
 #[tokio::test]

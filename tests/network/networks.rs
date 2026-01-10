@@ -1,4 +1,3 @@
-use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B, TEST_ENDPOINT_C, TEST_ENDPOINT_D,
 };
@@ -13,12 +12,13 @@ use core::time::Duration;
 use datex_core::network::com_hub::InterfacePriority;
 use datex_core::network::com_hub::network_response::ResponseOptions;
 use datex_core::network::com_hub::network_tracing::TraceOptions;
+use datex_core::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
 use datex_core::run_async;
+use datex_core::utils::context::init_global_context;
 use datex_core::values::core_values::endpoint::Endpoint;
 use log::info;
 use ntest_timeout::timeout;
 use tokio::task;
-use datex_core::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
 
 #[tokio::test]
 #[timeout(2000)]

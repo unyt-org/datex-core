@@ -3,7 +3,7 @@ use log::info;
 use matchbox_signaling::SignalingServer;
 use std::net::SocketAddr;
 
-use crate::context::init_global_context;
+use datex_core::utils::context::init_global_context;
 
 pub fn start_server(url: &str) {
     let server =

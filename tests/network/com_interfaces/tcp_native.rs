@@ -1,14 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use crate::context::init_global_context;
-use datex_core::network::com_interfaces::{
-    default_com_interfaces::tcp::{
-        tcp_client_native_interface::TCPClientNativeInterface,
-        tcp_common::TCPError,
-        tcp_server_native_interface::TCPServerNativeInterface,
-    },
+use datex_core::network::com_interfaces::default_com_interfaces::tcp::{
+    tcp_client_native_interface::TCPClientNativeInterface,
+    tcp_common::TCPError,
+    tcp_server_native_interface::TCPServerNativeInterface,
 };
 use datex_core::run_async;
+use datex_core::utils::context::init_global_context;
 use futures::future::join_all;
 
 #[tokio::test]

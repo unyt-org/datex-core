@@ -6,7 +6,6 @@
 #![allow(static_mut_refs)]
 extern crate core;
 
-pub mod context;
 pub mod network;
 pub mod values;
 
