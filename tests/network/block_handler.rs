@@ -2,6 +2,7 @@ use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_ORIGIN, get_mock_setup_and_socket,
 };
+use crate::network::helpers::mockup_interface::MockupInterface;
 use core::cell::RefCell;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
 use datex_core::global::protocol_structures::block_header::{
@@ -22,8 +23,13 @@ async fn receive_single_block() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
-        com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
+        let (com_hub, com_interface, _) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
 
         let context_id = com_hub.block_handler.get_new_context_id();
 
@@ -49,7 +55,12 @@ async fn receive_single_block() {
         // Put into incoming queue of mock interface
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
 
         // wait a tick to allow processing
         yield_now().await;
@@ -78,8 +89,12 @@ async fn receive_multiple_blocks() {
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
         let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
-        com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
-
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
         let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
 
@@ -126,7 +141,12 @@ async fn receive_multiple_blocks() {
         let block_bytes = blocks[0].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
 
         // wait a tick to allow processing
         yield_now().await;
@@ -150,7 +170,12 @@ async fn receive_multiple_blocks() {
         let block_bytes = blocks[1].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
 
         // wait a tick to allow processing
         yield_now().await;
@@ -177,8 +202,13 @@ async fn receive_multiple_blocks_wrong_order() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
-        com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
 
         let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
@@ -226,7 +256,12 @@ async fn receive_multiple_blocks_wrong_order() {
         let block_bytes = blocks[0].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block is not in incoming_sections_queue
@@ -237,7 +272,12 @@ async fn receive_multiple_blocks_wrong_order() {
         let block_bytes = blocks[1].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block must be in incoming_sections_queue
@@ -274,8 +314,13 @@ async fn receive_multiple_sections() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
-        com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
 
         let context_id = com_hub.block_handler.get_new_context_id();
         let section_index_1 = 42;
@@ -355,7 +400,12 @@ async fn receive_multiple_sections() {
         let block_bytes = blocks[0].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
 
         yield_now().await;
 
@@ -378,7 +428,12 @@ async fn receive_multiple_sections() {
         let block_bytes = blocks[1].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block must not be in incoming_sections_queue
@@ -402,7 +457,12 @@ async fn receive_multiple_sections() {
         let block_bytes = blocks[2].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block must be in incoming_sections_queue
@@ -424,7 +484,12 @@ async fn receive_multiple_sections() {
         let block_bytes = blocks[3].to_bytes().unwrap();
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block must not be in incoming_sections_queue
@@ -453,8 +518,13 @@ async fn await_response_block() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
-        com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.receiver = Rc::new(RefCell::new(Some(receiver)));
+        }
 
         let context_id = com_hub.block_handler.get_new_context_id();
         let section_index = 42;
@@ -486,7 +556,12 @@ async fn await_response_block() {
         // Put into incoming queue of mock interface
         sender.send(block_bytes).unwrap();
         // update the com interface
-        com_interface.borrow_mut().update().await;
+        {
+            let mut com_interface_borrowed = com_interface.borrow_mut();
+            let  mockup_interface_impl = com_interface_borrowed
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
         yield_now().await;
 
         // block must not be in incoming_sections_queue
