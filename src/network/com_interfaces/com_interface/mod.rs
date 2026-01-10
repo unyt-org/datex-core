@@ -314,6 +314,20 @@ impl ComInterface {
         }
     }
 
+    pub async fn close(&mut self) -> bool {
+        self.set_state(ComInterfaceState::Closing);
+        let result = match self {
+            ComInterface::Headless { .. } => {
+                panic!("Cannot close headless ComInterface");
+            }
+            ComInterface::Initialized { implementation, .. } => {
+                implementation.handle_close().await
+            }
+        };
+        self.set_state(ComInterfaceState::NotConnected);
+        result
+    }
+
     pub fn info(&self) -> &ComInterfaceInfo {
         match self {
             ComInterface::Headless { info } => info.as_ref().unwrap(),

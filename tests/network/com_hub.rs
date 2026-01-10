@@ -654,7 +654,7 @@ pub async fn test_reconnect() {
         let mut com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel);
 
         // create a new interface, open it and add it to the com_hub
-        let base_interface = ComInterface::create_with_implementation::<
+        let com_interface = ComInterface::create_with_implementation::<
             BaseInterface,
         >(BaseInterfaceSetupData::new(InterfaceProperties {
                 reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
@@ -666,7 +666,7 @@ pub async fn test_reconnect() {
 
         // add base_interface to com_hub
         com_hub
-            .open_and_add_interface(base_interface.clone(), InterfacePriority::default())
+            .open_and_add_interface(com_interface.clone(), InterfacePriority::default())
             .await
             .unwrap_or_else(|e| {
                 core::panic!("Error adding interface: {e:?}");
@@ -674,27 +674,27 @@ pub async fn test_reconnect() {
 
         // check that the interface is connected
         assert_eq!(
-            base_interface.borrow().current_state(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
 
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interface_manager().borrow().interfaces.len(), 1);
-        assert!(com_hub.has_interface(base_interface.borrow().uuid()));
+        assert!(com_hub.has_interface(com_interface.borrow().uuid()));
 
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself
         // but we do it manually here to test the reconnection
-        assert!(base_interface.borrow_mut().close().await);
+        assert!(com_interface.borrow_mut().close().await);
 
         // check that the interface is not connected
         // and that the close_timestamp is set
         assert_eq!(
-            base_interface.borrow().current_state(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
-        assert!(base_interface
+        assert!(com_interface
             .borrow_mut()
             .properties()
             .close_timestamp
@@ -704,7 +704,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            base_interface.borrow().current_state(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
@@ -716,7 +716,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            base_interface.borrow().current_state(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
     }

@@ -6,6 +6,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIs)]
 pub enum ComInterfaceState {
     NotConnected,
+    Closing,
     Connected,
     Connecting,
     Destroyed,
@@ -41,7 +42,9 @@ impl ComInterfaceStateWrapper {
             ComInterfaceState::NotConnected => ComInterfaceEvent::NotConnected,
             ComInterfaceState::Connected => ComInterfaceEvent::Connected,
             ComInterfaceState::Destroyed => ComInterfaceEvent::Destroyed,
-            ComInterfaceState::Connecting => return, // No event for connecting state
+            ComInterfaceState::Closing | ComInterfaceState::Connecting => {
+                return;
+            } // No event for connecting state
         };
         let _ = self.event_sender.start_send(event);
     }
