@@ -1,9 +1,9 @@
 use crate::std_sync::Mutex;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::{future::Future, pin::Pin, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::cell::RefCell;
-use crate::stdlib::rc::Rc;
 use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
@@ -13,20 +13,23 @@ use url::Url;
 use super::websocket_common::{
     WebSocketClientInterfaceSetupData, WebSocketError, parse_url,
 };
-use crate::task::spawn_with_panic_notify_default;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
 use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
-use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::properties::{
+    InterfaceDirection, InterfaceProperties,
+};
 use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
+use crate::task::spawn_with_panic_notify_default;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
-    websocket_stream:
-        RefCell<Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+    websocket_stream: RefCell<
+        Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
+    >,
     com_interface: Rc<ComInterface>,
 }
 impl WebSocketClientNativeInterface {
@@ -59,14 +62,13 @@ impl WebSocketClientNativeInterface {
 
         let (_, mut sender) = self
             .com_interface
-            .borrow()
             .socket_manager()
             .lock()
             .unwrap()
             .create_and_init_socket(InterfaceDirection::InOut, 1);
 
         let state = self.com_interface.state();
-        
+
         spawn_with_panic_notify_default(async move {
             while let Some(msg) = read.next().await {
                 match msg {
@@ -91,10 +93,7 @@ impl WebSocketClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory
-    for WebSocketClientNativeInterface
-{
-
+impl ComInterfaceFactory for WebSocketClientNativeInterface {
     type SetupData = WebSocketClientInterfaceSetupData;
 
     fn create(
@@ -129,8 +128,7 @@ impl ComInterfaceImplementation for WebSocketClientNativeInterface {
             match tx {
                 Some(tx) => {
                     debug!("Sending block: {block:?}");
-                    tx
-                        .send(Message::Binary(block.to_vec()))
+                    tx.send(Message::Binary(block.to_vec()))
                         .await
                         .map_err(|e| {
                             error!("Error sending message: {e:?}");
@@ -153,14 +151,12 @@ impl ComInterfaceImplementation for WebSocketClientNativeInterface {
         }
     }
 
-    fn handle_close<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO #210
         Box::pin(async move { true })
     }
 
-    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { self.open().await.is_ok() })
     }
 }

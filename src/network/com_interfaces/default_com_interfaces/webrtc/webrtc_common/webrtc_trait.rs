@@ -225,7 +225,7 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
                 self._remote_endpoint(),
                 data_channels,
                 data_channel_rc.clone(),
-                self.provide_com_interface().borrow().socket_manager(),
+                self.provide_com_interface().socket_manager(),
             )
             .await?;
         }
@@ -285,7 +285,7 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
         let commons = self.get_commons();
         let remote_endpoint = self.remote_endpoint();
         let com_interface_socket_manager =
-            self.provide_com_interface().borrow().socket_manager();
+            self.provide_com_interface().socket_manager();
 
         data_channels.borrow_mut().on_add =
             Some(Box::new(move |data_channel| {

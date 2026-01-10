@@ -1,27 +1,26 @@
+use super::serial_common::{SerialError, SerialInterfaceSetupData};
 use crate::std_sync::Mutex;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use crate::stdlib::cell::RefCell;
-use crate::stdlib::rc::Rc;
-use super::serial_common::{SerialError, SerialInterfaceSetupData};
 
-use crate::{
-    task::spawn,
-    task::spawn_blocking,
-};
-use log::{debug, error, warn};
-use serialport::SerialPort;
-use tokio::sync::Notify;
-use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
-use datex_macros::{com_interface, create_opener};
 use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
-use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::properties::{
+    InterfaceDirection, InterfaceProperties,
+};
 use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSocketManager;
 use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
+use crate::{task::spawn, task::spawn_blocking};
+use datex_macros::{com_interface, create_opener};
+use log::{debug, error, warn};
+use serialport::SerialPort;
+use tokio::sync::Notify;
 
 pub struct SerialNativeInterface {
     com_interface: Rc<ComInterface>,
@@ -46,7 +45,11 @@ impl SerialNativeInterface {
         port_name: &str,
         com_interface: Rc<ComInterface>,
     ) -> Result<SerialNativeInterface, SerialError> {
-        Self::new_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE, com_interface)
+        Self::new_with_baud_rate(
+            port_name,
+            Self::DEFAULT_BAUD_RATE,
+            com_interface,
+        )
     }
     // Allow to open interface with a configured port
     pub fn new_with_port(
@@ -78,10 +81,10 @@ impl SerialNativeInterface {
 
         let (socket_uuid, mut sender) = self
             .com_interface
-            .borrow()
-            .socket_manager().lock().unwrap()
+            .socket_manager()
+            .lock()
+            .unwrap()
             .create_and_init_socket(InterfaceDirection::InOut, 1);
-
 
         let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
@@ -172,9 +175,7 @@ impl ComInterfaceImplementation for SerialNativeInterface {
         })
     }
 
-    fn handle_close<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
             shutdown_signal.notified().await;
@@ -186,7 +187,7 @@ impl ComInterfaceImplementation for SerialNativeInterface {
         Self::get_default_properties()
     }
 
-    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { self.open().is_ok() })
     }
 }

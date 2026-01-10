@@ -62,12 +62,13 @@ pub struct BaseInterfaceHolder {
 impl BaseInterfaceHolder {
     pub fn new(setup_data: BaseInterfaceSetupData) -> BaseInterfaceHolder {
         // Create a headless ComInterface first
-        let com_interface = Rc::new(RefCell::new(ComInterface::Headless {
-            info: Some(ComInterfaceInfo::init(
+        let com_interface = Rc::new(ComInterface {
+            info: Rc::new(ComInterfaceInfo::init(
                 ComInterfaceState::NotConnected,
                 InterfaceProperties::default(),
             )),
-        }));
+            implementation: RefCell::new(None),
+        });
 
         // Create the implementation using the factory function
         let implementation = BaseInterface {
@@ -75,9 +76,7 @@ impl BaseInterfaceHolder {
             on_send: setup_data.on_send_callback,
             com_interface: com_interface.clone(),
         };
-        com_interface
-            .borrow_mut()
-            .initialize(Box::new(implementation));
+        com_interface.initialize(Box::new(implementation));
 
         BaseInterfaceHolder {
             sender: HashMap::new(),
@@ -106,7 +105,6 @@ impl BaseInterfaceHolder {
     ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
         let (uuid, sender) = self
             .com_interface
-            .borrow()
             .socket_manager()
             .lock()
             .unwrap()
@@ -124,7 +122,6 @@ impl BaseInterfaceHolder {
         let (socket_uuid, sender) = self.create_and_init_socket(direction);
 
         self.com_interface
-            .borrow()
             .socket_manager()
             .lock()
             .unwrap()
@@ -203,27 +200,15 @@ mod tests {
             base_interface.current_state(),
             ComInterfaceState::NotConnected
         );
-        assert!(
-            base_interface
-                .borrow()
-                .properties()
-                .close_timestamp
-                .is_none()
-        );
+        assert!(base_interface.properties().close_timestamp.is_none());
 
         // Open the interface
-        base_interface.clone().borrow().open().await;
+        base_interface.open().await;
         assert_eq!(
             base_interface.current_state(),
             ComInterfaceState::Connected
         );
-        assert!(
-            base_interface
-                .borrow()
-                .properties()
-                .close_timestamp
-                .is_none()
-        );
+        assert!(base_interface.properties().close_timestamp.is_none());
 
         // Close the interface
         assert!(base_interface.close().await);
@@ -231,12 +216,6 @@ mod tests {
             base_interface.current_state(),
             ComInterfaceState::NotConnected
         );
-        assert!(
-            base_interface
-                .borrow()
-                .properties()
-                .close_timestamp
-                .is_some()
-        );
+        assert!(base_interface.properties().close_timestamp.is_some());
     }
 }

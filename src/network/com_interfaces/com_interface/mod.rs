@@ -17,6 +17,7 @@ use crate::network::com_interfaces::com_interface::state::{
 
 use crate::stdlib::any::Any;
 use crate::stdlib::cell::RefCell;
+use crate::stdlib::cell::RefMut;
 use crate::stdlib::rc::Rc;
 use crate::stdlib::sync::MutexGuard;
 use crate::stdlib::sync::{Arc, Mutex};
@@ -33,7 +34,6 @@ use core::fmt::Display;
 use core::pin::Pin;
 use core::time::Duration;
 use log::debug;
-use std::cell::RefMut;
 pub mod error;
 pub mod implementation;
 pub mod properties;
@@ -139,8 +139,8 @@ impl ComInterfaceInfo {
 /// A communication interface wrapper
 /// which contains a concrete implementation of a com interface logic
 pub struct ComInterface {
-    info: Rc<ComInterfaceInfo>,
-    implementation: RefCell<Option<Box<dyn ComInterfaceImpl>>>,
+    pub(crate) info: Rc<ComInterfaceInfo>,
+    pub(crate) implementation: RefCell<Option<Box<dyn ComInterfaceImpl>>>,
 }
 
 impl ComInterface {
@@ -285,7 +285,7 @@ impl ComInterface {
         result
     }
 
-    pub async fn close(&mut self) -> bool {
+    pub async fn close(&self) -> bool {
         self.set_state(ComInterfaceState::Closing);
         let result = match self.implementation.borrow_mut().as_mut() {
             None => {

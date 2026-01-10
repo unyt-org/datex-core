@@ -1,16 +1,13 @@
 use crate::std_sync::Mutex;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::{
     collections::HashMap, future::Future, net::SocketAddr, pin::Pin,
 };
+use crate::{stdlib::sync::Arc, task::spawn};
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-use crate::stdlib::cell::RefCell;
-use crate::stdlib::rc::Rc;
-use crate::{
-    stdlib::sync::Arc,
-    task::spawn,
-};
 use datex_macros::{com_interface, create_opener};
 
 use futures_util::{SinkExt, StreamExt};
@@ -31,14 +28,16 @@ use super::websocket_common::{
     WebSocketError, WebSocketServerError, WebSocketServerInterfaceSetupData,
     parse_url,
 };
-use crate::runtime::global_context::{get_global_context, set_global_context};
-use tokio_tungstenite::WebSocketStream;
-use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
 use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
-use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::properties::{
+    InterfaceDirection, InterfaceProperties,
+};
 use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::runtime::global_context::{get_global_context, set_global_context};
+use tokio_tungstenite::WebSocketStream;
 
 type WebsocketStreamMap = HashMap<
     ComInterfaceSocketUUID,
@@ -95,10 +94,7 @@ impl WebSocketServerNativeInterface {
         let mut tasks: Vec<JoinHandle<()>> = vec![];
         let global_context = get_global_context();
 
-        let manager = self
-            .com_interface
-            .borrow()
-            .socket_manager();
+        let manager = self.com_interface.socket_manager();
 
         self.handle.replace(Some(spawn(async move {
             let global_context = global_context.clone();
@@ -193,9 +189,7 @@ impl WebSocketServerNativeInterface {
     }
 }
 
-impl ComInterfaceFactory
-    for WebSocketServerNativeInterface
-{
+impl ComInterfaceFactory for WebSocketServerNativeInterface {
     type SetupData = WebSocketServerInterfaceSetupData;
 
     fn create(
@@ -253,9 +247,7 @@ impl ComInterfaceImplementation for WebSocketServerNativeInterface {
         }
     }
 
-    fn handle_close<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
@@ -268,7 +260,7 @@ impl ComInterfaceImplementation for WebSocketServerNativeInterface {
         })
     }
 
-    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { self.open().await.is_ok() })
     }
 }

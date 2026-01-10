@@ -1,5 +1,6 @@
 use super::tcp_common::{TCPClientInterfaceSetupData, TCPError};
 
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::{
     ComInterfaceFactory, ComInterfaceImplementation,
 };
@@ -25,13 +26,12 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::str::FromStr;
 use core::time::Duration;
-use futures_util::FutureExt;
 use datex_macros::{com_interface, create_opener};
+use futures_util::FutureExt;
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedWriteHalf;
-use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 
 pub struct TCPClientNativeInterface {
     pub address: SocketAddr,
@@ -49,7 +49,6 @@ impl TCPClientNativeInterface {
 
         let (_, mut sender) = self
             .com_interface
-            .borrow()
             .socket_manager()
             .lock()
             .unwrap()
@@ -135,10 +134,7 @@ impl ComInterfaceFactory for TCPClientNativeInterface {
     fn create(
         setup_data: Self::SetupData,
         com_interface: Rc<ComInterface>,
-    ) -> Result<
-        Self,
-        ComInterfaceError,
-    > {
+    ) -> Result<Self, ComInterfaceError> {
         let address = SocketAddr::from_str(&setup_data.address)
             .map_err(|_| ComInterfaceError::InvalidSetupData)?;
         Ok(TCPClientNativeInterface {

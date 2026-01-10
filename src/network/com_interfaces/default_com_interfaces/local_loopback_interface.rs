@@ -62,7 +62,6 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
         com_interface: Rc<ComInterface>,
     ) -> Result<Self, ComInterfaceError> {
         // directly create a socket and register it
-        let mut com_interface = com_interface.borrow_mut();
         let (socket_uuid, mut sender) = com_interface
             .socket_manager()
             .lock()
