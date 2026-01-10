@@ -169,6 +169,12 @@ impl BaseInterfaceSetupData {
             on_send_callback,
         }
     }
+    pub fn with_callback(on_send_callback: Box<OnSendCallback>) -> Self {
+        BaseInterfaceSetupData {
+            properties: InterfaceProperties::default(),
+            on_send_callback,
+        }
+    }
 }
 
 #[cfg(test)]
