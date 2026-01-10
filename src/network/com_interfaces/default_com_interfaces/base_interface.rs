@@ -1,5 +1,6 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
+use std::collections::HashMap;
 
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::{
@@ -29,6 +30,7 @@ pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn F
     + 'static;
 
 pub struct BaseInterface {
+    sender: HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>,
     on_send: Option<Box<OnSendCallback>>,
     properties: InterfaceProperties,
     com_interface: Rc<RefCell<ComInterface>>,
@@ -55,53 +57,26 @@ impl From<ComHubError> for BaseInterfaceError {
 }
 
 impl BaseInterface {
-    // TODO
-    // pub fn new_with_single_socket(
-    //     name: &str,
-    //     direction: InterfaceDirection,
-    // ) -> BaseInterface {
-    //     let interface = BaseInterface::new_with_name(name);
-    //     let socket =
-    //         ComInterfaceSocket::init(interface.uuid().clone(), direction, 1);
-    //     let socket_uuid = socket.uuid.clone();
-    //     let socket = Arc::new(Mutex::new(socket));
-    //     interface.add_socket(socket);
-    //     interface
-    //         .register_socket_endpoint(socket_uuid, Endpoint::default(), 1)
-    //         .unwrap();
-    //     interface
-    // }
-    //
-    // pub fn new() -> BaseInterface {
-    //     Self::new_with_name("unknown")
-    // }
-    //
-    // pub fn new_with_name(name: &str) -> BaseInterface {
-    //     Self::new_with_properties(InterfaceProperties {
-    //         interface_type: name.to_string(),
-    //         round_trip_time: Duration::from_millis(0),
-    //         max_bandwidth: u32::MAX,
-    //         ..InterfaceProperties::default()
-    //     })
-    // }
-
-    pub fn create_and_init_socket(
+    fn create_and_init_socket(
         &mut self,
         direction: InterfaceDirection,
-    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
-        self.com_interface
+    ) -> ComInterfaceSocketUUID {
+        let (uuid, sender) = self
+            .com_interface
             .borrow()
             .socket_manager()
             .lock()
             .unwrap()
-            .create_and_init_socket(direction, 1)
+            .create_and_init_socket(direction, 1);
+        self.sender.insert(uuid.clone(), sender);
+        uuid
     }
     pub fn register_new_socket_with_endpoint(
         &mut self,
         direction: InterfaceDirection,
         endpoint: Endpoint,
-    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
-        let (socket_uuid, sender) = self.create_and_init_socket(direction);
+    ) -> ComInterfaceSocketUUID {
+        let socket_uuid = self.create_and_init_socket(direction);
 
         self.com_interface
             .borrow()
@@ -110,8 +85,22 @@ impl BaseInterface {
             .unwrap()
             .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
+        socket_uuid
+    }
 
-        (socket_uuid, sender)
+    pub fn receive(
+        &mut self,
+        receiver_socket_uuid: ComInterfaceSocketUUID,
+        data: Vec<u8>,
+    ) -> Result<(), BaseInterfaceError> {
+        if let Some(sender) = self.sender.get_mut(&receiver_socket_uuid) {
+            sender
+                .start_send(data)
+                .map_err(|_| BaseInterfaceError::ReceiveError)?;
+            Ok(())
+        } else {
+            Err(BaseInterfaceError::SocketNotFound)
+        }
     }
 
     pub fn set_on_send_callback(
@@ -167,6 +156,7 @@ impl ComInterfaceFactory for BaseInterface {
         com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<BaseInterface, ComInterfaceError> {
         Ok(BaseInterface {
+            sender: HashMap::new(),
             properties: setup_data.0,
             on_send: None,
             com_interface,
