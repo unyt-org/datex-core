@@ -1,5 +1,3 @@
-use crate::network::helpers::mockup_interface;
-
 use super::mockup_interface::{MockupInterface, MockupInterfaceSetupData};
 use core::str::FromStr;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
@@ -13,7 +11,7 @@ use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use datex_core::values::core_values::endpoint::Endpoint;
 use log::{error, info};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::mpsc;
 use tokio::task::yield_now;
 
 lazy_static::lazy_static! {

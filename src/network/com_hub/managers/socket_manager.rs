@@ -27,10 +27,8 @@ use crate::{
     stdlib::cell::RefCell,
 };
 
-pub type SocketsByUUID = HashMap<
-    ComInterfaceSocketUUID,
-    (ComInterfaceSocket, HashSet<Endpoint>),
->;
+pub type SocketsByUUID =
+    HashMap<ComInterfaceSocketUUID, (ComInterfaceSocket, HashSet<Endpoint>)>;
 
 #[derive(Debug, Clone, Default)]
 pub struct EndpointIterateOptions<'a> {
@@ -114,8 +112,7 @@ impl SocketManager {
     ) -> Result<(), SocketEndpointRegistrationError> {
         info!(
             "Registering endpoint {} for socket {}",
-            endpoint,
-            socket_uuid
+            endpoint, socket_uuid
         );
         let socket = self.get_socket_by_uuid(&socket_uuid);
 
@@ -260,8 +257,8 @@ impl SocketManager {
                 core::panic!("Socket for uuid {socket_uuid} not found")
             })
     }
-    
-    pub(crate) fn get_socket_by_uuid_mut(
+
+    pub fn get_socket_by_uuid_mut(
         &mut self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> &mut ComInterfaceSocket {

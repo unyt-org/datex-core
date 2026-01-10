@@ -65,7 +65,7 @@ pub async fn test_multiple_add() {
         init_global_context();
 
         let com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Collector);
-        
+
         let mockup_interface1 = ComInterface
                 ::create_with_implementation::<MockupInterface>(MockupInterfaceSetupData::new("mockup_interface1")).unwrap();
         let mockup_interface2 = ComInterface
@@ -126,8 +126,8 @@ pub async fn test_send() {
         .await;
 
         // get last block that was sent
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
+        let mut com_interface_borrow = com_interface.borrow_mut();
+        let mockup_interface_out = com_interface_borrow.implementation_mut::<MockupInterface>();
         let block_bytes =
             DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
                 .await
@@ -150,8 +150,8 @@ pub async fn test_send_invalid_recipient() {
         send_empty_block_and_update(&[TEST_ENDPOINT_B.clone()], &com_hub).await;
 
         // get last block that was sent
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
+        let mut com_interface_borrow = com_interface.borrow_mut();
+        let mockup_interface_out = com_interface_borrow.implementation_mut::<MockupInterface>();
 
         assert!(mockup_interface_out.last_block().is_none());
     }
@@ -163,8 +163,11 @@ pub async fn send_block_to_multiple_endpoints() {
         // init mock setup
         init_global_context();
         let (com_hub, com_interface) = get_mock_setup().await;
-
-        let socket_uuid = create_and_add_socket(com_interface.clone()).unwrap();
+        let socket_uuid = {
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            create_and_add_socket(mockup_interface).unwrap()
+        };
         register_socket_endpoint(
             com_interface.clone(),
             socket_uuid.clone(),
@@ -186,15 +189,15 @@ pub async fn send_block_to_multiple_endpoints() {
         .await;
 
         // get last block that was sent
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
+        let mut com_interface_borrow = com_interface.borrow_mut();
+        let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
         let block_bytes =
-            DXBBlock::from_bytes(&mockup_interface_out.last_block().unwrap())
+            DXBBlock::from_bytes(&mockup_interface.last_block().unwrap())
                 .await
                 .unwrap();
 
-        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
-        assert!(mockup_interface_out.last_block().is_some());
+        assert_eq!(mockup_interface.outgoing_queue.borrow().len(), 1);
+        assert!(mockup_interface.last_block().is_some());
         assert_eq!(block_bytes.body, block.body);
     };
 }
@@ -205,16 +208,23 @@ pub async fn send_blocks_to_multiple_endpoints() {
         init_global_context();
         let (com_hub, com_interface) = get_mock_setup().await;
 
-        let socket_a = create_and_add_socket(com_interface.clone()).unwrap();
-        let socket_b = create_and_add_socket(com_interface.clone()).unwrap();
+        let (socket_uuid_a, socket_uuid_b) = {
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            (
+                create_and_add_socket(mockup_interface).unwrap(),
+                create_and_add_socket(mockup_interface).unwrap()
+            )
+        };
+
         register_socket_endpoint(
             com_interface.clone(),
-            socket_a.clone(),
+            socket_uuid_a.clone(),
             TEST_ENDPOINT_A.clone(),
         );
         register_socket_endpoint(
             com_interface.clone(),
-            socket_b.clone(),
+            socket_uuid_b.clone(),
             TEST_ENDPOINT_B.clone(),
         );
         yield_now().await;
@@ -226,16 +236,16 @@ pub async fn send_blocks_to_multiple_endpoints() {
         )
         .await;
 
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 2);
+        let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+        assert_eq!(mockup_interface.outgoing_queue.borrow().len(), 2);
 
-        assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(&socket_a));
-        assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(&socket_b));
+        assert!(mockup_interface
+            .has_outgoing_block_for_socket(&socket_uuid_a));
+        assert!(mockup_interface
+            .has_outgoing_block_for_socket(&socket_uuid_b));
 
-        assert!(mockup_interface_out.last_block().is_some());
+        assert!(mockup_interface.last_block().is_some());
     };
 }
 
@@ -251,9 +261,9 @@ pub async fn default_interface_create_socket_first() {
             send_empty_block_and_update(std::slice::from_ref(&TEST_ENDPOINT_B), &com_hub)
                 .await;
 
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
+        let mut com_interface_borrow = com_interface.borrow_mut();
+        let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+        assert_eq!(mockup_interface.outgoing_queue.borrow().len(), 1);
     };
 }
 
@@ -268,10 +278,16 @@ pub async fn default_interface_set_default_interface_first() {
         )
         .await;
 
-        let socket = create_and_add_socket(com_interface.clone()).unwrap();
+        let socket_uuid = {
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface =
+                com_interface_borrow.implementation_mut::<MockupInterface>();
+            create_and_add_socket(mockup_interface).unwrap()
+        };
+
         register_socket_endpoint(
             com_interface.clone(),
-            socket.clone(),
+            socket_uuid.clone(),
             TEST_ENDPOINT_A.clone(),
         );
 
@@ -284,9 +300,10 @@ pub async fn default_interface_set_default_interface_first() {
         )
         .await;
 
-        let mockup_interface_out = com_interface.clone();
-        let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
+        let mut com_interface_borrow = com_interface.borrow_mut();
+        let mockup_interface =
+            com_interface_borrow.implementation_mut::<MockupInterface>();
+        assert_eq!(mockup_interface.outgoing_queue.borrow().len(), 1);
     });
 }
 
@@ -295,7 +312,7 @@ pub async fn test_receive() {
     run_async! {
         // init mock setup
         init_global_context();
-        let (com_hub, _, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
 
         // receive block
         let mut block = DXBBlock {
@@ -312,9 +329,11 @@ pub async fn test_receive() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let mut socket_ref = socket.try_lock().unwrap();
-            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
-            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            let mut mockup_interface = mockup_interface.socket_senders.borrow_mut();
+            let sender = mockup_interface.get_mut(&socket_uuid).unwrap();
+            sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
 
         yield_now().await;
@@ -329,7 +348,7 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
     run_async! {
         // init mock setup
         init_global_context();
-        let (com_hub, _, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
 
         // receive block
         let mut block = DXBBlock {
@@ -350,9 +369,11 @@ pub async fn unencrypted_signature_prepare_block_com_hub() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let mut socket_ref = socket.try_lock().unwrap();
-            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
-            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            let mut mockup_interface = mockup_interface.socket_senders.borrow_mut();
+            let sender = mockup_interface.get_mut(&socket_uuid).unwrap();
+            sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
 
         yield_now().await;
@@ -370,7 +391,7 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
     run_async! {
         // init mock setup
         init_global_context();
-        let (com_hub, _, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
 
         // receive block
         let mut block = DXBBlock {
@@ -391,11 +412,12 @@ pub async fn encrypted_signature_prepare_block_com_hub() {
 
         let block_bytes = block.to_bytes().unwrap();
         {
-            let mut socket_ref = socket.try_lock().unwrap();
-            let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
-            bytes_in_sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            let mut mockup_interface = mockup_interface.socket_senders.borrow_mut();
+            let sender = mockup_interface.get_mut(&socket_uuid).unwrap();
+            sender.start_send(block_bytes.as_slice().to_vec()).unwrap();
         }
-
         yield_now().await;
 
         let last_block = get_last_received_single_block_from_com_hub(&com_hub);
@@ -411,7 +433,7 @@ pub async fn test_receive_multiple() {
     run_async! {
         // init mock setup
         init_global_context();
-        let (com_hub, _, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
 
         // receive block
         let mut blocks = vec![
@@ -452,10 +474,13 @@ pub async fn test_receive_multiple() {
             .collect();
 
         {
-            let mut socket_ref = socket.try_lock().unwrap();
-            for block in block_bytes.iter() {
-                let mut bytes_in_sender = socket_ref.bytes_in_sender.lock().unwrap();
-                bytes_in_sender.start_send(block.as_slice().to_vec()).unwrap();
+            let mut com_interface_borrow = com_interface.borrow_mut();
+            let mockup_interface = com_interface_borrow.implementation_mut::<MockupInterface>();
+            let mut mockup_interface = mockup_interface.socket_senders.borrow_mut();
+            let sender = mockup_interface.get_mut(&socket_uuid).unwrap();
+
+            for block in block_bytes.into_iter() {
+                sender.start_send(block).unwrap();
             }
         }
 
