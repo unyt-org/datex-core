@@ -6,7 +6,7 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::{RoutingHeader, SignatureType};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
+use datex_core::network::com_interfaces::default_com_interfaces::base_interface::{BaseInterface, BaseInterfaceSetupData};
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
@@ -504,7 +504,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
     run_async! {
         init_global_context();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
 
         {
             let interface_manager = com_hub.interface_manager();
@@ -516,11 +516,15 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         }
 
         assert_eq!(
-            com_interface.borrow_mut().info(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
 
-        assert_eq!(socket.try_lock().unwrap().state, SocketState::Open);
+        let socket_state = {
+            let socket_manager = com_hub.socket_manager();
+            socket_manager.borrow().socket_state(&socket_uuid)
+        };
+        assert_eq!(socket_state, SocketState::Open);
 
         let uuid = com_interface.borrow().uuid().clone();
 
@@ -536,11 +540,15 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         }
 
         assert_eq!(
-            com_interface.borrow_mut().get_info().get_state(),
+            com_interface.borrow().current_state(),
             ComInterfaceState::Destroyed
         );
 
-        assert_eq!(socket.try_lock().unwrap().state, SocketState::Destroyed);
+        let socket_state = {
+            let socket_manager = com_hub.socket_manager();
+            socket_manager.borrow().socket_state(&socket_uuid)
+        };
+        assert_eq!(socket_state, SocketState::Destroyed);
     };
 }
 
@@ -573,8 +581,15 @@ pub async fn test_basic_routing() {
             )
             .await;
 
-        com_interface_a.borrow_mut().update().await;
-        com_interface_b.borrow_mut().update().await;
+        {
+            let mut com_interface_a_borrow = com_interface_a.borrow_mut();
+            let mockup_interface_a = com_interface_a_borrow.implementation_mut::<MockupInterface>();
+            mockup_interface_a.update().await;
+
+            let mut com_interface_b_borrow = com_interface_b.borrow_mut();
+            let mockup_interface_b = com_interface_b_borrow.implementation_mut::<MockupInterface>();
+            mockup_interface_b.update().await;
+        }
 
         yield_now().await;
         yield_now().await;
@@ -586,7 +601,11 @@ pub async fn test_basic_routing() {
         )
         .await;
 
-        com_interface_b.borrow_mut().update().await;
+        {
+            let mut com_interface_b_borrow = com_interface_b.borrow_mut();
+            let mockup_interface_b = com_interface_b_borrow.implementation_mut::<MockupInterface>();
+            mockup_interface_b.update().await;
+        }
         yield_now().await;
 
         let last_block =
@@ -635,22 +654,27 @@ pub async fn test_reconnect() {
         let mut com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel);
 
         // create a new interface, open it and add it to the com_hub
-        let mut base_interface =
-            BaseInterface::new_with_properties(InterfaceProperties {
+        let base_interface = ComInterface::create_with_implementation::<
+            BaseInterface,
+        >(BaseInterfaceSetupData::new(InterfaceProperties {
                 reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
                     timeout: core::time::Duration::from_secs(1),
                 },
                 ..InterfaceProperties::default()
-            });
-        base_interface.open().unwrap();
-        let base_interface = Rc::new(RefCell::new(base_interface));
+            }))
+        .unwrap();
+
+        // add base_interface to com_hub
         com_hub
-            .add_interface(base_interface.clone(), InterfacePriority::default())
-            .unwrap();
+            .open_and_add_interface(base_interface.clone(), InterfacePriority::default())
+            .await
+            .unwrap_or_else(|e| {
+                core::panic!("Error adding interface: {e:?}");
+            });
 
         // check that the interface is connected
         assert_eq!(
-            base_interface.borrow().get_state(),
+            base_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
 
@@ -666,13 +690,13 @@ pub async fn test_reconnect() {
         // check that the interface is not connected
         // and that the close_timestamp is set
         assert_eq!(
-            base_interface.borrow().get_state(),
+            base_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
         assert!(base_interface
             .borrow_mut()
-            .get_properties()
+            .properties()
             .close_timestamp
             .is_some());
 
@@ -680,7 +704,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            base_interface.borrow().get_state(),
+            base_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
@@ -692,7 +716,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            base_interface.borrow().get_state(),
+            base_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
     }

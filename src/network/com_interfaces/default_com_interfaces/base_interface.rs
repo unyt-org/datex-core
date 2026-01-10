@@ -149,9 +149,15 @@ impl ComInterfaceImplementation for BaseInterface {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
 pub struct BaseInterfaceSetupData(pub InterfaceProperties);
+
+impl BaseInterfaceSetupData {
+    pub fn new(properties: InterfaceProperties) -> Self {
+        BaseInterfaceSetupData(properties)
+    }
+}
 
 impl ComInterfaceFactory for BaseInterface {
     type SetupData = BaseInterfaceSetupData;

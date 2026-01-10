@@ -1,5 +1,6 @@
 use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketEvent, ComInterfaceSocketUUID,
+    SocketState,
 };
 use crate::stdlib::rc::Rc;
 use crate::task::{
@@ -246,7 +247,8 @@ impl SocketManager {
     /// Returns the socket for a given UUID
     /// The socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) fn get_socket_by_uuid(
+    /// Applicable for TI
+    pub fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> &ComInterfaceSocket {
@@ -258,6 +260,8 @@ impl SocketManager {
             })
     }
 
+    /// Returns a mutable reference to the socket for a given UUID
+    /// Applicable for TI
     pub fn get_socket_by_uuid_mut(
         &mut self,
         socket_uuid: &ComInterfaceSocketUUID,
@@ -270,8 +274,17 @@ impl SocketManager {
             })
     }
 
+    /// Checks if a socket with the given UUID exists in the manager
     pub fn has_socket(&self, socket_uuid: &ComInterfaceSocketUUID) -> bool {
         self.sockets.contains_key(socket_uuid)
+    }
+
+    /// Returns the current state of a socket by its UUID
+    pub fn socket_state(
+        &self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> SocketState {
+        self.get_socket_by_uuid(socket_uuid).state
     }
 
     /// Adds a socket to the SocketManager

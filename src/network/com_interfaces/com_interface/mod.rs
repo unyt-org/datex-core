@@ -233,6 +233,10 @@ impl ComInterface {
         }
     }
 
+    pub fn current_state(&self) -> ComInterfaceState {
+        self.state().lock().unwrap().get()
+    }
+
     pub fn state(&self) -> Arc<Mutex<ComInterfaceStateWrapper>> {
         match self {
             ComInterface::Headless { info } => {
