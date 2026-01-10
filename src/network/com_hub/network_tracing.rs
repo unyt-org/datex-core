@@ -381,8 +381,8 @@ impl ComHub {
             endpoint: self.endpoint.clone(),
             distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
-                self.dyn_interface_for_socket_uuid(&original_socket)
-                    .borrow_mut()
+                &self
+                    .dyn_interface_for_socket_uuid(&original_socket)
                     .properties(),
                 original_socket.clone(),
             ),
@@ -428,8 +428,8 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.dyn_interface_for_socket_uuid(&original_socket)
-                        .borrow_mut()
+                    &self
+                        .dyn_interface_for_socket_uuid(&original_socket)
                         .properties(),
                     original_socket.clone(),
                 ),
@@ -469,8 +469,8 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.dyn_interface_for_socket_uuid(&original_socket)
-                        .borrow_mut()
+                    &self
+                        .dyn_interface_for_socket_uuid(&original_socket)
                         .properties(),
                     original_socket.clone(),
                 ),

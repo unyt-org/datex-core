@@ -24,7 +24,7 @@ use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceS
 use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
 
 pub struct SerialNativeInterface {
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     shutdown_signal: Arc<Notify>,
     port: Arc<Mutex<Box<dyn SerialPort + Send>>>,
 }
@@ -44,14 +44,14 @@ impl SerialNativeInterface {
 
     pub fn new(
         port_name: &str,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<SerialNativeInterface, SerialError> {
         Self::new_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE, com_interface)
     }
     // Allow to open interface with a configured port
     pub fn new_with_port(
         port: Box<dyn SerialPort + Send>,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<SerialNativeInterface, SerialError> {
         let interface = SerialNativeInterface {
             shutdown_signal: Arc::new(Notify::new()),
@@ -63,7 +63,7 @@ impl SerialNativeInterface {
     pub fn new_with_baud_rate(
         port_name: &str,
         baud_rate: u32,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<SerialNativeInterface, SerialError> {
         let port = serialport::new(port_name, baud_rate)
             .timeout(Self::TIMEOUT)
@@ -73,7 +73,7 @@ impl SerialNativeInterface {
     }
 
     fn open(&self) -> Result<(), SerialError> {
-        let state = self.com_interface.borrow().state();
+        let state = self.com_interface.state();
         let port = self.port.clone();
 
         let (socket_uuid, mut sender) = self
@@ -129,7 +129,7 @@ impl ComInterfaceFactory for SerialNativeInterface {
     type SetupData = SerialInterfaceSetupData;
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<SerialNativeInterface, ComInterfaceError> {
         if let Some(port) = setup_data.port_name {
             if port.is_empty() {

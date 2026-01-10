@@ -29,7 +29,7 @@ pub struct MockupInterface {
     pub socket_senders: Rc<RefCell<HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>>>,
     pub sender: Option<mpsc::Sender<Vec<u8>>>,
     pub receiver: Rc<RefCell<Option<mpsc::Receiver<Vec<u8>>>>>,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     setup_data: MockupInterfaceSetupData,
 }
 
@@ -48,7 +48,7 @@ impl Debug for MockupInterface {
 impl MockupInterface {
     pub fn new(
         setup_data: MockupInterfaceSetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<Self, ComInterfaceError> {
         info!("Creating MockupInterface with setup data: {:?}", setup_data);
         let mut mockup_interface = MockupInterface {
@@ -200,7 +200,7 @@ impl ComInterfaceFactory for MockupInterface {
 
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<MockupInterface, ComInterfaceError> {
         MockupInterface::new(setup_data, com_interface)
     }

@@ -31,7 +31,7 @@ impl ComHub {
     /// Adds a new interface to the ComHub
     pub fn add_interface(
         &mut self,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
         self.interface_manager
@@ -48,7 +48,7 @@ impl ComHub {
     /// Opens the interface if not already opened, and adds it to the manager
     pub async fn open_and_add_interface(
         &self,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
         self.interface_manager
@@ -64,10 +64,10 @@ impl ComHub {
     }
 
     /// Internal method to handle interface events
-    fn handle_interface_events(&self, interface: Rc<RefCell<ComInterface>>) {
+    fn handle_interface_events(&self, interface: Rc<ComInterface>) {
         let interface_event_receiver =
-            interface.borrow_mut().take_interface_event_receiver();
-        let uuid = interface.borrow().uuid().clone();
+            interface.take_interface_event_receiver();
+        let uuid = interface.uuid().clone();
         spawn_with_panic_notify(
             &self.async_context,
             handle_interface_events(
@@ -84,7 +84,7 @@ impl ComHub {
     pub(crate) fn dyn_interface_for_socket_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
-    ) -> Rc<RefCell<ComInterface>> {
+    ) -> Rc<ComInterface> {
         let socket_manager = self.socket_manager.borrow();
         let socket = socket_manager.get_socket_by_uuid(socket_uuid);
         self.interface_manager
@@ -98,7 +98,7 @@ impl ComHub {
         interface_type: &str,
         setup_data: ValueContainer,
         priority: InterfacePriority,
-    ) -> Result<Rc<RefCell<ComInterface>>, ComHubError> {
+    ) -> Result<Rc<ComInterface>, ComHubError> {
         self.interface_manager
             .borrow_mut()
             .create_interface(interface_type, setup_data, priority)

@@ -1,5 +1,6 @@
 use core::prelude::rust_2024::*;
 use log::info;
+use std::rc::Rc;
 
 use crate::collections::HashMap;
 use crate::network::com_hub::ComHub;
@@ -166,13 +167,11 @@ impl ComHub {
         let interface_manager = self.interface_manager.borrow();
 
         for (interface, _) in interface_manager.interfaces.values() {
-            let interface = interface.borrow();
-
             metadata.interfaces.push(ComHubMetadataInterface {
                 uuid: interface.uuid().0.to_string(),
-                properties: interface.properties().clone(),
+                properties: interface.properties().as_ref().clone(),
                 sockets: sockets_by_com_interface_uuid
-                    .remove(interface.uuid())
+                    .remove(&interface.uuid())
                     .unwrap_or_default(),
             });
         }

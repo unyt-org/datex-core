@@ -83,7 +83,7 @@ where
     /// The setup data is passed as a ValueContainer and has to be downcasted
     fn factory(
         setup_data: ValueContainer,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<Box<dyn ComInterfaceImpl>, ComInterfaceError> {
         let data = from_value_container::<Self::SetupData>(setup_data);
         match data {
@@ -113,7 +113,7 @@ where
     /// None is returned.
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<Self, ComInterfaceError>;
 
     /// Get the default interface properties for the interface.

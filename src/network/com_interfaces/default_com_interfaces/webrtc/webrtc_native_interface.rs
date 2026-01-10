@@ -4,12 +4,10 @@ use crate::stdlib::{
 };
 
 use crate::{
-    network::com_interfaces::{
-        default_com_interfaces::webrtc::webrtc_common::{
-            media_tracks::{MediaKind, MediaTrack, MediaTracks},
-            structures::RTCSdpTypeDX,
-            webrtc_commons::WebRTCInterfaceSetupData,
-        },
+    network::com_interfaces::default_com_interfaces::webrtc::webrtc_common::{
+        media_tracks::{MediaKind, MediaTrack, MediaTracks},
+        structures::RTCSdpTypeDX,
+        webrtc_commons::WebRTCInterfaceSetupData,
     },
     task::spawn_local,
     values::core_values::endpoint::Endpoint,
@@ -27,6 +25,13 @@ use super::webrtc_common::{
     webrtc_commons::WebRTCCommon,
     webrtc_trait::{WebRTCTrait, WebRTCTraitInternal},
 };
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
+};
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use datex_macros::{com_interface, create_opener};
 use log::error;
 use webrtc::{
@@ -53,11 +58,6 @@ use webrtc::{
         track_remote::{OnMuteHdlrFn, TrackRemote},
     },
 };
-use crate::network::com_interfaces::com_interface::ComInterface;
-use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
-use crate::network::com_interfaces::com_interface::implementation::{ComInterfaceFactory, ComInterfaceImplementation};
-use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
-use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 
 pub type TrackLocal = dyn webrtc::track::track_local::TrackLocal + Send + Sync;
 
@@ -72,7 +72,7 @@ enum MediaChannelEvent {
 }
 
 pub struct WebRTCNativeInterface {
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     commons: Arc<Mutex<WebRTCCommon>>,
     peer_connection: Arc<Mutex<Option<RTCPeerConnection>>>,
     data_channels: Rc<RefCell<DataChannels<Arc<RTCDataChannel>>>>,
@@ -86,7 +86,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
 {
     fn new(
         peer_endpoint: impl Into<Endpoint>,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Self {
         let commons = WebRTCCommon::new(peer_endpoint);
         WebRTCNativeInterface {
@@ -104,7 +104,7 @@ impl WebRTCTrait<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
     fn new_with_ice_servers(
         peer_endpoint: impl Into<Endpoint>,
         ice_servers: Vec<RTCIceServer>,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Self {
         let interface = Self::new(peer_endpoint, com_interface);
         interface.set_ice_servers(ice_servers);
@@ -134,14 +134,16 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
         self.local_media_tracks.clone()
     }
 
-    fn provide_com_interface(&self) -> &Rc<RefCell<ComInterface>> {
+    fn provide_com_interface(&self) -> &Rc<ComInterface> {
         &self.com_interface
     }
 
     async fn handle_create_data_channel(
         &self,
     ) -> Result<DataChannel<Arc<RTCDataChannel>>, WebRTCError> {
-        if let Some(peer_connection) = &self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            &self.peer_connection.lock().unwrap().as_ref()
+        {
             let channel_config = RTCDataChannelInit::default();
             let data_channel = peer_connection
                 .create_data_channel("DATEX", Some(channel_config))
@@ -190,8 +192,11 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
                         }
                     }
                     DataChannelEvent::Message(data) => {
-                        if let Some(on_message) =
-                            channel_clone.borrow().on_message.borrow_mut().as_mut()
+                        if let Some(on_message) = channel_clone
+                            .borrow()
+                            .on_message
+                            .borrow_mut()
+                            .as_mut()
                         {
                             on_message(data);
                         }
@@ -213,7 +218,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
         id: String,
         kind: MediaKind,
     ) -> Result<MediaTrack<Arc<TrackLocal>>, WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
             let track = Arc::new(TrackLocalStaticSample::new(
                 RTCRtpCodecCapability {
@@ -288,7 +295,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
     async fn handle_create_offer(
         &self,
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             let offer = peer_connection.create_offer(None).await.unwrap();
             Ok(RTCSessionDescriptionDX {
                 sdp_type: RTCSdpTypeDX::Offer,
@@ -304,7 +313,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
         &self,
         candidate_init: RTCIceCandidateInitDX,
     ) -> Result<(), WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             let ice_candidate = RTCIceCandidateInit {
                 candidate: candidate_init.candidate,
                 sdp_mid: candidate_init.sdp_mid,
@@ -330,7 +341,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
         &self,
         description: RTCSessionDescriptionDX,
     ) -> Result<(), WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             let rtc_session_description = {
                 if description.sdp_type == RTCSdpTypeDX::Offer {
                     RTCSessionDescription::offer(description.sdp)
@@ -357,7 +370,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
         &self,
         description: RTCSessionDescriptionDX,
     ) -> Result<(), WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             let rtc_session_description = match description.sdp_type {
                 RTCSdpTypeDX::Offer => {
                     RTCSessionDescription::offer(description.sdp)
@@ -385,7 +400,9 @@ impl WebRTCTraitInternal<Arc<RTCDataChannel>, Arc<TrackRemote>, Arc<TrackLocal>>
     async fn handle_create_answer(
         &self,
     ) -> Result<RTCSessionDescriptionDX, WebRTCError> {
-        if let Some(peer_connection) = self.peer_connection.lock().unwrap().as_ref() {
+        if let Some(peer_connection) =
+            self.peer_connection.lock().unwrap().as_ref()
+        {
             let offer = peer_connection.create_answer(None).await.unwrap();
             Ok(RTCSessionDescriptionDX {
                 sdp_type: RTCSdpTypeDX::Answer,
@@ -456,7 +473,8 @@ impl WebRTCNativeInterface {
                 })
                 .collect()
         }
-        let peer_connection = api.new_peer_connection(self.rtc_configuration.borrow().clone())
+        let peer_connection = api
+            .new_peer_connection(self.rtc_configuration.borrow().clone())
             .await
             .unwrap();
         self.peer_connection
@@ -470,11 +488,16 @@ impl WebRTCNativeInterface {
                 mpsc::unbounded::<Arc<RTCDataChannel>>();
             let data_channel_tx_clone = tx_data_channel.clone();
 
-            self.peer_connection.lock().unwrap().as_ref().unwrap().on_data_channel(Box::new(move |data_channel| {
-                let mut res = data_channel_tx_clone.clone();
-                let _ = res.start_send(data_channel);
-                Box::pin(async {})
-            }));
+            self.peer_connection
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .on_data_channel(Box::new(move |data_channel| {
+                    let mut res = data_channel_tx_clone.clone();
+                    let _ = res.start_send(data_channel);
+                    Box::pin(async {})
+                }));
 
             spawn_local(async move {
                 while let Some(channel) = rx_data_channel.next().await {
@@ -509,16 +532,23 @@ impl WebRTCNativeInterface {
             //     .await
             //     .unwrap();
             self.peer_connection
-                .lock().unwrap().as_ref().unwrap()
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
                 .add_transceiver_from_kind(RTPCodecType::Audio, None)
                 .await
                 .unwrap();
-            self.peer_connection.lock().unwrap().as_ref().unwrap()
+            self.peer_connection
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
                 .on_track(Box::new(move |track, a, c| {
-                let mut res = media_track_tx_clone.clone();
-                let _ = res.start_send(track);
-                Box::pin(async {})
-            }));
+                    let mut res = media_track_tx_clone.clone();
+                    let _ = res.start_send(track);
+                    Box::pin(async {})
+                }));
             spawn_local(async move {
                 while let Some(track) = rx_media_track.next().await {
                     let kind = match track.kind() {
@@ -540,19 +570,24 @@ impl WebRTCNativeInterface {
                 mpsc::unbounded::<RTCIceCandidateInit>();
             let tx_clone = tx_ice_candidate.clone();
 
-            self.peer_connection.lock().unwrap().as_ref().unwrap().on_ice_candidate(Box::new(
-                move |candidate: Option<RTCIceCandidate>| {
-                    if let Some(candidate) = candidate {
-                        let candidate_init = candidate.to_json();
+            self.peer_connection
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .on_ice_candidate(Box::new(
+                    move |candidate: Option<RTCIceCandidate>| {
+                        if let Some(candidate) = candidate {
+                            let candidate_init = candidate.to_json();
 
-                        if let Ok(candidate) = &candidate_init {
-                            let mut res = tx_clone.clone();
-                            let _ = res.start_send(candidate.clone());
+                            if let Ok(candidate) = &candidate_init {
+                                let mut res = tx_clone.clone();
+                                let _ = res.start_send(candidate.clone());
+                            }
                         }
-                    }
-                    Box::pin(async {})
-                },
-            ));
+                        Box::pin(async {})
+                    },
+                ));
             spawn_local(async move {
                 while let Some(candidate) = rx_ice_candidate.next().await {
                     commons.clone().try_lock().unwrap().on_ice_candidate(
@@ -598,14 +633,12 @@ impl ComInterfaceImplementation for WebRTCNativeInterface {
             ..InterfaceProperties::default()
         }
     }
-    fn handle_close<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let success = { true };
         Box::pin(async move { success })
     }
 
-    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { self.open().await.is_ok() })
     }
 }
@@ -614,7 +647,7 @@ impl ComInterfaceFactory for WebRTCNativeInterface {
     type SetupData = WebRTCInterfaceSetupData;
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebRTCNativeInterface, ComInterfaceError> {
         if let Some(ice_servers) = setup_data.ice_servers.as_ref() {
             if ice_servers.is_empty() {
@@ -630,7 +663,10 @@ impl ComInterfaceFactory for WebRTCNativeInterface {
                 ))
             }
         } else {
-            Ok(WebRTCNativeInterface::new(setup_data.peer_endpoint, com_interface))
+            Ok(WebRTCNativeInterface::new(
+                setup_data.peer_endpoint,
+                com_interface,
+            ))
         }
     }
 

@@ -32,7 +32,7 @@ pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn F
 pub struct BaseInterface {
     on_send: Box<OnSendCallback>,
     properties: InterfaceProperties,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
 }
 
 use crate::task::UnboundedSender;
@@ -57,7 +57,7 @@ impl From<ComHubError> for BaseInterfaceError {
 
 pub struct BaseInterfaceHolder {
     sender: HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>,
-    pub com_interface: Rc<RefCell<ComInterface>>,
+    pub com_interface: Rc<ComInterface>,
 }
 impl BaseInterfaceHolder {
     pub fn new(setup_data: BaseInterfaceSetupData) -> BaseInterfaceHolder {
@@ -200,7 +200,7 @@ mod tests {
             .com_interface
             .clone();
         assert_eq!(
-            base_interface.borrow().current_state(),
+            base_interface.current_state(),
             ComInterfaceState::NotConnected
         );
         assert!(
@@ -214,7 +214,7 @@ mod tests {
         // Open the interface
         base_interface.clone().borrow().open().await;
         assert_eq!(
-            base_interface.borrow().current_state(),
+            base_interface.current_state(),
             ComInterfaceState::Connected
         );
         assert!(
@@ -226,9 +226,9 @@ mod tests {
         );
 
         // Close the interface
-        assert!(base_interface.borrow_mut().close().await);
+        assert!(base_interface.close().await);
         assert_eq!(
-            base_interface.borrow().current_state(),
+            base_interface.current_state(),
             ComInterfaceState::NotConnected
         );
         assert!(

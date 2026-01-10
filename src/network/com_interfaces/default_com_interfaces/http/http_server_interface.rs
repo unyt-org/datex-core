@@ -94,7 +94,7 @@ async fn client_to_server_handler(
 
 pub struct HTTPServerNativeInterface {
     pub address: Url,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     socket_channel_mapping:
         Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
     channels: Arc<RwLock<HTTPChannelMap>>,
@@ -242,7 +242,7 @@ impl ComInterfaceImplementation for HTTPServerNativeInterface {
 impl ComInterfaceFactory for HTTPServerNativeInterface {
     type SetupData = HTTPServerInterfaceSetupData;
 
-    fn create(setup_data: Self::SetupData, com_interface: Rc<RefCell<ComInterface>>) -> Result<Self, ComInterfaceError> {
+    fn create(setup_data: Self::SetupData, com_interface: Rc<ComInterface>) -> Result<Self, ComInterfaceError> {
         let address: String = format!("http://127.0.0.1:{}", setup_data.port);
         let address =
             Url::parse(&address).map_err(|_| HTTPError::InvalidAddress).map_err(|e| ComInterfaceError::InvalidSetupData)?;

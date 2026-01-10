@@ -113,10 +113,7 @@ impl Default for InterfacePriority {
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn reconnect_interface_task(interface_rc: Rc<RefCell<ComInterface>>) {
-    let interface = interface_rc.clone();
-    let mut interface = interface.borrow_mut();
-
+async fn reconnect_interface_task(interface: Rc<ComInterface>) {
     /* FIXME Reconnect logic
     let config = interface.properties_mut();
     config.close_timestamp = None;
@@ -1055,8 +1052,8 @@ impl ComHub {
                         endpoint: self.endpoint.clone(),
                         distance,
                         socket: NetworkTraceHopSocket::new(
-                            self.dyn_interface_for_socket_uuid(socket_uuid)
-                                .borrow_mut()
+                            &self
+                                .dyn_interface_for_socket_uuid(socket_uuid)
                                 .properties(),
                             socket_uuid.clone(),
                         ),
@@ -1118,8 +1115,8 @@ impl ComHub {
     // fn update_interfaces(&self) {
     //     let mut to_remove = Vec::new();
     //     for (interface, _) in self.interfaces.borrow().values() {
-    //         let uuid = interface.borrow().get_uuid().clone();
-    //         let state = interface.borrow().get_state();
+    //         let uuid = interface.get_uuid().clone();
+    //         let state = interface.get_state();
 
     //         // If the interface has been proactively destroyed, remove it from the hub
     //         // and clean up the sockets. This happens when the user calls the destroy
@@ -1128,7 +1125,7 @@ impl ComHub {
     //             info!("Destroying interface on the ComHub {uuid}");
     //             to_remove.push(uuid);
     //         } else if state.is_not_connected()
-    //             && interface.borrow_mut().get_properties().shall_reconnect()
+    //             && interface.get_properties().shall_reconnect()
     //         {
     //             // If the interface is disconnected and the interface has
     //             // reconnection enabled, check if the interface should be reconnected
@@ -1300,12 +1297,9 @@ async fn handle_incoming_socket_blocks_task(
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
 async fn send_outgoing_block_task(
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     socket_uuid: ComInterfaceSocketUUID,
     bytes: Vec<u8>,
 ) {
-    com_interface
-        .borrow_mut()
-        .send_block(&bytes, socket_uuid)
-        .await;
+    com_interface.send_block(&bytes, socket_uuid).await;
 }

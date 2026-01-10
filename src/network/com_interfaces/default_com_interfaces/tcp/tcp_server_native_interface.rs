@@ -32,7 +32,7 @@ use super::tcp_common::{TCPError, TCPServerInterfaceSetupData};
 
 pub struct TCPServerNativeInterface {
     pub address: SocketAddr,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
     tx: Arc<Mutex<HashMap<ComInterfaceSocketUUID, Arc<Mutex<OwnedWriteHalf>>>>>,
 }
 
@@ -48,7 +48,7 @@ impl TCPServerNativeInterface {
 
         let tx = self.tx.clone();
         // TODO #615: use normal spawn (thread)? currently leads to global context panic
-        let manager = self.com_interface.borrow().socket_manager();
+        let manager = self.com_interface.socket_manager();
         spawn_with_panic_notify_default(async move {
             loop {
                 match listener.accept().await {
@@ -107,19 +107,17 @@ impl ComInterfaceFactory for TCPServerNativeInterface {
     type SetupData = TCPServerInterfaceSetupData;
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<Self, ComInterfaceError> {
         let address = SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(0, 0, 0, 0),
             setup_data.port,
         ));
-        Ok(
-            TCPServerNativeInterface {
-                address,
-                com_interface,
-                tx: Arc::new(Mutex::new(HashMap::new())),
-            }
-        )
+        Ok(TCPServerNativeInterface {
+            address,
+            com_interface,
+            tx: Arc::new(Mutex::new(HashMap::new())),
+        })
     }
 
     fn get_default_properties() -> InterfaceProperties {

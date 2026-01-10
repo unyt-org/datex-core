@@ -33,7 +33,7 @@ lazy_static::lazy_static! {
     pub static ref TEST_ENDPOINT_M: Endpoint = Endpoint::from_str("@test-m").unwrap();
 }
 
-pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<ComInterface>>) {
+pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<ComInterface>) {
     get_mock_setup_with_endpoint(
         TEST_ENDPOINT_ORIGIN.clone(),
         InterfacePriority::default(),
@@ -46,7 +46,7 @@ pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
     priority: InterfacePriority,
     sink_type: IncomingSectionsSinkType,
-) -> (Rc<ComHub>, Rc<RefCell<ComInterface>>) {
+) -> (Rc<ComHub>, Rc<ComInterface>) {
     // init com hub
     let com_hub =
         ComHub::create(endpoint, AsyncContext::new(), sink_type).await;
@@ -71,7 +71,7 @@ pub async fn get_mock_setup_with_endpoint(
 pub async fn get_runtime_with_mock_interface(
     endpoint: Endpoint,
     priority: InterfacePriority,
-) -> (Runtime, Rc<RefCell<ComInterface>>) {
+) -> (Runtime, Rc<ComInterface>) {
     // init com hub
     let runtime =
         Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
@@ -101,7 +101,7 @@ pub fn create_and_add_socket(
 }
 
 pub fn register_socket_endpoint(
-    mockup_interface: Rc<RefCell<ComInterface>>,
+    mockup_interface: Rc<ComInterface>,
     socket_uuid: ComInterfaceSocketUUID,
     endpoint: Endpoint,
 ) {
@@ -118,7 +118,7 @@ pub async fn get_mock_setup_and_socket(
     sink_type: IncomingSectionsSinkType,
 ) -> (
     Rc<ComHub>,
-    Rc<RefCell<ComInterface>>,
+    Rc<ComInterface>,
     ComInterfaceSocketUUID,
 ) {
     get_mock_setup_and_socket_for_endpoint(
@@ -137,7 +137,7 @@ pub async fn get_mock_setup_and_socket_for_priority(
     sink_type: IncomingSectionsSinkType,
 ) -> (
     Rc<ComHub>,
-    Rc<RefCell<ComInterface>>,
+    Rc<ComInterface>,
     ComInterfaceSocketUUID,
 ) {
     get_mock_setup_and_socket_for_endpoint(
@@ -160,7 +160,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint(
     incoming_sections_sink_type: IncomingSectionsSinkType,
 ) -> (
     Rc<ComHub>,
-    Rc<RefCell<ComInterface>>,
+    Rc<ComInterface>,
     ComInterfaceSocketUUID,
 ) {
     get_mock_setup_and_socket_for_endpoint_and_update_loop(
@@ -185,7 +185,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     incoming_sections_sink_type: IncomingSectionsSinkType,
 ) -> (
     Rc<ComHub>,
-    Rc<RefCell<ComInterface>>,
+    Rc<ComInterface>,
     ComInterfaceSocketUUID,
 ) {
     let (com_hub, mockup_interface_ref) = get_mock_setup_with_endpoint(

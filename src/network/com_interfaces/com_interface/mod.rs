@@ -148,45 +148,43 @@ impl ComInterface {
     pub fn create_from_factory_fn(
         factory_fn: ComInterfaceImplementationFactoryFn,
         setup_data: ValueContainer,
-    ) -> Result<Rc<RefCell<ComInterface>>, ComInterfaceError> {
+    ) -> Result<Rc<ComInterface>, ComInterfaceError> {
         // Create a headless ComInterface first
-        let com_interface = Rc::new(RefCell::new(ComInterface {
+        let com_interface = Rc::new(ComInterface {
             info: ComInterfaceInfo::init(
                 ComInterfaceState::NotConnected,
                 InterfaceProperties::default(),
             )
             .into(),
             implementation: RefCell::new(None),
-        }));
+        });
 
         // Create the implementation using the factory function
         let implementation = factory_fn(setup_data, com_interface.clone())?;
-        com_interface.borrow_mut().initialize(implementation);
+        com_interface.initialize(implementation);
         Ok(com_interface)
     }
 
     /// Creates a new ComInterface with the implementation of type T
     pub fn create_with_implementation<T>(
         setup_data: T::SetupData,
-    ) -> Result<Rc<RefCell<ComInterface>>, ComInterfaceError>
+    ) -> Result<Rc<ComInterface>, ComInterfaceError>
     where
         T: ComInterfaceImplementation + ComInterfaceFactory,
     {
         // Create a headless ComInterface first
-        let com_interface = Rc::new(RefCell::new(ComInterface {
+        let com_interface = Rc::new(ComInterface {
             info: ComInterfaceInfo::init(
                 ComInterfaceState::NotConnected,
                 InterfaceProperties::default(),
             )
             .into(),
             implementation: RefCell::new(None),
-        }));
+        });
 
         // Create the implementation using the factory function
         let implementation = T::create(setup_data, com_interface.clone())?;
-        com_interface
-            .borrow_mut()
-            .initialize(Box::new(implementation));
+        com_interface.initialize(Box::new(implementation));
         Ok(com_interface)
     }
 

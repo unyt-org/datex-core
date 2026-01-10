@@ -27,12 +27,12 @@ pub struct WebSocketClientNativeInterface {
     pub address: Url,
     websocket_stream:
         RefCell<Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
 }
 impl WebSocketClientNativeInterface {
     pub fn new(
         address: &str,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
             parse_url(address, true).map_err(|_| WebSocketError::InvalidURL)?;
@@ -65,7 +65,7 @@ impl WebSocketClientNativeInterface {
             .unwrap()
             .create_and_init_socket(InterfaceDirection::InOut, 1);
 
-        let state = self.com_interface.borrow().state();
+        let state = self.com_interface.state();
         
         spawn_with_panic_notify_default(async move {
             while let Some(msg) = read.next().await {
@@ -99,7 +99,7 @@ impl ComInterfaceFactory
 
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketClientNativeInterface, ComInterfaceError> {
         WebSocketClientNativeInterface::new(&setup_data.address, com_interface)
             .map_err(|_| ComInterfaceError::InvalidSetupData)

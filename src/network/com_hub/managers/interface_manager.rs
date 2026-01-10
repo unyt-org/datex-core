@@ -15,13 +15,13 @@ use crate::network::com_interfaces::com_interface::{ComInterface, ComInterfaceUU
 
 type InterfaceMap = HashMap<
     ComInterfaceUUID,
-    (Rc<RefCell<ComInterface>>, InterfacePriority),
+    (Rc<ComInterface>, InterfacePriority),
 >;
 
 pub type ComInterfaceImplementationFactoryFn =
     fn(
         setup_data: ValueContainer,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
     ) -> Result<Box<dyn ComInterfaceImpl>, ComInterfaceError>;
 
 #[derive(Default)]
@@ -55,7 +55,7 @@ impl InterfaceManager {
         interface_type: &str,
         setup_data: ValueContainer,
         priority: InterfacePriority,
-    ) -> Result<Rc<RefCell<ComInterface>>, ComHubError> {
+    ) -> Result<Rc<ComInterface>, ComHubError> {
         info!("creating interface {interface_type}");
         if let Some(factory) = self.interface_factories.get(interface_type) {
             let interface = ComInterface::create_from_factory_fn(
@@ -81,7 +81,7 @@ impl InterfaceManager {
     pub fn try_dyn_interface_by_uuid(
         &self,
         uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<ComInterface>>> {
+    ) -> Option<Rc<ComInterface>> {
         self.interfaces
             .get(uuid)
             .map(|(interface, _)| interface.clone())
@@ -93,7 +93,7 @@ impl InterfaceManager {
     pub(crate) fn dyn_interface_by_uuid(
         &self,
         interface_uuid: &ComInterfaceUUID,
-    ) -> Rc<RefCell<ComInterface>> {
+    ) -> Rc<ComInterface> {
         self.try_dyn_interface_by_uuid(interface_uuid)
             .unwrap_or_else(|| {
                 core::panic!("Interface for uuid {interface_uuid} not found")
@@ -103,15 +103,15 @@ impl InterfaceManager {
     /// Opens the interface if not already opened, and adds it to the manager
     pub async fn open_and_add_interface(
         &mut self,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
-        let current_state = interface.borrow().state().lock().unwrap().get();
+        let current_state = interface.state().lock().unwrap().get();
         if current_state != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
             // FIXME #240: borrow_mut across await point
-            if !(interface.borrow_mut().handle_open().await) {
+            if !(interface.handle_open().await) {
                 return Err(ComHubError::InterfaceOpenFailed);
             }
         }
@@ -121,17 +121,17 @@ impl InterfaceManager {
     /// Adds an interface to the manager, checking for duplicates
     pub fn add_interface(
         &mut self,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
-        let uuid = interface.borrow().uuid().clone();
+        let uuid = interface.uuid().clone();
         if self.interfaces.contains_key(&uuid) {
             return Err(ComHubError::InterfaceAlreadyExists);
         }
 
         // make sure the interface can send if a priority is set
         if priority != InterfacePriority::None
-            && interface.borrow_mut().properties().direction
+            && interface.properties().direction
                 == InterfaceDirection::In
         {
             return Err(
@@ -168,8 +168,6 @@ impl InterfaceManager {
             .clone();
         {
             // Async close the interface (stop tasks, server, cleanup internal data)
-            // FIXME #176: borrow_mut should not be used here
-            let mut interface = interface.borrow_mut();
             interface.handle_destroy().await;
         }
 
@@ -184,7 +182,7 @@ impl InterfaceManager {
     fn cleanup_interface(
         &mut self,
         interface_uuid: &ComInterfaceUUID,
-    ) -> Option<Rc<RefCell<ComInterface>>> {
+    ) -> Option<Rc<ComInterface>> {
         Some(self.interfaces.remove(&interface_uuid).or(None)?.0)
     }
 

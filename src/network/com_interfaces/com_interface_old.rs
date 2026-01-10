@@ -175,13 +175,13 @@ impl ComInterfaceSockets {
         }
 
         debug!("Socket registered: {socket_uuid} {endpoint}");
-        self.socket_event_sender.start_send(
-            ComInterfaceSocketEvent::RegisteredSocket(
+        self.socket_event_sender
+            .start_send(ComInterfaceSocketEvent::RegisteredSocket(
                 socket_uuid,
                 distance as i8,
                 endpoint.clone(),
-            ),
-        ).unwrap();
+            ))
+            .unwrap();
         Ok(())
     }
 }
@@ -422,7 +422,7 @@ where
 //     uuid: ComInterfaceSocketUUID,
 // ) {
 //     // FIXME #194 borrow_mut across await point!
-//     let has_been_send = interface.borrow_mut().send_block(&block, uuid).await;
+//     let has_been_send = interface.send_block(&block, uuid).await;
 //     interface
 //         .borrow()
 //         .get_info()
@@ -449,7 +449,7 @@ where
 //             socket_mut.bytes_in_sender.drain(..).collect::<Vec<_>>();
 //         blocks
 //     }
-//     let sockets = interface.borrow().get_sockets();
+//     let sockets = interface.get_sockets();
 //     for socket_ref in sockets.try_lock().unwrap().sockets.values() {
 //         let blocks = get_blocks(socket_ref);
 //         let interface = interface.clone();

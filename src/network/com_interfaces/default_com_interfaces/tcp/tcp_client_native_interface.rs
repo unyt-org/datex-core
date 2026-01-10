@@ -36,7 +36,7 @@ use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 pub struct TCPClientNativeInterface {
     pub address: SocketAddr,
     tx: Rc<RefCell<Option<OwnedWriteHalf>>>,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
 }
 
 impl TCPClientNativeInterface {
@@ -56,7 +56,7 @@ impl TCPClientNativeInterface {
             .create_and_init_socket(InterfaceDirection::InOut, 1);
         self.tx.borrow_mut().replace(write_half);
 
-        let state = self.com_interface.borrow().state();
+        let state = self.com_interface.state();
 
         spawn(async move {
             let mut reader = read_half;
@@ -134,7 +134,7 @@ impl ComInterfaceFactory for TCPClientNativeInterface {
 
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<
         Self,
         ComInterfaceError,

@@ -50,14 +50,14 @@ pub struct WebSocketServerNativeInterface {
     websocket_streams: Arc<Mutex<WebsocketStreamMap>>,
     shutdown_signal: Arc<Notify>,
     handle: RefCell<Option<JoinHandle<()>>>,
-    com_interface: Rc<RefCell<ComInterface>>,
+    com_interface: Rc<ComInterface>,
 }
 
 impl WebSocketServerNativeInterface {
     pub fn new(
         port: u16,
         secure: bool,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
         let address: String = format!("0.0.0.0:{port}");
         let address = parse_url(&address, secure).map_err(|_| {
@@ -200,7 +200,7 @@ impl ComInterfaceFactory
 
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketServerNativeInterface, ComInterfaceError> {
         WebSocketServerNativeInterface::new(
             setup_data.port,

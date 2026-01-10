@@ -11,16 +11,14 @@ use crate::{
 impl ComHub {
     pub(crate) fn handle_interface_socket_events(
         &self,
-        interface: Rc<RefCell<ComInterface>>,
+        interface: Rc<ComInterface>,
     ) {
-        let mut interface_borrow = interface.borrow_mut();
-        let socket_event_receiver =
-            interface_borrow.take_socket_event_receiver();
-        let interface_uuid = interface_borrow.uuid();
+        let socket_event_receiver = interface.take_socket_event_receiver();
+        let interface_uuid = interface.uuid();
         let priority = self
             .interface_manager
             .borrow()
-            .interface_priority(interface_uuid)
+            .interface_priority(&interface_uuid)
             .unwrap_or(InterfacePriority::None);
         spawn_with_panic_notify(
             &self.async_context,

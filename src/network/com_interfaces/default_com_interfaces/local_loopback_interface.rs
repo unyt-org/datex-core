@@ -59,7 +59,7 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
 
     fn create(
         _setup_data: Self::SetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
+        com_interface: Rc<ComInterface>,
     ) -> Result<Self, ComInterfaceError> {
         // directly create a socket and register it
         let mut com_interface = com_interface.borrow_mut();
