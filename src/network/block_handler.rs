@@ -5,7 +5,7 @@ use crate::global::dxb_block::{
     IncomingSection, IncomingSectionIndex, OutgoingContextId,
     OutgoingSectionIndex,
 };
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::std_random::RandomState;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::collections::{BTreeMap, VecDeque};
@@ -60,6 +60,60 @@ pub struct BlockHistoryData {
     pub original_socket_uuid: Option<ComInterfaceSocketUUID>,
 }
 
+pub struct IncomingSectionsChannel {
+    incoming_sections_sender: RefCell<UnboundedSender<IncomingSection>>,
+}
+
+/// Utility struct that allows collecting incoming sections for tests instead of passing them to the runtime
+/// through a channel
+pub enum IncomingSectionsSink {
+    Channel(IncomingSectionsChannel),
+    Collector(Rc<RefCell<Vec<IncomingSection>>>),
+}
+
+pub enum IncomingSectionsSinkType {
+    Channel,
+    Collector,
+}
+
+impl IncomingSectionsSink {
+    fn init(
+        sink_type: IncomingSectionsSinkType,
+    ) -> (Self, Option<UnboundedReceiver<IncomingSection>>) {
+        match sink_type {
+            IncomingSectionsSinkType::Channel => {
+                let (sender, receiver) =
+                    create_unbounded_channel::<IncomingSection>();
+                (
+                    IncomingSectionsSink::Channel(IncomingSectionsChannel {
+                        incoming_sections_sender: RefCell::new(sender),
+                    }),
+                    Some(receiver),
+                )
+            }
+            IncomingSectionsSinkType::Collector => (
+                IncomingSectionsSink::Collector(Rc::new(RefCell::new(vec![]))),
+                None,
+            ),
+        }
+    }
+
+    fn send(&self, section: IncomingSection) {
+        match self {
+            IncomingSectionsSink::Channel(channel) => {
+                channel
+                    .incoming_sections_sender
+                    .borrow_mut()
+                    .start_send(section)
+                    .expect("Failed to send incoming section to channel");
+            }
+            IncomingSectionsSink::Collector(collector) => {
+                collector.borrow_mut().push(section);
+            }
+        }
+    }
+}
+
 pub struct BlockHandler {
     pub current_context_id: RefCell<OutgoingContextId>,
 
@@ -68,7 +122,7 @@ pub struct BlockHandler {
 
     /// a queue of incoming request scopes
     /// the scopes can be retrieved from the request_scopes map
-    pub incoming_sections_queue: RefCell<VecDeque<IncomingSection>>,
+    pub incoming_sections_sink: IncomingSectionsSink,
 
     /// a map of observers for incoming response blocks (by context_id + block_index)
     /// contains an observer callback and an optional queue of blocks if the response block is a multi-block stream
@@ -86,28 +140,42 @@ impl Debug for BlockHandler {
         f.debug_struct("BlockHandler")
             .field("current_context_id", &self.current_context_id)
             .field("block_cache", &self.block_cache)
-            .field("incoming_sections_queue", &self.incoming_sections_queue)
             .field("incoming_blocks_history", &self.incoming_blocks_history)
             .finish()
     }
 }
 
-impl Default for BlockHandler {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+const RING_MAP_CAPACITY: usize = 500;
 
 impl BlockHandler {
-    pub fn new() -> BlockHandler {
-        BlockHandler {
-            current_context_id: RefCell::new(0),
-            block_cache: RefCell::new(HashMap::new()),
-            incoming_sections_queue: RefCell::new(VecDeque::new()),
-            section_observers: RefCell::new(HashMap::new()),
-            incoming_blocks_history: RefCell::new(
-                RingMap::with_capacity_and_hasher(500, RandomState::default()),
-            ),
+    pub fn init(
+        sink_type: IncomingSectionsSinkType,
+    ) -> (BlockHandler, Option<UnboundedReceiver<IncomingSection>>) {
+        let (incoming_sections_sink, receiver) =
+            IncomingSectionsSink::init(sink_type);
+        (
+            BlockHandler {
+                current_context_id: RefCell::new(0),
+                block_cache: RefCell::new(HashMap::new()),
+                incoming_sections_sink,
+                section_observers: RefCell::new(HashMap::new()),
+                incoming_blocks_history: RefCell::new(
+                    RingMap::with_capacity_and_hasher(
+                        RING_MAP_CAPACITY,
+                        RandomState::default(),
+                    ),
+                ),
+            },
+            receiver,
+        )
+    }
+
+    pub fn drain_collected_sections(&self) -> Vec<IncomingSection> {
+        match &self.incoming_sections_sink {
+            IncomingSectionsSink::Collector(collector) => {
+                collector.borrow_mut().drain(..).collect()
+            }
+            _ => panic!("Not a collector sink"),
         }
     }
 
@@ -174,9 +242,9 @@ impl BlockHandler {
         let new_sections =
             self.extract_complete_sections_with_new_incoming_block(block);
         // put into request queue
-        let mut request_queue = self.incoming_sections_queue.borrow_mut();
+        let mut sender = &self.incoming_sections_sink;
         for section in new_sections {
-            request_queue.push_back(section);
+            sender.send(section);
         }
     }
 

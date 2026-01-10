@@ -1,4 +1,3 @@
-use crate::ast::expressions::DatexExpressionData;
 use crate::ast::spanned::Spanned;
 use crate::ast::type_expressions::{TypeExpression, TypeExpressionData};
 use crate::parser::errors::ParserError;

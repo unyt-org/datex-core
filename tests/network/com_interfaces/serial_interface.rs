@@ -1,11 +1,9 @@
 use datex_core::network::com_interfaces::{
-    com_interface::ComInterface,
     default_com_interfaces::serial::serial_native_interface::SerialNativeInterface,
-    socket_provider::SingleSocketProvider,
 };
 use log::info;
 
-use crate::context::init_global_context;
+use datex_core::utils::context::init_global_context;
 
 #[tokio::test]
 pub async fn test_construct() {

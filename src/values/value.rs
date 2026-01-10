@@ -1,8 +1,4 @@
-use crate::dif::update::{DIFKey, DIFUpdateData};
-use crate::dif::value::DIFValueContainer;
 use crate::libs::core::CoreLibPointerId;
-use crate::references::mutations::DIFUpdateDataOrMemory;
-use crate::references::observers::TransceiverId;
 use crate::references::reference::AccessError;
 use crate::references::type_reference::TypeReference;
 use crate::runtime::execution::ExecutionError;

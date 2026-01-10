@@ -1,49 +1,41 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use log::error;
+use std::collections::HashMap;
 
-use super::super::com_interface::ComInterface;
-use crate::network::com_hub::ComHubError;
-use crate::network::com_interfaces::com_interface::ComInterfaceState;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::{
+    ComInterfaceFactory, ComInterfaceImplementation,
+};
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
+use crate::network::{
+    com_hub::errors::ComHubError,
+    com_interfaces::com_interface::properties::InterfaceDirection,
+};
+
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory, ComInterfaceInfo,
-    ComInterfaceSockets,
+    ComInterface, ComInterfaceInfo,
 };
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use crate::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
-use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
+use crate::stdlib::cell::RefCell;
 use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
-use crate::stdlib::string::ToString;
-use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::{delegate_com_interface_info, set_sync_opener};
 use core::future::Future;
-use core::time::Duration;
-use serde::{Deserialize, Serialize};
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
 
 pub struct BaseInterface {
-    info: ComInterfaceInfo,
-    on_send: Option<Box<OnSendCallback>>,
+    on_send: Box<OnSendCallback>,
     properties: InterfaceProperties,
-}
-impl Default for BaseInterface {
-    fn default() -> Self {
-        Self::new_with_name("unknown")
-    }
+    com_interface: Rc<ComInterface>,
 }
 
-use datex_macros::{com_interface, create_opener};
+use crate::task::UnboundedSender;
 use strum::Display;
 use thiserror::Error;
 
@@ -63,79 +55,33 @@ impl From<ComHubError> for BaseInterfaceError {
     }
 }
 
-#[com_interface]
-impl BaseInterface {
-    pub fn new_with_single_socket(
-        name: &str,
-        direction: InterfaceDirection,
-    ) -> BaseInterface {
-        let interface = BaseInterface::new_with_name(name);
-        let socket =
-            ComInterfaceSocket::new(interface.get_uuid().clone(), direction, 1);
-        let socket_uuid = socket.uuid.clone();
-        let socket = Arc::new(Mutex::new(socket));
-        interface.add_socket(socket);
-        interface
-            .register_socket_endpoint(socket_uuid, Endpoint::default(), 1)
-            .unwrap();
-        interface
-    }
+pub struct BaseInterfaceHolder {
+    sender: HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>,
+    pub com_interface: Rc<ComInterface>,
+}
+impl BaseInterfaceHolder {
+    pub fn new(setup_data: BaseInterfaceSetupData) -> BaseInterfaceHolder {
+        // Create a headless ComInterface first
+        let com_interface = Rc::new(ComInterface {
+            info: Rc::new(ComInterfaceInfo::init(
+                ComInterfaceState::NotConnected,
+                InterfaceProperties::default(),
+            )),
+            implementation: RefCell::new(None),
+        });
 
-    pub fn new() -> BaseInterface {
-        Self::new_with_name("unknown")
-    }
+        // Create the implementation using the factory function
+        let implementation = BaseInterface {
+            properties: setup_data.properties,
+            on_send: setup_data.on_send_callback,
+            com_interface: com_interface.clone(),
+        };
+        com_interface.initialize(Box::new(implementation));
 
-    pub fn new_with_name(name: &str) -> BaseInterface {
-        Self::new_with_properties(InterfaceProperties {
-            interface_type: name.to_string(),
-            round_trip_time: Duration::from_millis(0),
-            max_bandwidth: u32::MAX,
-            ..InterfaceProperties::default()
-        })
-    }
-    pub fn new_with_properties(
-        properties: InterfaceProperties,
-    ) -> BaseInterface {
-        BaseInterface {
-            info: ComInterfaceInfo::default(),
-            properties,
-            on_send: None,
+        BaseInterfaceHolder {
+            sender: HashMap::new(),
+            com_interface,
         }
-    }
-
-    #[create_opener]
-    fn open(&mut self) -> Result<(), ()> {
-        Ok(())
-    }
-
-    pub fn register_new_socket(
-        &mut self,
-        direction: InterfaceDirection,
-    ) -> ComInterfaceSocketUUID {
-        let socket =
-            ComInterfaceSocket::new(self.get_uuid().clone(), direction, 1);
-        let socket_uuid = socket.uuid.clone();
-        let socket = Arc::new(Mutex::new(socket));
-        self.add_socket(socket);
-        socket_uuid
-    }
-    pub fn register_new_socket_with_endpoint(
-        &mut self,
-        direction: InterfaceDirection,
-        endpoint: Endpoint,
-    ) -> ComInterfaceSocketUUID {
-        let socket_uuid = self.register_new_socket(direction);
-        self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
-            .unwrap();
-        socket_uuid
-    }
-
-    pub fn set_on_send_callback(
-        &mut self,
-        on_send: Box<OnSendCallback>,
-    ) -> &mut Self {
-        self.on_send = Some(on_send);
-        self
     }
 
     pub fn receive(
@@ -143,67 +89,139 @@ impl BaseInterface {
         receiver_socket_uuid: ComInterfaceSocketUUID,
         data: Vec<u8>,
     ) -> Result<(), BaseInterfaceError> {
-        match self.get_socket_with_uuid(receiver_socket_uuid) {
-            Some(socket) => {
-                let socket = socket.try_lock().unwrap();
-                let receive_queue = socket.get_receive_queue();
-                receive_queue.try_lock().unwrap().extend(data);
-                Ok(())
-            }
-            _ => {
-                error!("Socket not found");
-                Err(BaseInterfaceError::SocketNotFound)
-            }
+        if let Some(sender) = self.sender.get_mut(&receiver_socket_uuid) {
+            sender
+                .start_send(data)
+                .map_err(|_| BaseInterfaceError::ReceiveError)?;
+            Ok(())
+        } else {
+            Err(BaseInterfaceError::SocketNotFound)
         }
     }
-}
 
-impl MultipleSocketProvider for BaseInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
+    fn create_and_init_socket(
+        &mut self,
+        direction: InterfaceDirection,
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (uuid, sender) = self
+            .com_interface
+            .socket_manager()
+            .lock()
+            .unwrap()
+            .create_and_init_socket(direction, 1);
+        (uuid, sender)
+    }
+
+    /// Registers and initializes a new socket with the given endpoint and direction
+    /// Returns the socket UUID and a sender to send data to the socket
+    pub fn register_new_socket_with_endpoint(
+        &mut self,
+        direction: InterfaceDirection,
+        endpoint: Endpoint,
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (socket_uuid, sender) = self.create_and_init_socket(direction);
+
+        self.com_interface
+            .socket_manager()
+            .lock()
+            .unwrap()
+            .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
+            .unwrap();
+        (socket_uuid, sender)
     }
 }
 
-impl ComInterface for BaseInterface {
+impl ComInterfaceImplementation for BaseInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if !self.has_socket_with_uuid(socket_uuid.clone()) {
-            return Box::pin(async move { false });
-        }
-        if let Some(on_send) = &self.on_send {
-            on_send(block, socket_uuid)
-        } else {
-            Box::pin(async move { false })
-        }
+        self.on_send.as_ref()(block, socket_uuid)
     }
 
-    fn init_properties(&self) -> InterfaceProperties {
+    fn get_properties(&self) -> InterfaceProperties {
         self.properties.clone()
     }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move { true })
     }
-    delegate_com_interface_info!();
-    set_sync_opener!(open);
+
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { true })
+    }
 }
 
-#[derive(Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
-pub struct BaseInterfaceSetupData(pub InterfaceProperties);
+pub struct BaseInterfaceSetupData {
+    pub properties: InterfaceProperties,
+    pub on_send_callback: Box<OnSendCallback>,
+}
 
-impl ComInterfaceFactory<BaseInterfaceSetupData> for BaseInterface {
-    fn create(
-        setup_data: BaseInterfaceSetupData,
-    ) -> Result<BaseInterface, ComInterfaceError> {
-        Ok(BaseInterface::new_with_properties(setup_data.0))
+impl BaseInterfaceSetupData {
+    pub fn new(
+        properties: InterfaceProperties,
+        on_send_callback: Box<OnSendCallback>,
+    ) -> Self {
+        BaseInterfaceSetupData {
+            properties,
+            on_send_callback,
+        }
     }
+    pub fn with_callback(on_send_callback: Box<OnSendCallback>) -> Self {
+        BaseInterfaceSetupData {
+            properties: InterfaceProperties::default(),
+            on_send_callback,
+        }
+    }
+}
 
-    fn get_default_properties() -> InterfaceProperties {
-        InterfaceProperties::default()
+#[cfg(test)]
+mod tests {
+    use crate::{
+        network::com_interfaces::{
+            com_interface::{
+                properties::InterfaceProperties, state::ComInterfaceState,
+            },
+            default_com_interfaces::base_interface::{
+                self, BaseInterfaceHolder, BaseInterfaceSetupData,
+            },
+        },
+        utils::context::init_global_context,
+    };
+
+    #[tokio::test]
+    pub async fn test_close() {
+        init_global_context();
+        // Create a new interface
+        let base_interface =
+            BaseInterfaceHolder::new(BaseInterfaceSetupData::new(
+                InterfaceProperties::default(),
+                Box::new(|_, _| Box::pin(async move { true })),
+            ))
+            .com_interface
+            .clone();
+        assert_eq!(
+            base_interface.current_state(),
+            ComInterfaceState::NotConnected
+        );
+        assert!(base_interface.properties().close_timestamp.is_none());
+
+        // Open the interface
+        base_interface.open().await;
+        assert_eq!(
+            base_interface.current_state(),
+            ComInterfaceState::Connected
+        );
+        assert!(base_interface.properties().close_timestamp.is_none());
+
+        // Close the interface
+        assert!(base_interface.close().await);
+        assert_eq!(
+            base_interface.current_state(),
+            ComInterfaceState::NotConnected
+        );
+        assert!(base_interface.properties().close_timestamp.is_some());
     }
 }

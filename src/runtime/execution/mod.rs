@@ -1,8 +1,5 @@
 use crate::global::protocol_structures::instructions::*;
-use crate::libs::core::{
-    CoreLibPointerId, get_core_lib_type_reference, get_core_lib_value,
-};
-use crate::references::reference::Reference;
+use crate::libs::core::{CoreLibPointerId, get_core_lib_value};
 use crate::runtime::RuntimeInternal;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::runtime::execution::context::RemoteExecutionContext;
@@ -20,7 +17,6 @@ pub use errors::*;
 pub use execution_input::ExecutionInput;
 pub use execution_input::ExecutionOptions;
 pub use memory_dump::*;
-use num_enum::TryFromPrimitive;
 
 pub mod context;
 mod errors;
@@ -226,6 +222,8 @@ fn get_local_pointer_value(
 
 #[cfg(test)]
 mod tests {
+    use crate::libs::core::get_core_lib_type_reference;
+    use crate::references::reference::Reference;
     use crate::stdlib::assert_matches::assert_matches;
     use crate::stdlib::vec;
 

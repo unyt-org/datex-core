@@ -1,50 +1,27 @@
 use crate::global::dxb_block::{DXBBlock, HeaderParsingError};
-use crate::std_sync::Mutex;
 use crate::stdlib::vec::Vec;
-use crate::stdlib::{collections::VecDeque, sync::Arc};
+use crate::task::{UnboundedReceiver, UnboundedSender};
+use crate::task::{create_unbounded_channel, spawn_local};
 use core::prelude::rust_2024::*;
 use log::error;
 
 #[derive(Debug)]
 pub struct BlockCollector {
-    receive_queue: Arc<Mutex<VecDeque<u8>>>,
-    /**
-     * Full DATEX blocks are stored in this queue.
-     */
-    block_queue: VecDeque<DXBBlock>,
-    /**
-     * The current block being received.
-     */
+    /// The receiver for incoming byte slices.
+    bytes_in_receiver: UnboundedReceiver<Vec<u8>>,
+
+    /// The sender for incoming DXB blocks that have been parsed from the byte slices.
+    block_in_sender: UnboundedSender<DXBBlock>,
+
+    // The current block being received.
     current_block: Vec<u8>,
-    /**
-     * The length of the current block as specified by the block header.
-     */
+
+    // The specified length of the current block being received, if known.
     current_block_specified_length: Option<u16>,
 }
 
-impl Default for BlockCollector {
-    fn default() -> Self {
-        BlockCollector {
-            receive_queue: Arc::new(Mutex::new(VecDeque::new())),
-            block_queue: VecDeque::new(),
-            current_block: Vec::new(),
-            current_block_specified_length: None,
-        }
-    }
-}
-
+/// Implements the logic to collect DXB blocks from incoming byte slices.
 impl BlockCollector {
-    pub fn new(receive_queue: Arc<Mutex<VecDeque<u8>>>) -> BlockCollector {
-        BlockCollector {
-            receive_queue,
-            ..Default::default()
-        }
-    }
-
-    pub fn get_block_queue(&mut self) -> &mut VecDeque<DXBBlock> {
-        &mut self.block_queue
-    }
-
     async fn receive_slice(&mut self, slice: &[u8]) {
         // Add the received data to the current block.
         self.current_block.extend_from_slice(slice);
@@ -83,7 +60,7 @@ impl BlockCollector {
 
                     match block_result {
                         Ok(block) => {
-                            self.block_queue.push_back(block);
+                            self.block_in_sender.send(block).await.unwrap();
                             self.current_block_specified_length = None;
                         }
                         Err(err) => {
@@ -103,15 +80,25 @@ impl BlockCollector {
         }
     }
 
-    pub async fn update(&mut self) {
-        let queue = self.receive_queue.clone();
-        let mut receive_queue = queue.try_lock().unwrap();
-        let len = receive_queue.len();
-        if len == 0 {
-            return;
-        }
-        let range = 0..len;
-        let slice = receive_queue.drain(range).collect::<Vec<u8>>();
-        self.receive_slice(&slice).await;
+    /// Starts the block collector task.
+    /// Returns the sender to send byte slices (socket) to and the receiver to receive collected DXB blocks (ComHub).
+    pub fn init() -> (UnboundedSender<Vec<u8>>, UnboundedReceiver<DXBBlock>) {
+        let (bytes_in_sender, bytes_in_receiver) = create_unbounded_channel();
+        let (block_in_sender, block_in_receiver) = create_unbounded_channel();
+        let block_collector = BlockCollector {
+            bytes_in_receiver,
+            block_in_sender,
+            current_block: Vec::new(),
+            current_block_specified_length: None,
+        };
+        spawn_local(run_block_collector_task(block_collector));
+        (bytes_in_sender, block_in_receiver)
+    }
+}
+
+#[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
+pub async fn run_block_collector_task(mut block_collector: BlockCollector) {
+    while let Some(slice) = block_collector.bytes_in_receiver.next().await {
+        block_collector.receive_slice(&slice).await;
     }
 }

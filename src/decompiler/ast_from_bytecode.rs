@@ -19,7 +19,6 @@ use crate::global::protocol_structures::instructions::{
     Instruction, RegularInstruction, TypeInstruction,
 };
 use crate::global::slots::InternalSlot;
-use crate::runtime::execution::ExecutionError;
 use crate::stdlib::format;
 use crate::stdlib::rc::Rc;
 use crate::values::core_values::decimal::Decimal;
@@ -493,10 +492,8 @@ pub fn ast_from_bytecode(
                                 terminated,
                             ) => {
                                 let result = collector.try_pop_unbounded().ok_or(DXBParserError::NotInUnboundedRegularScopeError)?;
-                                if let FullOrPartialResult::Full(
-                                    _,
-                                    mut results,
-                                ) = result
+                                if let FullOrPartialResult::Full(_, results) =
+                                    result
                                 {
                                     DatexExpressionData::Statements(
                                         Statements {

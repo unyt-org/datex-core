@@ -10,7 +10,6 @@ use strum::EnumString;
 
 #[derive(PartialEq, Debug, Clone, EnumString, Serialize, Deserialize)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
-
 pub enum InterfaceDirection {
     In,
     Out,
@@ -65,6 +64,7 @@ pub struct InterfaceProperties {
     // If the interface is not able to reconnect, it will be destroyed
     pub reconnection_config: ReconnectionConfig,
 
+    // FIXME move to state
     /* private field */
     /// Timestamp of the interface close event
     /// This is used to determine if the interface shall be reopened

@@ -1,7 +1,7 @@
 use strum::Display;
 use thiserror::Error;
 
-use crate::network::com_hub::ComHubError;
+use crate::network::com_hub::errors::ComHubError;
 
 #[derive(Debug, Display, Error)]
 pub enum WebRTCError {

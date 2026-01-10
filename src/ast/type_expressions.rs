@@ -3,7 +3,7 @@ use core::ops::Range;
 use crate::ast::expressions::VariableAccess;
 use crate::ast::resolved_variable::ResolvedVariable;
 use crate::ast::spanned::Spanned;
-use crate::values::core_values::callable::{CallableKind, CallableSignature};
+use crate::values::core_values::callable::CallableKind;
 use crate::values::core_values::decimal::Decimal;
 use crate::values::core_values::decimal::typed_decimal::TypedDecimal;
 use crate::values::core_values::endpoint::Endpoint;

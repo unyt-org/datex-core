@@ -5,21 +5,6 @@ use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::{error, info};
 
-use crate::{
-    network::com_interfaces::{
-        com_interface::{
-            ComInterfaceInfo, ComInterfaceSockets, ComInterfaceUUID,
-        },
-        com_interface_properties::InterfaceDirection,
-        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-        default_com_interfaces::webrtc::webrtc_common::media_tracks::{
-            MediaKind, MediaTrack, MediaTracks,
-        },
-    },
-    serde::{deserializer::from_bytes, serializer::to_bytes},
-    values::core_values::endpoint::Endpoint,
-};
-
 use super::{
     data_channels::{DataChannel, DataChannels},
     structures::{
@@ -27,6 +12,21 @@ use super::{
     },
     utils::WebRTCError,
     webrtc_commons::WebRTCCommon,
+};
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSocketManager;
+use crate::task::UnboundedSender;
+use crate::{
+    network::com_interfaces::{
+        com_interface::{ComInterfaceInfo, ComInterfaceUUID},
+        default_com_interfaces::webrtc::webrtc_common::media_tracks::{
+            MediaKind, MediaTrack, MediaTracks,
+        },
+    },
+    serde::{deserializer::from_bytes, serializer::to_bytes},
+    values::core_values::endpoint::Endpoint,
 };
 
 #[async_trait(?Send)]
@@ -36,7 +36,7 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     fn provide_remote_media_tracks(&self) -> Rc<RefCell<MediaTracks<MR>>>;
     fn provide_local_media_tracks(&self) -> Rc<RefCell<MediaTracks<ML>>>;
     fn get_commons(&self) -> Arc<Mutex<WebRTCCommon>>;
-    fn provide_info(&self) -> &ComInterfaceInfo;
+    fn provide_com_interface(&self) -> &Rc<ComInterface>;
     async fn handle_create_data_channel(
         &self,
     ) -> Result<DataChannel<DC>, WebRTCError>;
@@ -102,23 +102,17 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
     }
 
     fn add_socket(
+        manager: Arc<Mutex<ComInterfaceSocketManager>>,
         endpoint: Endpoint,
-        interface_uuid: ComInterfaceUUID,
-        sockets: Arc<Mutex<ComInterfaceSockets>>,
-    ) -> ComInterfaceSocketUUID {
-        // FIXME #203 clean up old sockets
-        let mut sockets = sockets.try_lock().unwrap();
-        let socket = ComInterfaceSocket::new(
-            interface_uuid,
-            InterfaceDirection::InOut,
-            1,
-        );
-        let socket_uuid = socket.uuid.clone();
-        sockets.add_socket(Arc::new(Mutex::new(socket)));
-        sockets
-            .register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
-            .expect("Failed to register socket endpoint");
-        socket_uuid
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let mut manager = manager.try_lock().unwrap();
+        let (socket_uuid, sender) =
+            manager.create_and_init_socket(InterfaceDirection::InOut, 1);
+        manager
+            .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
+            .unwrap();
+
+        (socket_uuid, sender)
     }
     fn _remote_endpoint(&self) -> Endpoint {
         self.get_commons().try_lock().unwrap().endpoint.clone()
@@ -151,17 +145,19 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
         }
         Ok(())
     }
+
     async fn setup_data_channel(
         commons: Arc<Mutex<WebRTCCommon>>,
         endpoint: Endpoint,
-        interface_uuid: ComInterfaceUUID,
-        sockets: Arc<Mutex<ComInterfaceSockets>>,
         data_channels: Rc<RefCell<DataChannels<DC>>>,
         channel: Rc<RefCell<DataChannel<DC>>>,
+        com_interface_manager: Arc<Mutex<ComInterfaceSocketManager>>,
     ) -> Result<(), WebRTCError> {
         let channel_clone = channel.clone();
         let channel_clone2 = channel.clone();
-        let sockets_clone = sockets.clone();
+
+        let (socket_uuid, mut sender) =
+            Self::add_socket(com_interface_manager, endpoint.clone());
 
         channel
             .borrow_mut()
@@ -170,11 +166,6 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
             .replace(Box::new(move || {
                 info!("Data channel opened and added to data channels");
 
-                let socket_uuid = Self::add_socket(
-                    endpoint.clone(),
-                    interface_uuid.clone(),
-                    sockets.clone(),
-                );
                 // FIXME #204
                 let data_channels = data_channels.clone();
                 let channel_clone2 = channel_clone2.clone();
@@ -202,19 +193,8 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
                 if let Some(socket_uuid) =
                     channel_clone.borrow().get_socket_uuid()
                 {
-                    let sockets = sockets_clone.try_lock().unwrap();
-                    if let Some(socket) = sockets.sockets.get(&socket_uuid) {
-                        info!(
-                            "Received data on socket: {data:?} {socket_uuid}"
-                        );
-                        socket
-                            .try_lock()
-                            .unwrap()
-                            .receive_queue
-                            .try_lock()
-                            .unwrap()
-                            .extend(data);
-                    }
+                    info!("Received data on socket: {data:?} {socket_uuid}");
+                    sender.start_send(data).unwrap();
                 }
             }));
         Self::handle_setup_data_channel(channel).await?;
@@ -226,26 +206,26 @@ pub trait WebRTCTraitInternal<DC: 'static, MR: 'static, ML: 'static> {
 pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
     WebRTCTraitInternal<DC, MR, ML>
 {
-    fn new(peer_endpoint: impl Into<Endpoint>) -> Self;
+    fn new(
+        peer_endpoint: impl Into<Endpoint>,
+        com_interface: Rc<ComInterface>,
+    ) -> Self;
     fn new_with_ice_servers(
         peer_endpoint: impl Into<Endpoint>,
         ice_servers: Vec<RTCIceServer>,
+        com_interface: Rc<ComInterface>,
     ) -> Self;
     async fn create_offer(&self) -> Result<Vec<u8>, WebRTCError> {
         let data_channel = self.handle_create_data_channel().await?;
         let data_channel_rc = Rc::new(RefCell::new(data_channel));
         let data_channels = self.provide_data_channels();
         {
-            let info = self.provide_info();
-            let interface_uuid = info.get_uuid().clone();
-            let sockets = info.com_interface_sockets();
             Self::setup_data_channel(
                 self.get_commons(),
                 self._remote_endpoint(),
-                interface_uuid,
-                sockets.clone(),
                 data_channels,
                 data_channel_rc.clone(),
+                self.provide_com_interface().socket_manager(),
             )
             .await?;
         }
@@ -302,27 +282,26 @@ pub trait WebRTCTrait<DC: 'static, MR: 'static, ML: 'static>:
         let data_channels = self.provide_data_channels();
         let data_channels_clone = data_channels.clone();
 
-        let info = self.provide_info();
-        let interface_uuid = info.get_uuid().clone();
-        let sockets = info.com_interface_sockets();
         let commons = self.get_commons();
         let remote_endpoint = self.remote_endpoint();
+        let com_interface_socket_manager =
+            self.provide_com_interface().socket_manager();
+
         data_channels.borrow_mut().on_add =
             Some(Box::new(move |data_channel| {
                 let data_channel = data_channel.clone();
                 let data_channels_clone = data_channels_clone.clone();
-                let sockets = sockets.clone();
-                let interface_uuid = interface_uuid.clone();
                 let remote_endpoint = remote_endpoint.clone();
                 let commons = commons.clone();
+                let com_interface_socket_manager =
+                    com_interface_socket_manager.clone();
                 Box::pin(async move {
                     Self::setup_data_channel(
                         commons,
                         remote_endpoint.clone(),
-                        interface_uuid.clone(),
-                        sockets.clone(),
                         data_channels_clone.clone(),
                         data_channel,
+                        com_interface_socket_manager.clone(),
                     )
                     .await
                     .unwrap()

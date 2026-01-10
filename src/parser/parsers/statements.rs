@@ -11,7 +11,7 @@ impl Parser {
         &mut self,
     ) -> Result<DatexExpression, SpannedParserError> {
         let start = self.expect(Token::LeftParen)?.span.start;
-        let mut statements_data = self.parse_statements()?;
+        let statements_data = self.parse_statements()?;
 
         let end = self.expect(Token::RightParen)?.span.end;
         Ok(statements_data.data.with_span(start..end))

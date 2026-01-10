@@ -64,7 +64,7 @@ pub enum EndpointType {
 #[brw(little)]
 pub struct Endpoint {
     // 1 byte type, 18 bytes name, 2 bytes instance
-    pub type_: EndpointType,
+    pub ty: EndpointType,
     pub identifier: [u8; 18],
     pub instance: EndpointInstance,
 }
@@ -184,7 +184,7 @@ impl Endpoint {
     // targets each endpoint, but exactly one instance
     // @@any == @@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/0
     pub const ANY: Endpoint = Endpoint {
-        type_: EndpointType::Anonymous,
+        ty: EndpointType::Anonymous,
         identifier: [255; 18],
         instance: EndpointInstance::Any,
     };
@@ -192,7 +192,7 @@ impl Endpoint {
     // targets all instances of all endpoints
     // @@any/* == @@FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF/*
     pub const ANY_ALL_INSTANCES: Endpoint = Endpoint {
-        type_: EndpointType::Anonymous,
+        ty: EndpointType::Anonymous,
         identifier: [255; 18],
         instance: EndpointInstance::All,
     };
@@ -200,7 +200,7 @@ impl Endpoint {
     // targets the local endpoint
     // @@local == @@000000000000000000000000000000000000/0
     pub const LOCAL: Endpoint = Endpoint {
-        type_: EndpointType::Anonymous,
+        ty: EndpointType::Anonymous,
         identifier: [0; 18],
         instance: EndpointInstance::Any,
     };
@@ -208,7 +208,7 @@ impl Endpoint {
     // targets all instances of the local endpoint
     // @@local/* == @@000000000000000000000000000000000000/*
     pub const LOCAL_ALL_INSTANCES: Endpoint = Endpoint {
-        type_: EndpointType::Anonymous,
+        ty: EndpointType::Anonymous,
         identifier: [0; 18],
         instance: EndpointInstance::All,
     };
@@ -232,7 +232,7 @@ impl Endpoint {
                 Ok(Endpoint::ANY_ALL_INSTANCES)
             } else {
                 Ok(Endpoint {
-                    type_: EndpointType::Anonymous,
+                    ty: EndpointType::Anonymous,
                     identifier,
                     instance,
                 })
@@ -247,7 +247,7 @@ impl Endpoint {
                 Ok(Endpoint::LOCAL_ALL_INSTANCES)
             } else {
                 Ok(Endpoint {
-                    type_: EndpointType::Anonymous,
+                    ty: EndpointType::Anonymous,
                     identifier,
                     instance,
                 })
@@ -255,7 +255,7 @@ impl Endpoint {
         }
 
         Ok(Endpoint {
-            type_: EndpointType::Anonymous,
+            ty: EndpointType::Anonymous,
             identifier,
             instance,
         })
@@ -330,7 +330,7 @@ impl Endpoint {
             )) =>
             {
                 Ok(Endpoint {
-                    type_: EndpointType::Anonymous,
+                    ty: EndpointType::Anonymous,
                     identifier: [255u8; 18],
                     instance,
                 })
@@ -342,7 +342,7 @@ impl Endpoint {
             )) =>
             {
                 Ok(Endpoint {
-                    type_: EndpointType::Anonymous,
+                    ty: EndpointType::Anonymous,
                     identifier: [0u8; 18],
                     instance,
                 })
@@ -398,7 +398,7 @@ impl Endpoint {
         let name_bytes = Endpoint::name_to_bytes(name)?;
 
         Ok(Endpoint {
-            type_,
+            ty: type_,
             identifier: name_bytes,
             instance,
         })
@@ -465,7 +465,7 @@ impl Endpoint {
             return false;
         }
 
-        match endpoint.type_ {
+        match endpoint.ty {
             EndpointType::Person | EndpointType::Institution => {
                 // name must be only contain valid characters
                 Self::are_name_chars_valid(endpoint.identifier)
@@ -493,7 +493,7 @@ impl Endpoint {
 
     // get endpoint type
     pub fn type_(&self) -> EndpointType {
-        self.type_
+        self.ty
     }
 
     // get endpoint instance
@@ -524,7 +524,7 @@ impl Endpoint {
     // get the main endpoint (@person) of the endpoint without a specific instance
     pub fn any_instance_endpoint(&self) -> Endpoint {
         Endpoint {
-            type_: self.type_,
+            ty: self.ty,
             identifier: self.identifier,
             instance: EndpointInstance::Any,
         }
@@ -533,7 +533,7 @@ impl Endpoint {
     // get the broadcast endpoint (@person/*) of the endpoint
     pub fn broadcast(&self) -> Endpoint {
         Endpoint {
-            type_: self.type_,
+            ty: self.ty,
             identifier: self.identifier,
             instance: EndpointInstance::All,
         }
@@ -542,7 +542,7 @@ impl Endpoint {
 
 impl Display for Endpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        match self.type_ {
+        match self.ty {
             EndpointType::Anonymous => {
                 // is @@any
                 if self.identifier == [255; 18] {
@@ -632,6 +632,8 @@ impl<'a> Deserialize<'a> for Endpoint {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::context::init_global_context;
+
     use super::*;
 
     #[test]
@@ -654,7 +656,7 @@ mod tests {
     fn parse_from_string() {
         // valid personal endpoint
         let endpoint = Endpoint::from_string("@jonas").unwrap();
-        assert_eq!(endpoint.type_, EndpointType::Person);
+        assert_eq!(endpoint.ty, EndpointType::Person);
         assert_eq!(endpoint.instance, EndpointInstance::Any);
         assert_eq!(endpoint.to_string(), "@jonas");
         assert_eq!(
@@ -666,7 +668,7 @@ mod tests {
 
         // valid institution endpoint
         let endpoint = Endpoint::from_string("@+unyt").unwrap();
-        assert_eq!(endpoint.type_, EndpointType::Institution);
+        assert_eq!(endpoint.ty, EndpointType::Institution);
         assert_eq!(endpoint.instance, EndpointInstance::Any);
         assert_eq!(endpoint.to_string(), "@+unyt");
 
@@ -675,7 +677,7 @@ mod tests {
             &format!("@@{}", "A".repeat(18 * 2)).to_string(),
         )
         .unwrap();
-        assert_eq!(endpoint.type_, EndpointType::Anonymous);
+        assert_eq!(endpoint.ty, EndpointType::Anonymous);
         assert_eq!(endpoint.instance, EndpointInstance::Any);
         assert_eq!(endpoint.to_string(), format!("@@{}", "A".repeat(18 * 2)));
 
@@ -802,7 +804,7 @@ mod tests {
         assert_eq!(
             endpoint,
             Ok(Endpoint {
-                type_: EndpointType::Institution,
+                ty: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::Any,
             })
@@ -812,7 +814,7 @@ mod tests {
         assert_eq!(
             endpoint,
             Ok(Endpoint {
-                type_: EndpointType::Institution,
+                ty: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::All,
             })
@@ -822,7 +824,7 @@ mod tests {
         assert_eq!(
             endpoint,
             Ok(Endpoint {
-                type_: EndpointType::Institution,
+                ty: EndpointType::Institution,
                 identifier: Endpoint::name_to_bytes("unyt").unwrap(),
                 instance: EndpointInstance::All,
             })
@@ -916,5 +918,15 @@ mod tests {
             endpoint.to_string(),
             "@@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/42"
         );
+    }
+
+    #[test]
+    fn random_anonymous_endpoint() {
+        init_global_context();
+        let endpoint1 = Endpoint::random();
+        let endpoint2 = Endpoint::random();
+        assert_ne!(endpoint1, endpoint2);
+        assert_eq!(endpoint1.ty, EndpointType::Anonymous);
+        assert_eq!(endpoint2.ty, EndpointType::Anonymous);
     }
 }

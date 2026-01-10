@@ -15,7 +15,7 @@ impl Parser {
             return Ok(TypeExpressionData::Unit.with_span(start..end));
         }
 
-        let mut inner_expression = self.parse_type_expression(0)?;
+        let inner_expression = self.parse_type_expression(0)?;
 
         let end = self.expect(Token::RightParen)?.span.end;
         Ok(inner_expression.data.with_span(start..end))

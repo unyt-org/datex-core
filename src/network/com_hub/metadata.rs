@@ -2,12 +2,13 @@ use core::prelude::rust_2024::*;
 use log::info;
 
 use crate::collections::HashMap;
-use crate::network::com_hub::{ComHub, DynamicEndpointProperties};
+use crate::network::com_hub::ComHub;
+use crate::network::com_hub::managers::socket_manager::DynamicEndpointProperties;
 use crate::network::com_interfaces::com_interface::ComInterfaceUUID;
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+
+use crate::network::com_interfaces::com_interface::properties::InterfaceDirection;
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::stdlib::format;
 use crate::stdlib::string::String;
 use crate::stdlib::string::ToString;
@@ -102,7 +103,8 @@ impl Display for ComHubMetadata {
 }
 
 impl ComHub {
-    pub fn get_metadata(&self) -> ComHubMetadata {
+    /// Generates metadata about the ComHub, its interfaces and sockets.
+    pub fn metadata(&self) -> ComHubMetadata {
         let mut metadata = ComHubMetadata {
             endpoint: self.endpoint.clone(),
             interfaces: Vec::new(),
@@ -114,10 +116,10 @@ impl ComHub {
             Vec<ComHubMetadataInterfaceSocket>,
         > = HashMap::new();
 
-        for (endpoint, sockets) in self.endpoint_sockets.borrow().iter() {
+        let socket_manager = self.socket_manager.borrow();
+        for (endpoint, sockets) in socket_manager.endpoint_sockets.iter() {
             for (socket_uuid, properties) in sockets {
-                let socket = self.get_socket_by_uuid(socket_uuid);
-                let socket = socket.try_lock().unwrap();
+                let socket = socket_manager.get_socket_by_uuid(socket_uuid);
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -137,10 +139,10 @@ impl ComHub {
             }
         }
 
-        for (socket_uuid, (socket, endpoints)) in self.sockets.borrow().iter() {
+        for (socket_uuid, (socket, endpoints)) in socket_manager.sockets.iter()
+        {
             // if no endpoints are registered, we consider it a socket without an endpoint
             if endpoints.is_empty() {
-                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -160,15 +162,15 @@ impl ComHub {
                 continue;
             }
         }
+        drop(socket_manager);
+        let interface_manager = self.interface_manager.borrow();
 
-        for (interface, _) in self.interfaces.borrow().values() {
-            let interface = interface.borrow();
-
+        for (interface, _) in interface_manager.interfaces.values() {
             metadata.interfaces.push(ComHubMetadataInterface {
-                uuid: interface.get_uuid().0.to_string(),
-                properties: interface.init_properties(),
+                uuid: interface.uuid().0.to_string(),
+                properties: interface.properties().as_ref().clone(),
                 sockets: sockets_by_com_interface_uuid
-                    .remove(interface.get_uuid())
+                    .remove(&interface.uuid())
                     .unwrap_or_default(),
             });
         }
@@ -176,8 +178,9 @@ impl ComHub {
         metadata
     }
 
+    /// Prints the ComHub metadata to the log.
     pub fn print_metadata(&self) {
-        let metadata = self.get_metadata();
+        let metadata = self.metadata();
         info!("ComHub Metadata:\n{metadata}");
     }
 }

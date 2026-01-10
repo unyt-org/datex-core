@@ -1,14 +1,20 @@
-use super::mockup_interface::MockupInterface;
+use super::mockup_interface::{MockupInterface, MockupInterfaceSetupData};
 use core::str::FromStr;
 use datex_core::global::dxb_block::{DXBBlock, IncomingSection};
+use datex_core::network::block_handler::IncomingSectionsSinkType;
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
 use datex_core::network::com_interfaces::com_interface::ComInterface;
-use datex_core::network::com_interfaces::com_interface_socket::ComInterfaceSocket;
+use datex_core::network::com_interfaces::com_interface::error::ComInterfaceError;
+use datex_core::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
 use datex_core::values::core_values::endpoint::Endpoint;
-use std::sync::{Arc, Mutex, mpsc};
+use log::{error, info};
+use std::cell::RefMut;
+use std::sync::mpsc;
+use tokio::task::yield_now;
+use webrtc::interceptor::mock;
 
 lazy_static::lazy_static! {
     pub static ref ANY : Endpoint = Endpoint::ANY.clone();
@@ -29,10 +35,11 @@ lazy_static::lazy_static! {
     pub static ref TEST_ENDPOINT_M: Endpoint = Endpoint::from_str("@test-m").unwrap();
 }
 
-pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
+pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<ComInterface>) {
     get_mock_setup_with_endpoint(
         TEST_ENDPOINT_ORIGIN.clone(),
         InterfacePriority::default(),
+        IncomingSectionsSinkType::Channel,
     )
     .await
 }
@@ -40,36 +47,42 @@ pub async fn get_mock_setup() -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
 pub async fn get_mock_setup_with_endpoint(
     endpoint: Endpoint,
     priority: InterfacePriority,
-) -> (Rc<ComHub>, Rc<RefCell<MockupInterface>>) {
+    sink_type: IncomingSectionsSinkType,
+) -> (Rc<ComHub>, Rc<ComInterface>) {
     // init com hub
-    let com_hub = ComHub::new(endpoint, AsyncContext::new());
+    let com_hub =
+        ComHub::create(endpoint, AsyncContext::new(), sink_type).await;
 
     // init mockup interface
-    let mockup_interface_ref =
-        Rc::new(RefCell::new(MockupInterface::default()));
+    let mockup_interface = ComInterface::create_with_implementation::<
+        MockupInterface,
+    >(MockupInterfaceSetupData::new("mockup"))
+    .unwrap();
 
     // add mockup interface to com_hub
     com_hub
-        .open_and_add_interface(mockup_interface_ref.clone(), priority)
+        .open_and_add_interface(mockup_interface.clone(), priority)
         .await
         .unwrap_or_else(|e| {
             core::panic!("Error adding interface: {e:?}");
         });
 
-    (Rc::new(com_hub), mockup_interface_ref.clone())
+    (com_hub, mockup_interface.clone())
 }
 
 pub async fn get_runtime_with_mock_interface(
     endpoint: Endpoint,
     priority: InterfacePriority,
-) -> (Runtime, Rc<RefCell<MockupInterface>>) {
+) -> (Runtime, Rc<ComInterface>) {
     // init com hub
     let runtime =
         Runtime::init_native(RuntimeConfig::new_with_endpoint(endpoint));
 
     // init mockup interface
-    let mockup_interface_ref =
-        Rc::new(RefCell::new(MockupInterface::default()));
+    let mockup_interface_ref = ComInterface::create_with_implementation::<
+        MockupInterface,
+    >(MockupInterfaceSetupData::new("mockup"))
+    .unwrap();
 
     // add mockup interface to com_hub
     runtime
@@ -80,56 +93,53 @@ pub async fn get_runtime_with_mock_interface(
             core::panic!("Error adding interface: {e:?}");
         });
 
-    (runtime, mockup_interface_ref.clone())
+    (runtime, mockup_interface_ref)
 }
 
-pub fn add_socket(
-    mockup_interface_ref: Rc<RefCell<MockupInterface>>,
-) -> Arc<Mutex<ComInterfaceSocket>> {
-    mockup_interface_ref.borrow_mut().init_socket()
+pub fn create_and_add_socket(
+    mockup_interface: &mut RefMut<MockupInterface>,
+) -> Result<ComInterfaceSocketUUID, ComInterfaceError> {
+    mockup_interface.create_and_add_socket(None)
 }
 
 pub fn register_socket_endpoint(
-    mockup_interface_ref: Rc<RefCell<MockupInterface>>,
-    socket: Arc<Mutex<ComInterfaceSocket>>,
+    mockup_interface: Rc<ComInterface>,
+    socket_uuid: ComInterfaceSocketUUID,
     endpoint: Endpoint,
 ) {
-    let mockup_interface = mockup_interface_ref.borrow_mut();
-    let uuid = socket.try_lock().unwrap().uuid.clone();
-
     mockup_interface
-        .register_socket_endpoint(uuid, endpoint, 1)
+        .socket_manager()
+        .lock()
+        .unwrap()
+        .register_socket_with_endpoint(socket_uuid, endpoint, 1)
         .unwrap();
 }
 
-pub async fn get_mock_setup_and_socket() -> (
-    Rc<ComHub>,
-    Rc<RefCell<MockupInterface>>,
-    Arc<Mutex<ComInterfaceSocket>>,
-) {
+pub async fn get_mock_setup_and_socket(
+    sink_type: IncomingSectionsSinkType,
+) -> (Rc<ComHub>, Rc<ComInterface>, ComInterfaceSocketUUID) {
     get_mock_setup_and_socket_for_endpoint(
         TEST_ENDPOINT_ORIGIN.clone(),
         Some(TEST_ENDPOINT_A.clone()),
         None,
         None,
         InterfacePriority::default(),
+        sink_type,
     )
     .await
 }
 
 pub async fn get_mock_setup_and_socket_for_priority(
     priority: InterfacePriority,
-) -> (
-    Rc<ComHub>,
-    Rc<RefCell<MockupInterface>>,
-    Arc<Mutex<ComInterfaceSocket>>,
-) {
+    sink_type: IncomingSectionsSinkType,
+) -> (Rc<ComHub>, Rc<ComInterface>, ComInterfaceSocketUUID) {
     get_mock_setup_and_socket_for_endpoint(
         TEST_ENDPOINT_ORIGIN.clone(),
         Some(TEST_ENDPOINT_A.clone()),
         None,
         None,
         priority,
+        sink_type,
     )
     .await
 }
@@ -140,11 +150,8 @@ pub async fn get_mock_setup_and_socket_for_endpoint(
     sender: Option<mpsc::Sender<Vec<u8>>>,
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
     priority: InterfacePriority,
-) -> (
-    Rc<ComHub>,
-    Rc<RefCell<MockupInterface>>,
-    Arc<Mutex<ComInterfaceSocket>>,
-) {
+    incoming_sections_sink_type: IncomingSectionsSinkType,
+) -> (Rc<ComHub>, Rc<ComInterface>, ComInterfaceSocketUUID) {
     get_mock_setup_and_socket_for_endpoint_and_update_loop(
         local_endpoint,
         remote_endpoint,
@@ -152,6 +159,7 @@ pub async fn get_mock_setup_and_socket_for_endpoint(
         receiver,
         priority,
         false,
+        incoming_sections_sink_type,
     )
     .await
 }
@@ -163,43 +171,39 @@ pub async fn get_mock_setup_and_socket_for_endpoint_and_update_loop(
     receiver: Option<mpsc::Receiver<Vec<u8>>>,
     priority: InterfacePriority,
     enable_update_loop: bool,
-) -> (
-    Rc<ComHub>,
-    Rc<RefCell<MockupInterface>>,
-    Arc<Mutex<ComInterfaceSocket>>,
-) {
-    let (com_hub, mockup_interface_ref) =
-        get_mock_setup_with_endpoint(local_endpoint, priority).await;
-
-    mockup_interface_ref.borrow_mut().sender = sender;
-    mockup_interface_ref.borrow_mut().receiver =
-        Rc::new(RefCell::new(receiver));
+    incoming_sections_sink_type: IncomingSectionsSinkType,
+) -> (Rc<ComHub>, Rc<ComInterface>, ComInterfaceSocketUUID) {
+    let (com_hub, com_interface) = get_mock_setup_with_endpoint(
+        local_endpoint,
+        priority,
+        incoming_sections_sink_type,
+    )
+    .await;
+    let mockup_interface_clone = com_interface.clone();
+    let mut mockup_interface =
+        mockup_interface_clone.implementation_mut::<MockupInterface>();
+    mockup_interface.sender = sender;
+    mockup_interface.receiver = Rc::new(RefCell::new(receiver));
 
     if enable_update_loop {
-        ComHub::_start_update_loop(com_hub.clone());
-
         // start mockup interface update loop
-        mockup_interface_ref.borrow_mut().start_update_loop();
+        mockup_interface.start_update_loop();
 
         tokio::task::yield_now().await;
     }
 
-    let socket = add_socket(mockup_interface_ref.clone());
+    let socket_uuid = create_and_add_socket(&mut mockup_interface).unwrap();
     if remote_endpoint.is_some() {
         register_socket_endpoint(
-            mockup_interface_ref.clone(),
-            socket.clone(),
+            com_interface.clone(),
+            socket_uuid.clone(),
             remote_endpoint.unwrap(),
         );
     }
 
-    if !enable_update_loop {
-        com_hub.update_async().await;
-    } else {
-        tokio::task::yield_now().await;
-    }
+    tokio::task::yield_now().await;
 
-    (com_hub.clone(), mockup_interface_ref, socket)
+    (com_hub.clone(), com_interface, socket_uuid)
 }
 
 pub async fn get_mock_setup_runtime(
@@ -213,15 +217,15 @@ pub async fn get_mock_setup_runtime(
     )
     .await;
 
-    mockup_interface_ref.borrow_mut().sender = sender;
-    mockup_interface_ref.borrow_mut().receiver =
-        Rc::new(RefCell::new(receiver));
+    let mut mockup_interface =
+        mockup_interface_ref.implementation_mut::<MockupInterface>();
+    mockup_interface.sender = sender;
+    mockup_interface.receiver = Rc::new(RefCell::new(receiver));
 
     // start mockup interface update loop
-    mockup_interface_ref.borrow_mut().start_update_loop();
+    mockup_interface.start_update_loop();
 
-    add_socket(mockup_interface_ref.clone());
-
+    create_and_add_socket(&mut mockup_interface).unwrap();
     runtime.start().await;
     runtime
 }
@@ -263,7 +267,7 @@ pub async fn send_block_with_body(
         block
     };
 
-    com_hub.update_async().await;
+    yield_now().await;
     block
 }
 
@@ -274,18 +278,21 @@ pub async fn send_empty_block_and_update(
     let mut block: DXBBlock = DXBBlock::default();
     block.set_receivers(to);
     {
-        com_hub.send_own_block(block.clone()).await;
+        if let Ok(sent_block) = com_hub.send_own_block(block.clone()).await {
+            info!("Sent block: {:?}", sent_block);
+        } else {
+            error!("Failed to send block");
+        }
     }
-    com_hub.update_async().await;
+
+    yield_now().await;
     block
 }
 
 pub fn get_last_received_single_block_from_com_hub(
     com_hub: &ComHub,
 ) -> DXBBlock {
-    let mut sections =
-        com_hub.block_handler.incoming_sections_queue.borrow_mut();
-    let sections = sections.drain(..).collect::<Vec<_>>();
+    let sections = com_hub.block_handler.drain_collected_sections();
 
     assert_eq!(sections.len(), 1);
 
@@ -299,9 +306,7 @@ pub fn get_last_received_single_block_from_com_hub(
 pub fn get_all_received_single_blocks_from_com_hub(
     com_hub: &ComHub,
 ) -> Vec<DXBBlock> {
-    let mut sections =
-        com_hub.block_handler.incoming_sections_queue.borrow_mut();
-    let sections = sections.drain(..).collect::<Vec<_>>();
+    let sections = com_hub.block_handler.drain_collected_sections();
 
     let mut blocks = vec![];
 

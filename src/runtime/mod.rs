@@ -9,8 +9,10 @@ use crate::global::protocol_structures::block_header::BlockHeader;
 use crate::global::protocol_structures::encrypted_header::EncryptedHeader;
 use crate::global::protocol_structures::routing_header::RoutingHeader;
 use crate::logger::{init_logger, init_logger_debug};
-use crate::network::com_hub::{ComHub, InterfacePriority, ResponseOptions};
-use crate::network::com_interfaces::com_interface::ComInterfaceFactory;
+use crate::network::block_handler::IncomingSectionsSinkType;
+use crate::network::com_hub::network_response::ResponseOptions;
+use crate::network::com_hub::{ComHub, InterfacePriority};
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::serde::error::SerializationError;
@@ -36,7 +38,6 @@ use core::unreachable;
 use execution::context::{
     ExecutionContext, RemoteExecutionContext, ScriptExecutionError,
 };
-use futures::channel::oneshot::Sender;
 use global_context::{GlobalContext, set_global_context};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
@@ -97,13 +98,9 @@ impl Debug for AsyncContext {
 #[derive(Debug)]
 pub struct RuntimeInternal {
     pub memory: RefCell<Memory>,
-    pub com_hub: ComHub,
+    pub com_hub: Rc<ComHub>,
     pub endpoint: Endpoint,
     pub config: RuntimeConfig,
-    /// set to true if the update loop should be running
-    /// when set to false, the update loop will stop
-    update_loop_running: RefCell<bool>,
-    update_loop_stop_sender: RefCell<Option<Sender<()>>>,
 
     /// active execution contexts, stored by context_id
     pub execution_contexts:
@@ -130,19 +127,6 @@ macro_rules! get_execution_context {
 }
 
 impl RuntimeInternal {
-    fn new(async_context: AsyncContext) -> Self {
-        RuntimeInternal {
-            endpoint: Endpoint::default(),
-            config: RuntimeConfig::default(),
-            memory: RefCell::new(Memory::new(Endpoint::default())),
-            com_hub: ComHub::new(Endpoint::default(), async_context.clone()),
-            update_loop_running: RefCell::new(false),
-            update_loop_stop_sender: RefCell::new(None),
-            execution_contexts: RefCell::new(HashMap::new()),
-            async_context,
-        }
-    }
-
     #[cfg(feature = "compiler")]
     pub async fn execute(
         self_rc: Rc<RuntimeInternal>,
@@ -472,7 +456,11 @@ impl Runtime {
     /// otherwise the runtime will panic here.
     pub fn new(config: RuntimeConfig, async_context: AsyncContext) -> Runtime {
         let endpoint = config.endpoint.clone().unwrap_or_else(Endpoint::random);
-        let com_hub = ComHub::new(endpoint.clone(), async_context.clone());
+        let com_hub = ComHub::init(
+            endpoint.clone(),
+            async_context.clone(),
+            IncomingSectionsSinkType::Channel,
+        );
         let memory = RefCell::new(Memory::new(endpoint.clone()));
         Runtime {
             version: VERSION.to_string(),
@@ -480,8 +468,9 @@ impl Runtime {
                 endpoint,
                 memory,
                 config,
-                com_hub,
-                ..RuntimeInternal::new(async_context)
+                com_hub: Rc::new(com_hub),
+                execution_contexts: RefCell::new(HashMap::new()),
+                async_context,
             }),
         }
     }
@@ -508,8 +497,8 @@ impl Runtime {
         Self::new(config, async_context)
     }
 
-    pub fn com_hub(&self) -> &ComHub {
-        &self.internal.com_hub
+    pub fn com_hub(&self) -> Rc<ComHub> {
+        self.internal.com_hub.clone()
     }
     pub fn endpoint(&self) -> Endpoint {
         self.internal.endpoint.clone()
@@ -538,17 +527,11 @@ impl Runtime {
         )
     }
 
-    /// Starts the common update loop:
+    /// Initializes the runtime and its subsystems:
     ///  - ComHub
-    ///  - Runtime
     pub async fn start(&self) {
-        if *self.internal().update_loop_running.borrow() {
-            info!("runtime update loop already running, skipping start");
-            return;
-        }
         info!("starting runtime...");
-        self.com_hub()
-            .init()
+        ComHub::start(self.com_hub())
             .await
             .expect("Failed to initialize ComHub");
 
@@ -580,7 +563,7 @@ impl Runtime {
             }
         }
 
-        RuntimeInternal::start_update_loop(self.internal());
+        RuntimeInternal::handle_incoming_sections(self.internal());
     }
 
     // inits a runtime and starts the update loop
@@ -607,8 +590,6 @@ impl Runtime {
     }
 
     fn register_interface_factories(&self) {
-        crate::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface::register_on_com_hub(self.com_hub());
-
         #[cfg(feature = "native_websocket")]
         crate::network::com_interfaces::default_com_interfaces::websocket::websocket_client_native_interface::WebSocketClientNativeInterface::register_on_com_hub(self.com_hub());
         #[cfg(feature = "native_websocket")]

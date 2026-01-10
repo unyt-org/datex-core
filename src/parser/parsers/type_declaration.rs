@@ -1,10 +1,9 @@
 use crate::ast::expressions::{
     DatexExpression, DatexExpressionData, TypeDeclaration, TypeDeclarationKind,
-    VariableDeclaration, VariableKind,
 };
 use crate::ast::spanned::Spanned;
 use crate::parser::errors::ParserError;
-use crate::parser::lexer::{SpannedToken, Token};
+use crate::parser::lexer::Token;
 use crate::parser::{Parser, SpannedParserError};
 
 impl Parser {

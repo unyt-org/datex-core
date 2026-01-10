@@ -1,13 +1,16 @@
-use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
     TEST_ENDPOINT_A, TEST_ENDPOINT_B,
     get_mock_setup_and_socket_for_endpoint_and_update_loop,
 };
+use crate::network::helpers::mockup_interface::MockupInterface;
+use datex_core::network::block_handler::IncomingSectionsSinkType;
 use datex_core::network::com_hub::InterfacePriority;
+use datex_core::utils::context::init_global_context;
 use datex_core::{run_async, run_async_thread};
 use ntest_timeout::timeout;
 use std::sync::mpsc;
 use std::thread;
+use tokio::task::yield_now;
 
 #[tokio::test]
 #[timeout(1000)]
@@ -26,6 +29,7 @@ async fn create_network_trace() {
                 Some(receiver_b),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
@@ -37,15 +41,25 @@ async fn create_network_trace() {
                 Some(receiver_a),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
-        com_hub_mut_a.update_async().await;
-        com_hub_mut_b.update_async().await;
-        com_interface_a.borrow_mut().update();
-        com_interface_b.borrow_mut().update();
-        com_hub_mut_a.update_async().await;
-        com_hub_mut_b.update_async().await;
+
+        yield_now().await;
+        yield_now().await;
+        { // update a
+            let mockup_interface_impl = com_interface_a
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
+        { // update b
+            let mockup_interface_impl = com_interface_b
+                .implementation_mut::<MockupInterface>();
+            mockup_interface_impl.update().await;
+        }
+        yield_now().await;
+        yield_now().await;
 
         log::info!("Sending trace from A to B");
 
@@ -85,6 +99,7 @@ async fn create_network_trace_separate_threads() {
                 Some(receiver_b),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 
@@ -124,6 +139,7 @@ async fn create_network_trace_separate_threads() {
                 Some(receiver_a),
                 InterfacePriority::default(),
                 true,
+                IncomingSectionsSinkType::Channel
             )
             .await;
 

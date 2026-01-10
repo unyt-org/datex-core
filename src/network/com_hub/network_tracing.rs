@@ -4,9 +4,10 @@ use crate::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
 use crate::global::protocol_structures::routing_header::RoutingHeader;
-use crate::network::com_hub::{ComHub, Response, ResponseOptions};
-use crate::network::com_interfaces::com_interface_properties::InterfaceProperties;
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
+use crate::network::com_hub::ComHub;
+use crate::network::com_hub::network_response::{Response, ResponseOptions};
+use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::runtime::execution::{
     ExecutionInput, ExecutionOptions, execute_dxb_sync,
 };
@@ -380,9 +381,9 @@ impl ComHub {
             endpoint: self.endpoint.clone(),
             distance: block.routing_header.distance,
             socket: NetworkTraceHopSocket::new(
-                self.get_com_interface_from_socket_uuid(&original_socket)
-                    .borrow_mut()
-                    .get_properties(),
+                &self
+                    .dyn_interface_for_socket_uuid(&original_socket)
+                    .properties(),
                 original_socket.clone(),
             ),
             direction: NetworkTraceHopDirection::Incoming,
@@ -427,9 +428,9 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.get_com_interface_from_socket_uuid(&original_socket)
-                        .borrow_mut()
-                        .get_properties(),
+                    &self
+                        .dyn_interface_for_socket_uuid(&original_socket)
+                        .properties(),
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,
@@ -468,9 +469,9 @@ impl ComHub {
                 endpoint: self.endpoint.clone(),
                 distance,
                 socket: NetworkTraceHopSocket::new(
-                    self.get_com_interface_from_socket_uuid(&original_socket)
-                        .borrow_mut()
-                        .get_properties(),
+                    &self
+                        .dyn_interface_for_socket_uuid(&original_socket)
+                        .properties(),
                     original_socket.clone(),
                 ),
                 direction: NetworkTraceHopDirection::Incoming,

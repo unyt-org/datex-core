@@ -3,7 +3,6 @@ use crate::dif::value::DIFValueContainer;
 use crate::references::observers::TransceiverId;
 use crate::runtime::memory::Memory;
 use crate::stdlib::format;
-use crate::stdlib::string::ToString;
 use crate::stdlib::vec::Vec;
 use crate::values::value_container::ValueKey;
 use crate::{

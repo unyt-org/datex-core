@@ -1,10 +1,9 @@
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::stdlib::{
     cell::RefCell, collections::HashMap, future::Future, pin::Pin, rc::Rc,
 };
 
-use crate::network::com_interfaces::com_interface_socket::ComInterfaceSocketUUID;
-
-type OnMessageCallback = dyn Fn(Vec<u8>);
+type OnMessageCallback = dyn FnMut(Vec<u8>);
 
 pub struct DataChannel<T> {
     pub label: String,

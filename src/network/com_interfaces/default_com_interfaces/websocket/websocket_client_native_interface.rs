@@ -1,24 +1,9 @@
 use crate::std_sync::Mutex;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::{future::Future, pin::Pin, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-
-use crate::{
-    delegate_com_interface_info,
-    network::com_interfaces::{
-        com_interface::{ComInterface, ComInterfaceInfo, ComInterfaceSockets},
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
-        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-        socket_provider::SingleSocketProvider,
-    },
-    set_opener,
-    stdlib::sync::Arc,
-};
-use datex_macros::{com_interface, create_opener};
-
-use crate::network::com_interfaces::com_interface::{
-    ComInterfaceError, ComInterfaceFactory, ComInterfaceState,
-};
 use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::{debug, error, info};
 use tokio::net::TcpStream;
@@ -28,41 +13,41 @@ use url::Url;
 use super::websocket_common::{
     WebSocketClientInterfaceSetupData, WebSocketError, parse_url,
 };
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::properties::{
+    InterfaceDirection, InterfaceProperties,
+};
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
 use crate::task::spawn_with_panic_notify_default;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-#[derive(Debug)]
 pub struct WebSocketClientNativeInterface {
     pub address: Url,
-    websocket_stream:
+    websocket_stream: RefCell<
         Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
-    info: ComInterfaceInfo,
+    >,
+    com_interface: Rc<ComInterface>,
 }
-
-impl SingleSocketProvider for WebSocketClientNativeInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
-    }
-}
-
-#[com_interface]
 impl WebSocketClientNativeInterface {
     pub fn new(
         address: &str,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketClientNativeInterface, WebSocketError> {
         let address =
             parse_url(address, true).map_err(|_| WebSocketError::InvalidURL)?;
-        let info = ComInterfaceInfo::new();
         let interface = WebSocketClientNativeInterface {
             address,
-            info,
-            websocket_stream: None,
+            com_interface,
+            websocket_stream: RefCell::new(None),
         };
         Ok(interface)
     }
 
-    #[create_opener]
-    async fn open(&mut self) -> Result<(), WebSocketError> {
+    async fn open(&self) -> Result<(), WebSocketError> {
         let address = self.address.clone();
         info!("Connecting to WebSocket server at {address}");
         let (stream, _) = tokio_tungstenite::connect_async(address)
@@ -72,24 +57,23 @@ impl WebSocketClientNativeInterface {
                 WebSocketError::ConnectionError
             })?;
         let (write, mut read) = stream.split();
-        let socket = ComInterfaceSocket::new(
-            self.get_uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        self.websocket_stream = Some(write);
-        let receive_queue = socket.receive_queue.clone();
-        self.get_sockets()
-            .try_lock()
+
+        self.websocket_stream.replace(Some(write));
+
+        let (_, mut sender) = self
+            .com_interface
+            .socket_manager()
+            .lock()
             .unwrap()
-            .add_socket(Arc::new(Mutex::new(socket)));
-        let state = self.get_info().state.clone();
+            .create_and_init_socket(InterfaceDirection::InOut, 1);
+
+        let state = self.com_interface.state();
+
         spawn_with_panic_notify_default(async move {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Binary(data)) => {
-                        let mut queue = receive_queue.try_lock().unwrap();
-                        queue.extend(data);
+                        sender.start_send(data).unwrap();
                     }
                     Ok(_) => {
                         error!("Invalid message type received");
@@ -109,13 +93,14 @@ impl WebSocketClientNativeInterface {
     }
 }
 
-impl ComInterfaceFactory<WebSocketClientInterfaceSetupData>
-    for WebSocketClientNativeInterface
-{
+impl ComInterfaceFactory for WebSocketClientNativeInterface {
+    type SetupData = WebSocketClientInterfaceSetupData;
+
     fn create(
-        setup_data: WebSocketClientInterfaceSetupData,
+        setup_data: Self::SetupData,
+        com_interface: Rc<ComInterface>,
     ) -> Result<WebSocketClientNativeInterface, ComInterfaceError> {
-        WebSocketClientNativeInterface::new(&setup_data.address)
+        WebSocketClientNativeInterface::new(&setup_data.address, com_interface)
             .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
 
@@ -130,44 +115,48 @@ impl ComInterfaceFactory<WebSocketClientInterfaceSetupData>
     }
 }
 
-impl ComInterface for WebSocketClientNativeInterface {
+impl ComInterfaceImplementation for WebSocketClientNativeInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         Box::pin(async move {
-            let tx = self.websocket_stream.as_mut();
-            if tx.is_none() {
-                error!("Client is not connected");
-                return false;
-            }
-            debug!("Sending block: {block:?}");
-            tx.unwrap()
-                .send(Message::Binary(block.to_vec()))
-                .await
-                .map_err(|e| {
-                    error!("Error sending message: {e:?}");
+            // TODO: no borrow across await
+            let mut websocket_stream = self.websocket_stream.borrow_mut();
+            let tx = websocket_stream.as_mut();
+            match tx {
+                Some(tx) => {
+                    debug!("Sending block: {block:?}");
+                    tx.send(Message::Binary(block.to_vec()))
+                        .await
+                        .map_err(|e| {
+                            error!("Error sending message: {e:?}");
+                            false
+                        })
+                        .is_ok()
+                }
+                None => {
+                    error!("WebSocket client is not connected");
                     false
-                })
-                .is_ok()
+                }
+            }
         })
     }
 
-    fn init_properties(&self) -> InterfaceProperties {
+    fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             name: Some(self.address.to_string()),
             ..Self::get_default_properties()
         }
     }
 
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+    fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO #210
         Box::pin(async move { true })
     }
 
-    delegate_com_interface_info!();
-    set_opener!(open);
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        Box::pin(async move { self.open().await.is_ok() })
+    }
 }
