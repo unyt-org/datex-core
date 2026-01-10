@@ -9,7 +9,6 @@ use crate::network::com_interfaces::com_interface::properties::{
 use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use crate::std_sync::Mutex;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::collections::HashMap;
@@ -108,21 +107,19 @@ impl ComInterfaceFactory for TCPServerNativeInterface {
     type SetupData = TCPServerInterfaceSetupData;
     fn create(
         setup_data: Self::SetupData,
-        com_interface: Rc<
-            RefCell<
-                crate::network::com_interfaces::com_interface::ComInterface,
-            >,
-        >,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<Self, ComInterfaceError> {
         let address = SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(0, 0, 0, 0),
             setup_data.port,
         ));
-        TCPServerNativeInterface {
-            address,
-            com_interface,
-            tx: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Ok(
+            TCPServerNativeInterface {
+                address,
+                com_interface,
+                tx: Arc::new(Mutex::new(HashMap::new())),
+            }
+        )
     }
 
     fn get_default_properties() -> InterfaceProperties {

@@ -106,23 +106,27 @@ impl ComInterfaceInfo {
                 ),
             )),
             uuid,
-            interface_event_receiver: OnceConsumer::new(
-                interface_event_receiver,
+            interface_event_receiver: RefCell::new(
+                OnceConsumer::new(
+                    interface_event_receiver,
+                )
             ),
             interface_properties,
-            socket_event_receiver: OnceConsumer::new(socket_event_receiver),
+            socket_event_receiver: RefCell::new(
+                OnceConsumer::new(socket_event_receiver)
+            ),
         }
     }
 
     pub fn take_socket_event_receiver(
         &self,
     ) -> UnboundedReceiver<ComInterfaceSocketEvent> {
-        self.socket_event_receiver.consume()
+        self.socket_event_receiver.borrow_mut().consume()
     }
     pub fn take_interface_event_receiver(
         &self,
     ) -> UnboundedReceiver<ComInterfaceEvent> {
-        self.interface_event_receiver.consume()
+        self.interface_event_receiver.borrow_mut().consume()
     }
 
     pub fn state(&self) -> ComInterfaceState {
@@ -215,8 +219,8 @@ impl ComInterface {
 
     pub fn uuid(&self) -> &ComInterfaceUUID {
         match self {
-            ComInterface::Headless { info } => info.as_ref().unwrap().uuid(),
-            ComInterface::Initialized { info, .. } => info.uuid(),
+            ComInterface::Headless { info } => &info.as_ref().unwrap().uuid,
+            ComInterface::Initialized { info, .. } => &info.uuid,
         }
     }
 
@@ -332,11 +336,5 @@ impl ComInterface {
                 info.take_socket_event_receiver()
             }
         }
-    }
-
-    pub fn locked_socked_manager(
-        &self,
-    ) -> MutexGuard<'_, ComInterfaceSocketManager> {
-        self.socket_manager().lock().unwrap()
     }
 }

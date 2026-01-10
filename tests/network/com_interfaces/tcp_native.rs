@@ -2,13 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use crate::context::init_global_context;
 use datex_core::network::com_interfaces::{
-    com_interface_old::ComInterfaceOld,
     default_com_interfaces::tcp::{
         tcp_client_native_interface::TCPClientNativeInterface,
         tcp_common::TCPError,
         tcp_server_native_interface::TCPServerNativeInterface,
     },
-    socket_provider::{MultipleSocketProvider, SingleSocketProvider},
 };
 use datex_core::run_async;
 use futures::future::join_all;

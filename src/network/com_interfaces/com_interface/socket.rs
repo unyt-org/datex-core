@@ -62,15 +62,7 @@ impl ComInterfaceSocket {
     pub fn take_block_in_receiver(&mut self) -> UnboundedReceiver<DXBBlock> {
         self.block_in_receiver.consume()
     }
-
-    pub fn queue_outgoing_block(&mut self, block: &[u8]) {
-        self.bytes_out_sender
-            .lock()
-            .unwrap()
-            .start_send(block.to_vec())
-            .unwrap();
-    }
-
+    
     pub fn can_send(&self) -> bool {
         self.direction == InterfaceDirection::Out
             || self.direction == InterfaceDirection::InOut

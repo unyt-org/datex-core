@@ -106,7 +106,8 @@ impl InterfaceManager {
         interface: Rc<RefCell<ComInterface>>,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
-        if interface.borrow().state() != ComInterfaceState::Connected {
+        let current_state = interface.borrow().state().lock().unwrap().get();
+        if current_state != ComInterfaceState::Connected {
             // If interface is not connected, open it
             // and wait for it to be connected
             // FIXME #240: borrow_mut across await point

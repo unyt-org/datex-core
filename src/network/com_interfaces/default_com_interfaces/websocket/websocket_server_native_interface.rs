@@ -5,16 +5,9 @@ use crate::stdlib::{
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use crate::{
-    delegate_com_interface_info,
-    network::com_interfaces::{
-        com_interface_old::{ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets},
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
-        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-    },
-    set_opener,
     stdlib::sync::Arc,
     task::spawn,
 };
@@ -31,9 +24,6 @@ use tokio::{
 use tungstenite::Message;
 use url::Url;
 
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceError, ComInterfaceFactoryOld, ComInterfaceState,
-};
 use futures_util::stream::SplitSink;
 use tokio_tungstenite::accept_async;
 
@@ -43,6 +33,12 @@ use super::websocket_common::{
 };
 use crate::runtime::global_context::{get_global_context, set_global_context};
 use tokio_tungstenite::WebSocketStream;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 
 type WebsocketStreamMap = HashMap<
     ComInterfaceSocketUUID,
@@ -52,22 +48,16 @@ type WebsocketStreamMap = HashMap<
 pub struct WebSocketServerNativeInterface {
     pub address: Url,
     websocket_streams: Arc<Mutex<WebsocketStreamMap>>,
-    info: ComInterfaceInfo,
     shutdown_signal: Arc<Notify>,
-    handle: Option<JoinHandle<()>>,
+    handle: RefCell<Option<JoinHandle<()>>>,
+    com_interface: Rc<RefCell<ComInterface>>,
 }
 
-impl MultipleSocketProvider for WebSocketServerNativeInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets()
-    }
-}
-
-#[com_interface]
 impl WebSocketServerNativeInterface {
     pub fn new(
         port: u16,
         secure: bool,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<WebSocketServerNativeInterface, WebSocketServerError> {
         let address: String = format!("0.0.0.0:{port}");
         let address = parse_url(&address, secure).map_err(|_| {
@@ -75,16 +65,15 @@ impl WebSocketServerNativeInterface {
         })?;
         let interface = WebSocketServerNativeInterface {
             address,
-            info: ComInterfaceInfo::new(),
             websocket_streams: Arc::new(Mutex::new(HashMap::new())),
             shutdown_signal: Arc::new(Notify::new()),
-            handle: None,
+            handle: RefCell::new(None),
+            com_interface,
         };
         Ok(interface)
     }
 
-    #[create_opener]
-    async fn open(&mut self) -> Result<(), WebSocketServerError> {
+    async fn open(&self) -> Result<(), WebSocketServerError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
         let addr = format!(
@@ -101,28 +90,33 @@ impl WebSocketServerNativeInterface {
             )
         })?;
 
-        let interface_uuid = self.uuid().clone();
-        let com_interface_sockets = self.get_sockets().clone();
         let websocket_streams = self.websocket_streams.clone();
         let shutdown = self.shutdown_signal.clone();
         let mut tasks: Vec<JoinHandle<()>> = vec![];
         let global_context = get_global_context();
-        self.handle = Some(spawn(async move {
+
+        let manager = self
+            .com_interface
+            .borrow()
+            .socket_manager();
+
+        self.handle.replace(Some(spawn(async move {
             let global_context = global_context.clone();
+            let manager = manager.clone();
             set_global_context(global_context.clone());
             info!("WebSocket server started at {addr}");
             loop {
+                let manager = manager.clone();
                 select! {
                     res = listener.accept() => {
                         match res {
                             Ok((stream, addr)) => {
                                 let websocket_streams = websocket_streams.clone();
-                                let interface_uuid = interface_uuid.clone();
-                                let com_interface_sockets = com_interface_sockets.clone();
                                 let global_context = global_context.clone();
                                 info!("New connection from {addr}");
                                 let task = spawn(async move {
                                     set_global_context(global_context.clone());
+                                    let manager = manager.clone();
 
                                     match accept_async(stream).await {
                                         Ok(ws_stream) => {
@@ -130,19 +124,11 @@ impl WebSocketServerNativeInterface {
                                                 "Accepted WebSocket connection from {addr}"
                                             );
                                             let (write, mut read) = ws_stream.split();
-                                            let socket = ComInterfaceSocket::init(
-                                                interface_uuid.clone(),
-                                                InterfaceDirection::InOut,
-                                                1,
-                                            );
-                                            let socket_uuid = socket.uuid.clone();
-                                            let bytes_in_sender = socket.bytes_in_sender.clone();
-                                            let socket_shared = Arc::new(Mutex::new(socket));
-                                            com_interface_sockets
-                                                .clone()
-                                                .try_lock()
+
+                                            let (socket_uuid, mut sender) = manager
+                                                .lock()
                                                 .unwrap()
-                                                .add_socket(socket_shared.clone());
+                                                .create_and_init_socket(InterfaceDirection::InOut, 1);
 
                                             websocket_streams
                                                 .try_lock()
@@ -152,7 +138,7 @@ impl WebSocketServerNativeInterface {
                                             while let Some(msg) = read.next().await {
                                                 match msg {
                                                     Ok(Message::Binary(bin)) => {
-                                                        bytes_in_sender.try_lock().unwrap().start_send(bin);
+                                                        sender.start_send(bin).unwrap();
                                                     }
                                                     Ok(_) => {}
                                                     Err(e) => {
@@ -169,10 +155,11 @@ impl WebSocketServerNativeInterface {
                                                     .try_lock()
                                                     .unwrap();
                                             streams.remove(&socket_uuid);
-                                            com_interface_sockets
-                                                .try_lock()
+
+                                            manager
+                                                .lock()
                                                 .unwrap()
-                                                .remove_socket(&socket_uuid);
+                                                .remove_socket(socket_uuid);
                                             info!(
                                                 "WebSocket connection from {addr} closed"
                                             );
@@ -201,20 +188,24 @@ impl WebSocketServerNativeInterface {
                     }
                 }
             }
-        }));
+        })));
         Ok(())
     }
 }
 
-impl ComInterfaceFactoryOld<WebSocketServerInterfaceSetupData>
+impl ComInterfaceFactory
     for WebSocketServerNativeInterface
 {
+    type SetupData = WebSocketServerInterfaceSetupData;
+
     fn create(
-        setup_data: WebSocketServerInterfaceSetupData,
+        setup_data: Self::SetupData,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<WebSocketServerNativeInterface, ComInterfaceError> {
         WebSocketServerNativeInterface::new(
             setup_data.port,
             setup_data.secure.unwrap_or(true),
+            com_interface,
         )
         .map_err(|_| ComInterfaceError::InvalidSetupData)
     }
@@ -230,9 +221,9 @@ impl ComInterfaceFactoryOld<WebSocketServerInterfaceSetupData>
     }
 }
 
-impl ComInterfaceOld for WebSocketServerNativeInterface {
+impl ComInterfaceImplementation for WebSocketServerNativeInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -255,26 +246,29 @@ impl ComInterfaceOld for WebSocketServerNativeInterface {
         })
     }
 
-    fn init_properties(&self) -> InterfaceProperties {
+    fn get_properties(&self) -> InterfaceProperties {
         InterfaceProperties {
             name: Some(self.address.to_string()),
             ..Self::get_default_properties()
         }
     }
+
     fn handle_close<'a>(
-        &'a mut self,
+        &'a self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         let websocket_streams = self.websocket_streams.clone();
         Box::pin(async move {
             shutdown_signal.notify_waiters();
-            if let Some(handle) = self.handle.take() {
+            if let Some(handle) = self.handle.borrow_mut().take() {
                 let _ = handle.await;
             }
             websocket_streams.try_lock().unwrap().clear();
             true
         })
     }
-    delegate_com_interface_info!();
-    set_opener!(open);
+
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+        Box::pin(async move { self.open().await.is_ok() })
+    }
 }

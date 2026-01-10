@@ -1,6 +1,5 @@
 use core::prelude::rust_2024::*;
 use core::result::Result;
-use log::error;
 
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::{
@@ -16,11 +15,9 @@ use crate::network::com_interfaces::com_interface::properties::InterfaceProperti
 use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
-use crate::std_sync::Mutex;
 use crate::stdlib::boxed::Box;
 use crate::stdlib::pin::Pin;
 use crate::stdlib::string::String;
-use crate::stdlib::sync::Arc;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use core::future::Future;
@@ -37,9 +34,9 @@ pub struct BaseInterface {
     com_interface: Rc<RefCell<ComInterface>>,
 }
 
-use datex_macros::{com_interface, create_opener};
 use strum::Display;
 use thiserror::Error;
+use crate::task::UnboundedSender;
 
 #[derive(Debug, Display, Error)]
 pub enum BaseInterfaceError {
@@ -88,29 +85,33 @@ impl BaseInterface {
     //     })
     // }
 
-    pub fn register_new_socket(
+    pub fn create_and_init_socket(
         &mut self,
         direction: InterfaceDirection,
-    ) -> ComInterfaceSocketUUID {
-        let mut interface = self.com_interface.borrow_mut();
-        let socket =
-            ComInterfaceSocket::init(interface.uuid().clone(), direction, 1);
-        let socket_uuid = socket.uuid.clone();
-        let socket = Arc::new(Mutex::new(socket));
-        interface.add_socket(socket);
-        socket_uuid
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        self
+            .com_interface
+            .borrow()
+            .socket_manager()
+            .lock()
+            .unwrap()
+            .create_and_init_socket(direction, 1)
     }
     pub fn register_new_socket_with_endpoint(
         &mut self,
         direction: InterfaceDirection,
         endpoint: Endpoint,
-    ) -> ComInterfaceSocketUUID {
-        let socket_uuid = self.register_new_socket(direction);
-        let mut interface = self.com_interface.borrow_mut();
-        interface
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (socket_uuid, sender) = self.create_and_init_socket(direction);
+
+        self
+            .com_interface
+            .borrow()
+            .socket_manager().lock().unwrap()
             .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
-        socket_uuid
+
+        (socket_uuid, sender)
     }
 
     pub fn set_on_send_callback(
@@ -120,24 +121,6 @@ impl BaseInterface {
         self.on_send = Some(on_send);
         self
     }
-
-    pub fn receive(
-        &mut self,
-        receiver_socket_uuid: ComInterfaceSocketUUID,
-        data: Vec<u8>,
-    ) -> Result<(), BaseInterfaceError> {
-        let interface = self.com_interface.borrow();
-        match interface.get_socket_by_uuid(&receiver_socket_uuid) {
-            Some(socket) => {
-                socket.try_lock().unwrap().queue_outgoing_block(&data);
-                Ok(())
-            }
-            _ => {
-                error!("Socket not found");
-                Err(BaseInterfaceError::SocketNotFound)
-            }
-        }
-    }
 }
 
 impl ComInterfaceImplementation for BaseInterface {
@@ -146,10 +129,6 @@ impl ComInterfaceImplementation for BaseInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        let interface = self.com_interface.borrow();
-        if !interface.has_socket_with_uuid(&socket_uuid) {
-            return Box::pin(async move { false });
-        }
         if let Some(on_send) = &self.on_send {
             on_send(block, socket_uuid)
         } else {

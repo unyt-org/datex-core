@@ -119,8 +119,7 @@ impl ComHub {
         let socket_manager = self.socket_manager.borrow();
         for (endpoint, sockets) in socket_manager.endpoint_sockets.iter() {
             for (socket_uuid, properties) in sockets {
-                let socket = socket_manager.socket_by_uuid(socket_uuid);
-                let socket = socket.try_lock().unwrap();
+                let socket = socket_manager.get_socket_by_uuid(socket_uuid);
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)
@@ -144,7 +143,6 @@ impl ComHub {
         {
             // if no endpoints are registered, we consider it a socket without an endpoint
             if endpoints.is_empty() {
-                let socket = socket.try_lock().unwrap();
                 let com_interface_uuid = socket.interface_uuid.clone();
                 if !sockets_by_com_interface_uuid
                     .contains_key(&com_interface_uuid)

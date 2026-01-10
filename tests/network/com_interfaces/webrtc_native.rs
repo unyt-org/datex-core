@@ -2,8 +2,6 @@ use std::{cell::RefCell, io::Bytes, rc::Rc, sync::Arc, time::Duration};
 
 use datex_core::{
     network::com_interfaces::{
-        com_interface_old::ComInterfaceOld,
-        com_interface_socket::ComInterfaceSocketUUID,
         default_com_interfaces::webrtc::{
             webrtc_common::{
                 media_tracks::{MediaKind, MediaTrack},
@@ -11,7 +9,6 @@ use datex_core::{
             },
             webrtc_native_interface::{TrackLocal, WebRTCNativeInterface},
         },
-        socket_provider::SingleSocketProvider,
     },
     run_async,
     task::{sleep, spawn_local},

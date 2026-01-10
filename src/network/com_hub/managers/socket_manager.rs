@@ -29,7 +29,7 @@ use crate::{
 
 pub type SocketsByUUID = HashMap<
     ComInterfaceSocketUUID,
-    (Arc<Mutex<ComInterfaceSocket>>, HashSet<Endpoint>),
+    (ComInterfaceSocket, HashSet<Endpoint>),
 >;
 
 #[derive(Debug, Clone, Default)]
@@ -108,23 +108,23 @@ impl SocketManager {
     /// as an indirect socket to the endpoint
     pub fn register_socket_endpoint(
         &mut self,
-        socket: Arc<Mutex<ComInterfaceSocket>>,
+        socket_uuid: ComInterfaceSocketUUID,
         endpoint: Endpoint,
         distance: i8,
     ) -> Result<(), SocketEndpointRegistrationError> {
-        log::info!(
+        info!(
             "Registering endpoint {} for socket {}",
             endpoint,
-            socket.try_lock().unwrap().uuid
+            socket_uuid
         );
-        let socket_ref = socket.try_lock().unwrap();
+        let socket = self.get_socket_by_uuid(&socket_uuid);
 
         // if the registered endpoint is the same as the socket endpoint,
         // this is a direct socket to the endpoint
-        let is_direct = socket_ref.direct_endpoint == Some(endpoint.clone());
+        let is_direct = socket.direct_endpoint == Some(endpoint.clone());
 
         // cannot register endpoint if socket is not connected
-        if !socket_ref.state.is_open() {
+        if !socket.state.is_open() {
             return Err(SocketEndpointRegistrationError::SocketDisconnected);
         }
 
@@ -132,15 +132,14 @@ impl SocketManager {
         if let Some(entries) = self.endpoint_sockets.get(&endpoint)
             && entries
                 .iter()
-                .any(|(socket_uuid, _)| socket_uuid == &socket_ref.uuid)
+                .any(|(socket_uuid, _)| socket_uuid == &socket.uuid)
         {
             return Err(SocketEndpointRegistrationError::SocketEndpointAlreadyRegistered);
         }
 
-        let socket_uuid = socket_ref.uuid.clone();
-        let channel_factor = socket_ref.channel_factor;
-        let direction = socket_ref.direction.clone();
-        drop(socket_ref);
+        let socket_uuid = socket.uuid.clone();
+        let channel_factor = socket.channel_factor;
+        let direction = socket.direction.clone();
 
         // add endpoint to socket endpoint list
         self.add_socket_endpoint(&socket_uuid, endpoint.clone());
@@ -250,13 +249,25 @@ impl SocketManager {
     /// Returns the socket for a given UUID
     /// The socket must be registered in the ComHub,
     /// otherwise a panic will be triggered
-    pub(crate) fn socket_by_uuid(
+    pub(crate) fn get_socket_by_uuid(
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
-    ) -> Arc<Mutex<ComInterfaceSocket>> {
+    ) -> &ComInterfaceSocket {
         self.sockets
             .get(socket_uuid)
-            .map(|socket| socket.0.clone())
+            .map(|socket| &socket.0)
+            .unwrap_or_else(|| {
+                core::panic!("Socket for uuid {socket_uuid} not found")
+            })
+    }
+    
+    pub(crate) fn get_socket_by_uuid_mut(
+        &mut self,
+        socket_uuid: &ComInterfaceSocketUUID,
+    ) -> &mut ComInterfaceSocket {
+        self.sockets
+            .get_mut(socket_uuid)
+            .map(|socket| &mut socket.0)
             .unwrap_or_else(|| {
                 core::panic!("Socket for uuid {socket_uuid} not found")
             })
@@ -271,7 +282,7 @@ impl SocketManager {
     fn add_socket_to_list(
         &mut self,
         socket_uuid: ComInterfaceSocketUUID,
-        socket: Arc<Mutex<ComInterfaceSocket>>,
+        socket: ComInterfaceSocket,
     ) {
         if self.has_socket(&socket_uuid) {
             core::panic!(
@@ -288,14 +299,13 @@ impl SocketManager {
     /// specified priority.
     fn handle_new_socket(
         &mut self,
-        socket: Arc<Mutex<ComInterfaceSocket>>,
+        socket: ComInterfaceSocket,
         priority: InterfacePriority,
     ) -> Result<(), ComHubError> {
-        let socket_ref = socket.try_lock().unwrap();
-        let can_send = socket_ref.can_send();
-        let socket_uuid = socket_ref.uuid.clone();
-        if self.has_socket(&socket_ref.uuid) {
-            core::panic!("Socket {} already exists in ComHub", socket_ref.uuid);
+        let can_send = socket.can_send();
+        let socket_uuid = socket.uuid.clone();
+        if self.has_socket(&socket.uuid) {
+            core::panic!("Socket {} already exists in ComHub", socket.uuid);
         }
 
         // info!(
@@ -303,16 +313,15 @@ impl SocketManager {
         //     socket_ref.uuid, priority
         // );
 
-        if !socket_ref.can_send() && priority != InterfacePriority::None {
+        if !socket.can_send() && priority != InterfacePriority::None {
             core::panic!(
                 "Socket {} cannot be used for fallback routing, since it has no send capability",
-                socket_ref.uuid
+                socket.uuid
             );
         }
-        let direction = socket_ref.direction.clone();
-        drop(socket_ref);
+        let direction = socket.direction.clone();
 
-        self.add_socket_to_list(socket_uuid.clone(), socket.clone());
+        self.add_socket_to_list(socket_uuid.clone(), socket);
 
         // add outgoing socket to fallback sockets list if they have a priority flag
         if can_send {
@@ -399,8 +408,7 @@ impl SocketManager {
                 }
                 for (socket_uuid, _) in endpoint_sockets.unwrap() {
                     {
-                        let socket = self.socket_by_uuid(&socket_uuid);
-                        let socket = socket.try_lock().unwrap();
+                        let socket = self.get_socket_by_uuid(&socket_uuid);
 
                         // check if only_direct is set and the endpoint equals the direct endpoint of the socket
                         if options.only_direct
@@ -518,15 +526,13 @@ impl SocketManager {
         // otherwise, return the highest priority socket that is not excluded
         else {
             for (socket_uuid, _, _) in self.fallback_sockets.iter() {
-                let socket = self.socket_by_uuid(socket_uuid);
+                let socket = self.get_socket_by_uuid(socket_uuid);
                 info!(
                     "{}: Find best for {}: {} ({}); excluded:{}",
                     local_endpoint,
                     endpoint,
                     socket_uuid,
                     socket
-                        .try_lock()
-                        .unwrap()
                         .direct_endpoint
                         .clone()
                         .map(|e| e.to_string())
@@ -600,8 +606,7 @@ impl SocketManager {
                 distance,
                 endpoint,
             ) => {
-                let socket = self.socket_by_uuid(&socket_uuid);
-                self.register_socket_endpoint(socket, endpoint.clone(), distance)
+                self.register_socket_endpoint(socket_uuid.clone(), endpoint.clone(), distance)
                 .unwrap_or_else(|e| {
                     error!(
                         "Failed to register socket {socket_uuid} for endpoint {endpoint} {e:?}"

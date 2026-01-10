@@ -1,13 +1,7 @@
 use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc, time::Duration};
 
 use datex_core::network::com_interfaces::{
-    com_interface_old::{ComInterfaceOld, ComInterfaceState},
-    com_interface_properties::{
-        InterfaceDirection, InterfaceProperties, ReconnectionConfig,
-    },
-    com_interface_socket::ComInterfaceSocketUUID,
     default_com_interfaces::base_interface::BaseInterface,
-    socket_provider::MultipleSocketProvider,
 };
 
 use crate::context::init_global_context;

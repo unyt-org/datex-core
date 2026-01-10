@@ -5,8 +5,6 @@ use core::panic;
 use core::str::FromStr;
 use datex_core::network::com_hub::network_tracing::TraceOptions;
 use datex_core::network::com_hub::{ComInterfaceImplementationFactoryFn, InterfacePriority};
-use datex_core::network::com_interfaces::com_interface_old::ComInterfaceFactoryOld;
-use datex_core::network::com_interfaces::com_interface_properties::InterfaceDirection;
 use datex_core::runtime::{AsyncContext, Runtime, RuntimeConfig};
 use datex_core::serde::serializer::to_value_container;
 use datex_core::values::core_values::endpoint::Endpoint;
@@ -19,6 +17,8 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::{env, fs};
+use datex_core::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use datex_core::network::com_interfaces::com_interface::properties::InterfaceDirection;
 
 pub struct InterfaceConnection {
     interface_type: String,

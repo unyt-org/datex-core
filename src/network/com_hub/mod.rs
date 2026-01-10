@@ -26,9 +26,7 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{
-    self, UnboundedReceiver, create_unbounded_channel, spawn_with_panic_notify,
-};
+use crate::task::{self, UnboundedReceiver, create_unbounded_channel, spawn_with_panic_notify};
 use crate::utils::time::Time;
 use core::cmp::PartialEq;
 use core::fmt::{Debug, Formatter};
@@ -376,24 +374,24 @@ impl ComHub {
         socket_uuid: ComInterfaceSocketUUID,
         block: &DXBBlock,
     ) {
-        let socket = self.socket_manager.borrow().socket_by_uuid(&socket_uuid);
-        let mut socket_ref = socket.try_lock().unwrap();
+        let mut socket_manager = self.socket_manager.borrow_mut();
+        let socket = socket_manager.get_socket_by_uuid_mut(&socket_uuid);
 
         let distance = block.routing_header.distance;
         let sender = block.routing_header.sender.clone();
 
         // set as direct endpoint if distance = 0
-        if socket_ref.direct_endpoint.is_none() && distance == 1 {
+        if socket.direct_endpoint.is_none() && distance == 1 {
             info!(
                 "Setting direct endpoint for socket {}: {}",
-                socket_ref.uuid, sender
+                socket.uuid, sender
             );
-            socket_ref.direct_endpoint = Some(sender.clone());
+            socket.direct_endpoint = Some(sender.clone());
         }
+        let uuid = socket.uuid.clone();
 
-        drop(socket_ref);
-        match self.socket_manager.borrow_mut().register_socket_endpoint(
-            socket.clone(),
+        match socket_manager.register_socket_endpoint(
+            uuid,
             sender.clone(),
             distance,
         ) {
@@ -505,9 +503,7 @@ impl ComHub {
                 } else if self
                     .socket_manager
                     .borrow_mut()
-                    .socket_by_uuid(&send_back_socket)
-                    .try_lock()
-                    .unwrap()
+                    .get_socket_by_uuid(&send_back_socket)
                     .can_send()
                 {
                     block.set_bounce_back(true);
@@ -1069,15 +1065,15 @@ impl ComHub {
             _ => {}
         }
 
-        let socket = self.socket_manager.borrow().socket_by_uuid(socket_uuid);
-        let mut socket_ref = socket.try_lock().unwrap();
+        let socket_manager = self.socket_manager.borrow();
+        let socket = socket_manager.get_socket_by_uuid(socket_uuid);
 
         let is_broadcast = endpoints
             .iter()
             .any(|e| e == &Endpoint::ANY_ALL_INSTANCES || e == &Endpoint::ANY);
 
         if is_broadcast
-            && let Some(direct_endpoint) = &socket_ref.direct_endpoint
+            && let Some(direct_endpoint) = &socket.direct_endpoint
             && (direct_endpoint == &self.endpoint
                 || direct_endpoint == &Endpoint::LOCAL)
         {
@@ -1086,7 +1082,7 @@ impl ComHub {
         for interceptor in self.outgoing_block_interceptors.borrow().iter() {
             interceptor(&block, socket_uuid, endpoints);
         }
-        match &block.to_bytes() {
+        match block.to_bytes() {
             Ok(bytes) => {
                 info!(
                     "Sending block to socket {}: {}",
@@ -1095,7 +1091,16 @@ impl ComHub {
                 );
 
                 // TODO #190: resend block if socket failed to send
-                socket_ref.queue_outgoing_block(bytes);
+                let com_interface = self
+                    .dyn_interface_for_socket_uuid(socket_uuid);
+                spawn_with_panic_notify(
+                    &self.async_context,
+                    send_outgoing_block_task(
+                        com_interface,
+                        socket_uuid.clone(),
+                        bytes
+                    )
+                );
             }
             Err(err) => {
                 error!("Failed to convert block to bytes: {err:?}");
@@ -1249,34 +1254,27 @@ async fn com_hub_event_task(
         match event {
             BlockSendEvent::NewSocket { socket_uuid } => {
                 info!("New socket connected: {}", socket_uuid);
-                let socket = self_rc
+                let mut socket_manager = self_rc
                     .socket_manager
-                    .borrow()
-                    .socket_by_uuid(&socket_uuid);
+                    .borrow_mut();
+                let socket = socket_manager
+                    .get_socket_by_uuid_mut(&socket_uuid);
+                let socket_can_send = socket.can_send();
+                let receiver = socket.take_block_in_receiver();
 
                 // spawn task to collect incoming blocks from this socket
                 spawn_with_panic_notify(
                     &async_context,
                     handle_incoming_socket_blocks_task(
-                        socket.try_lock().unwrap().take_block_in_receiver(),
+                        receiver,
                         socket_uuid.clone(),
                         self_rc.clone(),
                     ),
                 );
 
-                // spawn task to handle outgoing blocks for this socket
-                let com_interface =
-                    self_rc.dyn_interface_for_socket_uuid(&socket_uuid);
-                spawn_with_panic_notify(
-                    &async_context,
-                    handle_outgoing_socket_bytes_task(
-                        socket.try_lock().unwrap().take_bytes_out_receiver(),
-                        socket_uuid.clone(),
-                        com_interface,
-                    ),
-                );
+                drop(socket_manager);
 
-                if socket.try_lock().unwrap().can_send()
+                if socket_can_send
                     && let Err(err) =
                         self_rc.send_hello_block(socket_uuid).await
                 {
@@ -1299,15 +1297,13 @@ async fn handle_incoming_socket_blocks_task(
 }
 
 #[cfg_attr(feature = "embassy_runtime", embassy_executor::task)]
-async fn handle_outgoing_socket_bytes_task(
-    mut bytes_out_receiver: UnboundedReceiver<Vec<u8>>,
-    socket_uuid: ComInterfaceSocketUUID,
+async fn send_outgoing_block_task(
     com_interface: Rc<RefCell<ComInterface>>,
+    socket_uuid: ComInterfaceSocketUUID,
+    bytes: Vec<u8>,
 ) {
-    while let Some(bytes) = bytes_out_receiver.next().await {
-        com_interface
-            .borrow_mut()
-            .send_block(&bytes, socket_uuid.clone())
-            .await;
-    }
+    com_interface
+        .borrow_mut()
+        .send_block(&bytes, socket_uuid)
+        .await;
 }

@@ -2,44 +2,33 @@ use crate::std_sync::Mutex;
 use crate::stdlib::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use core::prelude::rust_2024::*;
 use core::result::Result;
-
+use crate::stdlib::cell::RefCell;
+use crate::stdlib::rc::Rc;
 use super::serial_common::{SerialError, SerialInterfaceSetupData};
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceError, ComInterfaceFactoryOld,
-};
+
 use crate::{
-    delegate_com_interface_info,
-    network::com_interfaces::{
-        com_interface_old::{ComInterfaceOld, ComInterfaceInfo, ComInterfaceSockets},
-        com_interface_properties::{InterfaceDirection, InterfaceProperties},
-        com_interface_socket::{ComInterfaceSocket, ComInterfaceSocketUUID},
-    },
-    set_sync_opener,
-};
-use crate::{
-    network::com_interfaces::{
-        com_interface_old::ComInterfaceState, socket_provider::SingleSocketProvider,
-    },
     task::spawn,
     task::spawn_blocking,
 };
 use log::{debug, error, warn};
 use serialport::SerialPort;
 use tokio::sync::Notify;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use datex_macros::{com_interface, create_opener};
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::socket_manager::ComInterfaceSocketManager;
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
 
 pub struct SerialNativeInterface {
-    info: ComInterfaceInfo,
+    com_interface: Rc<RefCell<ComInterface>>,
     shutdown_signal: Arc<Notify>,
     port: Arc<Mutex<Box<dyn SerialPort + Send>>>,
 }
-impl SingleSocketProvider for SerialNativeInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets()
-    }
-}
 
-use datex_macros::{com_interface, create_opener};
-#[com_interface]
 impl SerialNativeInterface {
     const TIMEOUT: Duration = Duration::from_millis(1000);
     const BUFFER_SIZE: usize = 1024;
@@ -53,42 +42,47 @@ impl SerialNativeInterface {
             .collect()
     }
 
-    pub fn new(port_name: &str) -> Result<SerialNativeInterface, SerialError> {
-        Self::new_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE)
+    pub fn new(
+        port_name: &str,
+        com_interface: Rc<RefCell<ComInterface>>,
+    ) -> Result<SerialNativeInterface, SerialError> {
+        Self::new_with_baud_rate(port_name, Self::DEFAULT_BAUD_RATE, com_interface)
     }
     // Allow to open interface with a configured port
     pub fn new_with_port(
         port: Box<dyn SerialPort + Send>,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<SerialNativeInterface, SerialError> {
         let interface = SerialNativeInterface {
             shutdown_signal: Arc::new(Notify::new()),
-            info: ComInterfaceInfo::new(),
             port: Arc::new(Mutex::new(port)),
+            com_interface,
         };
         Ok(interface)
     }
     pub fn new_with_baud_rate(
         port_name: &str,
         baud_rate: u32,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<SerialNativeInterface, SerialError> {
         let port = serialport::new(port_name, baud_rate)
             .timeout(Self::TIMEOUT)
             .open()
             .map_err(|_| SerialError::PortNotFound)?;
-        Self::new_with_port(port)
+        Self::new_with_port(port, com_interface)
     }
 
-    #[create_opener]
-    fn open(&mut self) -> Result<(), SerialError> {
-        let state = self.get_info().state.clone();
+    fn open(&self) -> Result<(), SerialError> {
+        let state = self.com_interface.borrow().state();
         let port = self.port.clone();
-        let socket = ComInterfaceSocket::init(
-            self.uuid().clone(),
-            InterfaceDirection::InOut,
-            1,
-        );
-        let bytes_in_sender = socket.bytes_in_sender.clone();
-        self.add_socket(Arc::new(Mutex::new(socket)));
+
+        let (socket_uuid, mut sender) = self
+            .com_interface
+            .borrow()
+            .socket_manager().lock().unwrap()
+            .create_and_init_socket(InterfaceDirection::InOut, 1);
+
+
         let shutdown_signal = self.shutdown_signal.clone();
         spawn(async move {
             loop {
@@ -110,7 +104,7 @@ impl SerialNativeInterface {
                         match result {
                             Ok(Some(incoming)) => {
                                 let size = incoming.len();
-                                bytes_in_sender.try_lock().unwrap().start_send(incoming);
+                                sender.start_send(incoming).unwrap();
                                 debug!(
                                     "Received data from serial port: {size}"
                                 );
@@ -131,15 +125,17 @@ impl SerialNativeInterface {
     }
 }
 
-impl ComInterfaceFactoryOld<SerialInterfaceSetupData> for SerialNativeInterface {
+impl ComInterfaceFactory for SerialNativeInterface {
+    type SetupData = SerialInterfaceSetupData;
     fn create(
-        setup_data: SerialInterfaceSetupData,
+        setup_data: Self::SetupData,
+        com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<SerialNativeInterface, ComInterfaceError> {
         if let Some(port) = setup_data.port_name {
             if port.is_empty() {
                 return Err(ComInterfaceError::InvalidSetupData);
             }
-            SerialNativeInterface::new(&port)
+            SerialNativeInterface::new(&port, com_interface)
                 .map_err(|_| ComInterfaceError::InvalidSetupData)
         } else {
             Err(ComInterfaceError::InvalidSetupData)
@@ -157,9 +153,9 @@ impl ComInterfaceFactoryOld<SerialInterfaceSetupData> for SerialNativeInterface 
     }
 }
 
-impl ComInterfaceOld for SerialNativeInterface {
+impl ComInterfaceImplementation for SerialNativeInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -176,11 +172,8 @@ impl ComInterfaceOld for SerialNativeInterface {
         })
     }
 
-    fn init_properties(&self) -> InterfaceProperties {
-        Self::get_default_properties()
-    }
     fn handle_close<'a>(
-        &'a mut self,
+        &'a self,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let shutdown_signal = self.shutdown_signal.clone();
         Box::pin(async move {
@@ -188,6 +181,12 @@ impl ComInterfaceOld for SerialNativeInterface {
             true
         })
     }
-    delegate_com_interface_info!();
-    set_sync_opener!(open);
+
+    fn get_properties(&self) -> InterfaceProperties {
+        Self::get_default_properties()
+    }
+
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+        Box::pin(async move { self.open().is_ok() })
+    }
 }

@@ -85,8 +85,8 @@ impl ComHub {
         &self,
         socket_uuid: &ComInterfaceSocketUUID,
     ) -> Rc<RefCell<ComInterface>> {
-        let socket = self.socket_manager.borrow().socket_by_uuid(socket_uuid);
-        let socket = socket.try_lock().unwrap();
+        let socket_manager = self.socket_manager.borrow();
+        let socket = socket_manager.get_socket_by_uuid(socket_uuid);
         self.interface_manager
             .borrow()
             .dyn_interface_by_uuid(&socket.interface_uuid)

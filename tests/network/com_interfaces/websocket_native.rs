@@ -1,13 +1,10 @@
 use crate::context::init_global_context;
 use datex_core::network::com_interfaces::default_com_interfaces::websocket::websocket_common::WebSocketError;
-use datex_core::network::com_interfaces::socket_provider::MultipleSocketProvider;
 use datex_core::network::com_interfaces::{
-    com_interface_old::ComInterfaceOld,
     default_com_interfaces::{
         websocket::websocket_client_native_interface::WebSocketClientNativeInterface,
         websocket::websocket_server_native_interface::WebSocketServerNativeInterface,
     },
-    socket_provider::SingleSocketProvider,
 };
 
 use datex_core::run_async;

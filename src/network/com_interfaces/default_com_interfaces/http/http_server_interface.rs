@@ -25,24 +25,15 @@ use datex_macros::{com_interface, create_opener};
 use log::{debug, error, info};
 use tokio::sync::{RwLock, broadcast, mpsc};
 use url::Url;
-
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceOld, ComInterfaceState,
-};
-use crate::network::com_interfaces::com_interface_old::{
-    ComInterfaceInfo, ComInterfaceSockets,
-};
-use crate::network::com_interfaces::com_interface_properties::{
-    InterfaceDirection, InterfaceProperties,
-};
-use crate::network::com_interfaces::com_interface_socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
-};
-use crate::network::com_interfaces::socket_provider::MultipleSocketProvider;
+use datex_core::network::com_interfaces::com_interface::implementation::ComInterfaceImplementation;
+use crate::network::com_interfaces::com_interface::ComInterface;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use crate::network::com_interfaces::com_interface::properties::{InterfaceDirection, InterfaceProperties};
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::values::core_values::endpoint::Endpoint;
-use crate::{delegate_com_interface_info, set_opener};
 
-use super::http_common::HTTPError;
+use super::http_common::{HTTPError, HTTPServerInterfaceSetupData};
 
 async fn server_to_client_handler(
     Path(route): Path<String>,
@@ -103,7 +94,7 @@ async fn client_to_server_handler(
 
 pub struct HTTPServerNativeInterface {
     pub address: Url,
-    info: ComInterfaceInfo,
+    com_interface: Rc<RefCell<ComInterface>>,
     socket_channel_mapping:
         Rc<RefCell<HashMap<String, ComInterfaceSocketUUID>>>,
     channels: Arc<RwLock<HTTPChannelMap>>,
@@ -117,45 +108,25 @@ struct HTTPServerState {
     channels: Arc<RwLock<HTTPChannelMap>>,
 }
 
-impl MultipleSocketProvider for HTTPServerNativeInterface {
-    fn provide_sockets(&self) -> Arc<Mutex<ComInterfaceSockets>> {
-        self.get_sockets().clone()
-    }
-}
-
-#[com_interface]
 impl HTTPServerNativeInterface {
-    pub fn new(port: &u16) -> Result<HTTPServerNativeInterface, HTTPError> {
-        let info = ComInterfaceInfo::new();
-        let address: String = format!("http://127.0.0.1:{port}");
-        let address =
-            Url::parse(&address).map_err(|_| HTTPError::InvalidAddress)?;
-
-        let interface = HTTPServerNativeInterface {
-            channels: Arc::new(RwLock::new(HashMap::new())),
-            address,
-            socket_channel_mapping: Rc::new(RefCell::new(HashMap::new())),
-            info,
-        };
-        Ok(interface)
-    }
-
     pub async fn add_channel(&mut self, route: &str, endpoint: Endpoint) {
         let mut map = self.channels.write().await;
         if !map.contains_key(route) {
             let (server_tx, _) = broadcast::channel::<Bytes>(100);
             let (client_tx, mut rx) = mpsc::channel::<Bytes>(100); // FIXME #198 not braodcast needed
             map.insert(route.to_string(), (server_tx, client_tx));
-            let socket = ComInterfaceSocket::init(
-                self.uuid().clone(),
-                InterfaceDirection::InOut,
-                1,
-            );
-            let socket_uuid = socket.uuid.clone();
-            let bytes_in_sender = socket.bytes_in_sender.clone();
-            self.add_socket(Arc::new(Mutex::new(socket)));
-            self.register_socket_endpoint(socket_uuid.clone(), endpoint, 1)
+            let (socket_uuid, mut sender) = self
+                .com_interface
+                .borrow()
+                .socket_manager().lock().unwrap()
+                .create_and_init_socket(InterfaceDirection::InOut, 1);
+            self
+                .com_interface
+                .borrow()
+                .socket_manager().lock().unwrap()
+                .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
                 .unwrap();
+            
             self.socket_channel_mapping
                 .borrow_mut()
                 .insert(route.to_string(), socket_uuid.clone());
@@ -168,10 +139,7 @@ impl HTTPServerNativeInterface {
                             data.to_vec(),
                             socket_uuid
                         );
-                        bytes_in_sender
-                            .try_lock()
-                            .unwrap()
-                            .start_send(data.to_vec());
+                        sender.start_send(data.to_vec()).unwrap();
                     }
                 }
             });
@@ -188,15 +156,20 @@ impl HTTPServerNativeInterface {
                 return;
             }
         };
-        self.remove_socket(&socket_uuid);
+        
+        self
+            .com_interface
+            .borrow()
+            .socket_manager().lock().unwrap()
+            .remove_socket(socket_uuid);
+        
         let mut map = self.channels.write().await;
         if map.get(route).is_some() {
             map.remove(route);
         }
     }
 
-    #[create_opener]
-    async fn open(&mut self) -> Result<(), HTTPError> {
+    async fn open(&self) -> Result<(), HTTPError> {
         let address = self.address.clone();
         info!("Spinning up server at {address}");
 
@@ -227,24 +200,9 @@ impl HTTPServerNativeInterface {
     }
 }
 
-impl ComInterfaceOld for HTTPServerNativeInterface {
-    fn init_properties(&self) -> InterfaceProperties {
-        InterfaceProperties {
-            interface_type: "http-server".to_string(),
-            channel: "http".to_string(),
-            round_trip_time: Duration::from_millis(20),
-            max_bandwidth: 1000,
-            ..InterfaceProperties::default()
-        }
-    }
-    fn handle_close<'a>(
-        &'a mut self,
-    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        // TODO #199
-        Box::pin(async move { true })
-    }
+impl ComInterfaceImplementation for HTTPServerNativeInterface {
     fn send_block<'a>(
-        &'a mut self,
+        &'a self,
         block: &'a [u8],
         socket: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -265,7 +223,46 @@ impl ComInterfaceOld for HTTPServerNativeInterface {
             }
         })
     }
+    fn get_properties(&self) -> InterfaceProperties {
+        HTTPServerNativeInterface::get_default_properties()
+    }
 
-    delegate_com_interface_info!();
-    set_opener!(open);
+    fn handle_close<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
+        // TODO #199
+        Box::pin(async move { true })
+    }
+
+    fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output=bool> + 'a>> {
+        Box::pin(async move { self.open().await.is_ok() })
+    }
+}
+
+impl ComInterfaceFactory for HTTPServerNativeInterface {
+    type SetupData = HTTPServerInterfaceSetupData;
+
+    fn create(setup_data: Self::SetupData, com_interface: Rc<RefCell<ComInterface>>) -> Result<Self, ComInterfaceError> {
+        let address: String = format!("http://127.0.0.1:{}", setup_data.port);
+        let address =
+            Url::parse(&address).map_err(|_| HTTPError::InvalidAddress).map_err(|e| ComInterfaceError::InvalidSetupData)?;
+
+        let interface = HTTPServerNativeInterface {
+            channels: Arc::new(RwLock::new(HashMap::new())),
+            address,
+            socket_channel_mapping: Rc::new(RefCell::new(HashMap::new())),
+            com_interface
+        };
+        Ok(interface)
+    }
+
+    fn get_default_properties() -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "http-server".to_string(),
+            channel: "http".to_string(),
+            round_trip_time: Duration::from_millis(20),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
+    }
 }

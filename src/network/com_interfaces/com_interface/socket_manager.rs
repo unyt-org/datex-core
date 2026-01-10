@@ -51,10 +51,10 @@ impl ComInterfaceSocketManager {
     }
 
     /// Removes a socket by its UUID and notifies listeners on ComHub
-    pub fn remove_socket(&mut self, socket_uuid: &ComInterfaceSocketUUID) {
+    pub fn remove_socket(&mut self, socket_uuid: ComInterfaceSocketUUID) {
         self.socket_event_sender
             .start_send(ComInterfaceSocketEvent::RemovedSocket(
-                socket_uuid.clone(),
+                socket_uuid
             ))
             .unwrap();
         // FIXME socket state

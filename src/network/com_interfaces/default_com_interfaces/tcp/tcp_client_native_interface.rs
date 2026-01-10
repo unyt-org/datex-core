@@ -25,15 +25,17 @@ use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::str::FromStr;
 use core::time::Duration;
+use futures_util::FutureExt;
 use datex_macros::{com_interface, create_opener};
 use log::{error, warn};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedWriteHalf;
+use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 
 pub struct TCPClientNativeInterface {
     pub address: SocketAddr,
-    tx: RefCell<Option<OwnedWriteHalf>>,
+    tx: Rc<RefCell<Option<OwnedWriteHalf>>>,
     com_interface: Rc<RefCell<ComInterface>>,
 }
 
@@ -67,7 +69,7 @@ impl TCPClientNativeInterface {
                         break;
                     }
                     Ok(n) => {
-                        sender.start_send(buffer[..n].to_vec());
+                        sender.start_send(buffer[..n].to_vec()).unwrap();
                     }
                     Err(e) => {
                         error!("Failed to read from socket: {e}");
@@ -91,21 +93,35 @@ impl ComInterfaceImplementation for TCPClientNativeInterface {
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         let tx = self.tx.clone();
-        if tx.is_none() {
-            error!("Client is not connected");
-            return Box::pin(async { false });
-        }
-        Box::pin(
-            async move { tx.unwrap().borrow_mut().write(block).await.is_ok() },
-        )
+        Box::pin(async move {
+            let mut tx = tx.borrow_mut();
+            if let Some(tx) = tx.as_mut() {
+                match tx.write_all(block).await {
+                    Ok(_) => true,
+                    Err(e) => {
+                        error!("Failed to send data: {}", e);
+                        false
+                    }
+                }
+            } else {
+                error!("Client is not connected");
+                false
+            }
+        })
     }
+    fn get_properties(&self) -> InterfaceProperties {
+        InterfaceProperties {
+            interface_type: "tcp-client".to_string(),
+            channel: "tcp".to_string(),
+            round_trip_time: Duration::from_millis(20),
+            max_bandwidth: 1000,
+            ..InterfaceProperties::default()
+        }
+    }
+
     fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
         // TODO #208
         Box::pin(async move { true })
-    }
-
-    fn get_properties(&self) -> InterfaceProperties {
-        todo!()
     }
 
     fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
@@ -121,15 +137,13 @@ impl ComInterfaceFactory for TCPClientNativeInterface {
         com_interface: Rc<RefCell<ComInterface>>,
     ) -> Result<
         Self,
-        crate::network::com_interfaces::com_interface::error::ComInterfaceError,
+        ComInterfaceError,
     > {
         let address = SocketAddr::from_str(&setup_data.address)
-            .map_err(|_| crate::network::com_interfaces::com_interface::error::ComInterfaceError::SetupError(
-                "Invalid TCP address".to_string(),
-            ))?;
+            .map_err(|_| ComInterfaceError::InvalidSetupData)?;
         Ok(TCPClientNativeInterface {
             address,
-            tx: RefCell::new(None),
+            tx: Rc::new(RefCell::new(None)),
             com_interface,
         })
     }

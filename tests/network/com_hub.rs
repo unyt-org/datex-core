@@ -6,7 +6,6 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::{RoutingHeader, SignatureType};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::network::com_interfaces::com_interface_properties::{InterfaceProperties, ReconnectionConfig};
 use datex_core::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface;
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
@@ -14,6 +13,11 @@ use datex_core::stdlib::rc::Rc;
 use std::sync::mpsc;
 use tokio::task::yield_now;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
+use datex_core::network::com_interfaces::com_interface::ComInterface;
+use datex_core::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
+use datex_core::network::com_interfaces::com_interface::properties::{InterfaceProperties, ReconnectionConfig};
+use datex_core::network::com_interfaces::com_interface::socket::SocketState;
+use datex_core::network::com_interfaces::com_interface::state::ComInterfaceState;
 use super::helpers::mock_setup::get_mock_setup_and_socket_for_endpoint;
 use crate::context::init_global_context;
 use crate::network::helpers::mock_setup::{
@@ -27,10 +31,6 @@ use crate::network::helpers::mock_setup::{
 use crate::network::helpers::mockup_interface::{
     MockupInterface, MockupInterfaceSetupData,
 };
-use datex_core::network::com_interfaces::com_interface_old::{
-    ComInterfaceOld, ComInterfaceFactoryOld, ComInterfaceState,
-};
-use datex_core::network::com_interfaces::com_interface_socket::SocketState;
 use datex_core::runtime::AsyncContext;
 use datex_core::values::core_values::endpoint::Endpoint;
 
@@ -41,12 +41,12 @@ pub async fn test_add_and_remove() {
         let com_hub =
             Rc::new(ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel));
         let uuid = {
-            let mockup_interface =
-                Rc::new(RefCell::new(MockupInterface::default()));
+            let mockup_interface = ComInterface
+                ::create_with_implementation::<MockupInterface>(MockupInterfaceSetupData::new("test")).unwrap();
             let uuid = mockup_interface.borrow().uuid().clone();
             com_hub
                 .open_and_add_interface(
-                    mockup_interface.clone(),
+                    mockup_interface,
                     InterfacePriority::default(),
                 )
                 .await
@@ -65,9 +65,11 @@ pub async fn test_multiple_add() {
         init_global_context();
 
         let com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Collector);
-
-        let mockup_interface1 = Rc::new(RefCell::new(MockupInterface::default()));
-        let mockup_interface2 = Rc::new(RefCell::new(MockupInterface::default()));
+        
+        let mockup_interface1 = ComInterface
+                ::create_with_implementation::<MockupInterface>(MockupInterfaceSetupData::new("mockup_interface1")).unwrap();
+        let mockup_interface2 = ComInterface
+                ::create_with_implementation::<MockupInterface>(MockupInterfaceSetupData::new("mockup_interface2")).unwrap();
 
         com_hub
             .open_and_add_interface(
@@ -162,15 +164,15 @@ pub async fn send_block_to_multiple_endpoints() {
         init_global_context();
         let (com_hub, com_interface) = get_mock_setup().await;
 
-        let socket = create_and_add_socket(com_interface.clone());
+        let socket_uuid = create_and_add_socket(com_interface.clone()).unwrap();
         register_socket_endpoint(
             com_interface.clone(),
-            socket.clone(),
+            socket_uuid.clone(),
             TEST_ENDPOINT_A.clone(),
         );
         register_socket_endpoint(
             com_interface.clone(),
-            socket.clone(),
+            socket_uuid.clone(),
             TEST_ENDPOINT_B.clone(),
         );
         yield_now().await;
@@ -191,7 +193,7 @@ pub async fn send_block_to_multiple_endpoints() {
                 .await
                 .unwrap();
 
-        assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
+        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
         assert!(mockup_interface_out.last_block().is_some());
         assert_eq!(block_bytes.body, block.body);
     };
@@ -203,8 +205,8 @@ pub async fn send_blocks_to_multiple_endpoints() {
         init_global_context();
         let (com_hub, com_interface) = get_mock_setup().await;
 
-        let socket_a = create_and_add_socket(com_interface.clone());
-        let socket_b = create_and_add_socket(com_interface.clone());
+        let socket_a = create_and_add_socket(com_interface.clone()).unwrap();
+        let socket_b = create_and_add_socket(com_interface.clone()).unwrap();
         register_socket_endpoint(
             com_interface.clone(),
             socket_a.clone(),
@@ -226,12 +228,12 @@ pub async fn send_blocks_to_multiple_endpoints() {
 
         let mockup_interface_out = com_interface.clone();
         let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.len(), 2);
+        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 2);
 
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_a.try_lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(&socket_a));
         assert!(mockup_interface_out
-            .has_outgoing_block_for_socket(socket_b.try_lock().unwrap().uuid.clone()));
+            .has_outgoing_block_for_socket(&socket_b));
 
         assert!(mockup_interface_out.last_block().is_some());
     };
@@ -251,7 +253,7 @@ pub async fn default_interface_create_socket_first() {
 
         let mockup_interface_out = com_interface.clone();
         let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
+        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
     };
 }
 
@@ -266,7 +268,7 @@ pub async fn default_interface_set_default_interface_first() {
         )
         .await;
 
-        let socket = create_and_add_socket(com_interface.clone());
+        let socket = create_and_add_socket(com_interface.clone()).unwrap();
         register_socket_endpoint(
             com_interface.clone(),
             socket.clone(),
@@ -284,7 +286,7 @@ pub async fn default_interface_set_default_interface_first() {
 
         let mockup_interface_out = com_interface.clone();
         let mockup_interface_out = mockup_interface_out.borrow();
-        assert_eq!(mockup_interface_out.outgoing_queue.len(), 1);
+        assert_eq!(mockup_interface_out.outgoing_queue.borrow().len(), 1);
     });
 }
 
@@ -489,7 +491,7 @@ pub async fn test_add_and_remove_interface_and_sockets() {
         }
 
         assert_eq!(
-            com_interface.borrow_mut().get_info().get_state(),
+            com_interface.borrow_mut().info(),
             ComInterfaceState::Connected
         );
 
@@ -594,7 +596,7 @@ pub async fn register_factory() {
         assert_eq!(
             mockup_interface
                 .borrow_mut()
-                .get_properties()
+                .properties()
                 .interface_type,
             "mockup"
         );
