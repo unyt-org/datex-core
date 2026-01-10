@@ -5,14 +5,14 @@ use crate::network::com_interfaces::com_interface::properties::InterfaceProperti
 use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::serde::Deserialize;
 use crate::serde::deserializer::from_value_container;
+use crate::stdlib::any::Any;
 use crate::stdlib::cell::RefCell;
 use crate::stdlib::rc::Rc;
 use crate::values::value_container::ValueContainer;
 use core::pin::Pin;
 use log::error;
 
-/// A specific implementation of a communication interface for a channel
-pub trait ComInterfaceImplementation: 'static {
+pub trait ComInterfaceImplementation {
     fn send_block<'a>(
         &'a self,
         block: &'a [u8],
@@ -22,6 +22,25 @@ pub trait ComInterfaceImplementation: 'static {
     fn get_properties(&self) -> InterfaceProperties;
     fn handle_close<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
     fn handle_open<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + 'a>>;
+}
+
+/// A specific implementation of a communication interface for a channel
+pub trait ComInterfaceImpl: ComInterfaceImplementation + Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T> ComInterfaceImpl for T
+where
+    T: ComInterfaceImplementation + Any,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 /// This trait can be implemented by any ComInterfaceImplementation impl that wants to
@@ -55,7 +74,7 @@ pub trait ComInterfaceImplementation: 'static {
 /// }
 pub trait ComInterfaceFactory
 where
-    Self: Sized + ComInterfaceImplementation,
+    Self: Sized + ComInterfaceImpl,
 {
     type SetupData: Deserialize<'static> + 'static;
 
@@ -65,7 +84,7 @@ where
     fn factory(
         setup_data: ValueContainer,
         com_interface: Rc<RefCell<ComInterface>>,
-    ) -> Result<Box<dyn ComInterfaceImplementation>, ComInterfaceError> {
+    ) -> Result<Box<dyn ComInterfaceImpl>, ComInterfaceError> {
         let data = from_value_container::<Self::SetupData>(setup_data);
         match data {
             Ok(init_data) => {

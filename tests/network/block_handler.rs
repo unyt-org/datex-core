@@ -8,12 +8,12 @@ use datex_core::global::protocol_structures::block_header::{
     BlockHeader, BlockType, FlagsAndTimestamp,
 };
 use datex_core::global::protocol_structures::routing_header::RoutingHeader;
+use datex_core::network::block_handler::IncomingSectionsSinkType;
 use datex_core::run_async;
 use log::info;
 use std::rc::Rc;
 use std::sync::mpsc;
 use tokio::task::yield_now;
-use datex_core::network::block_handler::IncomingSectionsSinkType;
 
 #[tokio::test]
 async fn receive_single_block() {
@@ -22,7 +22,7 @@ async fn receive_single_block() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, socket_uuid) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         com_interface.borrow_mut().receiver = Rc::new(RefCell::new(Some(receiver)));
 
         let context_id = com_hub.block_handler.get_new_context_id();
@@ -426,7 +426,7 @@ async fn receive_multiple_sections() {
         // update the com interface
         com_interface.borrow_mut().update().await;
         yield_now().await;
-        
+
         // block must not be in incoming_sections_queue
         let new_sections = com_hub.block_handler.drain_collected_sections();
         assert_eq!(new_sections.len(), 0);

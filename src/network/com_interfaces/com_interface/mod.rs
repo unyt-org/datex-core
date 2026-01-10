@@ -2,7 +2,7 @@ use crate::collections::HashMap;
 use crate::network::com_hub::ComInterfaceImplementationFactoryFn;
 use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::{
-    ComInterfaceFactory, ComInterfaceImplementation,
+    ComInterfaceFactory, ComInterfaceImpl, ComInterfaceImplementation,
 };
 use crate::network::com_interfaces::com_interface::properties::{
     InterfaceDirection, InterfaceProperties,
@@ -106,15 +106,13 @@ impl ComInterfaceInfo {
                 ),
             )),
             uuid,
-            interface_event_receiver: RefCell::new(
-                OnceConsumer::new(
-                    interface_event_receiver,
-                )
-            ),
+            interface_event_receiver: RefCell::new(OnceConsumer::new(
+                interface_event_receiver,
+            )),
             interface_properties,
-            socket_event_receiver: RefCell::new(
-                OnceConsumer::new(socket_event_receiver)
-            ),
+            socket_event_receiver: RefCell::new(OnceConsumer::new(
+                socket_event_receiver,
+            )),
         }
     }
 
@@ -144,7 +142,7 @@ pub enum ComInterface {
         info: Option<ComInterfaceInfo>,
     },
     Initialized {
-        implementation: Box<dyn ComInterfaceImplementation>,
+        implementation: Box<dyn ComInterfaceImpl>,
         info: ComInterfaceInfo,
     },
 }
@@ -166,7 +164,6 @@ impl ComInterface {
         // Create the implementation using the factory function
         let implementation = factory_fn(setup_data, com_interface.clone())?;
         com_interface.borrow_mut().initialize(implementation);
-
         Ok(com_interface)
     }
 
@@ -193,13 +190,25 @@ impl ComInterface {
         Ok(com_interface)
     }
 
+    pub fn implementation_mut<T: ComInterfaceImpl>(&mut self) -> &mut T {
+        match self {
+            ComInterface::Headless { .. } => {
+                panic!(
+                    "ComInterface is not initialized with an implementation"
+                );
+            }
+            ComInterface::Initialized { implementation, .. } => implementation
+                .as_mut()
+                .as_any_mut()
+                .downcast_mut::<T>()
+                .expect("Failed to downcast ComInterfaceImplementation"),
+        }
+    }
+
     /// Initializes a headless ComInterface with the provided implementation
     /// and upgrades it to an Initialized state.
     /// This can only be done once on a headless interface and will panic if attempted on an already initialized interface.
-    fn initialize(
-        &mut self,
-        implementation: Box<dyn ComInterfaceImplementation>,
-    ) {
+    fn initialize(&mut self, implementation: Box<dyn ComInterfaceImpl>) {
         match self {
             ComInterface::Headless { info } => {
                 *self = ComInterface::Initialized {

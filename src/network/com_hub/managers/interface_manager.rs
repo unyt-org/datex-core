@@ -1,4 +1,4 @@
-use crate::{network::com_interfaces::com_interface::{error::ComInterfaceError, implementation::ComInterfaceImplementation, properties::InterfaceDirection, state::ComInterfaceState}, stdlib::{cell::RefCell, rc::Rc}};
+use crate::{network::com_interfaces::com_interface::{error::ComInterfaceError, implementation::{ComInterfaceImpl, ComInterfaceImplementation}, properties::InterfaceDirection, state::ComInterfaceState}, stdlib::{cell::RefCell, rc::Rc}};
 
 use log::info;
 
@@ -22,7 +22,7 @@ pub type ComInterfaceImplementationFactoryFn =
     fn(
         setup_data: ValueContainer,
         interface: Rc<RefCell<ComInterface>>,
-    ) -> Result<Box<dyn ComInterfaceImplementation>, ComInterfaceError>;
+    ) -> Result<Box<dyn ComInterfaceImpl>, ComInterfaceError>;
 
 #[derive(Default)]
 pub struct InterfaceManager {
