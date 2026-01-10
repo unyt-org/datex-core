@@ -1,7 +1,13 @@
 use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc, time::Duration};
 
 use datex_core::network::com_interfaces::{
-    default_com_interfaces::base_interface::BaseInterface,
+    com_interface::{
+        ComInterface, implementation::ComInterfaceFactory,
+        state::ComInterfaceState,
+    },
+    default_com_interfaces::base_interface::{
+        BaseInterface, BaseInterfaceSetupData,
+    },
 };
 
 use crate::context::init_global_context;
@@ -10,25 +16,49 @@ use crate::context::init_global_context;
 pub async fn test_close() {
     init_global_context();
     // Create a new interface
-    let mut base_interface =
-        BaseInterface::new_with_properties(InterfaceProperties {
-            reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
-                timeout: Duration::from_secs(1),
-            },
-            ..InterfaceProperties::default()
-        });
-    assert_eq!(base_interface.get_state(), ComInterfaceState::NotConnected);
-    assert!(base_interface.get_properties().close_timestamp.is_none());
+    let mut base_interface = ComInterface::create_with_implementation::<
+        BaseInterface,
+    >(BaseInterfaceSetupData::default())
+    .expect("Failed to create BaseInterface");
+    assert_eq!(
+        base_interface.borrow().current_state(),
+        ComInterfaceState::NotConnected
+    );
+    assert!(
+        base_interface
+            .borrow()
+            .properties()
+            .close_timestamp
+            .is_none()
+    );
 
     // Open the interface
-    base_interface.open().unwrap();
-    assert_eq!(base_interface.get_state(), ComInterfaceState::Connected);
-    assert!(base_interface.get_properties().close_timestamp.is_none());
+    base_interface.borrow_mut().open().await;
+    assert_eq!(
+        base_interface.borrow().current_state(),
+        ComInterfaceState::Connected
+    );
+    assert!(
+        base_interface
+            .borrow()
+            .properties()
+            .close_timestamp
+            .is_none()
+    );
 
     // Close the interface
-    assert!(base_interface.close().await);
-    assert_eq!(base_interface.get_state(), ComInterfaceState::NotConnected);
-    assert!(base_interface.get_properties().close_timestamp.is_some());
+    assert!(base_interface.borrow_mut().close().await);
+    assert_eq!(
+        base_interface.borrow().current_state(),
+        ComInterfaceState::NotConnected
+    );
+    assert!(
+        base_interface
+            .borrow()
+            .properties()
+            .close_timestamp
+            .is_some()
+    );
 }
 
 #[tokio::test]

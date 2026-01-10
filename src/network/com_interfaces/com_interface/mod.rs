@@ -314,6 +314,28 @@ impl ComInterface {
         }
     }
 
+    pub async fn open(&mut self) -> bool {
+        if self.current_state() == ComInterfaceState::Connected {
+            // already connected
+            return true;
+        }
+        self.set_state(ComInterfaceState::Connecting);
+        let result = match self {
+            ComInterface::Headless { .. } => {
+                panic!("Cannot open headless ComInterface");
+            }
+            ComInterface::Initialized { implementation, .. } => {
+                implementation.handle_open().await
+            }
+        };
+        if result {
+            self.set_state(ComInterfaceState::Connected);
+        } else {
+            self.set_state(ComInterfaceState::NotConnected);
+        }
+        result
+    }
+
     pub async fn close(&mut self) -> bool {
         self.set_state(ComInterfaceState::Closing);
         let result = match self {

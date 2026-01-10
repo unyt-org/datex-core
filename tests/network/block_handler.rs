@@ -88,7 +88,7 @@ async fn receive_multiple_blocks() {
 
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
-        let (com_hub, com_interface, socket) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
+        let (com_hub, com_interface, _) = get_mock_setup_and_socket(IncomingSectionsSinkType::Collector).await;
         {
             let mut com_interface_borrowed = com_interface.borrow_mut();
             let  mockup_interface_impl = com_interface_borrowed
