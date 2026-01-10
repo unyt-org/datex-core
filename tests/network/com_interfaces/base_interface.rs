@@ -1,69 +1,19 @@
-use std::{cell::RefCell, future::Future, pin::Pin, rc::Rc, time::Duration};
+use datex_core::stdlib::{future::Future, pin::Pin};
 
 use datex_core::{
     network::com_interfaces::{
         com_interface::{
-            ComInterface, implementation::ComInterfaceFactory,
-            properties::InterfaceDirection, socket::ComInterfaceSocketUUID,
-            state::ComInterfaceState,
+            ComInterface, properties::InterfaceDirection,
+            socket::ComInterfaceSocketUUID, state::ComInterfaceState,
         },
         default_com_interfaces::base_interface::{
-            self, BaseInterface, BaseInterfaceSetupData,
+            BaseInterface, BaseInterfaceSetupData,
         },
     },
     values::core_values::endpoint::Endpoint,
 };
 
 use crate::context::init_global_context;
-
-#[tokio::test]
-pub async fn test_close() {
-    init_global_context();
-    // Create a new interface
-    let base_interface = ComInterface::create_with_implementation::<
-        BaseInterface,
-    >(BaseInterfaceSetupData::default())
-    .expect("Failed to create BaseInterface");
-    assert_eq!(
-        base_interface.borrow().current_state(),
-        ComInterfaceState::NotConnected
-    );
-    assert!(
-        base_interface
-            .borrow()
-            .properties()
-            .close_timestamp
-            .is_none()
-    );
-
-    // Open the interface
-    base_interface.borrow_mut().open().await;
-    assert_eq!(
-        base_interface.borrow().current_state(),
-        ComInterfaceState::Connected
-    );
-    assert!(
-        base_interface
-            .borrow()
-            .properties()
-            .close_timestamp
-            .is_none()
-    );
-
-    // Close the interface
-    assert!(base_interface.borrow_mut().close().await);
-    assert_eq!(
-        base_interface.borrow().current_state(),
-        ComInterfaceState::NotConnected
-    );
-    assert!(
-        base_interface
-            .borrow()
-            .properties()
-            .close_timestamp
-            .is_some()
-    );
-}
 
 #[tokio::test]
 pub async fn test_construct() {

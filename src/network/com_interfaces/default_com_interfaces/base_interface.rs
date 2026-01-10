@@ -6,15 +6,16 @@ use crate::network::com_interfaces::com_interface::error::ComInterfaceError;
 use crate::network::com_interfaces::com_interface::implementation::{
     ComInterfaceFactory, ComInterfaceImplementation,
 };
+use crate::network::com_interfaces::com_interface::state::ComInterfaceState;
 use crate::network::{
     com_hub::errors::ComHubError,
     com_interfaces::com_interface::properties::InterfaceDirection,
 };
 
-use crate::network::com_interfaces::com_interface::ComInterface;
 use crate::network::com_interfaces::com_interface::properties::InterfaceProperties;
-use crate::network::com_interfaces::com_interface::socket::{
-    ComInterfaceSocket, ComInterfaceSocketUUID,
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
+use crate::network::com_interfaces::com_interface::{
+    ComInterface, ComInterfaceInfo,
 };
 use crate::stdlib::boxed::Box;
 use crate::stdlib::cell::RefCell;
@@ -24,14 +25,12 @@ use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use core::future::Future;
-use serde::{Deserialize, Serialize};
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
 
 pub struct BaseInterface {
-    sender: HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>,
-    on_send: Option<Box<OnSendCallback>>,
+    on_send: Box<OnSendCallback>,
     properties: InterfaceProperties,
     com_interface: Rc<RefCell<ComInterface>>,
 }
@@ -56,36 +55,34 @@ impl From<ComHubError> for BaseInterfaceError {
     }
 }
 
-impl BaseInterface {
-    fn create_and_init_socket(
-        &mut self,
-        direction: InterfaceDirection,
-    ) -> ComInterfaceSocketUUID {
-        let (uuid, sender) = self
-            .com_interface
-            .borrow()
-            .socket_manager()
-            .lock()
-            .unwrap()
-            .create_and_init_socket(direction, 1);
-        self.sender.insert(uuid.clone(), sender);
-        uuid
-    }
-    pub fn register_new_socket_with_endpoint(
-        &mut self,
-        direction: InterfaceDirection,
-        endpoint: Endpoint,
-    ) -> ComInterfaceSocketUUID {
-        let socket_uuid = self.create_and_init_socket(direction);
+pub struct BaseInterfaceHolder {
+    sender: HashMap<ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>>,
+    pub com_interface: Rc<RefCell<ComInterface>>,
+}
+impl BaseInterfaceHolder {
+    pub fn new(setup_data: BaseInterfaceSetupData) -> BaseInterfaceHolder {
+        // Create a headless ComInterface first
+        let com_interface = Rc::new(RefCell::new(ComInterface::Headless {
+            info: Some(ComInterfaceInfo::init(
+                ComInterfaceState::NotConnected,
+                InterfaceProperties::default(),
+            )),
+        }));
 
-        self.com_interface
-            .borrow()
-            .socket_manager()
-            .lock()
-            .unwrap()
-            .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
-            .unwrap();
-        socket_uuid
+        // Create the implementation using the factory function
+        let implementation = BaseInterface {
+            properties: setup_data.properties,
+            on_send: setup_data.on_send_callback,
+            com_interface: com_interface.clone(),
+        };
+        com_interface
+            .borrow_mut()
+            .initialize(Box::new(implementation));
+
+        BaseInterfaceHolder {
+            sender: HashMap::new(),
+            com_interface,
+        }
     }
 
     pub fn receive(
@@ -103,12 +100,37 @@ impl BaseInterface {
         }
     }
 
-    pub fn set_on_send_callback(
+    fn create_and_init_socket(
         &mut self,
-        on_send: Box<OnSendCallback>,
-    ) -> &mut Self {
-        self.on_send = Some(on_send);
-        self
+        direction: InterfaceDirection,
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (uuid, sender) = self
+            .com_interface
+            .borrow()
+            .socket_manager()
+            .lock()
+            .unwrap()
+            .create_and_init_socket(direction, 1);
+        (uuid, sender)
+    }
+
+    /// Registers and initializes a new socket with the given endpoint and direction
+    /// Returns the socket UUID and a sender to send data to the socket
+    pub fn register_new_socket_with_endpoint(
+        &mut self,
+        direction: InterfaceDirection,
+        endpoint: Endpoint,
+    ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
+        let (socket_uuid, sender) = self.create_and_init_socket(direction);
+
+        self.com_interface
+            .borrow()
+            .socket_manager()
+            .lock()
+            .unwrap()
+            .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
+            .unwrap();
+        (socket_uuid, sender)
     }
 }
 
@@ -118,11 +140,7 @@ impl ComInterfaceImplementation for BaseInterface {
         block: &'a [u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        if let Some(on_send) = &self.on_send {
-            on_send(block, socket_uuid)
-        } else {
-            Box::pin(async move { false })
-        }
+        self.on_send.as_ref()(block, socket_uuid)
     }
 
     fn get_properties(&self) -> InterfaceProperties {
@@ -138,32 +156,87 @@ impl ComInterfaceImplementation for BaseInterface {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "wasm_runtime", derive(tsify::Tsify))]
-pub struct BaseInterfaceSetupData(pub InterfaceProperties);
+pub struct BaseInterfaceSetupData {
+    pub properties: InterfaceProperties,
+    pub on_send_callback: Box<OnSendCallback>,
+}
 
 impl BaseInterfaceSetupData {
-    pub fn new(properties: InterfaceProperties) -> Self {
-        BaseInterfaceSetupData(properties)
+    pub fn new(
+        properties: InterfaceProperties,
+        on_send_callback: Box<OnSendCallback>,
+    ) -> Self {
+        BaseInterfaceSetupData {
+            properties,
+            on_send_callback,
+        }
     }
 }
 
-impl ComInterfaceFactory for BaseInterface {
-    type SetupData = BaseInterfaceSetupData;
+#[cfg(test)]
+mod tests {
+    use crate::{
+        network::com_interfaces::{
+            com_interface::{
+                properties::InterfaceProperties, state::ComInterfaceState,
+            },
+            default_com_interfaces::base_interface::{
+                self, BaseInterfaceHolder, BaseInterfaceSetupData,
+            },
+        },
+        utils::context::init_global_context,
+    };
 
-    fn create(
-        setup_data: BaseInterfaceSetupData,
-        com_interface: Rc<RefCell<ComInterface>>,
-    ) -> Result<BaseInterface, ComInterfaceError> {
-        Ok(BaseInterface {
-            sender: HashMap::new(),
-            properties: setup_data.0,
-            on_send: None,
-            com_interface,
-        })
-    }
+    #[tokio::test]
+    pub async fn test_close() {
+        init_global_context();
+        // Create a new interface
+        let base_interface =
+            BaseInterfaceHolder::new(BaseInterfaceSetupData::new(
+                InterfaceProperties::default(),
+                Box::new(|_, _| Box::pin(async move { true })),
+            ))
+            .com_interface
+            .clone();
+        assert_eq!(
+            base_interface.borrow().current_state(),
+            ComInterfaceState::NotConnected
+        );
+        assert!(
+            base_interface
+                .borrow()
+                .properties()
+                .close_timestamp
+                .is_none()
+        );
 
-    fn get_default_properties() -> InterfaceProperties {
-        InterfaceProperties::default()
+        // Open the interface
+        base_interface.clone().borrow().open().await;
+        assert_eq!(
+            base_interface.borrow().current_state(),
+            ComInterfaceState::Connected
+        );
+        assert!(
+            base_interface
+                .borrow()
+                .properties()
+                .close_timestamp
+                .is_none()
+        );
+
+        // Close the interface
+        assert!(base_interface.borrow_mut().close().await);
+        assert_eq!(
+            base_interface.borrow().current_state(),
+            ComInterfaceState::NotConnected
+        );
+        assert!(
+            base_interface
+                .borrow()
+                .properties()
+                .close_timestamp
+                .is_some()
+        );
     }
 }

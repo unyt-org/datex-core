@@ -6,10 +6,11 @@ use datex_core::global::protocol_structures::encrypted_header::{
 };
 use datex_core::global::protocol_structures::routing_header::{RoutingHeader, SignatureType};
 use datex_core::network::com_hub::{ComHub, InterfacePriority};
-use datex_core::network::com_interfaces::default_com_interfaces::base_interface::{BaseInterface, BaseInterfaceSetupData};
+use datex_core::network::com_interfaces::default_com_interfaces::base_interface::{BaseInterface, BaseInterfaceHolder, BaseInterfaceSetupData};
 use datex_core::run_async;
 use datex_core::stdlib::cell::RefCell;
 use datex_core::stdlib::rc::Rc;
+use std::pin::Pin;
 use std::sync::mpsc;
 use tokio::task::yield_now;
 use datex_core::network::block_handler::IncomingSectionsSinkType;
@@ -651,22 +652,19 @@ pub async fn register_factory() {
 pub async fn test_reconnect() {
     run_async! {
         init_global_context();
-        let mut com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel);
+        let com_hub = ComHub::init(Endpoint::default(), AsyncContext::new(), IncomingSectionsSinkType::Channel);
 
         // create a new interface, open it and add it to the com_hub
-        let com_interface = ComInterface::create_with_implementation::<
-            BaseInterface,
-        >(BaseInterfaceSetupData::new(InterfaceProperties {
+        let base_interface = BaseInterfaceHolder::new(BaseInterfaceSetupData::new(InterfaceProperties {
                 reconnection_config: ReconnectionConfig::ReconnectWithTimeout {
                     timeout: core::time::Duration::from_secs(1),
                 },
                 ..InterfaceProperties::default()
-            }))
-        .unwrap();
+            }, Box::new(|_, _| Box::pin(async { true }))));
 
         // add base_interface to com_hub
         com_hub
-            .open_and_add_interface(com_interface.clone(), InterfacePriority::default())
+            .open_and_add_interface(base_interface.com_interface.clone(), InterfacePriority::default())
             .await
             .unwrap_or_else(|e| {
                 core::panic!("Error adding interface: {e:?}");
@@ -674,27 +672,27 @@ pub async fn test_reconnect() {
 
         // check that the interface is connected
         assert_eq!(
-            com_interface.borrow().current_state(),
+            base_interface.com_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
 
         // check that the interface is in the com_hub
         assert_eq!(com_hub.interface_manager().borrow().interfaces.len(), 1);
-        assert!(com_hub.has_interface(com_interface.borrow().uuid()));
+        assert!(com_hub.has_interface(base_interface.com_interface.borrow().uuid()));
 
         // simulate a disconnection by closing the interface
         // This action is normally done by the interface itself
         // but we do it manually here to test the reconnection
-        assert!(com_interface.borrow_mut().close().await);
+        assert!(base_interface.com_interface.borrow_mut().close().await);
 
         // check that the interface is not connected
         // and that the close_timestamp is set
         assert_eq!(
-            com_interface.borrow().current_state(),
+            base_interface.com_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
-        assert!(com_interface
+        assert!(base_interface.com_interface
             .borrow_mut()
             .properties()
             .close_timestamp
@@ -704,7 +702,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            com_interface.borrow().current_state(),
+            base_interface.com_interface.borrow().current_state(),
             ComInterfaceState::NotConnected
         );
 
@@ -716,7 +714,7 @@ pub async fn test_reconnect() {
         yield_now().await;
 
         assert_eq!(
-            com_interface.borrow().current_state(),
+            base_interface.com_interface.borrow().current_state(),
             ComInterfaceState::Connected
         );
     }

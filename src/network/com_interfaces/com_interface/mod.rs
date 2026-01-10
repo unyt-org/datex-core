@@ -33,6 +33,7 @@ use core::fmt::Display;
 use core::pin::Pin;
 use core::time::Duration;
 use log::debug;
+use std::cell::RefMut;
 pub mod error;
 pub mod implementation;
 pub mod properties;
@@ -73,7 +74,7 @@ pub struct ComInterfaceInfo {
     pub socket_manager: Arc<Mutex<ComInterfaceSocketManager>>,
 
     /// Details about the interface
-    pub interface_properties: InterfaceProperties,
+    pub interface_properties: Rc<InterfaceProperties>,
 
     /// Receiver for interface events (consumed by ComHub)
     socket_event_receiver:
@@ -109,7 +110,7 @@ impl ComInterfaceInfo {
             interface_event_receiver: RefCell::new(OnceConsumer::new(
                 interface_event_receiver,
             )),
-            interface_properties,
+            interface_properties: Rc::new(interface_properties),
             socket_event_receiver: RefCell::new(OnceConsumer::new(
                 socket_event_receiver,
             )),
@@ -130,21 +131,16 @@ impl ComInterfaceInfo {
     pub fn state(&self) -> ComInterfaceState {
         self.state.try_lock().unwrap().get()
     }
-    pub fn set_state(&mut self, new_state: ComInterfaceState) {
+    pub fn set_state(&self, new_state: ComInterfaceState) {
         self.state.try_lock().unwrap().set(new_state);
     }
 }
 
 /// A communication interface wrapper
 /// which contains a concrete implementation of a com interface logic
-pub enum ComInterface {
-    Headless {
-        info: Option<ComInterfaceInfo>,
-    },
-    Initialized {
-        implementation: Box<dyn ComInterfaceImpl>,
-        info: ComInterfaceInfo,
-    },
+pub struct ComInterface {
+    info: Rc<ComInterfaceInfo>,
+    implementation: RefCell<Option<Box<dyn ComInterfaceImpl>>>,
 }
 
 impl ComInterface {
@@ -154,11 +150,13 @@ impl ComInterface {
         setup_data: ValueContainer,
     ) -> Result<Rc<RefCell<ComInterface>>, ComInterfaceError> {
         // Create a headless ComInterface first
-        let com_interface = Rc::new(RefCell::new(ComInterface::Headless {
-            info: Some(ComInterfaceInfo::init(
+        let com_interface = Rc::new(RefCell::new(ComInterface {
+            info: ComInterfaceInfo::init(
                 ComInterfaceState::NotConnected,
                 InterfaceProperties::default(),
-            )),
+            )
+            .into(),
+            implementation: RefCell::new(None),
         }));
 
         // Create the implementation using the factory function
@@ -175,11 +173,13 @@ impl ComInterface {
         T: ComInterfaceImplementation + ComInterfaceFactory,
     {
         // Create a headless ComInterface first
-        let com_interface = Rc::new(RefCell::new(ComInterface::Headless {
-            info: Some(ComInterfaceInfo::init(
+        let com_interface = Rc::new(RefCell::new(ComInterface {
+            info: ComInterfaceInfo::init(
                 ComInterfaceState::NotConnected,
                 InterfaceProperties::default(),
-            )),
+            )
+            .into(),
+            implementation: RefCell::new(None),
         }));
 
         // Create the implementation using the factory function
@@ -190,47 +190,32 @@ impl ComInterface {
         Ok(com_interface)
     }
 
-    pub fn implementation_mut<T: ComInterfaceImpl>(&mut self) -> &mut T {
-        match self {
-            ComInterface::Headless { .. } => {
-                panic!(
-                    "ComInterface is not initialized with an implementation"
-                );
-            }
-            ComInterface::Initialized { implementation, .. } => implementation
-                .as_mut()
+    pub fn implementation_mut<T: ComInterfaceImpl>(&self) -> RefMut<'_, T> {
+        RefMut::map(self.implementation.borrow_mut(), |opt| {
+            opt.as_mut()
+                .expect("ComInterface is not initialized")
                 .as_any_mut()
                 .downcast_mut::<T>()
-                .expect("Failed to downcast ComInterfaceImplementation"),
-        }
+                .expect("ComInterface implementation type mismatch")
+        })
     }
 
     /// Initializes a headless ComInterface with the provided implementation
     /// and upgrades it to an Initialized state.
     /// This can only be done once on a headless interface and will panic if attempted on an already initialized interface.
-    fn initialize(&mut self, implementation: Box<dyn ComInterfaceImpl>) {
-        match self {
-            ComInterface::Headless { info } => {
-                *self = ComInterface::Initialized {
-                    implementation,
-                    info: info.take().expect(
-                        "ComInterfaceInfo should be present when initializing",
-                    ),
-                };
+    pub(crate) fn initialize(&self, implementation: Box<dyn ComInterfaceImpl>) {
+        match self.implementation.replace(Some(implementation)) {
+            None => {
+                // Successfully initialized
             }
-            ComInterface::Initialized { .. } => {
-                panic!(
-                    "ComInterface is already initialized with an implementation"
-                );
+            Some(_) => {
+                panic!("ComInterface is already initialized");
             }
         }
     }
 
-    pub fn uuid(&self) -> &ComInterfaceUUID {
-        match self {
-            ComInterface::Headless { info } => &info.as_ref().unwrap().uuid,
-            ComInterface::Initialized { info, .. } => &info.uuid,
-        }
+    pub fn uuid(&self) -> ComInterfaceUUID {
+        self.info.uuid.clone()
     }
 
     pub fn current_state(&self) -> ComInterfaceState {
@@ -238,123 +223,84 @@ impl ComInterface {
     }
 
     pub fn state(&self) -> Arc<Mutex<ComInterfaceStateWrapper>> {
-        match self {
-            ComInterface::Headless { info } => {
-                info.as_ref().unwrap().state.clone()
-            }
-            ComInterface::Initialized { info, .. } => info.state.clone(),
-        }
+        self.info.state.clone()
     }
 
-    pub fn set_state(&mut self, new_state: ComInterfaceState) {
-        match self {
-            ComInterface::Headless { info } => {
-                info.as_mut().unwrap().set_state(new_state)
-            }
-            ComInterface::Initialized { info, .. } => info.set_state(new_state),
-        }
+    pub fn set_state(&self, new_state: ComInterfaceState) {
+        self.info.set_state(new_state);
     }
 
-    pub fn properties(&self) -> &InterfaceProperties {
-        match self {
-            ComInterface::Headless { info } => {
-                &info.as_ref().unwrap().interface_properties
-            }
-            ComInterface::Initialized { info, .. } => {
-                &info.interface_properties
-            }
-        }
-    }
-
-    pub fn properties_mut(&mut self) -> &mut InterfaceProperties {
-        match self {
-            ComInterface::Headless { info } => {
-                &mut info.as_mut().unwrap().interface_properties
-            }
-            ComInterface::Initialized { info, .. } => {
-                &mut info.interface_properties
-            }
-        }
+    pub fn properties(&self) -> Rc<InterfaceProperties> {
+        self.info.interface_properties.clone()
     }
 
     pub async fn send_block(
-        &mut self,
+        &self,
         block: &[u8],
         socket_uuid: ComInterfaceSocketUUID,
     ) -> bool {
-        match self {
-            ComInterface::Headless { .. } => {
+        match self.implementation.borrow_mut().as_mut() {
+            None => {
                 panic!("Cannot send block on headless ComInterface");
             }
-            ComInterface::Initialized { implementation, .. } => {
+            Some(implementation) => {
                 implementation.send_block(block, socket_uuid).await
             }
         }
     }
 
-    pub async fn handle_open(&mut self) -> bool {
-        match self {
-            ComInterface::Headless { .. } => {
+    pub async fn handle_open(&self) -> bool {
+        match self.implementation.borrow_mut().as_mut() {
+            None => {
                 panic!("Cannot open headless ComInterface");
             }
-            ComInterface::Initialized { implementation, .. } => {
-                implementation.handle_open().await
-            }
+            Some(implementation) => implementation.handle_open().await,
         }
     }
 
-    pub async fn handle_destroy(&mut self) -> bool {
-        match self {
-            ComInterface::Headless { .. } => {
+    pub async fn handle_destroy(&self) -> bool {
+        match self.implementation.borrow_mut().as_mut() {
+            None => {
                 panic!("Cannot destroy headless ComInterface");
             }
-            ComInterface::Initialized { implementation, .. } => {
-                implementation.handle_close().await
-            }
+            Some(implementation) => implementation.handle_close().await,
         }
     }
 
-    pub async fn open(&mut self) -> bool {
+    pub async fn open(&self) -> bool {
         if self.current_state() == ComInterfaceState::Connected {
             // already connected
             return true;
         }
         self.set_state(ComInterfaceState::Connecting);
-        let result = match self {
-            ComInterface::Headless { .. } => {
+        let result = match self.implementation.borrow_mut().as_mut() {
+            None => {
                 panic!("Cannot open headless ComInterface");
             }
-            ComInterface::Initialized { implementation, .. } => {
-                implementation.handle_open().await
-            }
+            Some(implementation) => implementation.handle_open().await,
         };
-        if result {
-            self.set_state(ComInterfaceState::Connected);
-        } else {
-            self.set_state(ComInterfaceState::NotConnected);
-        }
+        // if result {
+        //     self.set_state(ComInterfaceState::Connected);
+        // } else {
+        //     self.set_state(ComInterfaceState::NotConnected);
+        // }
         result
     }
 
     pub async fn close(&mut self) -> bool {
         self.set_state(ComInterfaceState::Closing);
-        let result = match self {
-            ComInterface::Headless { .. } => {
+        let result = match self.implementation.borrow_mut().as_mut() {
+            None => {
                 panic!("Cannot close headless ComInterface");
             }
-            ComInterface::Initialized { implementation, .. } => {
-                implementation.handle_close().await
-            }
+            Some(implementation) => implementation.handle_close().await,
         };
         self.set_state(ComInterfaceState::NotConnected);
         result
     }
 
-    pub fn info(&self) -> &ComInterfaceInfo {
-        match self {
-            ComInterface::Headless { info } => info.as_ref().unwrap(),
-            ComInterface::Initialized { info, .. } => info,
-        }
+    pub fn info(&self) -> Rc<ComInterfaceInfo> {
+        self.info.clone()
     }
 
     pub fn socket_manager(&self) -> Arc<Mutex<ComInterfaceSocketManager>> {
@@ -362,28 +308,14 @@ impl ComInterface {
     }
 
     pub fn take_interface_event_receiver(
-        &mut self,
+        &self,
     ) -> UnboundedReceiver<ComInterfaceEvent> {
-        match self {
-            ComInterface::Headless { info } => {
-                info.as_mut().unwrap().take_interface_event_receiver()
-            }
-            ComInterface::Initialized { info, .. } => {
-                info.take_interface_event_receiver()
-            }
-        }
+        self.info.take_interface_event_receiver()
     }
 
     pub fn take_socket_event_receiver(
-        &mut self,
+        &self,
     ) -> UnboundedReceiver<ComInterfaceSocketEvent> {
-        match self {
-            ComInterface::Headless { info } => {
-                info.as_mut().unwrap().take_socket_event_receiver()
-            }
-            ComInterface::Initialized { info, .. } => {
-                info.take_socket_event_receiver()
-            }
-        }
+        self.info.take_socket_event_receiver()
     }
 }

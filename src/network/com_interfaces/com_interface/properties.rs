@@ -64,6 +64,7 @@ pub struct InterfaceProperties {
     // If the interface is not able to reconnect, it will be destroyed
     pub reconnection_config: ReconnectionConfig,
 
+    // FIXME move to state
     /* private field */
     /// Timestamp of the interface close event
     /// This is used to determine if the interface shall be reopened

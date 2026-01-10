@@ -26,7 +26,9 @@ use crate::stdlib::string::ToString;
 use crate::stdlib::vec;
 use crate::stdlib::vec::Vec;
 use crate::stdlib::{cell::RefCell, rc::Rc};
-use crate::task::{self, UnboundedReceiver, create_unbounded_channel, spawn_with_panic_notify};
+use crate::task::{
+    self, UnboundedReceiver, create_unbounded_channel, spawn_with_panic_notify,
+};
 use crate::utils::time::Time;
 use core::cmp::PartialEq;
 use core::fmt::{Debug, Formatter};
@@ -115,11 +117,13 @@ async fn reconnect_interface_task(interface_rc: Rc<RefCell<ComInterface>>) {
     let interface = interface_rc.clone();
     let mut interface = interface.borrow_mut();
 
+    /* FIXME Reconnect logic
     let config = interface.properties_mut();
     config.close_timestamp = None;
 
     let current_attempts = config.reconnect_attempts.unwrap_or(0);
     config.reconnect_attempts = Some(current_attempts + 1);
+    */
 
     let res = interface.handle_open().await;
     if res {
@@ -1091,15 +1095,15 @@ impl ComHub {
                 );
 
                 // TODO #190: resend block if socket failed to send
-                let com_interface = self
-                    .dyn_interface_for_socket_uuid(socket_uuid);
+                let com_interface =
+                    self.dyn_interface_for_socket_uuid(socket_uuid);
                 spawn_with_panic_notify(
                     &self.async_context,
                     send_outgoing_block_task(
                         com_interface,
                         socket_uuid.clone(),
-                        bytes
-                    )
+                        bytes,
+                    ),
                 );
             }
             Err(err) => {
@@ -1254,11 +1258,9 @@ async fn com_hub_event_task(
         match event {
             BlockSendEvent::NewSocket { socket_uuid } => {
                 info!("New socket connected: {}", socket_uuid);
-                let mut socket_manager = self_rc
-                    .socket_manager
-                    .borrow_mut();
-                let socket = socket_manager
-                    .get_socket_by_uuid_mut(&socket_uuid);
+                let mut socket_manager = self_rc.socket_manager.borrow_mut();
+                let socket =
+                    socket_manager.get_socket_by_uuid_mut(&socket_uuid);
                 let socket_can_send = socket.can_send();
                 let receiver = socket.take_block_in_receiver();
 

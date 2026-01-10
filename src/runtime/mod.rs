@@ -12,6 +12,7 @@ use crate::logger::{init_logger, init_logger_debug};
 use crate::network::block_handler::IncomingSectionsSinkType;
 use crate::network::com_hub::network_response::ResponseOptions;
 use crate::network::com_hub::{ComHub, InterfacePriority};
+use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
 use crate::runtime::execution::ExecutionError;
 use crate::runtime::execution::context::ExecutionMode;
 use crate::serde::error::SerializationError;
@@ -40,7 +41,6 @@ use execution::context::{
 use global_context::{GlobalContext, set_global_context};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
-use crate::network::com_interfaces::com_interface::implementation::ComInterfaceFactory;
 
 pub mod dif_interface;
 pub mod execution;
@@ -590,8 +590,6 @@ impl Runtime {
     }
 
     fn register_interface_factories(&self) {
-        crate::network::com_interfaces::default_com_interfaces::base_interface::BaseInterface::register_on_com_hub(self.com_hub());
-
         #[cfg(feature = "native_websocket")]
         crate::network::com_interfaces::default_com_interfaces::websocket::websocket_client_native_interface::WebSocketClientNativeInterface::register_on_com_hub(self.com_hub());
         #[cfg(feature = "native_websocket")]
