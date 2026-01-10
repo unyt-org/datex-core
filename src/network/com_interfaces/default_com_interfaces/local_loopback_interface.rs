@@ -7,25 +7,23 @@ use crate::network::com_interfaces::com_interface::implementation::{
 use crate::network::com_interfaces::com_interface::properties::{
     InterfaceDirection, InterfaceProperties,
 };
-use crate::network::com_interfaces::com_interface::socket::{
-    ComInterfaceSocketUUID,
-};
+use crate::network::com_interfaces::com_interface::socket::ComInterfaceSocketUUID;
 use crate::stdlib::boxed::Box;
+use crate::stdlib::cell::RefCell;
 use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::string::ToString;
+use crate::task::UnboundedSender;
 use crate::values::core_values::endpoint::Endpoint;
 use core::future::Future;
 use core::prelude::rust_2024::*;
 use core::result::Result;
 use core::time::Duration;
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::task::UnboundedSender;
 
 /// A simple local loopback interface that puts outgoing data
 /// back into the incoming queue.
 pub struct LocalLoopbackInterface {
-    sender: RefCell<UnboundedSender<Vec<u8>>>
+    sender: RefCell<UnboundedSender<Vec<u8>>>,
 }
 
 impl ComInterfaceImplementation for LocalLoopbackInterface {
@@ -34,10 +32,7 @@ impl ComInterfaceImplementation for LocalLoopbackInterface {
         block: &'a [u8],
         _: ComInterfaceSocketUUID,
     ) -> Pin<Box<dyn Future<Output = bool> + 'a>> {
-        self.sender
-            .borrow_mut()
-            .start_send(block.to_vec())
-            .unwrap();
+        self.sender.borrow_mut().start_send(block.to_vec()).unwrap();
         Box::pin(async { true })
     }
 
@@ -79,8 +74,8 @@ impl ComInterfaceFactory for LocalLoopbackInterface {
             .unwrap()
             .register_socket_with_endpoint(socket_uuid, Endpoint::LOCAL, 1)?;
 
-        Ok(LocalLoopbackInterface { 
-            sender: RefCell::new(sender)
+        Ok(LocalLoopbackInterface {
+            sender: RefCell::new(sender),
         })
     }
 

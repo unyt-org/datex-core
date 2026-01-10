@@ -16,14 +16,14 @@ use crate::network::com_interfaces::com_interface::socket::{
     ComInterfaceSocket, ComInterfaceSocketUUID,
 };
 use crate::stdlib::boxed::Box;
+use crate::stdlib::cell::RefCell;
 use crate::stdlib::pin::Pin;
+use crate::stdlib::rc::Rc;
 use crate::stdlib::string::String;
 use crate::stdlib::vec::Vec;
 use crate::values::core_values::endpoint::Endpoint;
 use core::future::Future;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub type OnSendCallback = dyn Fn(&[u8], ComInterfaceSocketUUID) -> Pin<Box<dyn Future<Output = bool>>>
     + 'static;
@@ -34,9 +34,9 @@ pub struct BaseInterface {
     com_interface: Rc<RefCell<ComInterface>>,
 }
 
+use crate::task::UnboundedSender;
 use strum::Display;
 use thiserror::Error;
-use crate::task::UnboundedSender;
 
 #[derive(Debug, Display, Error)]
 pub enum BaseInterfaceError {
@@ -89,8 +89,7 @@ impl BaseInterface {
         &mut self,
         direction: InterfaceDirection,
     ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
-        self
-            .com_interface
+        self.com_interface
             .borrow()
             .socket_manager()
             .lock()
@@ -104,10 +103,11 @@ impl BaseInterface {
     ) -> (ComInterfaceSocketUUID, UnboundedSender<Vec<u8>>) {
         let (socket_uuid, sender) = self.create_and_init_socket(direction);
 
-        self
-            .com_interface
+        self.com_interface
             .borrow()
-            .socket_manager().lock().unwrap()
+            .socket_manager()
+            .lock()
+            .unwrap()
             .register_socket_with_endpoint(socket_uuid.clone(), endpoint, 1)
             .unwrap();
 
