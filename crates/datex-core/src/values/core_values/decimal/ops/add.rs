@@ -4,16 +4,16 @@ use crate::values::core_values::decimal::{
 use core::ops::Add;
 use ordered_float::OrderedFloat;
 
-impl Add for Decimal {
-    type Output = Self;
+impl Add for &Decimal {
+    type Output = Decimal;
 
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: &Decimal) -> Self::Output {
         match (self, rhs) {
             (Decimal::Finite(a), Decimal::Finite(b)) => Decimal::from(a + b),
             (Decimal::NegZero, Decimal::Zero)
             | (Decimal::Zero, Decimal::NegZero) => Decimal::Zero,
-            (Decimal::Zero, b) | (b, Decimal::Zero) => b,
-            (Decimal::NegZero, b) | (b, Decimal::NegZero) => b,
+            (Decimal::Zero, b) | (b, Decimal::Zero) => b.clone(),
+            (Decimal::NegZero, b) | (b, Decimal::NegZero) => b.clone(),
             (Decimal::Infinity, Decimal::NegInfinity)
             | (Decimal::NegInfinity, Decimal::Infinity) => Decimal::Nan,
             (Decimal::Infinity, _) | (_, Decimal::Infinity) => {
@@ -27,16 +27,15 @@ impl Add for Decimal {
     }
 }
 
-impl Add for &Decimal {
+impl Add for Decimal {
     type Output = Decimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME #334: Avoid cloning, as add should be applicable for refs only
-        Decimal::add(self.clone(), rhs.clone())
+        (&self).add(&rhs)
     }
 }
 
-impl Add for TypedDecimal {
+impl Add for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -47,7 +46,7 @@ impl Add for TypedDecimal {
                     a.into_inner() + b.into_inner() as f32,
                 )),
                 TypedDecimal::Decimal(b) => {
-                    let result = Decimal::from(a.into_inner()) + b;
+                    let result = &Decimal::from(a.into_inner()) + b;
                     TypedDecimal::F32(result.into_f32().into())
                 }
             },
@@ -57,22 +56,21 @@ impl Add for TypedDecimal {
                 )),
                 TypedDecimal::F64(b) => TypedDecimal::F64(a + b),
                 TypedDecimal::Decimal(b) => {
-                    let result = Decimal::from(a.into_inner()) + b;
+                    let result = &Decimal::from(a.into_inner()) + b;
                     TypedDecimal::F64(result.into_f64().into())
                 }
             },
             TypedDecimal::Decimal(a) => {
-                TypedDecimal::Decimal(a + Decimal::from(rhs))
+                TypedDecimal::Decimal(a + &Decimal::from(rhs.clone()))
             }
         }
     }
 }
 
-impl Add for &TypedDecimal {
+impl Add for TypedDecimal {
     type Output = TypedDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        // FIXME #339: Avoid cloning, as add should be applicable for refs only
-        TypedDecimal::add(self.clone(), rhs.clone())
+        (&self).add(&rhs)
     }
 }

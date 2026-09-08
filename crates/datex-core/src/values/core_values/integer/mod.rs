@@ -33,6 +33,57 @@ mod value_access;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq)]
 pub struct Integer(pub BigInt);
 
+impl From<&i8> for Integer {
+    fn from(value: &i8) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&i16> for Integer {
+    fn from(value: &i16) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&i32> for Integer {
+    fn from(value: &i32) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&i64> for Integer {
+    fn from(value: &i64) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&i128> for Integer {
+    fn from(value: &i128) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&u8> for Integer {
+    fn from(value: &u8) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&u16> for Integer {
+    fn from(value: &u16) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&u32> for Integer {
+    fn from(value: &u32) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&u64> for Integer {
+    fn from(value: &u64) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+impl From<&u128> for Integer {
+    fn from(value: &u128) -> Self {
+        Integer(BigInt::from(*value))
+    }
+}
+
 impl<'de> Deserialize<'de> for Integer {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

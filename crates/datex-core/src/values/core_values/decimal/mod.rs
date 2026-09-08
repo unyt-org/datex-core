@@ -330,6 +330,11 @@ impl From<f32> for Decimal {
 
 impl From<TypedDecimal> for Decimal {
     fn from(value: TypedDecimal) -> Self {
+        Decimal::from(&value)
+    }
+}
+impl From<&TypedDecimal> for Decimal {
+    fn from(value: &TypedDecimal) -> Self {
         match value {
             TypedDecimal::F32(ordered_float) => {
                 Decimal::from(ordered_float.into_inner())
@@ -337,7 +342,7 @@ impl From<TypedDecimal> for Decimal {
             TypedDecimal::F64(ordered_float) => {
                 Decimal::from(ordered_float.into_inner())
             }
-            TypedDecimal::Decimal(big_decimal) => big_decimal,
+            TypedDecimal::Decimal(big_decimal) => big_decimal.clone(),
         }
     }
 }
