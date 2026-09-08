@@ -7,6 +7,8 @@ use binrw::BinWrite;
 pub mod type_to_instructions;
 
 pub mod type_definition_to_instructions;
+
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_type_instruction(
     cursor: &mut ByteCursor,
     instruction: TypeInstruction,

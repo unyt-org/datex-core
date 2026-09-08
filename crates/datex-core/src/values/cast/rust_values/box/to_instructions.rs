@@ -4,6 +4,7 @@ use crate::{
     },
     instruction::Instruction,
     prelude::*,
+    preludes::derive::RegularInstruction,
 };
 
 impl<V> ToInstructions for Box<V>
@@ -17,6 +18,11 @@ where
     where
         'ctx: 'a,
     {
-        self.as_ref().to_instructions(ctx)
+        Box::new(gen move {
+            yield RegularInstruction::boxed_value().into();
+            for instruction in self.as_ref().to_instructions(ctx) {
+                yield instruction;
+            }
+        })
     }
 }

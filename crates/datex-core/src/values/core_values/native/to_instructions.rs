@@ -15,6 +15,6 @@ impl ToInstructions for NativeCoreValue {
     where
         'ctx: 'a,
     {
-        self.value.to_instructions(ctx)
+        (*self.value).to_instructions(ctx)
     }
 }

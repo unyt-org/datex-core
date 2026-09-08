@@ -3,6 +3,7 @@ use crate::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
     },
     instruction::Instruction,
+    libs::core::core_lib_id::{CoreLibId, CoreLibIdIndex},
     prelude::*,
     preludes::derive::RegularInstruction,
     values::core_value::CoreValue,
@@ -66,8 +67,18 @@ impl ToInstructions for CoreValue {
                     }
                 }
                 CoreValue::Type(ty) => {
-                    for instruction in ty.to_instructions(ctx) {
-                        yield instruction;
+                    if let Some(core_id) = ty.try_as_core_lib_type() {
+                        // Shortcut for core library types
+                        yield RegularInstruction::get_core_lib_value(
+                            CoreLibIdIndex::from(CoreLibId::Type(core_id)),
+                        )
+                        .into()
+                    } else {
+                        // Switch to type space
+                        yield RegularInstruction::type_expression().into();
+                        for instruction in ty.to_instructions(ctx) {
+                            yield instruction;
+                        }
                     }
                 }
                 CoreValue::EntityTypeDefinition(entity_type_definition) => {

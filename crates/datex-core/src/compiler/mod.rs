@@ -1689,6 +1689,7 @@ fn compile_maybe_direct_assignment_operation(
     true
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_key_value_entry(
     compilation_context: &mut CompilationContext,
     key: DatexExpression,
@@ -1720,6 +1721,7 @@ fn compile_key_value_entry(
     Ok(())
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_text_property_access(
     compilation_context: &mut CompilationContext,
     key: &str,
@@ -1735,6 +1737,7 @@ fn compile_text_property_access(
         .expect("Failed to write key bytes to compilation context cursor");
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_index_property_access(
     compilation_context: &mut CompilationContext,
     index: u32,
@@ -1744,6 +1747,7 @@ fn compile_index_property_access(
     append_u32(compilation_context.cursor(), index);
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_index_property_assignment(
     compilation_context: &mut CompilationContext,
     index: u32,
@@ -1753,6 +1757,7 @@ fn compile_index_property_assignment(
     append_u32(compilation_context.cursor(), index);
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_dynamic_property_access(
     compilation_context: &mut CompilationContext,
     key_expression: DatexExpression,
@@ -1770,6 +1775,7 @@ fn compile_dynamic_property_access(
     )
 }
 
+#[deprecated(note = "Use ToInstructions trait instead")]
 fn compile_dynamic_property_assignment(
     compilation_context: &mut CompilationContext,
     key_expression: DatexExpression,

@@ -117,6 +117,7 @@ pub fn compile_panic(
 }
 
 /// Appends a shared container to the buffer by registering it in the shared value tracking and appending the stack index
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_shared_container_from_preamble(
     context: &mut CoreCompilationContext,
     shared_container: &SharedContainer,
@@ -147,6 +148,7 @@ pub fn append_local_pointer_address(
 }
 
 /// Compiles a value container to the buffer of the provided context
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_value_container<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
     context: &mut T,
     value_container: &ValueContainer,
@@ -155,6 +157,7 @@ pub fn append_value_container<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
 }
 
 /// Compiles a value to the buffer of the provided context
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_value<'ctx, T: BufferProvider + ValueVisitor<'ctx> + 'ctx>(
     context: &mut T,
     value: &Value,
@@ -556,6 +559,7 @@ pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
 }
 
 /// Appends a key string for map entries, optimizing for short text keys
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_key_string<T: BufferProvider>(
     context: &mut T,
     key_string: &String,
@@ -576,7 +580,7 @@ pub fn compile_instruction(instruction: impl Into<Instruction>) -> Vec<u8> {
     append_instruction(&mut cursor, instruction.into());
     cursor.into_inner()
 }
-
+#[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_instruction(cursor: &mut ByteCursor, instruction: Instruction) {
     match instruction {
         Instruction::Regular(instruction) => {
