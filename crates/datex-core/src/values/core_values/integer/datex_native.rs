@@ -1,6 +1,9 @@
 use crate::{
     preludes::derive::DatexNative,
-    values::core_values::{integer::Integer, native::DatexNativeOps},
+    values::core_values::{
+        integer::Integer,
+        native::{DatexNativeOps, add_native_impl},
+    },
 };
 use core::any::Any;
 
@@ -13,4 +16,12 @@ impl DatexNative for Integer {
         self
     }
 }
-impl DatexNativeOps for Integer {}
+
+impl DatexNativeOps for Integer {
+    fn add_native(
+        &self,
+        rhs: &dyn DatexNative,
+    ) -> Option<Box<dyn DatexNative>> {
+        add_native_impl(self, rhs)
+    }
+}

@@ -1,7 +1,8 @@
 use crate::{
     preludes::derive::DatexNative,
     values::core_values::{
-        decimal::typed_decimal::TypedDecimal, native::DatexNativeOps,
+        decimal::typed_decimal::TypedDecimal,
+        native::{DatexNativeOps, add_native_impl},
     },
 };
 use core::any::Any;
@@ -15,4 +16,12 @@ impl DatexNative for TypedDecimal {
         self
     }
 }
-impl DatexNativeOps for TypedDecimal {}
+
+impl DatexNativeOps for TypedDecimal {
+    fn add_native(
+        &self,
+        rhs: &dyn DatexNative,
+    ) -> Option<Box<dyn DatexNative>> {
+        add_native_impl(self, rhs)
+    }
+}

@@ -1,5 +1,3 @@
-#[cfg(feature = "ast")]
-use crate::traits::to_datex_expression_data::ToDatexExpressionData;
 use crate::{
     core_compiler::to_instructions::ToInstructions,
     traits::{
@@ -13,6 +11,11 @@ use crate::{
         try_clone::TryClone,
         value_access::ValueAccess,
     },
+};
+#[cfg(feature = "ast")]
+use crate::{
+    preludes::derive::DatexNativeOps,
+    traits::to_datex_expression_data::ToDatexExpressionData,
 };
 use core::any::Any;
 
@@ -85,14 +88,8 @@ pub trait DatexNative:
 {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-pub trait DatexNativeOps {
-    fn add_native(
-        &self,
-        rhs: &dyn DatexNative,
-    ) -> Option<Box<dyn DatexNative>> {
-        None
+    fn type_name(&self) -> &'static str {
+        core::any::type_name::<Self>()
     }
 }
 
