@@ -1,7 +1,7 @@
 use crate::values::core_values::integer::Integer;
 
 use crate::values::core_values::integer::typed_integer::TypedInteger;
-use core::ops::{Add, Neg, Sub};
+use core::ops::{Neg, Sub};
 
 impl Sub for &Integer {
     type Output = Integer;

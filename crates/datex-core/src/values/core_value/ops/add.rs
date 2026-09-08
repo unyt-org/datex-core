@@ -11,7 +11,6 @@ use core::{ops::Add, result::Result};
 impl Add for &CoreValue {
     type Output = Result<CoreValue, ValueError>;
     fn add(self, rhs: &CoreValue) -> Self::Output {
-        println!("Adding {:?} and {:?}", self, rhs);
         match (self, rhs) {
             // x + text or text + x (order does not matter)
             (CoreValue::Text(text), other) => {

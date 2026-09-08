@@ -1,8 +1,8 @@
 use crate::{
-    preludes::derive::DatexNative,
+    prelude::*,
     values::core_values::{
         integer::Integer,
-        native::{DatexNativeOps, add_native_impl},
+        native::{DatexNative, DatexNativeOps, add_native_impl},
     },
 };
 use core::any::Any;

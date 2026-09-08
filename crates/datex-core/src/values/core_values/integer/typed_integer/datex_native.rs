@@ -1,11 +1,11 @@
 use crate::{
     preludes::derive::DatexNative,
     values::core_values::{
-        integer::{Integer, typed_integer::TypedInteger},
+        integer::typed_integer::TypedInteger,
         native::{DatexNativeOps, add_native_impl_option},
     },
 };
-use core::{any::Any, ops::Add};
+use core::any::Any;
 
 impl DatexNative for TypedInteger {
     fn as_any(&self) -> &dyn Any {
@@ -31,6 +31,7 @@ impl DatexNative for TypedInteger {
 //     }
 // }
 
+use crate::prelude::*;
 impl DatexNativeOps for TypedInteger {
     fn add_native(
         &self,

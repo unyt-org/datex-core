@@ -4,17 +4,13 @@ use crate::{
     },
     instruction::Instruction,
     prelude::*,
-    preludes::derive::{EntityTypeDefinition, RegularInstruction},
-    values::{
-        core_value::CoreValue,
-        value::{Value, value_classification::ValueClassification},
-    },
+    preludes::derive::EntityTypeDefinition,
 };
 
 impl ToInstructions for EntityTypeDefinition {
     fn to_instructions<'ctx, 'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _ctx: &'a mut dyn ValueVisitor<'ctx>,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     where
         'ctx: 'a,

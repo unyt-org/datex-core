@@ -1,7 +1,7 @@
 use crate::values::core_values::decimal::{
     Decimal, typed_decimal::TypedDecimal,
 };
-use core::ops::{Add, Neg, Sub};
+use core::ops::{Neg, Sub};
 
 impl Sub for &Decimal {
     type Output = Decimal;

@@ -31,7 +31,7 @@ impl ToInstructions for Value {
                     )
                     .into()
                 }
-                ValueClassification::Impls(items) => todo!(
+                ValueClassification::Impls(_items) => todo!(
                     "Compiling values with Impls classification is not yet implemented"
                 ),
                 ValueClassification::Tag(ValueTag { tag, is_empty }) => {

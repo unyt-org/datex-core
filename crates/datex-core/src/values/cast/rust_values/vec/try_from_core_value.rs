@@ -67,6 +67,7 @@ impl<'a, T: DatexNativeBase + 'static> TryFrom<BorrowedCoreValueMut<'a>>
 #[cfg(test)]
 mod tests {
     use crate::{
+        prelude::*,
         utils::{goat::Goat, goat_mut::GoatMut},
         values::{
             core_value::CoreValue,

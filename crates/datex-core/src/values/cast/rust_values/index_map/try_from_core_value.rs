@@ -76,6 +76,7 @@ impl<'a, K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
 #[cfg(test)]
 mod tests {
     use crate::{
+        prelude::*,
         random::RandomState,
         utils::{goat::Goat, goat_mut::GoatMut},
         values::{

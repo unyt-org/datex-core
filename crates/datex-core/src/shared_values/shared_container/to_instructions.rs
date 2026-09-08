@@ -1,5 +1,6 @@
 use crate::{
     instruction::Instruction,
+    prelude::*,
     preludes::derive::{RegularInstruction, ToInstructions, ValueVisitor},
     shared_values::{
         ReferenceMutability, SharedContainer, SharedContainerOwnership,
