@@ -1,5 +1,6 @@
 use crate::{
-    preludes::derive::DatexNative, values::core_values::callable::Callable,
+    preludes::derive::DatexNative,
+    values::core_values::{callable::Callable, native::DatexNativeOps},
 };
 use core::any::Any;
 
@@ -12,3 +13,4 @@ impl DatexNative for Callable {
         self
     }
 }
+impl DatexNativeOps for Callable {}

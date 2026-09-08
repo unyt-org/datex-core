@@ -5,6 +5,7 @@ use crate::{
         static_classification::StaticClassification,
     },
     types::r#type::Type,
+    values::core_values::native::DatexNativeOps,
 };
 use core::any::Any;
 
@@ -21,3 +22,4 @@ impl DatexNative for Type {
 impl Classification for Type {}
 
 impl StaticClassification for Type {}
+impl DatexNativeOps for Type {}

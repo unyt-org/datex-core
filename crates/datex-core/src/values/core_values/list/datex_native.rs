@@ -1,4 +1,7 @@
-use crate::{preludes::derive::DatexNative, values::core_values::list::List};
+use crate::{
+    preludes::derive::DatexNative,
+    values::core_values::{list::List, native::DatexNativeOps},
+};
 use core::any::Any;
 
 impl DatexNative for List {
@@ -10,3 +13,4 @@ impl DatexNative for List {
         self
     }
 }
+impl DatexNativeOps for List {}

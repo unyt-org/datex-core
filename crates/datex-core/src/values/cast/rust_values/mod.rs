@@ -10,7 +10,7 @@ mod option;
 mod string;
 mod vec;
 
-use core::any::Any;
+use core::{any::Any, ops::Add};
 
 use crate::{
     libs::core::type_id::{CoreLibBaseTypeId, CoreLibVariantTypeId},
@@ -39,7 +39,7 @@ use crate::{
     types::type_definition::TypeDefinition,
     values::core_values::{
         decimal::typed_decimal::DecimalTypeVariant,
-        integer::typed_integer::IntegerTypeVariant,
+        integer::typed_integer::IntegerTypeVariant, native::DatexNativeOps,
     },
 };
 
@@ -55,6 +55,7 @@ macro_rules! implement_rust_native_traits {
                 self
             }
         }
+        // impl DatexNativeOps for $type {}
 
         impl Classification for $type {}
         impl StaticClassification for $type {}
@@ -295,6 +296,28 @@ implement_rust_native_traits!(
     {
         CoreValue::Text(Text(value)) => Ok(value),
     }
+);
+impl DatexNativeOps for String {}
+impl DatexNativeOps for bool {}
+
+macro_rules! impl_native_add {
+    ($($ty:ty),*) => {
+        $(
+            impl DatexNativeOps for $ty {
+                fn add_native(
+                    &self,
+                    rhs: &dyn DatexNative,
+                ) -> Option<Box<dyn DatexNative>> {
+                    let rhs = rhs.as_any().downcast_ref::<$ty>()?;
+                    Some(Box::new(*self + *rhs))
+                }
+            }
+        )*
+    };
+}
+
+impl_native_add!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
 );
 
 // &str

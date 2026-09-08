@@ -712,7 +712,7 @@ mod tests {
 
     #[test]
     fn add() {
-        let result = execute_datex_script_debug_with_result("1 + 2");
+        let result = execute_datex_script_debug_with_result("1i8 + 2i8");
         assert_eq!(result, Integer::from(3i8).into());
         assert_structural_eq!(result, ValueContainer::from(3i8));
     }

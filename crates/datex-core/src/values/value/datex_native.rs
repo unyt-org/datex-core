@@ -1,4 +1,7 @@
-use crate::values::{core_values::native::DatexNative, value::Value};
+use crate::values::{
+    core_values::native::{DatexNative, DatexNativeOps},
+    value::Value,
+};
 use core::any::Any;
 
 impl DatexNative for Value {
@@ -9,3 +12,4 @@ impl DatexNative for Value {
         self
     }
 }
+impl DatexNativeOps for Value {}

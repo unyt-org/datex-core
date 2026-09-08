@@ -1,5 +1,6 @@
 use crate::{
-    preludes::derive::DatexNative, values::core_values::integer::Integer,
+    preludes::derive::DatexNative,
+    values::core_values::{integer::Integer, native::DatexNativeOps},
 };
 use core::any::Any;
 
@@ -12,3 +13,4 @@ impl DatexNative for Integer {
         self
     }
 }
+impl DatexNativeOps for Integer {}

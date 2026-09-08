@@ -81,9 +81,19 @@ pub trait DatexNative:
     + Classification
     + ToInstructions
     + ToDatexExpressionData
+    + DatexNativeOps
 {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+pub trait DatexNativeOps {
+    fn add_native(
+        &self,
+        rhs: &dyn DatexNative,
+    ) -> Option<Box<dyn DatexNative>> {
+        None
+    }
 }
 
 #[cfg(not(feature = "ast"))]

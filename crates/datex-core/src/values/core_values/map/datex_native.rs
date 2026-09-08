@@ -1,4 +1,7 @@
-use crate::{preludes::derive::DatexNative, values::core_values::map::Map};
+use crate::{
+    preludes::derive::DatexNative,
+    values::core_values::{map::Map, native::DatexNativeOps},
+};
 use core::any::Any;
 
 impl DatexNative for Map {
@@ -10,3 +13,4 @@ impl DatexNative for Map {
         self
     }
 }
+impl DatexNativeOps for Map {}

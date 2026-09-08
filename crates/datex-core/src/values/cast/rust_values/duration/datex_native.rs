@@ -1,4 +1,6 @@
-use crate::preludes::derive::DatexNative;
+use crate::{
+    preludes::derive::DatexNative, values::core_values::native::DatexNativeOps,
+};
 use core::{any::Any, time::Duration};
 
 impl DatexNative for Duration {
@@ -10,3 +12,4 @@ impl DatexNative for Duration {
         self
     }
 }
+impl DatexNativeOps for Duration {}

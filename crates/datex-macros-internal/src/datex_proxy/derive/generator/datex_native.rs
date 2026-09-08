@@ -24,6 +24,7 @@ pub fn generate_datex_native(structure_data: &StructureData) -> TokenStream {
                 self
             }
         }
+        impl #generics DatexNativeOps for #ident #generics {}
 
         #native_only_structural_impl
     }

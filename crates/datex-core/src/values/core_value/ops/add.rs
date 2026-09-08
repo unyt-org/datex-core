@@ -38,6 +38,11 @@ impl Add for &CoreValue {
             (CoreValue::Decimal(lhs), CoreValue::Decimal(rhs)) => {
                 return Ok(CoreValue::Decimal(lhs + rhs));
             }
+            (CoreValue::Native(lhs), CoreValue::Native(rhs)) => {
+                return Ok(CoreValue::Native(
+                    (lhs + rhs).ok_or(ValueError::InvalidOperation)?,
+                ));
+            }
 
             _ => {}
         }

@@ -1,6 +1,7 @@
 use crate::{
-    prelude::*, preludes::derive::DatexNative,
-    values::core_values::native::DatexNativeBase,
+    prelude::*,
+    preludes::derive::DatexNative,
+    values::core_values::native::{DatexNativeBase, DatexNativeOps},
 };
 use core::any::Any;
 
@@ -12,3 +13,4 @@ impl<T: DatexNativeBase + 'static> DatexNative for Vec<T> {
         self
     }
 }
+impl<T: DatexNativeBase + 'static> DatexNativeOps for Vec<T> {}

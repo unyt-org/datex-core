@@ -85,19 +85,18 @@ impl_integer_core_value_conversions! {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::values::{core_value::CoreValue, core_values::boolean::Boolean};
 
     #[test]
     fn try_bool_from_core_value() {
         let mut core_value = CoreValue::Boolean(Boolean(true));
         let result = core_value.try_as::<bool>();
-        assert_eq!(*result.unwrap(), true);
+        assert!(*result.unwrap());
 
         let result_mut = core_value.try_as_mut::<bool>();
-        assert_eq!(*result_mut.unwrap(), true);
+        assert!(*result_mut.unwrap());
 
         let result_into = core_value.try_into_value::<bool>();
-        assert_eq!(result_into.unwrap(), true);
+        assert!(result_into.unwrap());
     }
 }

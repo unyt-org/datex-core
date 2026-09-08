@@ -56,7 +56,10 @@ pub use crate::{
             BorrowedValueContainerMut,
         },
         core_value::CoreValue,
-        core_values::{list::List, map::Map, native::DatexNative, text::Text},
+        core_values::{
+            list::List, map::Map, native::DatexNative, native::DatexNativeOps,
+            text::Text,
+        },
         value::Value,
         value_container::{ValueContainer, value_key::BorrowedValueKey},
     },

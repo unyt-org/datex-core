@@ -1,4 +1,6 @@
-use crate::values::core_values::native::{DatexNative, DatexNativeBase};
+use crate::values::core_values::native::{
+    DatexNative, DatexNativeBase, DatexNativeOps,
+};
 use core::any::Any;
 
 impl<T: DatexNativeBase + 'static> DatexNative for Option<T> {
@@ -9,3 +11,4 @@ impl<T: DatexNativeBase + 'static> DatexNative for Option<T> {
         self
     }
 }
+impl<T: DatexNativeBase + 'static> DatexNativeOps for Option<T> {}

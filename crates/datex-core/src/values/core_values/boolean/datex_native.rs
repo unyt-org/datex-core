@@ -1,5 +1,6 @@
 use crate::{
-    preludes::derive::DatexNative, values::core_values::boolean::Boolean,
+    preludes::derive::DatexNative,
+    values::core_values::{boolean::Boolean, native::DatexNativeOps},
 };
 use core::any::Any;
 
@@ -12,3 +13,4 @@ impl DatexNative for Boolean {
         self
     }
 }
+impl DatexNativeOps for Boolean {}
