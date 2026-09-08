@@ -200,10 +200,8 @@ impl ToInstructions for DatexExpressionData {
 
                 DatexExpressionData::TypeExpression(type_expression) => {
                     yield RegularInstruction::TypeExpression.into();
-                    for _instruction in type_expression.to_instructions(ctx) {
-                        todo!(
-                            "Transparent yield of typeinstructions over egular instructions"
-                        ); //yield instruction;
+                    for instruction in type_expression.to_instructions(ctx) {
+                        yield instruction;
                     }
                 }
 

@@ -28,31 +28,9 @@ impl ToInstructions for ValueContainer {
                     }
                 }
                 ValueContainer::Shared(shared_container) => {
-                    let ownership = shared_container.ownership();
-                    let index = ctx
-                        .shared_value_tracking()
-                        .expect("Shared value tracking not initialized")
-                        .borrow_mut()
-                        .register_shared_value(shared_container);
-
-                    yield match ownership {
-                        SharedContainerOwnership::Owned => {
-                            RegularInstruction::take_stack_value(index)
-                        }
-                        SharedContainerOwnership::Referenced(
-                            ReferenceMutability::Immutable,
-                        ) => RegularInstruction::get_stack_value_shared_ref(
-                            index,
-                        ),
-                        SharedContainerOwnership::Referenced(
-                            ReferenceMutability::Mutable,
-                        ) => {
-                            RegularInstruction::get_stack_value_shared_ref_mut(
-                                index,
-                            )
-                        }
+                    for instruction in shared_container.to_instructions(ctx) {
+                        yield instruction;
                     }
-                    .into()
                 }
             }
         })
