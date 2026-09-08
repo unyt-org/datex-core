@@ -563,16 +563,15 @@ mod tests {
     #[test]
     fn string_concatenation() {
         let a = Value::from("Hello ");
-        let b = Value::from(42i8);
-
+        let b = Value::from(TypedInteger::I8(42i8));
         assert!(matches!(a.inner, CoreValue::Text(_)));
         assert!(matches!(
-            b.inner,
-            CoreValue::TypedInteger(TypedInteger::I8(_))
+            b.try_as::<TypedInteger>().unwrap(),
+            TypedInteger::I8(_)
         ));
 
-        let a_plus_b = (a.clone() + b.clone()).unwrap();
-        let b_plus_a = (b.clone() + a.clone()).unwrap();
+        let a_plus_b = (&a + &b).unwrap();
+        let b_plus_a = (&b + &a).unwrap();
 
         assert!(matches!(a_plus_b.inner, CoreValue::Text(_)));
         assert!(matches!(b_plus_a.inner, CoreValue::Text(_)));
