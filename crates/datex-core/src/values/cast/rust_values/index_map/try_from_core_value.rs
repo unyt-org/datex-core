@@ -75,20 +75,93 @@ impl<'a, K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::values::core_value::CoreValue;
+    use crate::{
+        random::RandomState,
+        utils::{goat::Goat, goat_mut::GoatMut},
+        values::{
+            core_value::CoreValue,
+            value::borrowed_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+    };
+    use indexmap::IndexMap;
+    type TestMap = IndexMap<i32, i32, RandomState>;
 
     #[test]
-    #[cfg(feature = "std")]
-    fn try_hash_map_from_core_value() {
-        let mut core_value = CoreValue::native(IndexMap::<i32, i32>::default());
-        let result = core_value.try_as::<IndexMap<i32, i32>>();
-        assert!(result.is_some());
+    fn try_index_map_from_core_value() {
+        let mut map = TestMap::default();
+        map.insert(1, 10);
+        map.insert(2, 20);
 
-        let result_mut = core_value.try_as_mut::<IndexMap<i32, i32>>();
-        assert!(result_mut.is_some());
+        let core_value = CoreValue::native(map.clone());
+        assert_eq!(core_value.try_as::<TestMap>().unwrap(), &map);
+    }
+    #[test]
+    fn try_index_map_into_core_value() {
+        let mut map = TestMap::default();
+        map.insert(1, 10);
+        map.insert(2, 20);
 
-        let result_into = core_value.try_into_value::<IndexMap<i32, i32>>();
-        assert!(result_into.is_ok());
+        let core_value = CoreValue::native(map.clone());
+        assert_eq!(core_value.try_into_value::<TestMap>().unwrap(), map);
+    }
+
+    #[test]
+    fn try_index_map_mut_from_core_value() {
+        let mut map = TestMap::default();
+        map.insert(1, 10);
+
+        let mut core_value = CoreValue::native(map);
+        let map = core_value.try_as_mut::<TestMap>().unwrap();
+        map.insert(2, 20);
+        assert_eq!(core_value.try_as::<TestMap>().unwrap().get(&2), Some(&20));
+    }
+
+    #[test]
+    fn try_index_map_from_wrong_core_value_fails() {
+        let core_value = CoreValue::Null;
+        assert!(core_value.try_as::<TestMap>().is_none());
+        assert!(core_value.try_into_value::<TestMap>().is_err());
+    }
+
+    #[test]
+    fn try_borrowed_index_map() {
+        let mut map = TestMap::default();
+        map.insert(1, 10);
+        let core_value = CoreValue::native(map.clone());
+        let borrowed = BorrowedCoreValue::from(&core_value);
+        let result = Goat::<TestMap>::try_from(borrowed).unwrap();
+        assert_eq!(*result, map);
+    }
+
+    #[test]
+    fn try_borrowed_index_map_mut() {
+        let mut map = TestMap::default();
+        map.insert(1, 10);
+        let mut core_value = CoreValue::native(map);
+        let borrowed = BorrowedCoreValueMut::from(&mut core_value);
+        let mut result = GoatMut::<TestMap>::try_from(borrowed).unwrap();
+        result.insert(2, 20);
+        drop(result);
+        assert_eq!(core_value.try_as::<TestMap>().unwrap().get(&2), Some(&20));
+    }
+
+    #[test]
+    fn try_borrowed_index_map_wrong_type_fails() {
+        let core_value =
+            CoreValue::native(
+                IndexMap::<String, String, RandomState>::default(),
+            );
+        let borrowed = BorrowedCoreValue::from(&core_value);
+        assert!(Goat::<TestMap>::try_from(borrowed).is_err());
+    }
+
+    #[test]
+    fn try_borrowed_index_map_mut_wrong_type_fails() {
+        let mut core_value =
+            CoreValue::native(
+                IndexMap::<String, String, RandomState>::default(),
+            );
+        let borrowed = BorrowedCoreValueMut::from(&mut core_value);
+        assert!(GoatMut::<TestMap>::try_from(borrowed).is_err());
     }
 }

@@ -63,19 +63,76 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::values::{core_value::CoreValue, core_values::boolean::Boolean};
+    use crate::{
+        traits::convert_core_value::ConvertCoreValue,
+        values::{
+            core_value::CoreValue,
+            core_values::integer::typed_integer::TypedInteger,
+        },
+    };
 
     #[test]
-    fn try_bool_from_core_value() {
-        let mut core_value = CoreValue::Boolean(Boolean(true));
-        let result = core_value.try_as::<bool>();
-        assert_eq!(*result.unwrap(), true);
+    fn try_option_from_null() {
+        let core_value = CoreValue::Null;
+        let result = Option::<u32>::try_from_core_value(core_value);
+        assert_eq!(result.unwrap(), None);
+    }
 
-        let result_mut = core_value.try_as_mut::<bool>();
-        assert_eq!(*result_mut.unwrap(), true);
+    #[test]
+    fn try_option_from_native() {
+        let core_value = CoreValue::from(42u32);
+        let result = Option::<u32>::try_from_core_value(core_value);
+        assert_eq!(result.unwrap(), Some(42));
+    }
 
-        let result_into = core_value.try_into_value::<bool>();
-        assert_eq!(result_into.unwrap(), true);
+    #[test]
+    fn try_option_from_wrong_core_value() {
+        let core_value = CoreValue::TypedInteger(TypedInteger::I32(42));
+        let result = Option::<u32>::try_from_core_value(core_value);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn try_option_ref_from_null() {
+        let core_value = CoreValue::Null;
+        let result = Option::<&u32>::try_from(&core_value);
+        assert_eq!(result.unwrap(), None);
+    }
+
+    #[test]
+    fn try_option_ref_from_native() {
+        let core_value = CoreValue::from(42u32);
+        let result = Option::<&u32>::try_from(&core_value);
+        assert_eq!(*result.unwrap().unwrap(), 42);
+    }
+
+    #[test]
+    fn try_option_ref_from_wrong_core_value() {
+        let core_value = CoreValue::TypedInteger(TypedInteger::I32(42));
+        let result = Option::<&u32>::try_from(&core_value);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn try_option_mut_ref_from_null() {
+        let mut core_value = CoreValue::Null;
+        let result = Option::<&mut u32>::try_from(&mut core_value);
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn try_option_mut_ref_from_native() {
+        let mut core_value = CoreValue::from(42u32);
+        let result = Option::<&mut u32>::try_from(&mut core_value);
+        let value = result.unwrap().unwrap();
+        *value = 100;
+        assert_eq!(*core_value.try_as::<u32>().unwrap(), 100);
+    }
+
+    #[test]
+    fn try_option_mut_ref_from_wrong_core_value() {
+        let mut core_value = CoreValue::TypedInteger(TypedInteger::I32(42));
+        let result = Option::<&mut u32>::try_from(&mut core_value);
+        assert!(result.is_err());
     }
 }

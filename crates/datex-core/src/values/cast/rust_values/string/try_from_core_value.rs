@@ -68,18 +68,67 @@ impl<'a> TryFrom<BorrowedCoreValueMut<'a>> for GoatMut<'a, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::values::{core_value::CoreValue, core_values::boolean::Boolean};
+    use crate::values::core_value::CoreValue;
 
     #[test]
     fn try_string_from_core_value() {
-        let mut core_value = CoreValue::Text(Text("Hello, World!".to_string()));
+        let core_value = CoreValue::Text(Text("Hello, World!".to_string()));
         let result = core_value.try_as::<String>();
-        assert_eq!(*result.unwrap(), "Hello, World!");
+        assert_eq!(result.unwrap(), "Hello, World!");
 
-        let result_mut = core_value.try_as_mut::<String>();
-        assert_eq!(*result_mut.unwrap(), "Hello, World!");
+        let core_value = CoreValue::Text(Text("Hello, World!".to_string()));
+        let result = core_value.try_into_value::<String>();
+        assert_eq!(result.unwrap(), "Hello, World!");
+    }
 
-        let result_into = core_value.try_into_value::<String>();
-        assert_eq!(result_into.unwrap(), "Hello, World!");
+    #[test]
+    fn try_borrow_string_from_core_value() {
+        let core_value = CoreValue::Text(Text("Hello, World!".to_string()));
+        let result = core_value.try_as::<String>();
+        assert_eq!(result.unwrap(), "Hello, World!");
+    }
+
+    #[test]
+    fn try_borrow_mut_string_from_core_value() {
+        let mut core_value = CoreValue::Text(Text("Hello, World!".to_string()));
+        let result = core_value.try_as_mut::<String>();
+
+        let value = result.unwrap();
+        value.push_str("!");
+        assert_eq!(core_value.try_as::<String>().unwrap(), "Hello, World!!");
+    }
+
+    #[test]
+    fn try_string_from_native_core_value() {
+        let core_value = CoreValue::from("Hello, World!".to_string());
+        let result = core_value.try_as::<String>();
+        assert_eq!(result.unwrap(), "Hello, World!");
+    }
+
+    #[test]
+    fn try_borrow_mut_string_from_native_core_value() {
+        let mut core_value = CoreValue::from("Hello, World!".to_string());
+        let result = core_value.try_as_mut::<String>();
+        result.unwrap().push('!');
+        assert_eq!(core_value.try_as::<String>().unwrap(), "Hello, World!!");
+    }
+
+    #[test]
+    fn try_owned_string_from_native_core_value() {
+        let core_value = CoreValue::from("Hello, World!".to_string());
+        let result = core_value.try_into_value::<String>();
+        assert_eq!(result.unwrap(), "Hello, World!");
+    }
+
+    #[test]
+    fn try_string_from_wrong_core_value_fails() {
+        let core_value = CoreValue::Null;
+        assert!(core_value.try_as::<String>().is_none());
+    }
+
+    #[test]
+    fn try_borrow_mut_string_from_wrong_core_value_fails() {
+        let mut core_value = CoreValue::Null;
+        assert!(core_value.try_as_mut::<String>().is_none());
     }
 }

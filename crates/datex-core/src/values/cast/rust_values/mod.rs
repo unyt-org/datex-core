@@ -377,9 +377,9 @@ mod tests {
     #[test]
     fn try_without_context() {
         // core rust types like String should be convertible to value without cache
-        let res = Value::native_structural("test".to_string());
-        let res = CoreValue::from("test");
-        let res = Value::from("test");
+        let _ = Value::native_structural("test".to_string());
+        let _ = CoreValue::from("test");
+        let _ = Value::from("test");
     }
 
     #[test]

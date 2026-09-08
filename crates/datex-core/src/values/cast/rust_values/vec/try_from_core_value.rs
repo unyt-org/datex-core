@@ -66,19 +66,70 @@ impl<'a, T: DatexNativeBase + 'static> TryFrom<BorrowedCoreValueMut<'a>>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::values::{core_value::CoreValue, core_values::boolean::Boolean};
+    use crate::{
+        utils::{goat::Goat, goat_mut::GoatMut},
+        values::{
+            core_value::CoreValue,
+            value::borrowed_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+    };
 
     #[test]
     fn try_vec_from_core_value() {
-        let mut core_value = CoreValue::native(Vec::<i32>::default());
-        let result = core_value.try_as::<Vec<i32>>();
-        assert!(result.is_some());
+        let values = vec![1, 2, 3];
+        let core_value = CoreValue::native(values.clone());
 
-        let result_mut = core_value.try_as_mut::<Vec<i32>>();
-        assert!(result_mut.is_some());
+        assert_eq!(core_value.try_as::<Vec<i32>>().unwrap(), &values);
+        assert_eq!(core_value.try_into_value::<Vec<i32>>().unwrap(), values);
+    }
 
-        let result_into = core_value.try_into_value::<Vec<i32>>();
-        assert!(result_into.is_ok());
+    #[test]
+    fn try_vec_mut_from_core_value() {
+        let mut core_value = CoreValue::native(vec![1, 2, 3]);
+
+        let values = core_value.try_as_mut::<Vec<i32>>().unwrap();
+        values.push(4);
+
+        assert_eq!(core_value.try_as::<Vec<i32>>().unwrap(), &vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn try_vec_from_wrong_core_value_fails() {
+        let core_value = CoreValue::Null;
+
+        assert!(core_value.try_as::<Vec<i32>>().is_none());
+        assert!(core_value.try_into_value::<Vec<i32>>().is_err());
+    }
+
+    #[test]
+    fn try_borrowed_vec() {
+        let values = vec![1, 2, 3];
+        let core_value = CoreValue::native(values.clone());
+
+        let borrowed = BorrowedCoreValue::from(&core_value);
+        let result = Goat::<Vec<i32>>::try_from(borrowed).unwrap();
+        assert_eq!(*result, values);
+    }
+
+    #[test]
+    fn try_borrowed_vec_mut() {
+        let mut core_value = CoreValue::native(vec![1, 2, 3]);
+
+        let borrowed = BorrowedCoreValueMut::from(&mut core_value);
+        let mut result = GoatMut::<Vec<i32>>::try_from(borrowed).unwrap();
+
+        result.push(4);
+        drop(result);
+        assert_eq!(core_value.try_as::<Vec<i32>>().unwrap(), &vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn try_borrowed_vec_wrong_type_fails() {
+        // FIXME allow vec!["aaa", "bbb"] refs
+        let core_value =
+            CoreValue::native(vec!["hello".to_string(), "world".to_string()]);
+        let borrowed = BorrowedCoreValue::from(&core_value);
+
+        assert!(Goat::<Vec<i32>>::try_from(borrowed).is_err());
     }
 }

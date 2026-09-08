@@ -28,3 +28,16 @@ where
         Err(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::values::core_value::CoreValue;
+
+    #[test]
+    fn try_box_from_native_core_value() {
+        let core_value = CoreValue::from(42u32);
+        let result = core_value.try_into_value::<Box<u32>>().unwrap();
+        assert_eq!(*result, 42);
+    }
+}

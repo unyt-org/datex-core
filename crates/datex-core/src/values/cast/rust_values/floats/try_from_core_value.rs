@@ -131,3 +131,177 @@ impl<'a> TryFrom<BorrowedCoreValueMut<'a>> for GoatMut<'a, f64> {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use crate::{
+        preludes::derive::{BorrowedCoreValue, BorrowedCoreValueMut},
+        utils::{goat::Goat, goat_mut::GoatMut},
+        values::{
+            core_value::CoreValue,
+            core_values::decimal::typed_decimal::TypedDecimal,
+        },
+    };
+
+    #[test]
+    fn try_f32_from_core_value() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+        let result = core_value.try_as::<f32>();
+        assert_eq!(*result.unwrap(), 1.5);
+
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+        let result = core_value.try_into_value::<f32>();
+        assert_eq!(result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_f32_from_core_value() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+
+        let result = core_value.try_as::<f32>();
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_mut_f32_from_core_value() {
+        let mut core_value =
+            CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+
+        let result = core_value.try_as_mut::<f32>();
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f32>().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn try_f32_from_native_core_value() {
+        let core_value = CoreValue::from(1.5f32);
+        let result = core_value.try_as::<f32>();
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_mut_f32_from_native_core_value() {
+        let mut core_value = CoreValue::from(1.5f32);
+
+        let result = core_value.try_as_mut::<f32>();
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f32>().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn try_owned_f32_from_native_core_value() {
+        let core_value = CoreValue::from(1.5f32);
+        let result = core_value.try_into_value::<f32>();
+        assert_eq!(result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_f32_from_wrong_core_value_fails() {
+        let core_value = CoreValue::Null;
+        assert!(core_value.try_as::<f32>().is_none());
+        assert!(core_value.try_into_value::<f32>().is_err());
+    }
+
+    #[test]
+    fn try_borrow_mut_f32_from_wrong_core_value_fails() {
+        let mut core_value = CoreValue::Null;
+        assert!(core_value.try_as_mut::<f32>().is_none());
+    }
+
+    #[test]
+    fn try_borrowed_core_value_f32() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+        let borrowed = BorrowedCoreValue::from(&core_value);
+        let result = Goat::<f32>::try_from(borrowed);
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrowed_core_value_mut_f32() {
+        let mut core_value =
+            CoreValue::TypedDecimal(TypedDecimal::F32(1.5.into()));
+        let borrowed = BorrowedCoreValueMut::from(&mut core_value);
+        let result = GoatMut::<f32>::try_from(borrowed);
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f32>().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn try_f64_from_core_value() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+        let result = core_value.try_as::<f64>();
+        assert_eq!(*result.unwrap(), 1.5);
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+        let result = core_value.try_into_value::<f64>();
+        assert_eq!(result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_f64_from_core_value() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+        let result = core_value.try_as::<f64>();
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_mut_f64_from_core_value() {
+        let mut core_value =
+            CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+
+        let result = core_value.try_as_mut::<f64>();
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f64>().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn try_f64_from_native_core_value() {
+        let core_value = CoreValue::from(1.5f64);
+        let result = core_value.try_as::<f64>();
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrow_mut_f64_from_native_core_value() {
+        let mut core_value = CoreValue::from(1.5f64);
+        let result = core_value.try_as_mut::<f64>();
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f64>().unwrap(), 2.5);
+    }
+
+    #[test]
+    fn try_owned_f64_from_native_core_value() {
+        let core_value = CoreValue::from(1.5f64);
+        let result = core_value.try_into_value::<f64>();
+        assert_eq!(result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_f64_from_wrong_core_value_fails() {
+        let core_value = CoreValue::Null;
+        assert!(core_value.try_as::<f64>().is_none());
+        assert!(core_value.try_into_value::<f64>().is_err());
+    }
+
+    #[test]
+    fn try_borrow_mut_f64_from_wrong_core_value_fails() {
+        let mut core_value = CoreValue::Null;
+        assert!(core_value.try_as_mut::<f64>().is_none());
+    }
+
+    #[test]
+    fn try_borrowed_core_value_f64() {
+        let core_value = CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+        let borrowed = BorrowedCoreValue::from(&core_value);
+        let result = Goat::<f64>::try_from(borrowed);
+        assert_eq!(*result.unwrap(), 1.5);
+    }
+
+    #[test]
+    fn try_borrowed_core_value_mut_f64() {
+        let mut core_value =
+            CoreValue::TypedDecimal(TypedDecimal::F64(1.5.into()));
+        let borrowed = BorrowedCoreValueMut::from(&mut core_value);
+        let result = GoatMut::<f64>::try_from(borrowed);
+        *result.unwrap() = 2.5;
+        assert_eq!(*core_value.try_as::<f64>().unwrap(), 2.5);
+    }
+}
