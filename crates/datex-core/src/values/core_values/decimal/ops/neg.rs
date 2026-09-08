@@ -3,8 +3,8 @@ use crate::values::core_values::decimal::{
 };
 use core::ops::Neg;
 
-impl Neg for Decimal {
-    type Output = Self;
+impl Neg for &Decimal {
+    type Output = Decimal;
 
     fn neg(self) -> Self::Output {
         match self {
@@ -18,7 +18,15 @@ impl Neg for Decimal {
     }
 }
 
-impl Neg for TypedDecimal {
+impl Neg for Decimal {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        (&self).neg()
+    }
+}
+
+impl Neg for &TypedDecimal {
     type Output = TypedDecimal;
 
     fn neg(self) -> Self::Output {
@@ -27,5 +35,12 @@ impl Neg for TypedDecimal {
             TypedDecimal::F64(value) => TypedDecimal::F64(value.neg()),
             TypedDecimal::Decimal(value) => TypedDecimal::Decimal(value.neg()),
         }
+    }
+}
+impl Neg for TypedDecimal {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        (&self).neg()
     }
 }

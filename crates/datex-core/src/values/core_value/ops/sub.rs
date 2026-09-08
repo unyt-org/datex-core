@@ -8,9 +8,9 @@ use crate::values::{
 };
 use core::{ops::Sub, result::Result};
 
-impl Sub for CoreValue {
+impl Sub for &CoreValue {
     type Output = Result<CoreValue, ValueError>;
-    fn sub(self, rhs: CoreValue) -> Self::Output {
+    fn sub(self, rhs: &CoreValue) -> Self::Output {
         // same type subtractions
         match (&self, &rhs) {
             (CoreValue::TypedInteger(lhs), CoreValue::TypedInteger(rhs)) => {
@@ -106,7 +106,7 @@ impl Sub for CoreValue {
             // typed decimal
             CoreValue::TypedDecimal(lhs) => match rhs {
                 CoreValue::Decimal(rhs) => Ok(CoreValue::TypedDecimal(
-                    lhs - &TypedDecimal::Decimal(rhs),
+                    lhs - &TypedDecimal::Decimal(rhs.clone()),
                 )),
                 CoreValue::TypedInteger(rhs) => {
                     let decimal = TypedDecimal::from(
@@ -129,9 +129,9 @@ impl Sub for CoreValue {
     }
 }
 
-impl Sub for &CoreValue {
+impl Sub for CoreValue {
     type Output = Result<CoreValue, ValueError>;
-    fn sub(self, rhs: &CoreValue) -> Self::Output {
-        CoreValue::sub(self.clone(), rhs.clone())
+    fn sub(self, rhs: CoreValue) -> Self::Output {
+        &self - &rhs
     }
 }

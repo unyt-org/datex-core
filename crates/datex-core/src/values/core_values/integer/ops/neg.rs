@@ -13,9 +13,16 @@ impl Neg for Integer {
         Integer(-self.0)
     }
 }
+impl Neg for &Integer {
+    type Output = Integer;
+
+    fn neg(self) -> Self::Output {
+        Integer(self.0.clone().neg())
+    }
+}
 
 // FIXME #347 shall we allow negation of unsigned integers and wrap around?
-impl Neg for TypedInteger {
+impl Neg for &TypedInteger {
     type Output = Result<TypedInteger, ValueError>;
 
     fn neg(self) -> Self::Output {
@@ -28,5 +35,12 @@ impl Neg for TypedInteger {
             TypedInteger::IBig(v) => Ok(TypedInteger::IBig(v.neg())),
             _ => Err(ValueError::InvalidOperation),
         }
+    }
+}
+impl Neg for TypedInteger {
+    type Output = Result<TypedInteger, ValueError>;
+
+    fn neg(self) -> Self::Output {
+        (&self).neg()
     }
 }
