@@ -26,6 +26,15 @@ pub struct Range {
     pub end: Box<ValueContainer>,
 }
 
+impl Range {
+    pub fn new(start: ValueContainer, end: ValueContainer) -> Self {
+        Self {
+            start: Box::new(start),
+            end: Box::new(end),
+        }
+    }
+}
+
 impl fmt::Debug for Range {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         core::write!(f, "{:?}..{:?}", self.start, self.end)

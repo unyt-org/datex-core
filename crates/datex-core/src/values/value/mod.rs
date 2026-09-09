@@ -516,17 +516,17 @@ mod tests {
 
     #[test]
     fn boolean() {
-        let a = Value::from(true);
-        let b = Value::from(false);
-        let c = Value::from(false);
+        let a = Value::from(CoreValue::Boolean(true.into()));
+        let b = Value::from(CoreValue::Boolean(false.into()));
+        let c = Value::from(CoreValue::Boolean(false.into()));
         assert_ne!(a, b);
         assert_eq!(b, c);
 
-        let d = (!b.clone()).unwrap();
+        let d = (!&b).unwrap();
         assert_eq!(a, d);
 
         // We can't add two booleans together, so this should return None
-        let a_plus_b = a.clone() + b.clone();
+        let a_plus_b = &a + &b;
         assert!(a_plus_b.is_err());
     }
 
@@ -561,8 +561,11 @@ mod tests {
 
         let maybe_value: Option<i8> = None;
         let null_value = Value::from(maybe_value);
-        assert_eq!(null_value.to_string(), "null");
-        assert!(null_value.is_null());
+        assert_eq!(*null_value.try_as::<Option<i8>>().unwrap(), None);
+        assert_eq!(
+            null_value.inner.try_into_value::<Option<i8>>().unwrap(),
+            None
+        );
     }
 
     #[test]
