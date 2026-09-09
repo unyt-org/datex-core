@@ -457,10 +457,10 @@ mod tests {
     #[test]
     pub fn range_from_core() {
         assert_eq!(
-            CoreValue::from(Range {
-                start: Box::new(Integer::from(11).into()),
-                end: Box::new(Integer::from(13).into())
-            })
+            CoreValue::Range(Range::new(
+                CoreValue::Integer(Integer::from(11)).into(),
+                CoreValue::Integer(Integer::from(13)).into()
+            ))
             .to_string(),
             "11..13"
         );
