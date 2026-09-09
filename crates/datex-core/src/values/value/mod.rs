@@ -156,6 +156,11 @@ impl Value {
         Value::new(CoreValue::native_boxed(value), classification)
     }
 
+    /// Checks if the inner [CoreValue] of the [Value] is a [CoreValue::Native].
+    pub fn is_native(&self) -> bool {
+        matches!(&self.inner, CoreValue::Native(_))
+    }
+
     pub fn classification(&self) -> &ValueClassification {
         &self.classification
     }
@@ -449,13 +454,23 @@ mod tests {
             list::{List, datex_list},
         },
     };
-    use core::{assert_matches, str::FromStr};
+    use core::assert_matches;
     use log::info;
 
     #[test]
     fn endpoint() {
-        let endpoint = Value::from(Endpoint::from_str("@test").unwrap());
-        assert_eq!(endpoint.to_string(), "@test");
+        let endpoint = Value::from(Endpoint::new("@test"));
+        assert!(endpoint.is_native());
+
+        let endpoint_value = endpoint.try_into_value::<Endpoint>().unwrap();
+        assert_eq!(endpoint_value.to_string(), "@test");
+
+        let endpoint = Value::from(CoreValue::Endpoint(Endpoint::new("@test")));
+        assert!(!endpoint.is_native());
+        assert_eq!(
+            endpoint.try_into_value::<Endpoint>().unwrap().to_string(),
+            "@test"
+        );
     }
 
     #[test]
