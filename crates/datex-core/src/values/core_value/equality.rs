@@ -1,5 +1,5 @@
 use crate::{
-    traits::{structural_eq::StructuralEq, value_eq::ValueEq},
+    traits::{dyn_eq::DynEq, structural_eq::StructuralEq, value_eq::ValueEq},
     values::{
         core_value::CoreValue,
         core_values::{
@@ -112,9 +112,80 @@ impl PartialEq for CoreValue {
             (CoreValue::Native(n1), CoreValue::Native(n2)) => {
                 n1.value.dyn_eq(&*n2.value)
             }
-            _ => false, // TODO: compare with native
+            (CoreValue::Native(n), other) => other.dyn_eq_native(&*n.value),
+            (other, CoreValue::Native(n)) => other.dyn_eq_native(&*n.value),
+            _ => false,
         }
     }
 }
 
 impl Eq for CoreValue {}
+impl CoreValue {
+    fn dyn_eq_native(&self, native: &dyn DynEq) -> bool {
+        match self {
+            CoreValue::Boolean(v) => native.dyn_eq(v),
+            CoreValue::Integer(v) => native.dyn_eq(v),
+            CoreValue::TypedInteger(v) => native.dyn_eq(v),
+            CoreValue::Decimal(v) => native.dyn_eq(v),
+            CoreValue::TypedDecimal(v) => native.dyn_eq(v),
+            CoreValue::Text(v) => native.dyn_eq(v),
+            CoreValue::Endpoint(v) => native.dyn_eq(v),
+            CoreValue::List(v) => native.dyn_eq(v),
+            CoreValue::Map(v) => native.dyn_eq(v),
+            CoreValue::Type(v) => native.dyn_eq(v),
+            CoreValue::Callable(v) => native.dyn_eq(v),
+            CoreValue::Range(v) => native.dyn_eq(v),
+            CoreValue::Null => native.dyn_eq(&()), //FIXME or false?
+            CoreValue::Uninitialized => todo!(),
+            CoreValue::EntityTypeDefinition(entity_type_definition) => todo!(),
+            CoreValue::Box(value_container) => value_container.dyn_eq(native), // FIXME
+            CoreValue::Native(native_core_value) => {
+                unreachable!("covered above")
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        preludes::derive::CoreValue,
+        values::core_values::{
+            boolean::Boolean, endpoint::Endpoint,
+            integer::typed_integer::TypedInteger, native::NativeCoreValue,
+        },
+    };
+
+    #[test]
+    fn native_eq() {
+        let native = CoreValue::Native(NativeCoreValue::new(Boolean(true)));
+        let non_native = CoreValue::Boolean(Boolean(true));
+        assert_eq!(native, non_native);
+
+        let native =
+            CoreValue::Native(NativeCoreValue::new(Endpoint::new("@jonas")));
+        let non_native = CoreValue::Endpoint(Endpoint::new("@jonas"));
+        assert_eq!(native, non_native);
+
+        let native = CoreValue::native(TypedInteger::I8(42));
+        let non_native = CoreValue::TypedInteger(TypedInteger::I8(42));
+        assert_eq!(native, non_native);
+    }
+
+    // FIXME
+    #[test]
+    fn native_eq_rust() {
+        let native = CoreValue::native(42);
+        let non_native = CoreValue::TypedInteger(TypedInteger::I8(42));
+        assert_eq!(native, non_native);
+    }
+
+    #[test]
+    fn native_ne() {
+        let native = CoreValue::Native(NativeCoreValue::new(Boolean(true)));
+        let value = CoreValue::Boolean(Boolean(false));
+
+        assert_ne!(native, value);
+        assert_ne!(value, native);
+    }
+}
