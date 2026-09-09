@@ -22,13 +22,22 @@ use crate::{
     },
 };
 
-/// Implements [TryFrom] for each [CoreValue] variant to its corresponding type. This allows to convert e.g. [CoreValue::Integer] to [Integer].
+/// Implements [TryFrom] for each [CoreValue] variant to its corresponding type.
+/// This allows to convert e.g. [CoreValue::Integer] to [Integer].
+/// This also allows to borrow or mutably borrow the corresponding type from a [CoreValue].
+/// Implementation for the try from core value methods is also done for [CoreValue::Native] branch.
 macro_rules! impl_try_from_core_value {
     ($($variant:ident => $type:ty),* $(,)?) => {
         $(
             impl ConvertCoreValue for $type {
                 fn try_from_core_value(value: CoreValue) -> Result<Self, CoreValue> {
                     match value {
+                        CoreValue::Native(native) => {
+                            match native.try_into_value() {
+                                Ok(v) => Ok(v),
+                                Err(native) => Err(CoreValue::Native(native)),
+                            }
+                        },
                         CoreValue::$variant(v) => Ok(v),
                         _ => Err(value),
                     }
@@ -37,6 +46,9 @@ macro_rules! impl_try_from_core_value {
                 fn try_borrow_from_core_value(value: &CoreValue) -> Result<&$type, ()> {
                     match value {
                         CoreValue::$variant(v) => Ok(v),
+                        CoreValue::Native(native) => {
+                            native.try_as::<$type>().ok_or(())
+                        },
                         _ => Err(()),
                     }
                 }
@@ -44,6 +56,9 @@ macro_rules! impl_try_from_core_value {
                 fn try_borrow_mut_from_core_value(value: &mut CoreValue) -> Result<&mut $type, ()> {
                     match value {
                         CoreValue::$variant(v) => Ok(v),
+                        CoreValue::Native(native) => {
+                            native.try_as_mut::<$type>().ok_or(())
+                        },
                         _ => Err(()),
                     }
                 }
@@ -93,10 +108,16 @@ impl_try_from_core_value! {
 mod tests {
     use core::assert_matches;
 
-    use crate::values::{
-        core_value::CoreValue,
-        core_values::{integer::Integer, text::Text},
-        value::Value,
+    use crate::{
+        preludes::derive::ConvertCoreValue,
+        values::{
+            core_value::CoreValue,
+            core_values::{
+                endpoint::Endpoint, integer::Integer, native::NativeCoreValue,
+                text::Text,
+            },
+            value::Value,
+        },
     };
 
     #[test]
@@ -124,7 +145,7 @@ mod tests {
         assert_eq!(*int_ref, Integer::new(42));
 
         let text_value = CoreValue::Text(Text::new("Hello, DATEX!"));
-        let text_ref: &Text = (&text_value).try_as().unwrap();
+        let text_ref: &Text = text_value.try_as().unwrap();
         assert_eq!(*text_ref, Text::new("Hello, DATEX!"));
     }
 
@@ -138,9 +159,34 @@ mod tests {
     }
 
     #[test]
-    fn try_from_value() {
+    fn try_into_value_value() {
         let value = Value::from(CoreValue::Integer(Integer::new(42)));
         let int: Integer = value.try_into_value().unwrap();
         assert_eq!(int, Integer::new(42));
+    }
+
+    #[test]
+    fn try_into_value_native() {
+        let native_endpoint = Value::from(Endpoint::new("@test"));
+        let endpoint: Endpoint = native_endpoint.try_into_value().unwrap();
+        assert_eq!(endpoint.to_string(), "@test");
+    }
+    #[test]
+    fn try_borrow_from_core_value_native() {
+        let mut native_endpoint =
+            CoreValue::Native(NativeCoreValue::new(Endpoint::new("@test")));
+        let endpoint_ref: &Endpoint =
+            Endpoint::try_borrow_from_core_value(&native_endpoint).unwrap();
+        assert_eq!(*endpoint_ref, Endpoint::new("@test"));
+
+        let endpoint_mut_ref: &mut Endpoint =
+            Endpoint::try_borrow_mut_from_core_value(&mut native_endpoint)
+                .unwrap();
+        *endpoint_mut_ref = Endpoint::new("@test2");
+        assert_eq!(*endpoint_mut_ref, Endpoint::new("@test2"));
+        assert_eq!(
+            native_endpoint,
+            CoreValue::Native(NativeCoreValue::new(Endpoint::new("@test2")))
+        );
     }
 }
