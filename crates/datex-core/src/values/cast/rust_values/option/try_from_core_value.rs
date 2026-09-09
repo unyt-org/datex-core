@@ -10,22 +10,40 @@ where
     fn try_from_core_value(value: CoreValue) -> Result<Self, CoreValue> {
         match value {
             CoreValue::Null => Ok(None),
-            CoreValue::Native(native) => native
-                .try_into_value::<T>()
-                .map(Some)
-                .map_err(CoreValue::Native),
-            _ => Err(value),
+            CoreValue::Native(native) => {
+                // native T -> Some(T)
+                match native.try_into_value::<T>() {
+                    Ok(value) => Ok(Some(value)),
+                    Err(native) => {
+                        // Native Option<T> -> Option<T>
+                        native
+                            .try_into_value::<Option<T>>()
+                            .map_err(CoreValue::Native)
+                    }
+                }
+            }
+            value => Err(value),
         }
     }
 
-    fn try_borrow_from_core_value(_value: &CoreValue) -> Result<&Self, ()> {
-        Err(())
+    fn try_borrow_from_core_value(value: &CoreValue) -> Result<&Self, ()> {
+        match value {
+            CoreValue::Native(native) => native.try_as::<Option<T>>().ok_or(()),
+            CoreValue::Null => Ok(&None),
+            _ => Err(()),
+        }
     }
 
     fn try_borrow_mut_from_core_value(
-        _value: &mut CoreValue,
+        value: &mut CoreValue,
     ) -> Result<&mut Self, ()> {
-        Err(())
+        match value {
+            CoreValue::Native(native) => {
+                native.try_as_mut::<Option<T>>().ok_or(())
+            }
+            // We can not cover the CoreValue::Null here because we need to return a mutable reference to an Option<T>
+            _ => Err(()),
+        }
     }
 }
 
@@ -38,8 +56,9 @@ where
         match value {
             CoreValue::Null => Ok(None),
             CoreValue::Native(native) => {
-                native.try_as::<T>().ok_or(()).map(Some)
+                native.try_as::<T>().map(Some).ok_or(())
             }
+
             _ => Err(()),
         }
     }
@@ -54,8 +73,9 @@ where
         match value {
             CoreValue::Null => Ok(None),
             CoreValue::Native(native) => {
-                native.try_as_mut::<T>().ok_or(()).map(Some)
+                native.try_as_mut::<T>().map(Some).ok_or(())
             }
+
             _ => Err(()),
         }
     }
