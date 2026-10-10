@@ -12,6 +12,8 @@ use datex_core::{
 };
 use datex_macros_internal::Datex;
 use serde::de::IntoDeserializer;
+use datex_core::traits::convert_value_container::ConvertValueContainer;
+use datex_core::values::core_values::native::DatexNative;
 
 #[derive(Datex, Debug, Clone, PartialEq)]
 #[datex(structural)]
@@ -39,15 +41,16 @@ enum ExampleEnum {
 /// TODO: general helper function in datex_core
 fn serialize_to_json_value(
     context: &SerdeContext,
-    value: &impl SerializeWithSerdeContext,
+    value: impl ConvertValueContainer,
 ) -> serde_json::Value {
+    let value_container = value.to_value_container();
     let serializer = serde_json::value::Serializer;
-    value.serialize_with_ctx(context, serializer).unwrap()
+    value_container.serialize_with_ctx(context, serializer).unwrap()
 }
 
 /// Generates a serialized DIF JSON string from a value using a default SerdeContext and SharedValuesCache.
 fn serialize_to_json_value_default_ctx(
-    value: &impl SerializeWithSerdeContext,
+    value: impl ConvertValueContainer,
 ) -> serde_json::Value {
     let cache = RefCell::new(SharedValuesCache::default());
     let context = SerdeContext::new(&cache);
@@ -80,25 +83,31 @@ fn struct_to_dif() {
         b: "Hello, Datex!".to_string(),
         c: Endpoint::new("@jonas"),
     };
-    let serialized = serialize_to_json_value_default_ctx(&example);
+    let serialized = serialize_to_json_value_default_ctx(example);
 
     assert_eq!(
         serialized,
-        serde_json::json!({
-            "a": 42,
-            "b": "Hello, Datex!",
-            "c": [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"]
-        })
+        serde_json::json!([
+            CoreLibIdIndex::from(CoreLibBaseTypeId::Map),
+            {
+                "a": 42,
+                "b": "Hello, Datex!",
+                "c": [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"]
+            }
+        ])
     );
 }
 
 #[test]
 fn struct_from_dif() {
-    let json_value = serde_json::json!({
-        "a": 42,
-        "b": "Hello, Datex!",
-        "c": [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"]
-    });
+    let json_value = serde_json::json!([
+        CoreLibIdIndex::from(CoreLibBaseTypeId::Map),
+        {
+            "a": 42,
+            "b": "Hello, Datex!",
+            "c": [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"]
+        }
+    ]);
     let deserialized: Example =
         deserialize_from_dif_default_ctx(&json_value);
 
@@ -109,10 +118,13 @@ fn struct_from_dif() {
 
 #[test]
 fn struct_with_optional_values_from_dif_null() {
-    let json_value = serde_json::json!({
-        "a": "Hello, Datex!",
-        "b": null
-    });
+    let json_value = serde_json::json!([
+        CoreLibIdIndex::from(CoreLibBaseTypeId::Map),
+        {
+            "a": "Hello, Datex!",
+            "b": null
+        }
+    ]);
     let deserialized: ExampleWithOptionalValues =
         deserialize_from_dif_default_ctx(&json_value);
 
@@ -122,9 +134,12 @@ fn struct_with_optional_values_from_dif_null() {
 
 #[test]
 fn struct_with_optional_values_from_dif_omitted() {
-    let json_value = serde_json::json!({
-        "a": "Hello, Datex!"
-    });
+    let json_value = serde_json::json!([
+        CoreLibIdIndex::from(CoreLibBaseTypeId::Map),
+        {
+            "a": "Hello, Datex!"
+        }
+    ]);
     let deserialized: ExampleWithOptionalValues =
         deserialize_from_dif_default_ctx(&json_value);
 

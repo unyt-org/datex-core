@@ -152,9 +152,13 @@ fn generate_dif_serialize_for_fields(
             });
             let len = named_fields.len();
             quote! {
+                let mut list = serializer.serialize_seq(Some(2))?;
+                list.serialize_element(&42)?;
                 let mut map = serializer.serialize_map(Some(#len))?;
+                let mut map = list.serialize_element(&serializer.serialize_map(Some(#len))?)?;
                 #(#serialize_fields)*
-                map.end()
+                map.end();
+                list.end()
             }
         }
         Fields::Unnamed(unnamed_fields) => {

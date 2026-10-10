@@ -194,7 +194,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for ValueContainer {
+impl SerializeWithSerdeContext for ValueContainer {
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
