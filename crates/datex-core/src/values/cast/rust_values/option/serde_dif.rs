@@ -1,3 +1,5 @@
+use core::fmt::Formatter;
+use erased_serde::__private::serde::de::{Error, Visitor};
 use crate::dif::{
     deserialize_with_serde_context::{
         DeserializeWithSerdeContext, DeserializeWithSerdeContextDyn,
@@ -8,6 +10,8 @@ use crate::dif::{
     },
 };
 use serde::{Serialize, Serializer};
+use serde::de::DeserializeSeed;
+use crate::dif::deserialize_serde_context::{DeserializeSerdeContext, ErasedSeed};
 
 impl<T: SerializeWithSerdeContextDyn> SerializeWithSerdeContext for Option<T> {
     fn serialize_with_ctx<S: Serializer>(
@@ -29,6 +33,40 @@ impl<'de, T: DeserializeWithSerdeContextDyn> DeserializeWithSerdeContext<'de>
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        todo!()
+        deserializer.deserialize_any(DeserializeSerdeContext::<Option<T>>::new(ctx))
+    }
+}
+
+impl<'de, 'a, 'ctx, T> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Option<T>>
+where
+    T: DeserializeWithSerdeContextDyn,
+{
+    type Value = Option<T>;
+
+    fn expecting(&self, formatter: &mut Formatter) -> core::fmt::Result {
+        formatter.write_str("an optional value")
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(None)
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let seed = ErasedSeed::<T>::new(self.ctx);
+        let value = seed.deserialize(deserializer)?;
+        Ok(Some(value))
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(None)
     }
 }

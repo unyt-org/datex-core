@@ -3,7 +3,7 @@
 ## Value Containers
 
 ```ts
-type DIFValueContainer = DISharedValue | DIFLocalValue
+type DIFValueContainer = DISharedValue | DIFValue
 
 type DIFPointerAddressWithOwnership = string; // e.g. "'mut$12345"
 type DIFPointerAddress = string; // e.g. "$12345"
@@ -14,20 +14,24 @@ type DISharedValue = { $: DIFPointerAddressWithOwnership }
 ## Values
 
 ```ts
-type DIFLocalValue =
-    | { c?: DIFClassification, v: DIFCoreValue }
-    | { t?: string, v?: DIFCoreValue }
+type DIFValue =
+    | { c?: DIFClassification, v: DIFCoreValueWithTag }
+    | DIFCoreValueWithTag
+
+type DIFCoreValueWithTag =
+    | DIFDirectRepresentationValue
+    | {t: DIFValueTag, v: DIFCoreValue}
     | DIFCoreValue
 
-type DIFCoreValue =
-    | DIFDirectRepresentationValue
-    | [CoreLibTypeId, DIFRawValue]
-
+type DIFCoreValue = [CoreLibTypeId, DIFRawValue] // core lib type id, raw value
 
 type DIFClassification = [
     DIFPointerAddress | null, // entity address
     DIFPointerAddress[] | null, // impls
 ]
+
+
+type DIFValueTag = [tag: string, is_empty?: true];
 ```
 
 ## Core Values

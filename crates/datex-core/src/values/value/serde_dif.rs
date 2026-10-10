@@ -30,6 +30,7 @@ use serde::{
     de::{DeserializeSeed, Error as DeError, Visitor},
     ser::{SerializeMap, SerializeTuple},
 };
+use crate::values::core_value_with_classification::CoreValueWithClassification;
 
 impl<'ctx> SerdeContext<'ctx> {
     /// This method is used to serialize a value that can be represented directly depending on the flag set (e.g. a boolean or a text)
@@ -292,254 +293,32 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Value> {
         })?)
     }
 
-    /// mapping for [core_lib_type_id, core_value]
+    /// mapping for [tag?, [core_lib_type_id, core_value]]
     fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
-        Ok(Value::new(self.cast::<CoreValue>().visit_seq(seq)?))
+        Ok(Value::Core(self.cast::<CoreValueWithClassification>().visit_seq(seq)?))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: MapAccess<'de>,
     {
-        // expect 'v' and optional 'c' key
-        let mut core_value: Option<(CoreValue, Option<ValueTag>)> = None;
-        let mut classification: ValueClassification =
-            ValueClassification::default();
-
-        while let Some(field) = map.next_key::<String>()? {
-            match field.as_str() {
-                "v" => {
-                    core_value = Some(map.next_value_seed(self.cast::<(
-                        CoreValue,
-                        Option<ValueTag>,
-                    )>(
-                    ))?);
-                }
-
-                "c" => {
-                    classification = map
-                        .next_value_seed(self.cast::<ValueClassification>())?;
-                }
-                _ => {
-                    return Err(A::Error::custom(format!(
-                        "Unexpected key for DIF value: {}",
-                        field
-                    )));
-                }
+        // get the classification first if it exists and handle the deserialization of the core value accordingly
+        let classification = match map.next_key::<String>()? {
+            Some(key) if key == "c" => {
+                map
+                    .next_value_seed(self.cast::<ValueClassification>())?
             }
-        }
+            _ => ValueClassification::default(),
+        };
+        // TODO: resolve native value based on entity classification
 
-        match core_value {
-            Some((core_value, tag)) => {
-                // set the tag in the classification if it exists
-                if let Some(tag) = tag {
-                    classification.tag = Some(tag);
-                }
-                Ok(Value::new(core_value)) // TODO classification serde
-            }
-            None => {
-                Err(A::Error::custom("Expected a 'v' key for the DIF value"))
-            }
-        }
-    }
-}
+        // Normal, non-native core value:
+        let value = map.next_value_seed(self.cast::<CoreValueWithClassification>())?;
 
-impl<'de> DeserializeWithSerdeContext<'de> for (CoreValue, Option<ValueTag>) {
-    fn deserialize_with_ctx<D>(
-        ctx: &SerdeContext<'_>,
-        deserializer: D,
-    ) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(DeserializeSerdeContext::<(
-            CoreValue,
-            Option<ValueTag>,
-        )>::new(ctx))
-    }
-}
-
-impl<'de, 'a, 'ctx> Visitor<'de>
-    for DeserializeSerdeContext<'a, 'ctx, (CoreValue, Option<ValueTag>)>
-{
-    type Value = (CoreValue, Option<ValueTag>);
-
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a value with an optional tag, which can be a direct core value (e.g. boolean, text) or a complex value with a custom type definition")
-    }
-
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        let mut core_value: Option<CoreValue> = None;
-        let mut tag: Option<ValueTag> = None;
-
-        while let Some(field) = map.next_key::<String>()? {
-            match field.as_str() {
-                "v" => {
-                    core_value =
-                        Some(map.next_value_seed(self.cast::<CoreValue>())?);
-                }
-                "t" => {
-                    tag = Some(map.next_value()?);
-                }
-                _ => {
-                    return Err(A::Error::custom(format!(
-                        "Unexpected key for DIF value with tag: {}",
-                        field
-                    )));
-                }
-            }
-        }
-
-        match core_value {
-            Some(core_value) => Ok((core_value, tag)),
-            None => Err(A::Error::custom(
-                "Expected a 'v' key for the DIF value with tag",
-            )),
-        }
-    }
-
-    // fallback for direct core values without a tag
-    fn visit_unit<E>(self) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Ok((self.cast::<CoreValue>().visit_unit()?, None))
-    }
-
-    /// default mapping for none: null
-    fn visit_none<E>(self) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_unit()
-    }
-
-    /// default mapping for bool: boolean
-    fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Ok((self.cast::<CoreValue>().visit_bool(v)?, None))
-    }
-
-    /// default mapping for string: text
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Ok((self.cast::<CoreValue>().visit_str(v)?, None))
-    }
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_str(&v)
-    }
-
-    /// default mapping for f64: decimal/f64
-    fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Ok((self.cast::<CoreValue>().visit_f64(v)?, None))
-    }
-
-    // default mapping for integers: decimal/f64 (with a check for overflow)
-    fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v.to_f64().ok_or_else(|| {
-            DeError::custom(format!(
-                "i64 value {v} is too large to fit into f64"
-            ))
-        })?)
-    }
-    fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v.to_f64().ok_or_else(|| {
-            DeError::custom(format!(
-                "u64 value {v} is too large to fit into f64"
-            ))
-        })?)
-    }
-    fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v as f64)
-    }
-    fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v.to_f64().ok_or_else(|| {
-            DeError::custom(format!(
-                "i128 value {v} is too large to fit into f64"
-            ))
-        })?)
-    }
-    fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        self.visit_f64(v.to_f64().ok_or_else(|| {
-            DeError::custom(format!(
-                "u128 value {v} is too large to fit into f64"
-            ))
-        })?)
-    }
-
-    /// mapping for [core_lib_type_id, core_value]
-    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        Ok((self.cast::<CoreValue>().visit_seq(seq)?, None))
+        Ok(Value::Core(value))
     }
 }
 
