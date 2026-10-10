@@ -144,7 +144,7 @@ fn struct_to_value_container() {
     .into();
 
     let map: Map =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
         map.try_get("b").unwrap(),
@@ -175,7 +175,7 @@ fn skip() {
     .into();
 
     let map =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
     assert!(map.has("a"));
     assert!(!map.has("b"));
 
@@ -183,8 +183,7 @@ fn skip() {
     // Attempting to deserialize should fail because the `b` field is skipped and cannot be deserialized
     assert!(
         SerdeDatexWithSkip::try_cast_from_value_container(
-            value_container,
-            &cache
+            value_container
         )
         .is_err()
     )
@@ -242,7 +241,6 @@ fn default() {
     let value_container = ValueContainer::from(map);
     let deserialized = SerdeDatexWithDefault::try_cast_from_value_container(
         value_container,
-        &cache,
     )
     .unwrap();
     assert_eq!(deserialized.a, 42);
@@ -322,7 +320,7 @@ fn struct_to_value() {
     .into();
 
     let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value), &cache)
+        Map::try_cast_from_value_container(ValueContainer::from(value))
             .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
@@ -346,7 +344,7 @@ fn new_type_struct_to_value() {
     .into();
 
     let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value), &cache)
+        Map::try_cast_from_value_container(ValueContainer::from(value))
             .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
@@ -370,7 +368,7 @@ fn value_container_to_struct() {
         ]));
 
     let example =
-        Example::try_cast_from_value_container(value_container, &cache)
+        Example::try_cast_from_value_container(value_container)
             .unwrap();
 
     assert_eq!(example.a, 42u8);
@@ -389,7 +387,6 @@ fn value_to_struct() {
 
     let example = Example::try_cast_from_value_container(
         ValueContainer::from(value),
-        &cache,
     )
     .unwrap();
 
@@ -409,7 +406,6 @@ fn value_to_new_typestruct() {
 
     let example = ExampleNewType::try_cast_from_value_container(
         ValueContainer::from(value),
-        &cache,
     )
     .unwrap();
 
@@ -432,7 +428,6 @@ fn value_to_empty_enum_variant() {
 
     let example = ExampleEnum::try_cast_from_value_container(
         ValueContainer::from(variant_a),
-        &cache,
     )
     .unwrap();
     assert_matches!(example, ExampleEnum::VariantA);
@@ -451,7 +446,6 @@ fn value_to_list_enum_variant() {
     );
     let example = ExampleEnum::try_cast_from_value_container(
         ValueContainer::from(variant_b),
-        &cache,
     )
     .unwrap();
     assert_matches!(example, ExampleEnum::VariantB(1, 2));
@@ -473,7 +467,6 @@ fn value_to_map_enum_variant() {
     );
     let example = ExampleEnum::try_cast_from_value_container(
         ValueContainer::from(variant_c),
-        &cache,
     )
     .unwrap();
     assert_matches!(example, ExampleEnum::VariantC { x: 3, y } if &y == "Hello" );
@@ -493,7 +486,6 @@ fn value_to_transparent_enum_variant() {
 
     let example = ExampleEnum::try_cast_from_value_container(
         ValueContainer::from(variant_d),
-        &cache,
     )
     .unwrap();
     assert_matches!(example, ExampleEnum::VariantD(42));
@@ -535,7 +527,7 @@ fn struct_with_serde_to_value_container() {
     let value_container: ValueContainer = serde_example.try_into().unwrap();
 
     let map: Map =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
         .try_get("serde")
@@ -577,7 +569,7 @@ fn struct_with_serde_infallible_to_value_container() {
     let value_container: ValueContainer = serde_example.into();
 
     let map: Map =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
         .try_get("serde")
@@ -615,7 +607,7 @@ fn struct_with_value_container() {
 
     let value: Value = example_local.into();
     let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value), &cache)
+        Map::try_cast_from_value_container(ValueContainer::from(value))
             .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
@@ -640,14 +632,13 @@ fn struct_with_value_container() {
     let value_container_2: ValueContainer = example_shared.into();
 
     let map_2 =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map_2.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(map_2.try_get("val").unwrap(), &shared_container);
 
     let deserialized_example_shared =
         ExampleWithValueContainer::try_cast_from_value_container(
             value_container_2,
-            &cache,
         )
         .unwrap();
     assert_eq!(deserialized_example_shared.a, 42u8);
@@ -678,7 +669,7 @@ fn struct_with_owned_shared_value_container() {
     let value_container: ValueContainer = example.into();
 
     let map =
-        Map::try_cast_from_value_container(value_container, &cache).unwrap();
+        Map::try_cast_from_value_container(value_container).unwrap();
 
     if let ValueContainer::Shared(SharedContainer::Owned(shared_container)) =
         map.try_get("owned").unwrap()

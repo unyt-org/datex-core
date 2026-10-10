@@ -179,7 +179,6 @@ pub trait ConvertValueContainer {
     /// If that fails, it tries to convert the `ValueContainer` into map or list parts and then into the type `T`.
     fn try_cast_from_value_container(
         value_container: ValueContainer,
-        cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Self, ()>
     where
         Self: ConvertValueContainer + FromParts + Sized,
@@ -191,7 +190,7 @@ pub trait ConvertValueContainer {
             // otherwise, try to convert the value container into map or list parts and then into the type T
             Err(value_container) => {
                 let classification =
-                    value_container.classification(&mut cache.borrow_mut());
+                    value_container.unresolved_classification();
                 let tag = classification.tag_str();
 
                 match value_container.parts_kind() {
