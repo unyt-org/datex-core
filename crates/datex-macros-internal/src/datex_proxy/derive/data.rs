@@ -24,7 +24,7 @@ pub enum Namespace {
     Named(String),
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Copy, Clone)]
 pub enum FieldMapping {
     /// The field contains a value that implements [DatexNative] and other traits and can be mapped directly to and from DATEX
     #[default]

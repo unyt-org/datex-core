@@ -132,9 +132,41 @@ fn generate_serde_deserialize_skeleton(
 
 fn generate_dif_serialize_for_fields(
     fields: &Fields,
-    _tag: Option<&String>,
+    tag: Option<&String>,
 ) -> TokenStream {
-    match fields {
+    if let Fields::Transparent(inner) = fields {
+        let field_ident = inner.normalized_ident();
+
+        let value = match inner.field.attributes.field_mapping {
+            FieldMapping::Datex => quote! {
+                ValueWithSerdeContext::new(#field_ident, ctx)
+            },
+            FieldMapping::Serde => quote! {
+                {
+                    let value = serde_to_value_container(#field_ident);
+                    ValueWithSerdeContext::new(&value, ctx)
+                }
+            },
+        };
+
+        return match tag {
+            Some(tag) => quote! {
+                use serde::ser::SerializeMap;
+
+                let value = #value;
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("t", #tag)?;
+                map.serialize_entry("v", &value)?;
+                map.end()
+            },
+            None => quote! {
+                let value = #value;
+                serde::Serialize::serialize(&value, serializer)
+            },
+        };
+    }
+
+    let value = match fields {
         Fields::Named(named_fields) => {
             let field_definitions = named_fields.iter().map(|field| {
                 let field_ident = field.normalized_ident();
@@ -169,17 +201,15 @@ fn generate_dif_serialize_for_fields(
                         let value = serde_to_value_container(self.#field_ident);
                         map.serialize_entry(
                             #field_name,
-                            &ValueWithSerdeContext::new(
-                                &value,
-                                self.ctx,
-                            ),
+                            &ValueWithSerdeContext::new(&value, self.ctx),
                         )?;
                     },
                 }
             });
 
             let len = named_fields.len();
-            quote! {
+
+            quote! {{
                 struct __DatexFieldsMap<'a, 'ctx> {
                     ctx: &'a SerdeContext<'ctx>,
                     #(#field_definitions,)*
@@ -201,61 +231,136 @@ fn generate_dif_serialize_for_fields(
                     }
                 }
 
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                // core lib index map
-                seq.serialize_element(
-                    &CoreLibIdIndex::from(CoreLibBaseTypeId::Map)
-                )?;
-                // actual val
-                seq.serialize_element(&__DatexFieldsMap {
+                __DatexFieldsMap {
                     ctx,
                     #(#field_initializers,)*
-                })?;
-                seq.end()
-            }
+                }
+            }}
         }
+
         Fields::Unnamed(unnamed_fields) => {
+            let field_definitions = unnamed_fields.iter().map(|field| {
+                let field_ident = field.normalized_ident();
+                let field_ty = field.ty();
+                quote! { #field_ident: &'a #field_ty }
+            });
+
+            let field_initializers = unnamed_fields.iter().map(|field| {
+                let field_ident = field.normalized_ident();
+                quote! { #field_ident: #field_ident }
+            });
+
             let serialize_fields = unnamed_fields.iter().map(|field| {
                 let field_ident = field.normalized_ident();
 
-                let val_init = match field.field.attributes.field_mapping {
-                    FieldMapping::Datex => quote! {},
+                match field.field.attributes.field_mapping {
+                    FieldMapping::Datex => quote! {
+                        seq.serialize_element(
+                            &ValueWithSerdeContext::new(
+                                self.#field_ident,
+                                self.ctx,
+                            ),
+                        )?;
+                    },
                     FieldMapping::Serde => quote! {
-                        let #field_ident = &serde_to_value_container(#field_ident);
-                    }
-                };
-
-                quote! {
-                    #val_init
-                    seq.serialize_element(&ValueWithSerdeContext::new(
-                        #field_ident,
-                        ctx,
-                    ))?;
+                        let value = serde_to_value_container(self.#field_ident);
+                        seq.serialize_element(
+                            &ValueWithSerdeContext::new(&value, self.ctx),
+                        )?;
+                    },
                 }
             });
+
             let len = unnamed_fields.len();
-            quote! {
-                let mut seq = serializer.serialize_seq(Some(#len))?;
-                #(#serialize_fields)*
+
+            quote! {{
+                struct __DatexFieldsSeq<'a, 'ctx> {
+                    ctx: &'a SerdeContext<'ctx>,
+                    #(#field_definitions,)*
+                }
+
+                impl serde::Serialize for __DatexFieldsSeq<'_, '_> {
+                    fn serialize<S>(
+                        &self,
+                        serializer: S,
+                    ) -> Result<S::Ok, S::Error>
+                    where
+                        S: serde::Serializer,
+                    {
+                        use serde::ser::SerializeSeq;
+
+                        let mut seq = serializer.serialize_seq(Some(#len))?;
+                        #(#serialize_fields)*
+                        seq.end()
+                    }
+                }
+
+                __DatexFieldsSeq {
+                    ctx,
+                    #(#field_initializers,)*
+                }
+            }}
+        }
+        Fields::Unit => quote! { () },
+        Fields::Transparent(_) => unreachable!(),
+    };
+
+    match tag {
+        Some(tag) => quote! {{
+            use serde::ser::SerializeMap;
+
+            struct __DatexEnumValue<'a, T: serde::Serialize + ?Sized> {
+                tag: &'a str,
+                value: &'a T,
+            }
+
+            impl<T: serde::Serialize + ?Sized> serde::Serialize
+                for __DatexEnumValue<'_, T>
+            {
+                fn serialize<S>(
+                    &self,
+                    serializer: S,
+                ) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer,
+                {
+                    let mut map = serializer.serialize_map(Some(2))?;
+                    map.serialize_entry("t", self.tag)?;
+                    map.serialize_entry("v", self.value)?;
+                    map.end()
+                }
+            }
+
+            let value = #value;
+            serde::Serialize::serialize(
+                &__DatexEnumValue {
+                    tag: #tag,
+                    value: &value,
+                },
+                serializer,
+            )
+        }},
+
+        None => match fields {
+            Fields::Named(_) => quote! {{
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element(
+                    &CoreLibIdIndex::from(CoreLibBaseTypeId::Map),
+                )?;
+                seq.serialize_element(&#value)?;
                 seq.end()
-            }
-        }
-        Fields::Unit => {
-            quote! {
-                todo!()
-            }
-        }
-        Fields::Transparent(_) => {
-            quote! {
-                todo!()
-            }
-        }
+            }},
+
+            _ => quote! {
+                serde::Serialize::serialize(&#value, serializer)
+            },
+        },
     }
 }
 
 fn generate_dif_deserialize_for_enum(
     structure_data: &StructureData,
-    _variants: &[EnumVariant],
+    variants: &[EnumVariant],
 ) -> (TokenStream, TokenStream) {
     let StructureData { ident, .. } = structure_data;
 
@@ -263,7 +368,16 @@ fn generate_dif_deserialize_for_enum(
         &format!("{}EnumDeserializeCollector", ident),
         Span::call_site(),
     );
-
+    let variants_construct = variants.iter().map(|variant| {
+        let variant_ident = variant.ident();
+        let tag = variant_ident.to_string();
+        quote! {
+            #tag => {
+                // TODO handle variant deserialization
+                todo!("handle deserialization for variant: {}", #tag);
+            }
+        }
+    });
     let parent_visitor = quote! {
 
         struct #collector_ident<'a, 'ctx> {
@@ -285,9 +399,7 @@ fn generate_dif_deserialize_for_enum(
                 )
             }
 
-            fn visit_map<_MapAccess>(self, mut map: _MapAccess) -> Result<Self::Value, _MapAccess::Error>
-             where
-                _MapAccess: MapAccess<'de> {
+            fn visit_map<_MapAccess>(self, mut map: _MapAccess) -> Result<Self::Value, _MapAccess::Error> where _MapAccess: MapAccess<'de> {
                 // expect "t" and "v" keys
                 // tag is the value of "t"
                 let tag: String = if let Some(key) = map.next_key::<String>()? {
@@ -299,8 +411,21 @@ fn generate_dif_deserialize_for_enum(
                 } else {
                     return Err(_MapAccess::Error::custom("Expected 't' key, found none"));
                 };
-
-                panic!("handle deserialize for tag: {}", tag);
+                let value: Value = if let Some(key) = map.next_key::<String>()? {
+                    if key == "v" {
+                        map.next_value()?
+                    } else {
+                        return Err(_MapAccess::Error::custom(format!("Expected 'v' key, found '{}'", key)));
+                    }
+                } else {
+                    return Err(_MapAccess::Error::custom("Expected 'v' key, found none"));
+                };
+                match tag.as_str() {
+                    #(#variants_construct),*
+                    _ => {
+                        return Err(_MapAccess::Error::custom(format!("Unknown variant tag: {}", tag)));
+                    }
+                }
             }
         }
     };
@@ -495,7 +620,7 @@ fn generate_visitor_methods_for_named_fields(
                         &"expect two element seq",
                     )
                 })?;
-            // TODO ignore if more then 2 element in seq
+            // TODO error if more then 2 element in seq?
             Ok(value)
         }
     }
