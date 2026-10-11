@@ -18,6 +18,10 @@ macro_rules! derive_prelude {
                 Instruction, regular_instruction::RegularInstruction,
             },
             libs::core::type_id::{CoreLibBaseTypeId, CoreLibTypeId},
+            libs::core::{
+                core_lib_id::{CoreLibId, CoreLibIdIndex},
+                value_id::CoreLibValueId,
+            },
             prelude::*,
             runtime::cache::shared_references_cache::{
                 SharedReferencesCache, SharedTypeReservation,

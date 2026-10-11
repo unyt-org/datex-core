@@ -136,32 +136,82 @@ fn generate_dif_serialize_for_fields(
 ) -> TokenStream {
     match fields {
         Fields::Named(named_fields) => {
+            let field_definitions = named_fields.iter().map(|field| {
+                let field_ident = field.normalized_ident();
+                let field_ty = field.ty();
+                quote! {
+                    #field_ident: &'a #field_ty
+                }
+            });
+
+            let field_initializers = named_fields.iter().map(|field| {
+                let field_ident = field.normalized_ident();
+                quote! {
+                    #field_ident: #field_ident
+                }
+            });
+
             let serialize_fields = named_fields.iter().map(|field| {
                 let field_ident = field.normalized_ident();
                 let field_name = field.datex_field_name();
 
-                let val_init = match field.field.attributes.field_mapping {
-                    FieldMapping::Datex => quote! {},
-                    FieldMapping::Serde => quote! {
-                        let #field_ident = serde_to_value_container(#field_ident);
+                match field.field.attributes.field_mapping {
+                    FieldMapping::Datex => quote! {
+                        map.serialize_entry(
+                            #field_name,
+                            &ValueWithSerdeContext::new(
+                                self.#field_ident,
+                                self.ctx,
+                            ),
+                        )?;
                     },
-                };
-
-                quote! {
-                    #val_init
-                    map.serialize_entry(
-                        #field_name,
-                        &ValueWithSerdeContext::new(&#field_ident, ctx),
-                    )?;
+                    FieldMapping::Serde => quote! {
+                        let value = serde_to_value_container(self.#field_ident);
+                        map.serialize_entry(
+                            #field_name,
+                            &ValueWithSerdeContext::new(
+                                &value,
+                                self.ctx,
+                            ),
+                        )?;
+                    },
                 }
             });
 
             let len = named_fields.len();
-
             quote! {
-                let mut map = serializer.serialize_map(Some(#len))?;
-                #(#serialize_fields)*
-                map.end()
+                struct __DatexFieldsMap<'a, 'ctx> {
+                    ctx: &'a SerdeContext<'ctx>,
+                    #(#field_definitions,)*
+                }
+
+                impl serde::Serialize for __DatexFieldsMap<'_, '_> {
+                    fn serialize<S>(
+                        &self,
+                        serializer: S,
+                    ) -> Result<S::Ok, S::Error>
+                    where
+                        S: serde::Serializer,
+                    {
+                        use serde::ser::SerializeMap;
+
+                        let mut map = serializer.serialize_map(Some(#len))?;
+                        #(#serialize_fields)*
+                        map.end()
+                    }
+                }
+
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                // core lib index map
+                seq.serialize_element(
+                    &CoreLibIdIndex::from(CoreLibBaseTypeId::Map)
+                )?;
+                // actual val
+                seq.serialize_element(&__DatexFieldsMap {
+                    ctx,
+                    #(#field_initializers,)*
+                })?;
+                seq.end()
             }
         }
         Fields::Unnamed(unnamed_fields) => {
@@ -376,6 +426,7 @@ fn generate_visitor_methods_for_named_fields(
     });
 
     quote! {
+        // TODO we could deprecate visit_map and do this in the visit seq, instead of calling visit_map
         fn visit_map<_MapAccess>(mut self, mut map: _MapAccess) -> Result<Self::Value, _MapAccess::Error>
         where
             _MapAccess: MapAccess<'de>,
@@ -393,11 +444,59 @@ fn generate_visitor_methods_for_named_fields(
             self.collapse().map_err(|err| _MapAccess::Error::missing_field(err))
         }
 
-        fn visit_seq<_SeqAccess>(mut self, mut seq: _SeqAccess) -> Result<Self::Value, _SeqAccess::Error>
+        fn visit_seq<_SeqAccess>(
+            self,
+            mut seq: _SeqAccess,
+        ) -> Result<Self::Value, _SeqAccess::Error>
         where
             _SeqAccess: SeqAccess<'de>,
         {
-            self.collapse().map_err(|err| _SeqAccess::Error::missing_field(err))
+            use serde::de::{DeserializeSeed, Deserializer, Error, IgnoredAny, Visitor};
+
+            struct MapSeed<V>(V);
+
+            impl<'de, V> DeserializeSeed<'de> for MapSeed<V>
+            where
+                V: Visitor<'de>,
+            {
+                type Value = V::Value;
+
+                fn deserialize<D>(
+                    self,
+                    deserializer: D,
+                ) -> Result<Self::Value, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    deserializer.deserialize_map(self.0)
+                }
+            }
+
+            let core_lib_index: CoreLibIdIndex = seq
+                .next_element()?
+                .ok_or_else(|| {
+                    _SeqAccess::Error::invalid_length(
+                        0,
+                        &"expect two element sewq",
+                    )
+                })?;
+
+            if core_lib_index != CoreLibIdIndex::from(CoreLibBaseTypeId::Map) {
+                return Err(_SeqAccess::Error::custom(
+                    "Invalid core lib id",
+                ));
+            }
+
+            let value = seq
+                .next_element_seed(MapSeed(self))?
+                .ok_or_else(|| {
+                    _SeqAccess::Error::invalid_length(
+                        1,
+                        &"expect two element seq",
+                    )
+                })?;
+            // TODO ignore if more then 2 element in seq
+            Ok(value)
         }
     }
 }

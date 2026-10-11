@@ -14,9 +14,10 @@ use datex_core::{
     },
     traits::convert_value_container::ConvertValueContainer,
     values::{
+        core_value::CoreValue,
         core_values::{
-            endpoint::Endpoint, integer::typed_integer::TypedInteger,
-            native::DatexNative,
+            boolean::Boolean, endpoint::Endpoint,
+            integer::typed_integer::TypedInteger, native::DatexNative,
         },
         value::Value,
         value_container::ValueContainer,
@@ -51,18 +52,15 @@ enum ExampleEnum {
 /// TODO: general helper function in datex_core
 fn serialize_to_json_value(
     context: &SerdeContext,
-    value: impl ConvertValueContainer,
+    value: impl SerializeWithSerdeContext,
 ) -> serde_json::Value {
-    let value_container = value.to_value_container();
     let serializer = serde_json::value::Serializer;
-    value_container
-        .serialize_with_ctx(context, serializer)
-        .unwrap()
+    value.serialize_with_ctx(context, serializer).unwrap()
 }
 
 /// Generates a serialized DIF JSON string from a value using a default SerdeContext and SharedValuesCache.
 fn serialize_to_json_value_default_ctx(
-    value: impl ConvertValueContainer,
+    value: impl SerializeWithSerdeContext,
 ) -> serde_json::Value {
     let cache = RefCell::new(SharedValuesCache::default());
     let context = SerdeContext::new(&cache);
@@ -177,6 +175,14 @@ struct TestConfig {
     val: Value,
     vc: ValueContainer,
     ti: TypedInteger,
+    cv: Boolean,
+    inner: Inner,
+}
+
+#[derive(Datex, Debug, Clone, PartialEq)]
+struct Inner {
+    field: String,
+    value: Value,
 }
 
 #[test]
@@ -187,19 +193,16 @@ fn serde_context_round_trip() {
         val: Value::from(42i16),
         vc: ValueContainer::from(TypedInteger::I128(123)),
         ti: TypedInteger::I16(-456),
+        cv: Boolean::from(true),
+        inner: Inner {
+            field: "inner field".to_string(),
+            value: Value::from(42i16),
+        },
     };
-    let cache = RefCell::new(SharedValuesCache::default());
-    let ctx = SerdeContext::new(&cache);
-
-    let value =
-        serde_json::to_value(ValueWithSerdeContext::new(&original, &ctx))
-            .expect("serialization should succeed");
-
-    println!("ser {value:#}");
-
-    let deserialized =
-        TestConfig::deserialize_with_ctx(&ctx, value.into_deserializer())
-            .expect("deserialization should succeed");
+    let serialized = serialize_to_json_value_default_ctx(&original);
+    println!("ser {serialized:#}");
+    let deserialized: TestConfig =
+        deserialize_from_dif_default_ctx(&serialized);
 
     assert_eq!(original, deserialized);
 }
