@@ -10,8 +10,7 @@ use crate::{
         ReferencedSharedContainer, SharedContainer, SharedContainerOwnership,
     },
 };
-use erased_serde::__private::serde::{Deserializer, Serialize, Serializer};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 impl<'de> DeserializeWithSerdeContext<'de> for ReferencedSharedContainer {
     fn deserialize_with_ctx<D: Deserializer<'de>>(

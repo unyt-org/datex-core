@@ -7,8 +7,7 @@ use crate::{
     libs::core::type_id::CoreLibBaseTypeId,
     values::core_values::boolean::Boolean,
 };
-use erased_serde::__private::serde::Serialize;
-use serde::{Deserialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 
 impl Serialize for Boolean {
     fn serialize<S: Serializer>(

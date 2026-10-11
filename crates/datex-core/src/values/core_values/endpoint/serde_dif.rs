@@ -9,8 +9,7 @@ use crate::{
     values::{core_value::CoreValue, core_values::endpoint::Endpoint},
 };
 use alloc::string::String;
-use erased_serde::__private::serde::Serializer;
-use serde::{Deserialize, Serialize, de::Error};
+use serde::{Deserialize, Serialize, Serializer, de::Error};
 
 impl Serialize for Endpoint {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

@@ -11,8 +11,7 @@ use crate::{
     },
     traits::clone_unsafe::CloneUnsafe,
 };
-use erased_serde::__private::serde::{Deserializer, Serialize, Serializer};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 impl<'de> DeserializeWithSerdeContext<'de> for OwnedSharedContainer {
     fn deserialize_with_ctx<D: Deserializer<'de>>(

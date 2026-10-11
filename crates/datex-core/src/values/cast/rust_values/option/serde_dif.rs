@@ -9,8 +9,10 @@ use crate::dif::{
     },
 };
 use core::fmt::Formatter;
-use erased_serde::__private::serde::de::{Error, Visitor};
-use serde::{Serialize, Serializer, de::DeserializeSeed};
+use serde::{
+    Serialize, Serializer,
+    de::{DeserializeSeed, Error, Visitor},
+};
 
 impl<T: SerializeWithSerdeContextDyn> SerializeWithSerdeContext for Option<T> {
     fn serialize_with_ctx<S: Serializer>(

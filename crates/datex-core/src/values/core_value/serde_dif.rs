@@ -37,9 +37,8 @@ use crate::{
     },
 };
 use core::{fmt, str::FromStr};
-use erased_serde::__private::serde::Serializer;
 use serde::{
-    Deserializer,
+    Deserializer, Serializer,
     de::{DeserializeSeed, SeqAccess, Visitor},
 };
 use serde_with::__private__::DeError;

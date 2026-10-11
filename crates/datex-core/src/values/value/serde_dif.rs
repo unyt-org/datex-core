@@ -18,11 +18,10 @@ use crate::{
     },
 };
 use core::fmt;
-use erased_serde::__private::serde::de::MapAccess;
 use num::ToPrimitive;
 use serde::{
     Deserializer, Serialize, Serializer,
-    de::{Error as DeError, Visitor},
+    de::{Error as DeError, MapAccess, Visitor},
     ser::{SerializeMap, SerializeTuple},
 };
 

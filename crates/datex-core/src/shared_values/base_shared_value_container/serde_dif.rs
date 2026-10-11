@@ -13,9 +13,9 @@ use crate::{
 };
 use core::fmt;
 use serde::{
-    Deserializer, Serializer,
+    Serializer,
     de::{SeqAccess, Visitor},
-    ser::{SerializeSeq, SerializeStruct},
+    ser::SerializeSeq,
 };
 
 impl SerializeWithSerdeContext for BaseSharedValueContainer {

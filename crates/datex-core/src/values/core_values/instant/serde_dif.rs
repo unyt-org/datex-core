@@ -7,8 +7,7 @@ use crate::{
     libs::core::type_id::CoreLibBaseTypeId,
     values::{core_value::CoreValue, core_values::instant::Instant},
 };
-use erased_serde::__private::serde::Serializer;
-use serde::{Deserialize, Serialize, de::Error};
+use serde::{Deserialize, Serialize, Serializer, de::Error};
 
 impl Serialize for Instant {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

@@ -12,10 +12,10 @@ use crate::{
     random::RandomState,
 };
 use core::{fmt, hash::Hash};
-use erased_serde::__private::serde::{de, de::MapAccess};
 use indexmap::IndexMap;
 use serde::{
-    de::{SeqAccess, Visitor},
+    de,
+    de::{MapAccess, SeqAccess, Visitor},
     ser::SerializeSeq,
 };
 
