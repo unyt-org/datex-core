@@ -1,5 +1,13 @@
 use crate::runtime::cache::shared_values_cache::SharedValuesCache;
 use core::cell::RefCell;
+
+#[cfg(test)]
+use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
+#[cfg(test)]
+use crate::dif::serialize_with_serde_context::SerializeWithSerdeContext;
+#[cfg(test)]
+use crate::prelude::*;
+
 #[derive(Debug)]
 pub struct SerdeContext<'ctx> {
     pub shared_container_cache: &'ctx RefCell<SharedValuesCache>,
