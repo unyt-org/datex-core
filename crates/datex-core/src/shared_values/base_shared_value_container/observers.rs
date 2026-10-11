@@ -161,7 +161,7 @@ impl<'de> DeserializeWithSerdeContext<'de> for ObserveOptions {
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for ObserveOptions {
+impl SerializeWithSerdeContext for ObserveOptions {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         _ctx: &SerdeContext<'_>,

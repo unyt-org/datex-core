@@ -9,6 +9,7 @@ use crate::{
         value_with_serde_context::ValueWithSerdeContext,
     },
     prelude::*,
+    traits::convert_value::ConvertValue,
     values::{
         core_value::CoreValue,
         core_value_with_classification::CoreValueWithClassification,
@@ -20,7 +21,6 @@ use serde::{
     de::{DeserializeSeed, Visitor},
     ser::{SerializeMap, SerializeSeq},
 };
-use crate::traits::convert_value::ConvertValue;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ValueKey {
@@ -55,7 +55,7 @@ impl Display for ValueKey {
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for ValueKey {
+impl SerializeWithSerdeContext for ValueKey {
     fn serialize_with_ctx<S: serde::Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -77,7 +77,7 @@ impl<'ctx> SerializeWithSerdeContext for ValueKey {
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for &'ctx [ValueKey] {
+impl SerializeWithSerdeContext for &[ValueKey] {
     fn serialize_with_ctx<S: serde::Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -92,7 +92,7 @@ impl<'ctx> SerializeWithSerdeContext for &'ctx [ValueKey] {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for ValueKey {
+impl<'de> DeserializeWithSerdeContext<'de> for ValueKey {
     fn deserialize_with_ctx<D: serde::Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,

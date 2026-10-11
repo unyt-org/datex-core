@@ -8,7 +8,7 @@ use crate::{
     dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 
-impl<'ctx> SerializeWithSerdeContext for IntersectionTypeDefinition {
+impl SerializeWithSerdeContext for IntersectionTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,

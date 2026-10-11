@@ -17,7 +17,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for CallableTypeDefinition {
+impl SerializeWithSerdeContext for CallableTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -79,7 +79,7 @@ impl<'ctx> SerializeWithSerdeContext for CallableTypeDefinition {
 }
 
 
-impl<'ctx> SerializeWithSerdeContext for (Option<String>, Type) {
+impl SerializeWithSerdeContext for (Option<String>, Type) {
 
     fn serialize_with_ctx<S: Serializer>(
         &self,
@@ -96,7 +96,7 @@ impl<'ctx> SerializeWithSerdeContext for (Option<String>, Type) {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for CallableTypeDefinition {
+impl<'de> DeserializeWithSerdeContext<'de> for CallableTypeDefinition {
     fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

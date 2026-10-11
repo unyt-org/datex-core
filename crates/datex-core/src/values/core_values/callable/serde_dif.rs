@@ -1,6 +1,11 @@
 use crate::{
-    dif::serde_context::SerdeContext, prelude::*,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
+    prelude::*,
     values::core_values::callable::Callable,
 };
 use core::fmt;
@@ -9,18 +14,18 @@ use serde::{
     de::{DeserializeSeed, SeqAccess, Visitor},
     ser::SerializeTuple,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for Callable {
-
+impl SerializeWithSerdeContext for Callable {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         // put callable into cache
-        let hash = ctx.shared_container_cache.borrow_mut().store_callable(self.clone());
+        let hash = ctx
+            .shared_container_cache
+            .borrow_mut()
+            .store_callable(self.clone());
         let mut data = serializer.serialize_tuple(3)?;
 
         // store hash
@@ -37,17 +42,22 @@ impl<'ctx> SerializeWithSerdeContext for Callable {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for Callable {
-
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Callable, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for Callable {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Callable, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(DeserializeSerdeContext::<Callable>::new(ctx))
+        deserializer
+            .deserialize_any(DeserializeSerdeContext::<Callable>::new(ctx))
     }
 }
 
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Callable> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, Callable>
+{
     type Value = Callable;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

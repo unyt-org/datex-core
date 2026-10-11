@@ -16,7 +16,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for BaseSharedValueContainer {
+impl SerializeWithSerdeContext for BaseSharedValueContainer {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,

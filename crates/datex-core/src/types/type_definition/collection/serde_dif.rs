@@ -23,7 +23,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for CollectionTypeDefinition {
+impl SerializeWithSerdeContext for CollectionTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -59,7 +59,7 @@ impl<'ctx> SerializeWithSerdeContext for CollectionTypeDefinition {
 }
 
 /// Deserialization implementations for [CollectionTypeDefinition].
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for CollectionTypeDefinition {
+impl<'de> DeserializeWithSerdeContext<'de> for CollectionTypeDefinition {
     fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

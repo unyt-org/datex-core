@@ -12,7 +12,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for List {
+impl SerializeWithSerdeContext for List {
 
     fn serialize_with_ctx<S>(
         &self,
@@ -33,7 +33,7 @@ impl<'ctx> SerializeWithSerdeContext for List {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for List {
+impl<'de> DeserializeWithSerdeContext<'de> for List {
     fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<List, D::Error>
     where
         D: serde::Deserializer<'de>,

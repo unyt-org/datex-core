@@ -1,24 +1,29 @@
 use crate::{
-    dif::serde_context::SerdeContext, shared_values::SharedContainer,
-    types::entity_type::EntityType, dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
+    shared_values::SharedContainer,
+    types::entity_type::EntityType,
 };
 use serde::{Deserializer, Serialize, Serializer, de::DeserializeSeed};
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for EntityType {
+impl<'de> DeserializeWithSerdeContext<'de> for EntityType {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
         Ok(unsafe {
             EntityType::new_unchecked(
-                DeserializeSerdeContext::<SharedContainer>::new(ctx).deserialize(deserializer)?,
+                DeserializeSerdeContext::<SharedContainer>::new(ctx)
+                    .deserialize(deserializer)?,
             )
         })
     }
 }
-impl<'ctx> SerializeWithSerdeContext for EntityType {
+impl SerializeWithSerdeContext for EntityType {
     /// SAFETY:
     /// The caller of the `serialize` method must either
     /// * guarantee that no direct value (accessible without borrow) is an owned shared value
@@ -33,7 +38,6 @@ impl<'ctx> SerializeWithSerdeContext for EntityType {
     where
         S: Serializer,
     {
-        self.0
-            .serialize_with_ctx(ctx, serializer)
+        self.0.serialize_with_ctx(ctx, serializer)
     }
 }

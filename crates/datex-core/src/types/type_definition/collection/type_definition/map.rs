@@ -34,7 +34,7 @@ impl Display for MapCollectionTypeDefinition {
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for MapCollectionTypeDefinition {
+impl SerializeWithSerdeContext for MapCollectionTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -54,7 +54,7 @@ impl<'ctx> SerializeWithSerdeContext for MapCollectionTypeDefinition {
 }
 
 /// Deserialization implementations for [MapCollectionTypeDefinition].
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for MapCollectionTypeDefinition
+impl<'de> DeserializeWithSerdeContext<'de> for MapCollectionTypeDefinition
 {
     fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
     where

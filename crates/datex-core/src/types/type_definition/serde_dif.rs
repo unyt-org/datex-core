@@ -28,7 +28,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for TypeDefinition {
+impl SerializeWithSerdeContext for TypeDefinition {
 
     fn serialize_with_ctx<S>(
         &self,

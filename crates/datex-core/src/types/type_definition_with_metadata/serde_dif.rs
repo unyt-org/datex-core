@@ -8,7 +8,7 @@ use crate::{
 use serde::{Serializer, ser::SerializeSeq};
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for TypeDefinitionWithMetadata {
+impl SerializeWithSerdeContext for TypeDefinitionWithMetadata {
 
     fn serialize_with_ctx<S>(
         &self,

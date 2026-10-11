@@ -6,11 +6,15 @@ use crate::{
     },
     libs::core::type_id::CoreLibVariantTypeId,
     prelude::*,
-    values::core_values::integer::typed_integer::TypedInteger,
+    values::{
+        core_value::CoreValue,
+        core_values::integer::typed_integer::TypedInteger,
+    },
 };
-use erased_serde::__private::serde::{Serialize, Serializer};
-use serde::Deserialize;
-
+use serde::{
+    Deserialize, Serialize, Serializer,
+    de::{Error, Visitor},
+};
 impl Serialize for TypedInteger {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -49,9 +53,12 @@ impl SerializeWithSerdeContext for TypedInteger {
 
 impl<'de> DeserializeWithSerdeContext<'de> for TypedInteger {
     fn deserialize_with_ctx<D: serde::de::Deserializer<'de>>(
-        _ctx: &SerdeContext<'_>,
+        ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        todo!()
+        match ctx.deserialize_core_value(deserializer)? {
+            CoreValue::TypedInteger(ti) => Ok(ti),
+            _ => Err(D::Error::custom("Expected CoreValue::TypedInteger ")),
+        }
     }
 }

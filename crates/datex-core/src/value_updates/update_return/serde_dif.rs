@@ -12,7 +12,7 @@ use serde::{
 };
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for UpdateReturn {
+impl SerializeWithSerdeContext for UpdateReturn {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,

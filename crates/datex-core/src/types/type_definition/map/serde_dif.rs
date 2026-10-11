@@ -15,7 +15,7 @@ use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 /// Serde implementations for [MapTypeDefinition].
-impl<'ctx> SerializeWithSerdeContext for MapTypeDefinition {
+impl SerializeWithSerdeContext for MapTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -35,7 +35,7 @@ impl<'ctx> SerializeWithSerdeContext for MapTypeDefinition {
 }
 
 /// Serde implementations for inner tuple type `(Type, Type)`.
-impl<'ctx> SerializeWithSerdeContext for (Type, Type) {
+impl SerializeWithSerdeContext for (Type, Type) {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -57,7 +57,7 @@ impl<'ctx> SerializeWithSerdeContext for (Type, Type) {
     }
 }
 /// Deserialization implementations for [MapTypeDefinition].
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for MapTypeDefinition {
+impl<'de> DeserializeWithSerdeContext<'de> for MapTypeDefinition {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,

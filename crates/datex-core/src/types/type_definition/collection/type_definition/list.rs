@@ -21,7 +21,7 @@ impl ListCollectionTypeDefinition {
         Self(Box::new(item))
     }
 }
-impl<'ctx> SerializeWithSerdeContext for ListCollectionTypeDefinition {
+impl SerializeWithSerdeContext for ListCollectionTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,

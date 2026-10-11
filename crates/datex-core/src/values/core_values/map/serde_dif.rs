@@ -1,7 +1,12 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
     values::{
         core_values::map::{Map, MapEntries},
         value_container::ValueContainer,
@@ -14,13 +19,8 @@ use serde::{
     de::{MapAccess, SeqAccess, Visitor},
     ser::{SerializeMap, SerializeSeq, SerializeTuple},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext
-    for (ValueContainer, ValueContainer)
-{
+impl SerializeWithSerdeContext for (ValueContainer, ValueContainer) {
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -31,21 +31,15 @@ impl<'ctx> SerializeWithSerdeContext
     {
         let mut tuple = serializer.serialize_tuple(2)?;
 
-        tuple.serialize_element(&ValueWithSerdeContext::new(
-            &self.0,
-            ctx,
-        ))?;
+        tuple.serialize_element(&ValueWithSerdeContext::new(&self.0, ctx))?;
 
-        tuple.serialize_element(&ValueWithSerdeContext::new(
-            &self.1,
-            ctx,
-        ))?;
+        tuple.serialize_element(&ValueWithSerdeContext::new(&self.1, ctx))?;
 
         tuple.end()
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for Map {
+impl SerializeWithSerdeContext for Map {
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -61,16 +55,16 @@ impl<'ctx> SerializeWithSerdeContext for Map {
                 for (key, value) in entries {
                     map.serialize_key(key)?;
                     map.serialize_value(&ValueWithSerdeContext::new(
-                        value,
-                        ctx,
+                        value, ctx,
                     ))?;
                 }
 
                 map.end()
             }
 
-            MapEntries::Structural(entries) => entries
-                .serialize_with_ctx(ctx, serializer),
+            MapEntries::Structural(entries) => {
+                entries.serialize_with_ctx(ctx, serializer)
+            }
 
             MapEntries::Dynamic(entries) => {
                 let mut seq = serializer.serialize_seq(Some(entries.len()))?;
@@ -79,8 +73,7 @@ impl<'ctx> SerializeWithSerdeContext for Map {
                     let entry = (key.clone(), value.clone());
 
                     seq.serialize_element(&ValueWithSerdeContext::new(
-                        &entry,
-                        ctx,
+                        &entry, ctx,
                     ))?;
                 }
 
@@ -90,8 +83,11 @@ impl<'ctx> SerializeWithSerdeContext for Map {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for Map {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for Map {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {

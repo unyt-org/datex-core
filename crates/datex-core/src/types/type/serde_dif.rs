@@ -22,7 +22,7 @@ use serde::{
 use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for Type {
+impl SerializeWithSerdeContext for Type {
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,

@@ -7,7 +7,7 @@ use crate::{
 };
 
 use crate::prelude::*;
-impl<'ctx> SerializeWithSerdeContext for ImplMarkers {
+impl SerializeWithSerdeContext for ImplMarkers {
 
     fn serialize_with_ctx<S: Serializer>(
         &self,

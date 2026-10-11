@@ -1,8 +1,13 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
     shared_values::base_shared_value_container::observers::TransceiverId,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
     value_updates::update_data::{
         AppendEntryUpdateData, DecrementUpdateData, DeleteEntryUpdateData,
         IncrementUpdateData, ListSpliceUpdateData, ReplaceUpdateData,
@@ -16,11 +21,8 @@ use serde::{
     de::{self, DeserializeSeed, SeqAccess, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for Update {
+impl SerializeWithSerdeContext for Update {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -41,33 +43,41 @@ impl<'ctx> SerializeWithSerdeContext for Update {
         {
             seq.serialize_element(&&self.operation().as_ref().to_string())?;
             match self.operation() {
-                UpdateOperation::SetEntry(data) => ctx
-                    .serialize_set_entry_fields(data, &mut seq)?,
-                UpdateOperation::Replace(data) => ctx
-                    .serialize_replace_fields(data, &mut seq)?,
-                UpdateOperation::DeleteEntry(data) => ctx
-                    .serialize_delete_entry_fields(data, &mut seq)?,
+                UpdateOperation::SetEntry(data) => {
+                    ctx.serialize_set_entry_fields(data, &mut seq)?
+                }
+                UpdateOperation::Replace(data) => {
+                    ctx.serialize_replace_fields(data, &mut seq)?
+                }
+                UpdateOperation::DeleteEntry(data) => {
+                    ctx.serialize_delete_entry_fields(data, &mut seq)?
+                }
                 UpdateOperation::Clear => {}
-                UpdateOperation::AppendEntry(data) => ctx
-                    .serialize_append_entry_fields(data, &mut seq)?,
-                UpdateOperation::ListSplice(data) => ctx
-                    .serialize_list_splice_fields(data, &mut seq)?,
-                UpdateOperation::Increment(data) => ctx
-                    .serialize_increment_fields(data, &mut seq)?,
-                UpdateOperation::Decrement(data) => ctx
-                    .serialize_decrement_fields(data, &mut seq)?,
+                UpdateOperation::AppendEntry(data) => {
+                    ctx.serialize_append_entry_fields(data, &mut seq)?
+                }
+                UpdateOperation::ListSplice(data) => {
+                    ctx.serialize_list_splice_fields(data, &mut seq)?
+                }
+                UpdateOperation::Increment(data) => {
+                    ctx.serialize_increment_fields(data, &mut seq)?
+                }
+                UpdateOperation::Decrement(data) => {
+                    ctx.serialize_decrement_fields(data, &mut seq)?
+                }
             };
         }
         seq.end()
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for Update {
+impl<'de> DeserializeWithSerdeContext<'de> for Update {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        deserializer.deserialize_seq(DeserializeSerdeContext::<Update>::new(ctx))
+        deserializer
+            .deserialize_seq(DeserializeSerdeContext::<Update>::new(ctx))
     }
 }
 

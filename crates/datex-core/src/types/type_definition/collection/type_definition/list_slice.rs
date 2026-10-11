@@ -28,7 +28,7 @@ impl Display for ListSliceCollectionTypeDefinition {
     }
 }
 
-impl<'ctx> SerializeWithSerdeContext for ListSliceCollectionTypeDefinition {
+impl SerializeWithSerdeContext for ListSliceCollectionTypeDefinition {
 
     fn serialize_with_ctx<S: Serializer>(
         &self,
@@ -54,7 +54,7 @@ use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for ListSliceCollectionTypeDefinition
+impl<'de> DeserializeWithSerdeContext<'de> for ListSliceCollectionTypeDefinition
 {
     fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
     where

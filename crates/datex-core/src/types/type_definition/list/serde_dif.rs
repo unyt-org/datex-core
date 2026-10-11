@@ -13,7 +13,7 @@ use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 use crate::prelude::*;
 use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for ListTypeDefinition {
+impl SerializeWithSerdeContext for ListTypeDefinition {
 
     fn serialize_with_ctx<S: Serializer>(
         &self,

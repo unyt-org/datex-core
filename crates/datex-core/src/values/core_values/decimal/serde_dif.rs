@@ -31,6 +31,6 @@ impl<'de> DeserializeWithSerdeContext<'de> for Decimal {
         deserializer: D,
     ) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Ok(Decimal::try_from_string(&s).map_err(serde::de::Error::custom)?)
+        Decimal::try_from_string(&s).map_err(serde::de::Error::custom)
     }
 }

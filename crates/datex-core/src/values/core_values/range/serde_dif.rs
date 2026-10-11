@@ -1,9 +1,14 @@
 use core::fmt;
 
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
     values::{core_values::range::Range, value_container::ValueContainer},
 };
 use serde::{
@@ -11,11 +16,8 @@ use serde::{
     de::{DeserializeSeed, Error, IgnoredAny, MapAccess, Visitor},
     ser::{SerializeSeq, SerializeStruct, SerializeTuple},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'ctx> SerializeWithSerdeContext for Range {
+impl SerializeWithSerdeContext for Range {
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -29,17 +31,17 @@ impl<'ctx> SerializeWithSerdeContext for Range {
             &*self.start,
             ctx,
         ))?;
-        state.serialize_element(&ValueWithSerdeContext::new(
-            &*self.end,
-            ctx,
-        ))?;
+        state
+            .serialize_element(&ValueWithSerdeContext::new(&*self.end, ctx))?;
         state.end()
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for Range {
-
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Range, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for Range {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Range, D::Error>
     where
         D: serde::Deserializer<'de>,
     {

@@ -4,16 +4,26 @@ use datex_core::{
         deserialize_with_serde_context::DeserializeWithSerdeContext,
         serde_context::SerdeContext,
         serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
     },
     libs::core::{core_lib_id::CoreLibIdIndex, type_id::CoreLibBaseTypeId},
     prelude::*,
-    runtime::cache::shared_values_cache::SharedValuesCache,
-    values::core_values::endpoint::Endpoint,
+    runtime::cache::{
+        shared_references_cache::SharedReferencesCache,
+        shared_values_cache::SharedValuesCache,
+    },
+    traits::convert_value_container::ConvertValueContainer,
+    values::{
+        core_values::{
+            endpoint::Endpoint, integer::typed_integer::TypedInteger,
+            native::DatexNative,
+        },
+        value::Value,
+        value_container::ValueContainer,
+    },
 };
 use datex_macros_internal::Datex;
 use serde::de::IntoDeserializer;
-use datex_core::traits::convert_value_container::ConvertValueContainer;
-use datex_core::values::core_values::native::DatexNative;
 
 #[derive(Datex, Debug, Clone, PartialEq)]
 #[datex(structural)]
@@ -45,7 +55,9 @@ fn serialize_to_json_value(
 ) -> serde_json::Value {
     let value_container = value.to_value_container();
     let serializer = serde_json::value::Serializer;
-    value_container.serialize_with_ctx(context, serializer).unwrap()
+    value_container
+        .serialize_with_ctx(context, serializer)
+        .unwrap()
 }
 
 /// Generates a serialized DIF JSON string from a value using a default SerdeContext and SharedValuesCache.
@@ -108,8 +120,7 @@ fn struct_from_dif() {
             "c": [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"]
         }
     ]);
-    let deserialized: Example =
-        deserialize_from_dif_default_ctx(&json_value);
+    let deserialized: Example = deserialize_from_dif_default_ctx(&json_value);
 
     assert_eq!(deserialized.a, 42);
     assert_eq!(deserialized.b, "Hello, Datex!");
@@ -157,4 +168,38 @@ fn enum_variant_1_from_dif() {
         deserialize_from_dif_default_ctx(&json_value);
 
     assert_eq!(deserialized, ExampleEnum::Variant1(Endpoint::new("@jonas")));
+}
+
+#[derive(Datex, Debug, Clone, PartialEq)]
+struct TestConfig {
+    name: String,
+    i8: i8,
+    val: Value,
+    vc: ValueContainer,
+    ti: TypedInteger,
+}
+
+#[test]
+fn serde_context_round_trip() {
+    let original = TestConfig {
+        name: "hello".to_string(),
+        i8: 42,
+        val: Value::from(42i16),
+        vc: ValueContainer::from(TypedInteger::I128(123)),
+        ti: TypedInteger::I16(-456),
+    };
+    let cache = RefCell::new(SharedValuesCache::default());
+    let ctx = SerdeContext::new(&cache);
+
+    let value =
+        serde_json::to_value(ValueWithSerdeContext::new(&original, &ctx))
+            .expect("serialization should succeed");
+
+    println!("ser {value:#}");
+
+    let deserialized =
+        TestConfig::deserialize_with_ctx(&ctx, value.into_deserializer())
+            .expect("deserialization should succeed");
+
+    assert_eq!(original, deserialized);
 }

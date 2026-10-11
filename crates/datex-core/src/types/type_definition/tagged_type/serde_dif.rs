@@ -7,12 +7,14 @@ use serde::{
 };
 
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
     types::type_definition::tagged_type::TaggedTypeDefinition,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 
-impl<'ctx> SerializeWithSerdeContext for TaggedTypeDefinition {
+impl SerializeWithSerdeContext for TaggedTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -38,17 +40,24 @@ impl<'ctx> SerializeWithSerdeContext for TaggedTypeDefinition {
     }
 }
 
-impl<'de, 'ctx> DeserializeWithSerdeContext<'de> for TaggedTypeDefinition {
-
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for TaggedTypeDefinition {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_tuple(2, DeserializeSerdeContext::<TaggedTypeDefinition>::new(ctx))
+        deserializer.deserialize_tuple(
+            2,
+            DeserializeSerdeContext::<TaggedTypeDefinition>::new(ctx),
+        )
     }
 }
 
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, TaggedTypeDefinition> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, TaggedTypeDefinition>
+{
     type Value = TaggedTypeDefinition;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -76,10 +85,12 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, TaggedTyp
 }
 
 use crate::{
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     libs::core::type_id::{CoreLibBaseTypeId, CoreLibTypeId},
     prelude::*,
     types::{r#type::Type, type_definition::TypeDefinition},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
