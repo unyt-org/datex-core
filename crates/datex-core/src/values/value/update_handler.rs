@@ -12,10 +12,7 @@ use crate::{
             UpdateCallbackDataAccess, UpdateHandlerImpl, UpdateResult,
         },
     },
-    values::{
-        core_value::CoreValue, value::Value,
-        value_container::value_key::ValueKey,
-    },
+    values::{value::Value, value_container::value_key::ValueKey},
 };
 
 impl InternalMutabilityUpdateHandler for Value {
@@ -25,7 +22,7 @@ impl InternalMutabilityUpdateHandler for Value {
     ) {
         match self {
             Value::Core(core) => core.set_update_callback_data(observe_data),
-            Value::Native(native) => {
+            Value::Native(_native) => {
                 todo!()
             }
         }

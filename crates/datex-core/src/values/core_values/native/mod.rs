@@ -16,8 +16,8 @@ pub use datex_native_ops::*;
 mod datex_native_trait;
 pub mod display;
 mod get_datex_type;
-mod ops;
 pub mod goat_helpers;
+mod ops;
 
 use crate::{
     libs::core::type_id::CoreLibTypeId,
@@ -26,11 +26,15 @@ use crate::{
         convert_value_container::ConvertValueContainer, try_clone::TryClone,
     },
     utils::goat::Goat,
-    values::value::borrowed_value::BorrowedValue,
+    values::{
+        value::borrowed_value::BorrowedValue,
+        value_container::borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
+    },
 };
 pub use datex_native_trait::*;
 pub use ops::*;
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
     for T
@@ -59,8 +63,9 @@ impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
         Self: Sized,
     {
         match value_container {
-            ValueContainer::Local(value) => Self::try_from_value(value)
-                .map_err(|inner| ValueContainer::Local(inner)),
+            ValueContainer::Local(value) => {
+                Self::try_from_value(value).map_err(ValueContainer::Local)
+            }
             _ => Err(value_container),
         }
     }

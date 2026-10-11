@@ -18,7 +18,7 @@ use crate::{
 };
 use serde::{
     Serialize,
-    de::{DeserializeSeed, Visitor},
+    de::Visitor,
     ser::{SerializeMap, SerializeSeq},
 };
 
@@ -32,12 +32,8 @@ pub enum ValueKey {
 impl ValueKey {
     pub fn into_value_container(self) -> ValueContainer {
         match self {
-            ValueKey::Text(text) => {
-                ValueContainer::Local(text.to_value().into())
-            }
-            ValueKey::Index(index) => {
-                ValueContainer::Local(index.to_value().into())
-            }
+            ValueKey::Text(text) => ValueContainer::Local(text.to_value()),
+            ValueKey::Index(index) => ValueContainer::Local(index.to_value()),
             ValueKey::Value(value_container) => value_container,
         }
     }
@@ -127,7 +123,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
     }
 
     fn visit_map<A: serde::de::MapAccess<'de>>(
-        mut self,
+        self,
         mut map_access: A,
     ) -> Result<Self::Value, A::Error> {
         let key = map_access.next_key::<String>()?;

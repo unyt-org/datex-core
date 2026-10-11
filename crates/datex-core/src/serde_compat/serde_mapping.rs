@@ -4,12 +4,12 @@ use crate::{
         core_value::CoreValue,
         core_values::{
             decimal::typed_decimal::TypedDecimal,
-            integer::typed_integer::TypedInteger,
-            list::List,
-            map::{Map},
+            integer::typed_integer::TypedInteger, list::List, map::Map,
         },
-        value::Value,
-        value_container::ValueContainer,
+        value::{Value, borrowed_value::BorrowedValue},
+        value_container::{
+            ValueContainer, borrowed_value_container::BorrowedValueContainer,
+        },
     },
 };
 use serde::{
@@ -17,8 +17,6 @@ use serde::{
     de::Visitor,
     ser::{SerializeMap, SerializeSeq},
 };
-use crate::values::value::borrowed_value::BorrowedValue;
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 impl Serialize for ValueContainer {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -41,7 +39,7 @@ impl Serialize for Value {
     {
         match &self {
             Value::Core(value) => value.inner.serialize(serializer),
-            Value::Native(native) => {
+            Value::Native(_native) => {
                 unreachable!("Cannot serialize native value without ctx")
             }
         }
@@ -111,9 +109,11 @@ impl Serialize for BorrowedValueContainer<'_> {
     {
         match self {
             BorrowedValueContainer::Local(value) => value.serialize(serializer),
-            BorrowedValueContainer::Shared(_) => Err(serde::ser::Error::custom(
-                "Cannot serialize shared value container",
-            )),
+            BorrowedValueContainer::Shared(_) => {
+                Err(serde::ser::Error::custom(
+                    "Cannot serialize shared value container",
+                ))
+            }
         }
     }
 }
@@ -124,14 +124,15 @@ impl Serialize for BorrowedValue<'_> {
         S: Serializer,
     {
         match self {
-            BorrowedValue::Core(value) => value.clone_to_core_value_with_classification().serialize(serializer),
-            BorrowedValue::Native(native) => {
+            BorrowedValue::Core(value) => value
+                .clone_to_core_value_with_classification()
+                .serialize(serializer),
+            BorrowedValue::Native(_native) => {
                 unreachable!("Cannot serialize native value without ctx")
             }
         }
     }
 }
-
 
 impl<'de> Deserialize<'de> for ValueContainer {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

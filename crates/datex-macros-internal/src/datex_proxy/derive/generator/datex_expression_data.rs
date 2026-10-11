@@ -1,12 +1,11 @@
 use crate::datex_proxy::{
-    data::{FieldMapping, Fields, NamedField, StructureData},
+    data::{FieldIdent, FieldMapping, Fields, NamedField, StructureData},
     generator::helpers::{
         SelfAccess, generate_struct_or_enum_variants_fields_mapping,
     },
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use crate::datex_proxy::data::FieldIdent;
 
 /// Creates the implementation of the [ToDatexExpressionData] trait for the given structure data.
 /// Returns a TokenStream of the implementation.
@@ -36,7 +35,7 @@ pub fn generate_datex_expression_data(
 /// Generates the datex expression data for the given fields. Returns a TokenStream of [DatexExpressionData].
 fn generate_datex_expression_data_fields(
     fields: &Fields,
-    tag: Option<&String>,
+    _tag: Option<&String>,
 ) -> TokenStream {
     // TODO: handle tag?
 

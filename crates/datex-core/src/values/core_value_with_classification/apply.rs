@@ -3,10 +3,11 @@ use crate::{
     runtime::Runtime,
     traits::apply::{Apply, ApplyArgument, ApplyError},
     values::{
-        core_value::CoreValue, value::Value, value_container::ValueContainer,
+        core_value::CoreValue,
+        core_value_with_classification::CoreValueWithClassification,
+        value_container::ValueContainer,
     },
 };
-use crate::values::core_value_with_classification::CoreValueWithClassification;
 
 impl Apply for CoreValueWithClassification {
     fn try_apply_sync(

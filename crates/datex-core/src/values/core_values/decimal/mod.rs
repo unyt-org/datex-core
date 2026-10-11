@@ -26,12 +26,12 @@ mod get_core_lib_type_id;
 mod get_datex_type;
 pub mod ops;
 pub mod primitive;
+mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod try_clone;
 pub mod update_handler;
 mod value_access;
-mod serde_dif;
 
 pub const DECIMAL_NAN: &str = "nan";
 pub const DECIMAL_INFINITY: &str = "infinity";

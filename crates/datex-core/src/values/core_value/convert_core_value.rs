@@ -1,8 +1,11 @@
 use crate::{
-    traits::convert_value::ConvertValue, values::core_value::CoreValue,
+    traits::convert_value::ConvertValue,
+    values::{
+        core_value::CoreValue,
+        core_value_with_classification::CoreValueWithClassification,
+        value::Value,
+    },
 };
-use crate::values::core_value_with_classification::CoreValueWithClassification;
-use crate::values::value::Value;
 
 impl ConvertValue for CoreValue {
     fn to_value(self) -> Value {
@@ -23,9 +26,7 @@ impl ConvertValue for CoreValue {
         }
     }
 
-    fn try_borrow_mut_from_value(
-        value: &mut Value,
-    ) -> Result<&mut Self, ()> {
+    fn try_borrow_mut_from_value(value: &mut Value) -> Result<&mut Self, ()> {
         match value {
             Value::Core(core_value) => Ok(&mut core_value.inner),
             _ => Err(()),

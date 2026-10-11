@@ -1,15 +1,14 @@
 use crate::{
-    dif::serde_context::SerdeContext,
-    types::{
-        type_definition_with_metadata::TypeDefinitionWithMetadata,
+    dif::{
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
     },
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    types::type_definition_with_metadata::TypeDefinitionWithMetadata,
 };
 use serde::{Serializer, ser::SerializeSeq};
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 
 impl SerializeWithSerdeContext for TypeDefinitionWithMetadata {
-
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,

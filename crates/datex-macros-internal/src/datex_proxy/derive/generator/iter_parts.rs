@@ -154,7 +154,7 @@ fn generate_iter_map_parts(fields: &Fields, is_mut: bool) -> TokenStream {
                 .iter()
                 // FIXME: skips serde fields for now (cannot be borrowed as value containers)
                 .filter(|field| field.field.attributes.field_mapping.is_datex())
-                .map(|(field)| {
+                .map(|field| {
                     let name = field.datex_field_name();
                     let ident = field.normalized_ident();
                     quote! {

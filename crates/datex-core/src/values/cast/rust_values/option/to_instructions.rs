@@ -2,12 +2,14 @@ use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
     },
-    instruction::Instruction,
+    instruction::{Instruction, regular_instruction::RegularInstruction},
     prelude::*,
 };
-use crate::instruction::regular_instruction::RegularInstruction;
 
-impl<K> ToInstructions for Option<K> where K: ToInstructions {
+impl<K> ToInstructions for Option<K>
+where
+    K: ToInstructions,
+{
     fn to_instructions<'ctx, 'a>(
         &'a self,
         _ctx: &'a mut dyn ValueVisitor<'ctx>,
@@ -20,7 +22,7 @@ impl<K> ToInstructions for Option<K> where K: ToInstructions {
                 None => {
                     yield Instruction::Regular(RegularInstruction::Null);
                 }
-                Some (value) => {
+                Some(value) => {
                     for instruction in value.to_instructions(_ctx) {
                         yield instruction;
                     }

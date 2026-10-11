@@ -1,15 +1,15 @@
 use crate::values::value_container::value_key::ValueKey;
 use core::fmt;
 
-use crate::{
-    dif::serde_context::SerdeContext,
-    dif::value_with_serde_context::ValueWithSerdeContext,
+use crate::dif::{
+    deserialize_serde_context::DeserializeSerdeContext,
+    serde_context::SerdeContext,
+    value_with_serde_context::ValueWithSerdeContext,
 };
 use serde::{
     de::{self, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct DeleteEntryUpdateData {
@@ -27,14 +27,13 @@ impl<'ctx> SerdeContext<'ctx> {
         value: &DeleteEntryUpdateData,
         seq: &mut S,
     ) -> Result<(), S::Error> {
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.key,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.key, self))?;
         Ok(())
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, DeleteEntryUpdateData> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, DeleteEntryUpdateData>
+{
     type Value = DeleteEntryUpdateData;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -45,7 +44,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, DeleteEnt
     }
 
     fn visit_seq<A: serde::de::SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let key = seq

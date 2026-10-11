@@ -1,16 +1,16 @@
 use crate::values::{
-    core_value_with_classification::CoreValueWithClassification,
-    value::{
-        value_classification::ValueClassification,
+    core_value::borrowed_core_value::{
+        BorrowedCoreValue, BorrowedCoreValueMut,
     },
+    core_value_with_classification::CoreValueWithClassification,
+    value::value_classification::ValueClassification,
 };
-use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
 
+pub mod classification;
+mod equality;
+pub mod hash;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
-pub mod classification;
-pub mod hash;
-mod equality;
 
 /// Similar to [CoreValueWithClassification], but contains a [BorrowedCoreValue] instead of a [CoreValue].
 /// It is used to represent a potentially borrowed reference to a [CoreValue] variant instead of owning it.

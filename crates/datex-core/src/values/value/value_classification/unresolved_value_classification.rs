@@ -26,7 +26,6 @@ impl UnresolvedValueClassification {
             && self.tag.is_none()
     }
 
-
     /// Returns the tag string if it exists, otherwise returns None.
     pub fn tag_str(&self) -> Option<&str> {
         match &self.tag {
@@ -34,7 +33,6 @@ impl UnresolvedValueClassification {
             None => None,
         }
     }
-
 }
 
 impl From<ValueClassification> for UnresolvedValueClassification {

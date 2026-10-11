@@ -1,11 +1,13 @@
 use crate::{
+    prelude::*,
     traits::iter_parts::IterParts,
     values::{
         value::Value,
+        value_container::borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
-use crate::prelude::*;
 
 impl IterParts for Value {
     fn iter_list_parts<'a>(

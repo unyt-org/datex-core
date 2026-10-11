@@ -1,9 +1,7 @@
 use crate::{
     prelude::*,
     traits::convert_value::ConvertValue,
-    values::{
-        core_value::CoreValue, core_values::native::DatexNative, value::Value,
-    },
+    values::{core_values::native::DatexNative, value::Value},
 };
 
 impl<T> ConvertValue for Box<T>

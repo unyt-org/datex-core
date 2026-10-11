@@ -1,10 +1,10 @@
-mod datex_hash;
 mod convert_value;
+mod datex_hash;
 
 use crate::traits::value_access::ValueAccess;
+pub mod serde_dif;
 mod to_instructions;
 mod try_clone;
-pub mod serde_dif;
 
 #[cfg(feature = "ast")]
 mod to_datex_expression_data {

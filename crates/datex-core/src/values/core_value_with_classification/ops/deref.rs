@@ -2,7 +2,7 @@ use core::ops::Deref;
 
 use crate::values::{
     core_value::CoreValue,
-    core_value_with_classification::CoreValueWithClassification, value::Value,
+    core_value_with_classification::CoreValueWithClassification,
 };
 
 impl Deref for CoreValueWithClassification {

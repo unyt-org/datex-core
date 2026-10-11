@@ -609,7 +609,9 @@ impl<'a> TypeInference<'a> {
             let container = SharedContainer::Referenced(container);
             let value = container.collapsed_value();
 
-            if let Some(CoreValue::Type(ty)) = &value.borrow().try_as_core_value() {
+            if let Some(CoreValue::Type(ty)) =
+                &value.borrow().try_as_core_value()
+            {
                 Some(ty.clone())
             } else {
                 None

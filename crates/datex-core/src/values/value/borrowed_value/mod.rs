@@ -1,33 +1,27 @@
 use crate::{
-    prelude::*,
-    traits::{
-        classification::Classification,
-        datex_native_structural::DatexNativeStructural,
-    },
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
         core_value::CoreValue,
         core_values::{
             native::DatexNative,
         },
-        value,
         value::{Value, value_classification::ValueClassification},
     },
 };
 use core::{
     cell::{Ref, RefMut},
-    fmt::{Debug, Display},
+    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
 use crate::values::core_value_with_classification::borrowed_core_value_with_classification::{BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut};
 
+pub mod classification;
+pub mod equality;
+pub mod hash;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
-pub mod classification;
-pub mod hash;
 pub mod to_instructions;
-pub mod equality;
 
 /// Similar to [Value], but contains a [BorrowedCoreValue] instead of a [CoreValue].
 /// It is used to represent a potentially borrowed reference to a [CoreValue] variant instead of owning it.
@@ -92,7 +86,7 @@ impl<'a> BorrowedValue<'a> {
     {
         match self {
             BorrowedValue::Core(borrowed_core_value) => Ok(Value::Core(
-                borrowed_core_value.clone_to_core_value_with_classification()
+                borrowed_core_value.clone_to_core_value_with_classification(),
             )),
             BorrowedValue::Native(native) => native.deref().try_clone(),
         }
@@ -147,7 +141,7 @@ impl Debug for BorrowedValueMut<'_> {
             BorrowedValueMut::Core(core) => {
                 write!(f, "BorrowedValueMut::Core({:?})", core)
             }
-            BorrowedValueMut::Native(native) => {
+            BorrowedValueMut::Native(_native) => {
                 write!(f, "BorrowedValueMut::Native(...)")
             }
         }

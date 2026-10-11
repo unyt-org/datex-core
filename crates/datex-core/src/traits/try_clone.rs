@@ -1,5 +1,4 @@
-use crate::values::{core_value::CoreValue, core_values::native::DatexNative};
-use crate::values::value::Value;
+use crate::values::{core_values::native::DatexNative, value::Value};
 
 /// This trait is completely auto derived for all types and must
 /// not be implemented manually.

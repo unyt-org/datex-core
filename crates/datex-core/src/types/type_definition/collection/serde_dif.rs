@@ -1,5 +1,11 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
     types::type_definition::{
         collection::{
@@ -12,16 +18,12 @@ use crate::{
         },
         range::RangeTypeDefinition,
     },
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, Visitor},
+    de::{self, Visitor},
     ser::{SerializeMap, SerializeSeq},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 impl SerializeWithSerdeContext for CollectionTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
@@ -33,26 +35,17 @@ impl SerializeWithSerdeContext for CollectionTypeDefinition {
         obj.serialize_key(self.as_ref())?;
         match self {
             CollectionTypeDefinition::List(item) => {
-                obj.serialize_value(&ValueWithSerdeContext::new(
-                    item,
-                    ctx,
-                ))?
+                obj.serialize_value(&ValueWithSerdeContext::new(item, ctx))?
             }
             CollectionTypeDefinition::ListSlice(item) => {
-                obj.serialize_value(&ValueWithSerdeContext::new(
-                    item,
-                    ctx,
-                ))?
+                obj.serialize_value(&ValueWithSerdeContext::new(item, ctx))?
             }
             CollectionTypeDefinition::Map(map) => {
-                obj.serialize_value(&ValueWithSerdeContext::new(
-                    map,
-                    ctx,
-                ))?
+                obj.serialize_value(&ValueWithSerdeContext::new(map, ctx))?
             }
-            CollectionTypeDefinition::Range(range) => obj.serialize_value(
-                &ValueWithSerdeContext::new(range, ctx),
-            )?,
+            CollectionTypeDefinition::Range(range) => {
+                obj.serialize_value(&ValueWithSerdeContext::new(range, ctx))?
+            }
         }
         obj.end()
     }
@@ -60,15 +53,22 @@ impl SerializeWithSerdeContext for CollectionTypeDefinition {
 
 /// Deserialization implementations for [CollectionTypeDefinition].
 impl<'de> DeserializeWithSerdeContext<'de> for CollectionTypeDefinition {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(DeserializeSerdeContext::<CollectionTypeDefinition>::new(ctx))
+        deserializer.deserialize_map(DeserializeSerdeContext::<
+            CollectionTypeDefinition,
+        >::new(ctx))
     }
 }
 
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, CollectionTypeDefinition> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, CollectionTypeDefinition>
+{
     type Value = CollectionTypeDefinition;
 
     fn expecting(
@@ -80,7 +80,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Collectio
         )
     }
 
-    fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {

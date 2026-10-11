@@ -7,12 +7,10 @@ impl Neg for Value {
 
     fn neg(self) -> Self::Output {
         match self {
-            Value::Core(core_value) => {
-                (-core_value).map(Value::Core)
-            },
-            Value::Native(native_value) => {
+            Value::Core(core_value) => (-core_value).map(Value::Core),
+            Value::Native(_native_value) => {
                 todo!()
-            },
+            }
         }
     }
 }

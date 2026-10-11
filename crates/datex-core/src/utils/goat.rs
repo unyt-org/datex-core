@@ -38,9 +38,9 @@ impl<'a, T: ?Sized> Goat<'a, T> {
         F: FnOnce(&T) -> Option<&U>,
     {
         match self {
-            Goat::Ref(r) => Ref::filter_map(r, f)
-                .map(Goat::Ref)
-                .map_err(Goat::Ref),
+            Goat::Ref(r) => {
+                Ref::filter_map(r, f).map(Goat::Ref).map_err(Goat::Ref)
+            }
             Goat::Borrowed(b) => {
                 let ptr: *const T = b;
                 // SAFETY: `F` is higher-ranked over the borrow's lifetime

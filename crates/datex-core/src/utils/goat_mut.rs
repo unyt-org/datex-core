@@ -33,7 +33,10 @@ impl<'a, T: ?Sized> GoatMut<'a, T> {
         }
     }
 
-    pub fn try_filter_map<U: ?Sized, F>(self, f: F) -> Result<GoatMut<'a, U>, Self>
+    pub fn try_filter_map<U: ?Sized, F>(
+        self,
+        f: F,
+    ) -> Result<GoatMut<'a, U>, Self>
     where
         F: FnOnce(&mut T) -> Option<&mut U>,
     {

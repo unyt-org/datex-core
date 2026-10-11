@@ -1,8 +1,5 @@
 use crate::{
-    random::RandomState,
-    traits::{
-        classification::Classification,
-    },
+    random::RandomState, traits::classification::Classification,
     values::core_values::native::DatexNativeBase,
 };
 use core::hash::Hash;

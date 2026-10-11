@@ -6,13 +6,16 @@ use crate::{
     },
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
-        core_value_with_classification::borrowed_core_value_with_classification::{
-            BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
         },
-        core_value::borrowed_core_value::{
-            BorrowedCoreValue, BorrowedCoreValueMut,
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
         },
         core_values::{
             boolean::Boolean,
@@ -28,9 +31,7 @@ use crate::{
         },
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     },
 };

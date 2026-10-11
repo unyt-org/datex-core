@@ -26,8 +26,8 @@ impl<'de, T: DeserializeWithSerdeContextDyn> DeserializeWithSerdeContext<'de>
     for Box<T>
 {
     fn deserialize_with_ctx<D: serde::de::Deserializer<'de>>(
-        ctx: &SerdeContext<'_>,
-        deserializer: D,
+        _ctx: &SerdeContext<'_>,
+        _deserializer: D,
     ) -> Result<Self, D::Error> {
         todo!()
     }

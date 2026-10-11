@@ -11,7 +11,7 @@ use crate::{
 pub trait ToShared: DatexNative + Sized {
     fn shared(
         self,
-        cache: &mut SharedReferencesCache,
+        _cache: &mut SharedReferencesCache,
         provider: &mut SelfOwnedPointerAddressProvider,
     ) -> Shared<Self> {
         Shared::try_from(SharedContainer::new_owned_with_inferred_allowed_type(

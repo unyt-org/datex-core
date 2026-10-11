@@ -28,7 +28,7 @@ impl ToInstructions for CoreValueWithClassification {
                 .into()
             }
 
-            for impl_address in &classification.impls {
+            for _impl_address in &classification.impls {
                 todo!(
                     "Compiling values with Impls classification is not yet implemented"
                 )

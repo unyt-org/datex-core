@@ -1,5 +1,10 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
     libs::core::{core_lib_id::CoreLibIdIndex, type_id::CoreLibTypeId},
     prelude::*,
     shared_values::SharedContainer,
@@ -11,16 +16,13 @@ use crate::{
             TypeDefinitionWithMetadata, TypeMetadata,
         },
     },
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 use core::ops::Deref;
 use num::ToPrimitive;
 use serde::{
     Serializer,
-    de::{DeserializeSeed, IntoDeserializer, Visitor},
+    de::{IntoDeserializer, Visitor},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 impl SerializeWithSerdeContext for Type {
     fn serialize_with_ctx<S>(
@@ -38,24 +40,22 @@ impl SerializeWithSerdeContext for Type {
                 TypeDefinition::CoreType(_core)
                     if type_definition.metadata == TypeMetadata::default() =>
                 {
-                    type_definition.definition
+                    type_definition
+                        .definition
                         .serialize_with_ctx(ctx, serializer)
                 }
-                _ => type_definition
-                    .serialize_with_ctx(ctx, serializer),
+                _ => type_definition.serialize_with_ctx(ctx, serializer),
             },
             Type::Entity(shared_container_containing_nominal_type) => {
-                shared_container_containing_nominal_type.deref().serialize_with_ctx(
-                    ctx,
-                    serializer,
-                )
+                shared_container_containing_nominal_type
+                    .deref()
+                    .serialize_with_ctx(ctx, serializer)
             }
         }
     }
 }
 
 impl<'de> DeserializeWithSerdeContext<'de> for Type {
-
     fn deserialize_with_ctx<D: serde::de::Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,
@@ -143,17 +143,15 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Type> {
             serde::de::Error::custom(format!("core type id out of range: {v}"))
         })?)
     }
-    fn visit_str<E>(mut self, v: &str) -> Result<Self::Value, E>
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(Type::Entity(unsafe {
-            EntityType::new_unchecked(
-                SharedContainer::deserialize_with_ctx(
-                    self.ctx,
-                    v.into_deserializer()
-                )?
-            )
+            EntityType::new_unchecked(SharedContainer::deserialize_with_ctx(
+                self.ctx,
+                v.into_deserializer(),
+            )?)
         }))
     }
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
@@ -162,7 +160,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Type> {
     {
         self.visit_str(&v)
     }
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {

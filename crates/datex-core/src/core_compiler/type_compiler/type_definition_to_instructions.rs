@@ -1,4 +1,3 @@
-use core::ops::Deref;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -36,6 +35,7 @@ use crate::{
         type_definition_with_metadata::TypeDefinitionWithMetadata,
     },
 };
+use core::ops::Deref;
 
 impl ToInstructions for TypeDefinition {
     fn to_instructions<'ctx, 'a>(
@@ -153,7 +153,7 @@ impl ToInstructions for TypeDefinitionWithMetadata {
 impl ToInstructions for ImplMarkers {
     fn to_instructions<'ctx, 'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _ctx: &'a mut dyn ValueVisitor<'ctx>,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     where
         'ctx: 'a,
@@ -235,7 +235,8 @@ impl ToInstructions for RangeTypeDefinition {
             {
                 yield instruction;
             }
-            for instruction in self.end.deref().to_instructions(ctx).collect::<Vec<_>>()
+            for instruction in
+                self.end.deref().to_instructions(ctx).collect::<Vec<_>>()
             {
                 yield instruction;
             }
@@ -304,13 +305,19 @@ impl ToInstructions for MapCollectionTypeDefinition {
     {
         Box::new(gen move {
             yield TypeInstruction::MapCollection.into();
-            for instruction in
-                self.key_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+            for instruction in self
+                .key_type
+                .deref()
+                .to_instructions(ctx)
+                .collect::<Vec<_>>()
             {
                 yield instruction;
             }
-            for instruction in
-                self.value_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+            for instruction in self
+                .value_type
+                .deref()
+                .to_instructions(ctx)
+                .collect::<Vec<_>>()
             {
                 yield instruction;
             }
@@ -333,8 +340,11 @@ impl ToInstructions for ListSliceCollectionTypeDefinition {
                 },
             )
             .into();
-            for instruction in
-                self.item_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+            for instruction in self
+                .item_type
+                .deref()
+                .to_instructions(ctx)
+                .collect::<Vec<_>>()
             {
                 yield instruction;
             }
@@ -462,7 +472,9 @@ impl ToInstructions for TaggedTypeDefinition {
             ))
             .into();
             if let Some(ty) = &self.ty {
-                for instruction in ty.deref().to_instructions(ctx).collect::<Vec<_>>() {
+                for instruction in
+                    ty.deref().to_instructions(ctx).collect::<Vec<_>>()
+                {
                     yield instruction;
                 }
             }

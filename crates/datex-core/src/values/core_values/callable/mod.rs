@@ -13,7 +13,7 @@ use crate::{
         value_container::ValueContainer,
     },
 };
-use core::{fmt::Debug, hash::Hash, ops::DerefMut, pin::Pin};
+use core::{fmt::Debug, hash::Hash, pin::Pin};
 
 pub mod apply;
 mod classification;

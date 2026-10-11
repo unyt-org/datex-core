@@ -1,6 +1,5 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
     values::{
         core_value::CoreValue,
@@ -58,27 +57,21 @@ impl FromParts for CoreValueWithClassification {
     }
 }
 impl IntoParts for CoreValueWithClassification {
-    fn try_into_map_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<Map, ()>
+    fn try_into_map_parts<'a>(self: Box<Self>) -> Result<Map, ()>
     where
         Self: 'a,
     {
         Box::new(self.inner).try_into_map_parts()
     }
 
-    fn try_into_list_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<List, ()>
+    fn try_into_list_parts<'a>(self: Box<Self>) -> Result<List, ()>
     where
         Self: 'a,
     {
         Box::new(self.inner).try_into_list_parts()
     }
 
-    fn try_into_single_value<'a>(
-        self: Box<Self>,
-    ) -> Result<ValueContainer, ()>
+    fn try_into_single_value<'a>(self: Box<Self>) -> Result<ValueContainer, ()>
     where
         Self: 'a,
     {

@@ -3,11 +3,9 @@ use crate::{
     traits::classification::Classification,
     values::{
         core_value_with_classification::CoreValueWithClassification,
-        value::{
-            value_classification::{
-                ValueClassification,
-                unresolved_value_classification::UnresolvedValueClassification,
-            },
+        value::value_classification::{
+            ValueClassification,
+            unresolved_value_classification::UnresolvedValueClassification,
         },
     },
 };

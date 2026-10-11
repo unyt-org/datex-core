@@ -1,8 +1,5 @@
 use crate::{
-    prelude::*,
-    traits::{
-        classification::Classification,
-    },
+    prelude::*, traits::classification::Classification,
     values::core_values::native::DatexNativeBase,
 };
 

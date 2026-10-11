@@ -29,11 +29,11 @@ mod datex_native_structural;
 mod get_core_lib_type_id;
 mod get_datex_type;
 pub mod primitive;
+pub mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod try_clone;
 mod value_access;
-pub mod serde_dif;
 
 /// The integer type variants to be used as a inline
 /// definition in DATEX (such as 42u32 or -42i64).

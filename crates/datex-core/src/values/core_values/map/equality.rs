@@ -1,10 +1,5 @@
 use crate::{
-    traits::structural_eq::StructuralEq,
-    values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
-        core_values::map::Map, value::Value, value_container::ValueContainer,
-    },
+    traits::structural_eq::StructuralEq, values::core_values::map::Map,
 };
 use core::hash::{Hash, Hasher};
 

@@ -2,11 +2,13 @@ use crate::{
     runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::classification::Classification,
     values::{
-        value::value_classification::ValueClassification,
+        value::value_classification::{
+            ValueClassification,
+            unresolved_value_classification::UnresolvedValueClassification,
+        },
+        value_container::borrowed_value_container::BorrowedValueContainer,
     },
 };
-use crate::values::value::value_classification::unresolved_value_classification::UnresolvedValueClassification;
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 impl<'a> Classification for BorrowedValueContainer<'a> {
     fn classification(

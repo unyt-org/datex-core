@@ -1,7 +1,8 @@
 use crate::{
-    prelude::*, traits::try_clone::TryClone, values::core_value::CoreValue,
+    prelude::*,
+    traits::try_clone::TryClone,
+    values::{core_value::CoreValue, value::Value},
 };
-use crate::values::value::Value;
 
 impl TryClone for String {
     fn try_clone(&self) -> Result<Value, ()> {

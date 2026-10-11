@@ -7,8 +7,8 @@ impl Add for &Value {
     fn add(self, rhs: &Value) -> Self::Output {
         match (self, rhs) {
             (Value::Core(lhs), Value::Core(rhs)) => {
-                (lhs + rhs).map(|value| Value::Core(value))
-            },
+                (lhs + rhs).map(Value::Core)
+            }
             (_, _) => todo!("Handle add for non-Core values"),
         }
     }

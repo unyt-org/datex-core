@@ -48,7 +48,7 @@ impl UpdateHandlerImpl for List {
     fn try_set_entry(
         &mut self,
         data: SetEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
         let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
@@ -61,7 +61,7 @@ impl UpdateHandlerImpl for List {
     fn try_delete_entry(
         &mut self,
         data: DeleteEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
@@ -90,7 +90,7 @@ impl UpdateHandlerImpl for List {
     fn try_list_splice(
         &mut self,
         data: ListSpliceUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Vec<ValueContainer>, UpdateError> {
         Ok(self.splice_with_source(
             data.start..(data.start + data.delete_count),

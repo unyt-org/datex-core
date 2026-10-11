@@ -9,9 +9,7 @@ use crate::{
     random::RandomState,
     values::{
         core_value::CoreValue,
-        value::{
-            Value,
-        },
+        value::Value,
         value_container::{ValueContainer, value_key::BorrowedValueKey},
     },
 };
@@ -42,20 +40,18 @@ pub mod updates;
 mod value_access;
 
 use crate::{
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::base_shared_value_container::observers::TransceiverId,
-    traits::convert_parts::{FromParts, IntoParts, PartsKind},
+    traits::convert_parts::{FromParts, IntoParts},
     utils::impl_display_for_datex_value::impl_display_for_datex_value,
     value_updates::update_handler::{
         InternalMutabilityUpdateHandler, UpdateCallbackData,
     },
     values::{
         core_value_with_classification::CoreValueWithClassification,
-        value_container::value_key::ValueKey,
+        value_container::borrowed_value_container::BorrowedValueContainer,
     },
 };
 use indexmap::{IndexMap, map::MutableKeys};
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MapEntries {
@@ -273,7 +269,6 @@ impl Map {
                             });
                         }
                     }
-                   
                 }
             }
             MapEntries::Dynamic(entries) => {
@@ -326,8 +321,7 @@ impl Map {
     /// skipping any children that have a [ValueContainer::Shared] value
     pub fn iter_local_values_mut(
         &mut self,
-    ) -> impl Iterator<Item = (BorrowedValueContainer<'_>, &mut Value)>
-    {
+    ) -> impl Iterator<Item = (BorrowedValueContainer<'_>, &mut Value)> {
         self.iter_mut().filter_map(|(key, item)| {
             if let ValueContainer::Local(local_value) = item {
                 Some((key, local_value))
@@ -406,7 +400,7 @@ impl<'a> Iterator for MapIterator<'a> {
                 if self.index < vec.len() {
                     let item = &vec[self.index];
                     self.index += 1;
-                    Some(((&item.0).into(), (&item.1).into()))
+                    Some(((&item.0).into(), (&item.1)))
                 } else {
                     None
                 }

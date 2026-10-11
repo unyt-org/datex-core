@@ -1,6 +1,5 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::{AccessError, KeyNotFoundError},
     traits::value_access::ValueAccess,
     types::entity_type::EntityType,
@@ -14,7 +13,7 @@ use crate::{
         value_container::value_key::BorrowedValueKey,
     },
 };
-use core::cell::{Ref, RefCell};
+use core::cell::Ref;
 use crate::values::core_value::borrowed_core_value::BorrowedCoreValue;
 use crate::values::core_value_with_classification::borrowed_core_value_with_classification::BorrowedCoreValueWithClassification;
 use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;

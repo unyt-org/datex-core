@@ -1,18 +1,17 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
-    shared_values::errors::{AccessError, KeyNotFoundError},
+    shared_values::errors::AccessError,
     traits::value_access::ValueAccess,
     values::{
-        core_value::CoreValue,
-        value::{
-            Value,
+        value::Value,
+        value_container::{
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+            value_key::BorrowedValueKey,
         },
-        value_container::value_key::BorrowedValueKey,
     },
 };
-use core::cell::{Ref, RefCell};
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl ValueAccess for Value {
     fn try_get_property(

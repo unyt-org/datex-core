@@ -1,15 +1,16 @@
-use core::cell::RefCell;
-
 use crate::{
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::AccessError,
     traits::value_access::ValueAccess,
     values::{
         core_values::list::List,
-        value_container::value_key::BorrowedValueKey,
+        value_container::{
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+            value_key::BorrowedValueKey,
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl ValueAccess for List {
     fn try_get_property(

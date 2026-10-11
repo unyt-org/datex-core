@@ -8,7 +8,7 @@ impl Not for &Value {
     fn not(self) -> Self::Output {
         match self {
             Value::Core(core_value) => core_value.not().map(Value::Core),
-            Value::Native(native_value) => todo!(),
+            Value::Native(_native_value) => todo!(),
         }
     }
 }

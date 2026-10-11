@@ -1,6 +1,5 @@
-use core::fmt::Formatter;
-use erased_serde::__private::serde::de::{Error, Visitor};
 use crate::dif::{
+    deserialize_serde_context::{DeserializeSerdeContext, ErasedSeed},
     deserialize_with_serde_context::{
         DeserializeWithSerdeContext, DeserializeWithSerdeContextDyn,
     },
@@ -9,9 +8,9 @@ use crate::dif::{
         SerializeWithSerdeContext, SerializeWithSerdeContextDyn,
     },
 };
-use serde::{Serialize, Serializer};
-use serde::de::DeserializeSeed;
-use crate::dif::deserialize_serde_context::{DeserializeSerdeContext, ErasedSeed};
+use core::fmt::Formatter;
+use erased_serde::__private::serde::de::{Error, Visitor};
+use serde::{Serialize, Serializer, de::DeserializeSeed};
 
 impl<T: SerializeWithSerdeContextDyn> SerializeWithSerdeContext for Option<T> {
     fn serialize_with_ctx<S: Serializer>(
@@ -33,11 +32,13 @@ impl<'de, T: DeserializeWithSerdeContextDyn> DeserializeWithSerdeContext<'de>
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(DeserializeSerdeContext::<Option<T>>::new(ctx))
+        deserializer
+            .deserialize_any(DeserializeSerdeContext::<Option<T>>::new(ctx))
     }
 }
 
-impl<'de, 'a, 'ctx, T> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Option<T>>
+impl<'de, 'a, 'ctx, T> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, Option<T>>
 where
     T: DeserializeWithSerdeContextDyn,
 {

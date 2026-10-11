@@ -1,14 +1,20 @@
+use crate::{
+    core_compiler::{
+        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+    },
+    instruction::Instruction,
+    prelude::*,
+    values::value::borrowed_value::BorrowedValue,
+};
 use itertools::Itertools;
-use crate::core_compiler::to_instructions::ToInstructions;
-use crate::core_compiler::value_visitor::ValueVisitor;
-use crate::instruction::Instruction;
-use crate::values::value::borrowed_value::BorrowedValue;
-use crate::prelude::*;
 
 impl ToInstructions for BorrowedValue<'_> {
-    fn to_instructions<'ctx, 'a>(&'a self, ctx: &'a mut dyn ValueVisitor<'ctx>) -> Box<dyn Iterator<Item=Instruction> + 'a>
+    fn to_instructions<'ctx, 'a>(
+        &'a self,
+        ctx: &'a mut dyn ValueVisitor<'ctx>,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     where
-        'ctx: 'a
+        'ctx: 'a,
     {
         match self {
             BorrowedValue::Native(native) => native.to_instructions(ctx),

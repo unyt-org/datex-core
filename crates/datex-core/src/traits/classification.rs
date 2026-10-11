@@ -1,11 +1,13 @@
 use crate::{
     prelude::*,
     runtime::cache::shared_references_cache::SharedReferencesCache,
-    shared_values::{PointerAddress, SelfOwnedPointerAddress},
+    shared_values::PointerAddress,
     types::entity_type::EntityType,
+    values::value::value_classification::{
+        ValueClassification, ValueTag,
+        unresolved_value_classification::UnresolvedValueClassification,
+    },
 };
-use crate::values::value::value_classification::{ValueClassification, ValueTag};
-use crate::values::value::value_classification::unresolved_value_classification::UnresolvedValueClassification;
 
 pub trait Classification {
     /// Returns the DATEX [EntityType] of the native value if it has an entity type.

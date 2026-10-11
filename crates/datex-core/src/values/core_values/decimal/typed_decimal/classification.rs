@@ -1,7 +1,5 @@
 use crate::{
-    traits::{
-        classification::Classification,
-    },
+    traits::classification::Classification,
     values::core_values::decimal::typed_decimal::TypedDecimal,
 };
 

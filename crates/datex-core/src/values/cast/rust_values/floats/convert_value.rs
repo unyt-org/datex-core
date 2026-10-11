@@ -2,19 +2,24 @@ use crate::{
     traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
+        },
         core_values::decimal::typed_decimal::TypedDecimal,
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     },
 };
-use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
-use crate::values::core_value_with_classification::borrowed_core_value_with_classification::{BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut};
 
 impl ConvertValue for f32 {
     fn to_value(self) -> Value {
@@ -62,15 +67,16 @@ impl<'a> TryFrom<BorrowedValue<'a>> for Goat<'a, f32> {
         match value {
             BorrowedValue::Core(BorrowedCoreValueWithClassification {
                 inner: BorrowedCoreValue::TypedDecimal(value),
-                classification
-            }) => value.try_filter_map(|v| v.borrow_as_f32())
-                .map_err(|v| BorrowedValue::Core(BorrowedCoreValueWithClassification {
+                classification,
+            }) => value.try_filter_map(|v| v.borrow_as_f32()).map_err(|v| {
+                BorrowedValue::Core(BorrowedCoreValueWithClassification {
                     inner: BorrowedCoreValue::TypedDecimal(v),
                     classification,
-                })),
-            BorrowedValue::Native(native) => native
-                .try_as()
-                .map_err(|v| BorrowedValue::Native(v)),
+                })
+            }),
+            BorrowedValue::Native(native) => {
+                native.try_as().map_err(BorrowedValue::Native)
+            }
             _ => Err(value),
         }
     }
@@ -83,16 +89,21 @@ impl<'a> TryFrom<BorrowedValueMut<'a>> for GoatMut<'a, f32> {
             BorrowedValueMut::Core(
                 BorrowedCoreValueWithClassificationMut {
                     inner: BorrowedCoreValueMut::TypedDecimal(value),
-                    classification
-                },
-            ) => value.try_filter_map(|v| v.borrow_mut_as_f32())
-                    .map_err(|v| BorrowedValueMut::Core(BorrowedCoreValueWithClassificationMut {
-                    inner: BorrowedCoreValueMut::TypedDecimal(v),
                     classification,
-                })),
-            BorrowedValueMut::Native(native) => native
-                .try_as_mut()
-                .map_err(|v| BorrowedValueMut::Native(v)),
+                },
+            ) => value
+                .try_filter_map(|v| v.borrow_mut_as_f32())
+                .map_err(|v| {
+                    BorrowedValueMut::Core(
+                        BorrowedCoreValueWithClassificationMut {
+                            inner: BorrowedCoreValueMut::TypedDecimal(v),
+                            classification,
+                        },
+                    )
+                }),
+            BorrowedValueMut::Native(native) => {
+                native.try_as_mut().map_err(BorrowedValueMut::Native)
+            }
             _ => Err(value),
         }
     }

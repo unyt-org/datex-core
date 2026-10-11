@@ -1,8 +1,5 @@
-use alloc::collections::binary_heap::Iter;
-
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     values::{
         core_values::{list::List, map::Map},
         value_container::ValueContainer,
@@ -98,9 +95,7 @@ pub trait IntoParts: HasPartsKind {
     /// Returns an error if the conversion is not possible.
     /// You can check if the conversion is possible by calling `parts_kind()`
     /// and checking if it returns `PartsKind::Map`.
-    fn try_into_map_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<Map, ()>
+    fn try_into_map_parts<'a>(self: Box<Self>) -> Result<Map, ()>
     where
         Self: 'a,
     {
@@ -111,9 +106,7 @@ pub trait IntoParts: HasPartsKind {
     /// Returns an error if the conversion is not possible.
     /// You can check if the conversion is possible by calling `parts_kind()`
     /// and checking if it returns `PartsKind::List`.
-    fn try_into_list_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<List, ()>
+    fn try_into_list_parts<'a>(self: Box<Self>) -> Result<List, ()>
     where
         Self: 'a,
     {
@@ -124,9 +117,7 @@ pub trait IntoParts: HasPartsKind {
     /// Returns an error if the conversion is not possible.
     /// You can check if the conversion is possible by calling `parts_kind()`
     /// and checking if it returns `PartsKind::SingleValue`.
-    fn try_into_single_value<'a>(
-        self: Box<Self>,
-    ) -> Result<ValueContainer, ()>
+    fn try_into_single_value<'a>(self: Box<Self>) -> Result<ValueContainer, ()>
     where
         Self: 'a,
     {

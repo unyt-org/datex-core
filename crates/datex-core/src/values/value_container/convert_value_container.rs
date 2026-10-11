@@ -1,10 +1,12 @@
 use crate::{
     traits::convert_value_container::ConvertValueContainer,
-    values::{
-        value_container::ValueContainer,
+    values::value_container::{
+        ValueContainer,
+        borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl ConvertValueContainer for ValueContainer {
     fn to_value_container(self) -> ValueContainer {

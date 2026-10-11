@@ -1,7 +1,13 @@
 use core::{fmt, ops::Deref};
 
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     libs::core::core_lib_id::{CoreLibId, CoreLibIdIndex},
     prelude::*,
     shared_values::SharedContainer,
@@ -10,26 +16,20 @@ use crate::{
         r#type::Type,
         type_definition::{
             TypeDefinition, callable::CallableTypeDefinition,
-            collection::CollectionTypeDefinition,
-            impl_type::ImplMarkers,
+            collection::CollectionTypeDefinition, impl_type::ImplMarkers,
             intersection::IntersectionTypeDefinition, list::ListTypeDefinition,
             map::MapTypeDefinition, range::RangeTypeDefinition,
             tagged_type::TaggedTypeDefinition, union::UnionTypeDefinition,
         },
     },
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, Visitor},
+    de::{self, Visitor},
     ser::SerializeMap,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 impl SerializeWithSerdeContext for TypeDefinition {
-
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -48,24 +48,15 @@ impl SerializeWithSerdeContext for TypeDefinition {
                     TypeDefinition::Literal(literal) => {
                         outer.serialize_value(&literal)?;
                     }
-                    TypeDefinition::List(list_def) => {
-                        outer.serialize_value(&ValueWithSerdeContext::new(
-                            list_def,
-                            ctx,
-                        ))?
-                    }
-                    TypeDefinition::Map(map_def) => {
-                        outer.serialize_value(&ValueWithSerdeContext::new(
-                            map_def,
-                            ctx
-                        ))?
-                    }
-                    TypeDefinition::Range(range) => {
-                        outer.serialize_value(&ValueWithSerdeContext::new(
-                            range,
-                            ctx,
-                        ))?
-                    }
+                    TypeDefinition::List(list_def) => outer.serialize_value(
+                        &ValueWithSerdeContext::new(list_def, ctx),
+                    )?,
+                    TypeDefinition::Map(map_def) => outer.serialize_value(
+                        &ValueWithSerdeContext::new(map_def, ctx),
+                    )?,
+                    TypeDefinition::Range(range) => outer.serialize_value(
+                        &ValueWithSerdeContext::new(range, ctx),
+                    )?,
                     TypeDefinition::Collection(collection_type_definition) => {
                         outer.serialize_value(&ValueWithSerdeContext::new(
                             collection_type_definition,
@@ -78,23 +69,17 @@ impl SerializeWithSerdeContext for TypeDefinition {
                         shared_container_containing_type.deref(),
                         ctx,
                     ))?,
-                    TypeDefinition::Box(nested) => {
-                        outer.serialize_value(&ValueWithSerdeContext::new(
-                            nested as &Type,
-                            ctx,
-                        ))?
-                    }
+                    TypeDefinition::Box(nested) => outer.serialize_value(
+                        &ValueWithSerdeContext::new(nested as &Type, ctx),
+                    )?,
                     TypeDefinition::Callable(callable_signature) => outer
                         .serialize_value(&ValueWithSerdeContext::new(
                             callable_signature,
                             ctx,
                         ))?,
-                    TypeDefinition::ImplMarkers(def) => {
-                        outer.serialize_value(&ValueWithSerdeContext::new(
-                            def,
-                            ctx,
-                        ))?
-                    }
+                    TypeDefinition::ImplMarkers(def) => outer.serialize_value(
+                        &ValueWithSerdeContext::new(def, ctx),
+                    )?,
                     TypeDefinition::Intersection(type_intersection) => outer
                         .serialize_value(&ValueWithSerdeContext::new(
                             type_intersection,
@@ -102,8 +87,7 @@ impl SerializeWithSerdeContext for TypeDefinition {
                         ))?,
                     TypeDefinition::Union(type_union) => outer
                         .serialize_value(&ValueWithSerdeContext::new(
-                            type_union,
-                            ctx,
+                            type_union, ctx,
                         ))?,
                     TypeDefinition::TaggedType(tagged_type) => outer
                         .serialize_value(&ValueWithSerdeContext::new(
@@ -150,14 +134,16 @@ impl<'de, 'ctx> DeserializeSerdeContext<'de, 'ctx, TypeDefinition> {
         }
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, TypeDefinition> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, TypeDefinition>
+{
     type Value = TypeDefinition;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "a valid TypeDefinition")
     }
 
-    fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: de::MapAccess<'de>,
     {
@@ -207,8 +193,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, TypeDefin
             }
 
             "impl_markers" => {
-                let def =
-                    map.next_value_seed(self.cast::<ImplMarkers>())?;
+                let def = map.next_value_seed(self.cast::<ImplMarkers>())?;
                 TypeDefinition::ImplMarkers(def)
             }
 
@@ -305,25 +290,23 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, TypeDefin
 
 #[cfg(test)]
 mod tests {
-    use core::cell::RefCell;
     use crate::{
         dif::serde_context::SerdeContext,
         libs::core::{
             core_lib_id::CoreLibIdIndex,
-            type_id::{CoreLibTypeId, CoreLibBaseTypeId, CoreLibVariantTypeId},
+            type_id::{CoreLibBaseTypeId, CoreLibTypeId, CoreLibVariantTypeId},
         },
         prelude::*,
         types::type_definition::TypeDefinition,
         values::core_values::integer::typed_integer::IntegerTypeVariant,
     };
+    use core::cell::RefCell;
 
     fn to_json(value: &TypeDefinition) -> String {
         SerdeContext::new(&RefCell::new(SharedValuesCache::default()))
             .serialize_to_json(value)
     }
-    use crate::runtime::cache::{
-        shared_values_cache::SharedValuesCache,
-    };
+    use crate::runtime::cache::shared_values_cache::SharedValuesCache;
     use test_case::test_case;
 
     #[test_case(CoreLibTypeId::Base(CoreLibBaseTypeId::Text) ; "Text")]

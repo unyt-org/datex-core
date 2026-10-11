@@ -22,7 +22,7 @@ where
 }
 
 impl AddAssign<NativeCoreValue> for CoreValueWithClassification {
-    fn add_assign(&mut self, rhs: NativeCoreValue) {
+    fn add_assign(&mut self, _rhs: NativeCoreValue) {
         todo!()
     }
 }

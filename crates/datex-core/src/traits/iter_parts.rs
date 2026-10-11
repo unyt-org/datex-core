@@ -1,8 +1,10 @@
 use crate::{
+    prelude::*,
     traits::convert_parts::{HasPartsKind, PartsKind},
+    values::value_container::borrowed_value_container::{
+        BorrowedValueContainer, BorrowedValueContainerMut,
+    },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
-use crate::prelude::*;
 
 /// Trait for types that can provide an iterator over their child value containers
 pub trait IterParts: HasPartsKind {

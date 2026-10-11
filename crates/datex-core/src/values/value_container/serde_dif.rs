@@ -2,7 +2,7 @@ use crate::{
     shared_values::SharedContainer,
     values::{value::Value, value_container::ValueContainer},
 };
-use serde::{Serializer, de::SeqAccess, ser::SerializeSeq};
+use serde::{Serializer, ser::SerializeSeq};
 
 use crate::{
     dif::{
@@ -12,12 +12,11 @@ use crate::{
         serialize_with_serde_context::SerializeWithSerdeContext,
     },
     prelude::*,
-    values::core_value::CoreValue,
 };
 use core::fmt;
 use serde::{
     Deserializer,
-    de::{DeserializeSeed, MapAccess, Visitor},
+    de::{MapAccess, Visitor},
 };
 
 pub const SHARED_CONTAINER_KEY: &str = "$";
@@ -41,124 +40,124 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         f.write_str("a map for a shared container of any DIF value representation for local values")
     }
 
-    fn visit_bool<E>(mut self, v: bool) -> Result<ValueContainer, E>
+    fn visit_bool<E>(self, v: bool) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_bool(v)?))
     }
 
-    fn visit_i64<E>(mut self, v: i64) -> Result<ValueContainer, E>
+    fn visit_i64<E>(self, v: i64) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_i64(v)?))
     }
 
-    fn visit_u64<E>(mut self, v: u64) -> Result<ValueContainer, E>
+    fn visit_u64<E>(self, v: u64) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_u64(v)?))
     }
 
-    fn visit_f64<E>(mut self, v: f64) -> Result<ValueContainer, E>
+    fn visit_f64<E>(self, v: f64) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_f64(v)?))
     }
-    fn visit_i16<E>(mut self, v: i16) -> Result<Self::Value, E>
+    fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_i16(v)?))
     }
-    fn visit_i32<E>(mut self, v: i32) -> Result<Self::Value, E>
+    fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_i32(v)?))
     }
-    fn visit_u128<E>(mut self, v: u128) -> Result<Self::Value, E>
+    fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_u128(v)?))
     }
-    fn visit_i8<E>(mut self, v: i8) -> Result<Self::Value, E>
+    fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_i8(v)?))
     }
-    fn visit_u16<E>(mut self, v: u16) -> Result<Self::Value, E>
+    fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_u16(v)?))
     }
-    fn visit_u32<E>(mut self, v: u32) -> Result<Self::Value, E>
+    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_u32(v)?))
     }
-    fn visit_u8<E>(mut self, v: u8) -> Result<Self::Value, E>
+    fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_u8(v)?))
     }
-    fn visit_str<E>(mut self, v: &str) -> Result<ValueContainer, E>
+    fn visit_str<E>(self, v: &str) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_str(v)?))
     }
-    fn visit_string<E>(mut self, v: String) -> Result<ValueContainer, E>
+    fn visit_string<E>(self, v: String) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_string(v)?))
     }
 
-    fn visit_none<E>(mut self) -> Result<ValueContainer, E>
+    fn visit_none<E>(self) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_none()?))
     }
 
-    fn visit_unit<E>(mut self) -> Result<ValueContainer, E>
+    fn visit_unit<E>(self) -> Result<ValueContainer, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_unit()?))
     }
 
-    fn visit_some<D>(mut self, d: D) -> Result<ValueContainer, D::Error>
+    fn visit_some<D>(self, d: D) -> Result<ValueContainer, D::Error>
     where
         D: Deserializer<'de>,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_some(d)?))
     }
 
-    fn visit_seq<A>(mut self, seq: A) -> Result<ValueContainer, A::Error>
+    fn visit_seq<A>(self, seq: A) -> Result<ValueContainer, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_seq(seq)?))
     }
 
-    fn visit_i128<E>(mut self, v: i128) -> Result<Self::Value, E>
+    fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ValueContainer::Local(self.cast::<Value>().visit_i128(v)?))
     }
 
-    fn visit_f32<E>(mut self, v: f32) -> Result<Self::Value, E>
+    fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
@@ -167,7 +166,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
 
     // map => shared container { $: pointer address }
     fn visit_map<A: MapAccess<'de>>(
-        mut self,
+        self,
         mut map: A,
     ) -> Result<ValueContainer, A::Error> {
         let Some(key) = map.next_key::<String>()? else {

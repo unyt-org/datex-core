@@ -1,10 +1,9 @@
 use crate::datex_proxy::{
-    data::{EnumVariant, Fields, Structure, StructureData, TypeKind},
+    data::{EnumVariant, Fields, Structure, StructureData},
     generator::helpers::{SelfAccess, map_enum_variants},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Variant;
 
 /// Generates the [Classification] implementations
 pub fn generate_classification(structure_data: &StructureData) -> TokenStream {
@@ -13,7 +12,7 @@ pub fn generate_classification(structure_data: &StructureData) -> TokenStream {
     } = structure_data;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let has_classification =
+    let _has_classification =
         !structure_data.attributes.type_kind.is_structural();
 
     let classification_methods =

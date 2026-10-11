@@ -23,7 +23,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
     fn try_set_entry(
         &mut self,
         data: SetEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
         let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
@@ -47,7 +47,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
     fn try_delete_entry(
         &mut self,
         data: DeleteEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
@@ -75,7 +75,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
 
     fn try_clear(
         &mut self,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         let previous = core::mem::take(self);
         Ok(ValueContainer::Local(previous.into()))
@@ -102,7 +102,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
             )
             .collect::<Vec<_>>();
         let mut cache = cache.borrow_mut();
-        let cache = cache.deref_mut();
+        let _cache = cache.deref_mut();
         Ok(res
             .into_iter()
             .map(|item| item.to_value_container())

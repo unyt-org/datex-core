@@ -51,17 +51,18 @@ use crate::{
     values::{
         core_values::{endpoint::Endpoint, native::NativeCoreValue},
         value::value_classification::{
-            ValueClassification, ValueTag,
+            ValueClassification,
             unresolved_value_classification::UnresolvedValueClassification,
+        },
+        value_container::borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
         },
     },
 };
 use core::{
-    cell::RefCell,
     fmt::{Debug, Formatter},
     result::Result,
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 mod try_clone;
 
@@ -221,7 +222,7 @@ impl Value {
             Value::Core(core_value_with_classification) => {
                 Some(&core_value_with_classification.inner)
             }
-            Value::Native(native) => None,
+            Value::Native(_native) => None,
         }
     }
 
@@ -231,7 +232,7 @@ impl Value {
             Value::Core(core_value_with_classification) => {
                 Some(&mut core_value_with_classification.inner)
             }
-            Value::Native(native) => None,
+            Value::Native(_native) => None,
         }
     }
 
@@ -266,7 +267,7 @@ impl Value {
             Value::Core(core_value_with_classification) => {
                 core_value_with_classification.is_null()
             }
-            Value::Native(native_core_value) => false, // TODO: handle native null values
+            Value::Native(_native_core_value) => false, // TODO: handle native null values
         }
     }
 
@@ -321,7 +322,7 @@ impl Value {
             Value::Core(core_value_with_classification) => {
                 core_value_with_classification.actual_type()
             }
-            Value::Native(native) => todo!(),
+            Value::Native(_native) => todo!(),
         }
     }
 }

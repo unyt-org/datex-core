@@ -15,7 +15,9 @@ use datex_core::{
     traits::structural_eq::{StructuralEq, assert_structural_eq},
     values::{
         core_value::CoreValue,
-        core_values::{decimal::Decimal, list::List, integer::Integer, map::Map},
+        core_values::{
+            decimal::Decimal, integer::Integer, list::List, map::Map,
+        },
         value::Value,
         value_container::ValueContainer,
     },

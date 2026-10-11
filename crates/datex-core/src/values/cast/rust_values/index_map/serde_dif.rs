@@ -1,18 +1,27 @@
-use core::fmt;
-use core::hash::Hash;
-use erased_serde::__private::serde::de;
-use erased_serde::__private::serde::de::MapAccess;
+use crate::{
+    dif::{
+        deserialize_serde_context::{DeserializeSerdeContext, ErasedSeed},
+        deserialize_with_serde_context::{
+            DeserializeWithSerdeContext, DeserializeWithSerdeContextDyn,
+        },
+        serde_context::SerdeContext,
+        serialize_with_serde_context::{
+            SerializeWithSerdeContext, SerializeWithSerdeContextDyn,
+        },
+    },
+    random::RandomState,
+};
+use core::{fmt, hash::Hash};
+use erased_serde::__private::serde::{de, de::MapAccess};
 use indexmap::IndexMap;
-use serde::de::{SeqAccess, Visitor};
-use serde::ser::SerializeSeq;
-use crate::dif::deserialize_serde_context::{DeserializeSerdeContext, ErasedSeed};
-use crate::dif::deserialize_with_serde_context::{DeserializeWithSerdeContext, DeserializeWithSerdeContextDyn};
-use crate::dif::serde_context::SerdeContext;
-use crate::dif::serialize_with_serde_context::{SerializeWithSerdeContext, SerializeWithSerdeContextDyn};
-use crate::random::RandomState;
+use serde::{
+    de::{SeqAccess, Visitor},
+    ser::SerializeSeq,
+};
 
-impl<'ctx, K: SerializeWithSerdeContextDyn, V: SerializeWithSerdeContextDyn> SerializeWithSerdeContext for IndexMap<K, V, RandomState> {
-
+impl<'ctx, K: SerializeWithSerdeContextDyn, V: SerializeWithSerdeContextDyn>
+    SerializeWithSerdeContext for IndexMap<K, V, RandomState>
+{
     fn serialize_with_ctx<S: serde::Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -26,25 +35,46 @@ impl<'ctx, K: SerializeWithSerdeContextDyn, V: SerializeWithSerdeContextDyn> Ser
     }
 }
 
-impl<'de, 'ctx, K: DeserializeWithSerdeContextDyn + Eq + Hash, V: DeserializeWithSerdeContextDyn> DeserializeWithSerdeContext<'de> for IndexMap<K, V, RandomState> 
-where (K, V): DeserializeWithSerdeContextDyn {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<IndexMap<K, V, RandomState>, D::Error>
+impl<
+    'de,
+    'ctx,
+    K: DeserializeWithSerdeContextDyn + Eq + Hash,
+    V: DeserializeWithSerdeContextDyn,
+> DeserializeWithSerdeContext<'de> for IndexMap<K, V, RandomState>
+where
+    (K, V): DeserializeWithSerdeContextDyn,
+{
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<IndexMap<K, V, RandomState>, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_seq(DeserializeSerdeContext::<IndexMap<K, V, RandomState>>::new(ctx))
+        deserializer.deserialize_seq(DeserializeSerdeContext::<
+            IndexMap<K, V, RandomState>,
+        >::new(ctx))
     }
 }
 
-impl<'de, 'a, 'ctx, K: DeserializeWithSerdeContextDyn + Eq + Hash, V: DeserializeWithSerdeContextDyn> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, IndexMap<K, V, RandomState>>
-where (K, V): DeserializeWithSerdeContextDyn {
+impl<
+    'de,
+    'a,
+    'ctx,
+    K: DeserializeWithSerdeContextDyn + Eq + Hash,
+    V: DeserializeWithSerdeContextDyn,
+> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, IndexMap<K, V, RandomState>>
+where
+    (K, V): DeserializeWithSerdeContextDyn,
+{
     type Value = IndexMap<K, V, RandomState>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.write_str("a sequence of values for IndexMap<K, V, RandomState>")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
@@ -58,7 +88,7 @@ where (K, V): DeserializeWithSerdeContextDyn {
         Ok(index_map)
     }
 
-    fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: MapAccess<'de>,
     {
@@ -82,18 +112,21 @@ where
     A: DeserializeWithSerdeContextDyn,
     B: DeserializeWithSerdeContextDyn,
 {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_tuple(2, DeserializeSerdeContext::<(A, B)>::new(ctx))
+        deserializer
+            .deserialize_tuple(2, DeserializeSerdeContext::<(A, B)>::new(ctx))
     }
 }
 
-
-
 /// Visitor implementations for deserialization of inner tuple type `(A, B)`.
-impl<'de, 'a, 'ctx, A, B> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, (A, B)>
+impl<'de, 'a, 'ctx, A, B> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, (A, B)>
 where
     A: DeserializeWithSerdeContextDyn,
     B: DeserializeWithSerdeContextDyn,
@@ -104,13 +137,13 @@ where
         formatter.write_str("a type-definition key/value tuple")
     }
 
-    fn visit_seq<S>(mut self, mut seq: S) -> Result<Self::Value, S::Error>
+    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
     where
         S: SeqAccess<'de>,
     {
         let seed_a = ErasedSeed::<A>::new(self.ctx);
         let seed_b = ErasedSeed::<B>::new(self.ctx);
-        
+
         let key = seq
             .next_element_seed(seed_a)?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;

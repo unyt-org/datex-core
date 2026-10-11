@@ -1,21 +1,23 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
     types::{
         r#type::Type,
         type_definition::callable::{CallableKind, CallableTypeDefinition},
     },
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 use core::ops::Deref;
 use serde::{
     Deserializer, Serializer,
-    de::{DeserializeSeed, MapAccess, Visitor},
+    de::{MapAccess, Visitor},
     ser::{SerializeMap, SerializeSeq, SerializeTuple},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 impl SerializeWithSerdeContext for CallableTypeDefinition {
     fn serialize_with_ctx<S: Serializer>(
@@ -78,9 +80,7 @@ impl SerializeWithSerdeContext for CallableTypeDefinition {
     }
 }
 
-
 impl SerializeWithSerdeContext for (Option<String>, Type) {
-
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -88,23 +88,27 @@ impl SerializeWithSerdeContext for (Option<String>, Type) {
     ) -> Result<S::Ok, S::Error> {
         let mut tuple = serializer.serialize_tuple(2)?;
         tuple.serialize_element(&self.0)?;
-        tuple.serialize_element(&ValueWithSerdeContext::new(
-            &self.1,
-            ctx,
-        ))?;
+        tuple.serialize_element(&ValueWithSerdeContext::new(&self.1, ctx))?;
         tuple.end()
     }
 }
 
 impl<'de> DeserializeWithSerdeContext<'de> for CallableTypeDefinition {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(DeserializeSerdeContext::<CallableTypeDefinition>::new(ctx))
+        deserializer.deserialize_any(DeserializeSerdeContext::<
+            CallableTypeDefinition,
+        >::new(ctx))
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, CallableTypeDefinition> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, CallableTypeDefinition>
+{
     type Value = CallableTypeDefinition;
 
     fn expecting(
@@ -114,7 +118,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, CallableT
         formatter.write_str("a callable type definition")
     }
 
-    fn visit_map<A>(mut self, map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
     where
         A: MapAccess<'de>,
     {

@@ -3,23 +3,24 @@ use crate::{
     traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        value_container:: borrowed_value_container::{
-          BorrowedValueContainer, BorrowedValueContainerMut,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
         },
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
+        },
         core_values::text::Text,
-        core_value::borrowed_core_value::{
-            BorrowedCoreValue, BorrowedCoreValueMut,
-        },
-        core_value_with_classification::borrowed_core_value_with_classification::{
-            BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut,
-        },
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
+        },
+        value_container::borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
         },
     },
 };
@@ -75,7 +76,7 @@ impl<'a> TryFrom<BorrowedValue<'a>> for Goat<'a, str> {
             BorrowedValue::Native(native) => native
                 .try_as::<String>()
                 .map(|s| s.map(|s| s.as_str()))
-                .map_err(|v| BorrowedValue::Native(v)),
+                .map_err(BorrowedValue::Native),
             _ => Err(value),
         }
     }
@@ -94,7 +95,7 @@ impl<'a> TryFrom<BorrowedValueMut<'a>> for GoatMut<'a, str> {
             BorrowedValueMut::Native(native) => native
                 .try_as_mut::<String>()
                 .map(|s| s.map(|s| s.as_mut_str()))
-                .map_err(|v| BorrowedValueMut::Native(v)),
+                .map_err(BorrowedValueMut::Native),
             _ => Err(value),
         }
     }

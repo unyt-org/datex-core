@@ -1,17 +1,14 @@
 use crate::datex_proxy::{
     data::{
-        AnyField, EnumVariant, FieldIdent, FieldMapping, FieldType, Fields,
-        IndexedField, NamedField, Structure, StructureData,
+        EnumVariant, FieldIdent, FieldMapping, FieldType, Fields, IndexedField,
+        NamedField, Structure, StructureData,
     },
     generator::helpers::{
-        SelfAccess, generate_enum_match_from_parts, generate_from_parts_impl,
-        generate_struct_field_accessors,
-        generate_struct_or_enum_variants_fields_mapping, map_enum_variants,
+        SelfAccess, generate_struct_or_enum_variants_fields_mapping,
     },
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::parse_quote;
 
 /// Creates the implementation of the [SerializeWithSerdeContext] and [DeserializeWithSerdeContext] trait for the given structure data.
 /// Returns a TokenStream of the implementation.
@@ -47,7 +44,7 @@ fn generate_serde_serialize(structure_data: &StructureData) -> TokenStream {
         generate_dif_serialize_for_fields,
     );
 
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
         impl SerializeWithSerdeContext for #ident #ty_generics #where_clause {
@@ -66,9 +63,7 @@ fn generate_serde_serialize(structure_data: &StructureData) -> TokenStream {
 }
 
 fn generate_serde_deserialize(structure_data: &StructureData) -> TokenStream {
-    let StructureData {
-        ident, generics, ..
-    } = structure_data;
+    let StructureData { ident, .. } = structure_data;
 
     let (deserialize_impl, visitor_impl) = match &structure_data.structure {
         Structure::Struct(fields) => generate_dif_deserialize_for_struct(
@@ -116,7 +111,7 @@ fn generate_serde_deserialize_skeleton(
         ident, generics, ..
     } = structure_data;
 
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
         impl<'de> DeserializeWithSerdeContext<'de> for #ident #ty_generics #where_clause {
@@ -137,7 +132,7 @@ fn generate_serde_deserialize_skeleton(
 
 fn generate_dif_serialize_for_fields(
     fields: &Fields,
-    tag: Option<&String>,
+    _tag: Option<&String>,
 ) -> TokenStream {
     match fields {
         Fields::Named(named_fields) => {
@@ -210,7 +205,7 @@ fn generate_dif_serialize_for_fields(
 
 fn generate_dif_deserialize_for_enum(
     structure_data: &StructureData,
-    variants: &[EnumVariant],
+    _variants: &[EnumVariant],
 ) -> (TokenStream, TokenStream) {
     let StructureData { ident, .. } = structure_data;
 
@@ -273,9 +268,7 @@ fn generate_dif_deserialize_for_struct(
     fields: &Fields,
     collector_ident: &Ident,
 ) -> (TokenStream, TokenStream) {
-    let StructureData {
-        ident, generics, ..
-    } = structure_data;
+    let StructureData { ident, .. } = structure_data;
 
     let (properties, property_defaults, property_collapses) =
         generate_property_mappings(fields);
@@ -410,7 +403,7 @@ fn generate_visitor_methods_for_named_fields(
 }
 
 fn generate_visitor_methods_for_unnamed_fields(
-    fields: &[IndexedField],
+    _fields: &[IndexedField],
 ) -> TokenStream {
     quote! {}
 }

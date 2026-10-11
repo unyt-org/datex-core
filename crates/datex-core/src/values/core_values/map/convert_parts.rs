@@ -1,7 +1,6 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
-    traits::convert_parts::{FromParts, IntoParts, PartsKind, HasPartsKind},
+    traits::convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
     values::core_values::map::Map,
 };
 
@@ -12,9 +11,7 @@ impl HasPartsKind for Map {
 }
 
 impl IntoParts for Map {
-    fn try_into_map_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<Map, ()>
+    fn try_into_map_parts<'a>(self: Box<Self>) -> Result<Map, ()>
     where
         Self: 'a,
     {
@@ -23,7 +20,10 @@ impl IntoParts for Map {
 }
 
 impl FromParts for Map {
-    fn try_from_map_parts_with_tag(parts: Map, _tag: Option<&str>) -> Result<Self, ()>
+    fn try_from_map_parts_with_tag(
+        parts: Map,
+        _tag: Option<&str>,
+    ) -> Result<Self, ()>
     where
         Self: Sized,
     {

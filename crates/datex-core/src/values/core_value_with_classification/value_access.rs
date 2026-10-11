@@ -1,29 +1,30 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::{AccessError, KeyNotFoundError},
     traits::value_access::ValueAccess,
     types::r#type::Type,
     utils::goat::Goat,
     values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
+        core_value::{CoreValue, borrowed_core_value::BorrowedCoreValue},
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::BorrowedCoreValueWithClassification,
+        },
         value::{
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::BorrowedValue,
             value_classification::ValueClassification,
         },
-        value_container::value_key::BorrowedValueKey,
+        value_container::{
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+            value_key::BorrowedValueKey,
+        },
     },
 };
-use core::cell::{Ref, RefCell};
-use crate::values::core_value::borrowed_core_value::BorrowedCoreValue;
-use crate::values::core_value_with_classification::borrowed_core_value_with_classification::BorrowedCoreValueWithClassification;
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
+use core::cell::Ref;
 
 impl ValueAccess for CoreValueWithClassification {
-    
     fn try_get_property(
         &self,
         key: BorrowedValueKey,

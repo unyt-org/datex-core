@@ -1,8 +1,9 @@
 use crate::{
     traits::try_clone::TryClone,
-    values::{core_value::CoreValue, core_values::boolean::Boolean},
+    values::{
+        core_value::CoreValue, core_values::boolean::Boolean, value::Value,
+    },
 };
-use crate::values::value::Value;
 
 impl TryClone for bool {
     fn try_clone(&self) -> Result<Value, ()> {

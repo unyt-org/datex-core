@@ -1,13 +1,8 @@
 use crate::{
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::{
         OwnedSharedContainer, ReferencedSharedContainer, SharedContainer,
     },
-    traits::datex_native_structural::DatexNativeStructural,
-    utils::{
-        goat::Goat, goat_mut::GoatMut,
-        impl_display_for_datex_value::impl_display_for_datex_value,
-    },
+    utils::{goat::Goat, goat_mut::GoatMut},
     values::{
         core_value::CoreValue,
         core_values::native::DatexNative,
@@ -23,11 +18,11 @@ mod datex_hash;
 mod equality;
 mod get_core_lib_type_id;
 mod get_datex_type;
+pub mod hash;
 mod identity;
 mod ops;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
-pub mod hash;
 pub mod to_instructions;
 
 use core::fmt::{Debug, Display, Formatter};
@@ -37,7 +32,6 @@ pub enum BorrowedValueContainer<'a> {
     Local(BorrowedValue<'a>),
     Shared(SharedContainer),
 }
-
 
 #[cfg(feature = "value_display")]
 impl Display for BorrowedValueContainer<'_> {
@@ -53,8 +47,6 @@ impl Display for BorrowedValueContainer<'_> {
         write!(f, "[[ BorrowedValueContainer ]]")
     }
 }
-
-
 
 impl<'a> BorrowedValueContainer<'a> {
     /// Creates a new `BorrowedValueContainer` from a reference to a native value.
@@ -72,7 +64,9 @@ impl<'a> BorrowedValueContainer<'a> {
         Goat<'a, T>: TryFrom<BorrowedValue<'a>, Error = BorrowedValue<'a>>,
     {
         match self {
-            BorrowedValueContainer::Local(value) => value.try_as().map_err(|v| BorrowedValueContainer::Local(v)),
+            BorrowedValueContainer::Local(value) => {
+                value.try_as().map_err(BorrowedValueContainer::Local)
+            }
             BorrowedValueContainer::Shared(_) => Err(self),
         }
     }

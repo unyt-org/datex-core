@@ -1,12 +1,18 @@
+use crate::{
+    dif::{
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        pointer_address::PointerAddressWithOwnership,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
+    prelude::*,
+    shared_values::{
+        OwnedSharedContainer, SharedContainer, SharedContainerOwnership,
+    },
+    traits::clone_unsafe::CloneUnsafe,
+};
 use erased_serde::__private::serde::{Deserializer, Serialize, Serializer};
 use serde::Deserialize;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
-use crate::dif::pointer_address::PointerAddressWithOwnership;
-use crate::dif::serde_context::SerdeContext;
-use crate::dif::serialize_with_serde_context::SerializeWithSerdeContext;
-use crate::shared_values::{OwnedSharedContainer, SharedContainer, SharedContainerOwnership};
-use crate::traits::clone_unsafe::CloneUnsafe;
-use crate::prelude::*;
 
 impl<'de> DeserializeWithSerdeContext<'de> for OwnedSharedContainer {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
@@ -17,23 +23,19 @@ impl<'de> DeserializeWithSerdeContext<'de> for OwnedSharedContainer {
             PointerAddressWithOwnership::deserialize(d)?;
         match ownership {
             // must be owned
-            SharedContainerOwnership::Owned => {
-                ctx
-                    .shared_container_cache
-                    .borrow_mut()
-                    .try_take_owned_shared_container(&address)
-                    .map_err(|e| {
-                        serde::de::Error::custom(format!(
-                            "Failed to retrieve shared container from cache: {}",
-                            e
-                        )) 
-                    })
-            }
-            _ => {
-                Err(serde::de::Error::custom(
-                    "Expected owned shared container, but got a reference",
-                ))
-            }
+            SharedContainerOwnership::Owned => ctx
+                .shared_container_cache
+                .borrow_mut()
+                .try_take_owned_shared_container(&address)
+                .map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Failed to retrieve shared container from cache: {}",
+                        e
+                    ))
+                }),
+            _ => Err(serde::de::Error::custom(
+                "Expected owned shared container, but got a reference",
+            )),
         }
     }
 }
@@ -53,11 +55,7 @@ impl SerializeWithSerdeContext for OwnedSharedContainer {
     where
         S: Serializer,
     {
-        let container = SharedContainer::Owned(unsafe {
-            self.clone_unsafe()
-        });
-        unsafe {
-            ctx.pointer_string(&container).serialize(serializer)
-        }
+        let container = SharedContainer::Owned(unsafe { self.clone_unsafe() });
+        unsafe { ctx.pointer_string(&container).serialize(serializer) }
     }
 }

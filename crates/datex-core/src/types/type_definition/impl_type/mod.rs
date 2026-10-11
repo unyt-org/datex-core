@@ -1,4 +1,4 @@
-use crate::{prelude::*, shared_values::PointerAddress, types::r#type::Type};
+use crate::{prelude::*, shared_values::PointerAddress};
 use core::fmt::Display;
 use itertools::Itertools;
 
@@ -12,9 +12,7 @@ pub struct ImplMarkers {
 
 impl ImplMarkers {
     pub fn new(impl_markers: Vec<PointerAddress>) -> Self {
-        Self {
-            impl_markers,
-        }
+        Self { impl_markers }
     }
 }
 

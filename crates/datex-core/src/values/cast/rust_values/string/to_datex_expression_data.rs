@@ -1,10 +1,10 @@
 use crate::{
-    ast::expressions::DatexExpressionData,
+    ast::expressions::DatexExpressionData, prelude::*,
     traits::to_datex_expression_data::ToDatexExpressionData,
     values::core_values::text::Text,
 };
 
-impl<'a> ToDatexExpressionData for &'a str {
+impl ToDatexExpressionData for &str {
     fn to_datex_expression_data(&self) -> DatexExpressionData {
         DatexExpressionData::Text(Text(self.to_string()))
     }

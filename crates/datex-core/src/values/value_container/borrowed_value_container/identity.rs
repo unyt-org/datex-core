@@ -1,7 +1,7 @@
 use crate::{
     traits::identity::Identity,
+    values::value_container::borrowed_value_container::BorrowedValueContainer,
 };
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 /// Identity checks only returns true if two references are identical.
 /// Values are never identical to references or other values.

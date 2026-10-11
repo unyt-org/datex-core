@@ -1,4 +1,4 @@
-use serde::{Serializer, de::DeserializeSeed, ser::SerializeSeq};
+use serde::{Serializer, ser::SerializeSeq};
 
 use crate::{
     dif::{
@@ -53,7 +53,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         formatter.write_str("a sequence of types for UnionTypeDefinition")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {

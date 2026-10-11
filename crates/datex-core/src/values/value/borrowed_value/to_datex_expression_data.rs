@@ -1,7 +1,7 @@
 use crate::{
     ast::expressions::DatexExpressionData,
     traits::to_datex_expression_data::ToDatexExpressionData,
-    values::value::borrowed_value::{BorrowedValue, BorrowedValueMut},
+    values::value::borrowed_value::BorrowedValue,
 };
 
 impl ToDatexExpressionData for BorrowedValue<'_> {

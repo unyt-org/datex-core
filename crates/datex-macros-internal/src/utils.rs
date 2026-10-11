@@ -3,7 +3,7 @@ use std::{env, path::PathBuf, str::FromStr};
 use crate::datex_proxy::data::StructureAttributes;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::{Path, PathSegment, punctuated::Punctuated};
 
 /// Gets the absolute file path of the source file where the macro is invoked.
@@ -51,27 +51,28 @@ pub fn get_datex_core_crate_name() -> Path {
 
 pub fn derive_datex_prelude() -> TokenStream {
     let datex_core_crate_name = get_datex_core_crate_name();
-    let is_crate_internal = datex_core_crate_name.to_token_stream().to_string() == "crate";
+    let is_crate_internal =
+        datex_core_crate_name.to_token_stream().to_string() == "crate";
 
     // only add ast imports if the "ast" feature is enabled
-    let derive_prelude_ast =
-        cfg_select! {
-            feature = "ast" => if is_crate_internal {
+    let derive_prelude_ast = cfg_select! {
+        feature = "ast" => {
+            if is_crate_internal {
                 quote! {
                     use #datex_core_crate_name::preludes::derive_prelude_ast;
                     derive_prelude_ast!();
-                } 
+                }
             } else {
                 quote! {
                     use #datex_core_crate_name::derive_prelude_ast;
                     derive_prelude_ast!();
                 }
-            },
-            _ => quote! {},
-        };
+            }
+        }
+        _ => quote! {},
+    };
 
-    let derive_prelude = if is_crate_internal
-    {
+    let derive_prelude = if is_crate_internal {
         quote! {
             use #datex_core_crate_name::preludes::derive_prelude;
             derive_prelude!();
@@ -82,7 +83,7 @@ pub fn derive_datex_prelude() -> TokenStream {
             derive_prelude!();
         }
     };
-    
+
     quote! {
         #derive_prelude_ast
         #derive_prelude

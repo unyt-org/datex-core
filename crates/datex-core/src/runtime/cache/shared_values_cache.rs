@@ -186,8 +186,13 @@ impl SharedValuesCache {
         mutability: ReferenceMutability,
     ) -> Result<ReferencedSharedContainer, CacheValueRetrievalError> {
         match mutability {
-            ReferenceMutability::Mutable => self.try_get_shared_container_mutable_reference(pointer_address),
-            ReferenceMutability::Immutable => Ok(self.try_get_shared_container_immutable_reference(pointer_address)?),
+            ReferenceMutability::Mutable => {
+                self.try_get_shared_container_mutable_reference(pointer_address)
+            }
+            ReferenceMutability::Immutable => Ok(self
+                .try_get_shared_container_immutable_reference(
+                    pointer_address,
+                )?),
         }
     }
 

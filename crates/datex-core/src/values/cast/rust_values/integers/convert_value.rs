@@ -1,16 +1,25 @@
 use crate::{
+    traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
+        },
         core_values::integer::typed_integer::TypedInteger,
+        value::{
+            Value,
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
+        },
     },
 };
-use crate::traits::convert_value::ConvertValue;
-use crate::values::core_value_with_classification::CoreValueWithClassification;
-use crate::values::value::Value;
-use crate::values::value::borrowed_value::{BorrowedValue, BorrowedValueMut};
-use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
-use crate::values::core_value_with_classification::borrowed_core_value_with_classification::{BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut};
 
 macro_rules! impl_integer_core_value_conversions {
     ($($ty:ident => $variant:ident, $borrow:ident, $borrow_mut:ident;)* $(,)?) => {
@@ -101,18 +110,19 @@ impl_integer_core_value_conversions! {
 #[cfg(test)]
 mod tests {
     use crate::{
+        traits::convert_value::ConvertValue,
         utils::{goat::Goat, goat_mut::GoatMut},
         values::{
             core_value::CoreValue,
             core_values::integer::typed_integer::TypedInteger,
+            value::borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     };
-    use crate::traits::convert_value::ConvertValue;
-    use crate::values::value::borrowed_value::{BorrowedValue, BorrowedValueMut};
 
     #[test]
     fn try_integer_from_core_value() {
-        let core_value = CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
+        let core_value =
+            CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
 
         let result = core_value.try_as::<u32>();
         assert_eq!(*result.unwrap(), 42);
@@ -123,29 +133,36 @@ mod tests {
 
     #[test]
     fn try_borrow_integer_from_core_value() {
-        let core_value = CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
+        let core_value =
+            CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
         let result = core_value.try_as::<u32>();
         assert_eq!(*result.unwrap(), 42);
     }
 
     #[test]
     fn try_borrow_mut_integer_from_core_value() {
-        let mut value = CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
+        let mut value =
+            CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
         let result = value.try_as_mut::<u32>();
         *result.unwrap() = 100;
-        assert_eq!(value.try_into_core_value(), Ok(CoreValue::TypedInteger(TypedInteger::U32(100))));
+        assert_eq!(
+            value.try_into_core_value(),
+            Ok(CoreValue::TypedInteger(TypedInteger::U32(100)))
+        );
     }
 
     #[test]
     fn try_owned_integer_from_core_value() {
-        let core_value = CoreValue::TypedInteger(TypedInteger::U64(123)).to_value();
+        let core_value =
+            CoreValue::TypedInteger(TypedInteger::U64(123)).to_value();
         let result = core_value.try_into_value::<u64>();
         assert_eq!(result.unwrap(), 123);
     }
 
     #[test]
     fn try_invalid_type() {
-        let mut core_value = CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
+        let mut core_value =
+            CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
         assert!(core_value.try_as::<u64>().is_none());
         assert!(core_value.try_as::<i32>().is_none());
         assert!(core_value.try_as_mut::<u64>().is_none());
@@ -153,7 +170,8 @@ mod tests {
 
         assert!(core_value.try_into_value::<u64>().is_err());
 
-        let core_value = CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
+        let core_value =
+            CoreValue::TypedInteger(TypedInteger::U32(42)).to_value();
         assert!(core_value.try_into_value::<i32>().is_err());
     }
 
@@ -181,7 +199,8 @@ mod tests {
 
     #[test]
     fn try_borrowed_core_value_integer() {
-        let core_value = CoreValue::TypedInteger(TypedInteger::I32(42)).to_value();
+        let core_value =
+            CoreValue::TypedInteger(TypedInteger::I32(42)).to_value();
         let borrowed = BorrowedValue::from(&core_value);
         let result = Goat::<i32>::try_from(borrowed);
         assert_eq!(*result.unwrap(), 42);
@@ -189,11 +208,15 @@ mod tests {
 
     #[test]
     fn try_borrowed_core_value_mut_integer() {
-        let mut core_value = CoreValue::TypedInteger(TypedInteger::I32(42)).to_value();
+        let mut core_value =
+            CoreValue::TypedInteger(TypedInteger::I32(42)).to_value();
         let borrowed = BorrowedValueMut::from(&mut core_value);
         let mut result = GoatMut::<i32>::try_from(borrowed).unwrap();
         *result = 123;
         drop(result);
-        assert_eq!(core_value, CoreValue::TypedInteger(TypedInteger::I32(123)).to_value());
+        assert_eq!(
+            core_value,
+            CoreValue::TypedInteger(TypedInteger::I32(123)).to_value()
+        );
     }
 }

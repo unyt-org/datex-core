@@ -16,21 +16,18 @@ use crate::{
             list::List,
             map::Map,
             range::Range,
-            text::Text,
         },
         value::{
-            borrowed_value::{
-                BorrowedValue,
-            },
+            borrowed_value::BorrowedValue,
             value_classification::ValueClassification,
         },
         value_container::ValueContainer,
     },
 };
+pub mod equality;
+pub mod hash;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
-pub mod hash;
-pub mod equality;
 
 use core::ops::Deref;
 use crate::values::core_value_with_classification::borrowed_core_value_with_classification::BorrowedCoreValueWithClassification;
@@ -87,9 +84,7 @@ impl<'a> BorrowedCoreValue<'a> {
             BorrowedCoreValue::List(list) => {
                 CoreValue::List(list.deref().clone())
             }
-            BorrowedCoreValue::Map(map) => {
-                CoreValue::Map(map.deref().clone())
-            }
+            BorrowedCoreValue::Map(map) => CoreValue::Map(map.deref().clone()),
             BorrowedCoreValue::Type(type_value) => {
                 CoreValue::Type(type_value.deref().clone())
             }
@@ -108,7 +103,7 @@ impl<'a> BorrowedCoreValue<'a> {
                 CoreValue::Box(boxed_value.deref().clone())
             }
             BorrowedCoreValue::Instant(instant) => {
-                CoreValue::Instant(instant.deref().clone())
+                CoreValue::Instant(*instant.deref())
             }
         }
     }
@@ -249,7 +244,7 @@ impl<'a> BorrowedCoreValueMut<'a> {
                 Ok(CoreValue::Box(boxed_value.deref().clone()))
             }
             BorrowedCoreValueMut::Instant(instant) => {
-                Ok(CoreValue::Instant(instant.deref().clone()))
+                Ok(CoreValue::Instant(*instant.deref()))
             }
         }
     }

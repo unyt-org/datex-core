@@ -7,19 +7,19 @@ use crate::{
     prelude::*,
     runtime::{
         Runtime,
-        cache::shared_references_cache::SharedReferencesCache,
         execution::{ExecutionError, context::ScriptExecutionError},
     },
     traits::{
         classification::Classification,
         convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
     },
-    values::{
-        value_container::ValueContainer,
+    values::value_container::{
+        ValueContainer,
+        borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
     },
 };
-use core::cell::RefCell;
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 #[derive(Debug)]
 pub enum DeserializationError {
@@ -195,8 +195,8 @@ pub trait ConvertValueContainer {
 
                 match value_container.parts_kind() {
                     PartsKind::Map => {
-                        let map_parts = Box::new(value_container)
-                            .try_into_map_parts();
+                        let map_parts =
+                            Box::new(value_container).try_into_map_parts();
                         if let Ok(map) = map_parts {
                             Self::try_from_map_parts_with_tag(map, tag)
                         } else {
@@ -204,8 +204,8 @@ pub trait ConvertValueContainer {
                         }
                     }
                     PartsKind::List => {
-                        let list_parts = Box::new(value_container)
-                            .try_into_list_parts();
+                        let list_parts =
+                            Box::new(value_container).try_into_list_parts();
                         if let Ok(list) = list_parts {
                             Self::try_from_list_parts_with_tag(list, tag)
                         } else {
@@ -213,8 +213,8 @@ pub trait ConvertValueContainer {
                         }
                     }
                     PartsKind::SingleValue => {
-                        let single_value_parts = Box::new(value_container)
-                            .try_into_single_value();
+                        let single_value_parts =
+                            Box::new(value_container).try_into_single_value();
                         if let Ok(single_value) = single_value_parts {
                             Self::try_from_single_value_with_tag(
                                 single_value,

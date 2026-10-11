@@ -10,7 +10,7 @@ use crate::{
         core_values::decimal::typed_decimal::TypedDecimal,
     },
 };
-use serde::{Deserializer, Serializer, de::Error};
+use serde::{Serializer, de::Error};
 impl SerializeWithSerdeContext for TypedDecimal {
     fn serialize_with_ctx<S: Serializer>(
         &self,

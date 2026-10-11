@@ -32,12 +32,12 @@ pub mod equality;
 mod get_core_lib_type_id;
 mod get_datex_type;
 pub mod primitive;
+mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod try_clone;
 pub mod update_handler;
 mod value_access;
-mod serde_dif;
 
 /// The decimal type variants to be used as a inline
 /// definition in DATEX (such as 42.4f32 or -42.4f32).

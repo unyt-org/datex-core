@@ -24,17 +24,15 @@ impl LocalChildPathResolver for Value {
         remaining_path: &[ValueKey],
     ) -> Result<&mut Value, UpdateError> {
         match self {
-            Value::Core(core_value) => {
-                match &mut core_value.inner {
-                    CoreValue::Map(map) => {
-                        map.resolve_value_for_path(first, remaining_path)
-                    }
-                    CoreValue::List(list) => {
-                        list.resolve_value_for_path(first, remaining_path)
-                    }
-                    _ => Err(UpdateError::InvalidUpdate),
+            Value::Core(core_value) => match &mut core_value.inner {
+                CoreValue::Map(map) => {
+                    map.resolve_value_for_path(first, remaining_path)
                 }
-            }
+                CoreValue::List(list) => {
+                    list.resolve_value_for_path(first, remaining_path)
+                }
+                _ => Err(UpdateError::InvalidUpdate),
+            },
             Value::Native(native_value) => {
                 native_value.resolve_value_for_path(first, remaining_path)
             }

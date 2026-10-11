@@ -3,15 +3,13 @@ use quote::{ToTokens, quote};
 
 use crate::datex_proxy::{
     data::{
-        FieldMapping, Fields, IndexedField, NamedField, Structure,
+        FieldIdent, FieldMapping, Fields, IndexedField, NamedField,
         StructureData,
     },
     generator::helpers::{
-        SelfAccess, generate_struct_field_accessors,
-        generate_struct_or_enum_variants_fields_mapping, map_enum_variants,
+        SelfAccess, generate_struct_or_enum_variants_fields_mapping,
     },
 };
-use crate::datex_proxy::data::FieldIdent;
 
 /// Generates the implementation of the [ToInstructions] trait for the given structure data.
 /// Returns a [TokenStream] containing the generated implementation.

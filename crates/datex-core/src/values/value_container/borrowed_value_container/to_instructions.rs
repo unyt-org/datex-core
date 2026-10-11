@@ -1,8 +1,11 @@
-use crate::core_compiler::to_instructions::ToInstructions;
-use crate::core_compiler::value_visitor::ValueVisitor;
-use crate::instruction::Instruction;
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
-use crate::prelude::*;
+use crate::{
+    core_compiler::{
+        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+    },
+    instruction::Instruction,
+    prelude::*,
+    values::value_container::borrowed_value_container::BorrowedValueContainer,
+};
 
 impl ToInstructions for BorrowedValueContainer<'_> {
     fn to_instructions<'ctx, 'a>(
@@ -14,7 +17,9 @@ impl ToInstructions for BorrowedValueContainer<'_> {
     {
         match self {
             BorrowedValueContainer::Local(value) => value.to_instructions(ctx),
-            BorrowedValueContainer::Shared(shared_container) => shared_container.to_instructions(ctx),
+            BorrowedValueContainer::Shared(shared_container) => {
+                shared_container.to_instructions(ctx)
+            }
         }
     }
 }

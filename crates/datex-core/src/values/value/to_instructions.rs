@@ -4,9 +4,7 @@ use crate::{
     },
     instruction::Instruction,
     prelude::*,
-    values::value::{
-        Value,
-    },
+    values::value::Value,
 };
 
 impl ToInstructions for Value {

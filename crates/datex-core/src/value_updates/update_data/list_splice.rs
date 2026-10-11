@@ -1,15 +1,18 @@
 use core::fmt;
 
 use crate::{
-    dif::serde_context::SerdeContext, prelude::*,
-    dif::value_with_serde_context::ValueWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        serde_context::SerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
+    prelude::*,
     values::value_container::ValueContainer,
 };
 use serde::{
     de::{self, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct ListSpliceUpdateData {
@@ -40,15 +43,14 @@ impl<'ctx> SerdeContext<'ctx> {
         seq.serialize_element(&value.start)?;
         seq.serialize_element(&value.delete_count)?;
 
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.items,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.items, self))?;
 
         Ok(())
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, ListSpliceUpdateData> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, ListSpliceUpdateData>
+{
     type Value = ListSpliceUpdateData;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -58,7 +60,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, ListSplic
         )
     }
     fn visit_seq<A: serde::de::SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let start = seq

@@ -2,19 +2,24 @@ use crate::{
     traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
+        },
         core_values::integer::typed_integer::TypedInteger,
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     },
 };
-use crate::values::core_value_with_classification::borrowed_core_value_with_classification::{BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut};
-use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
 
 macro_rules! impl_pointer_sized_core_value_conversions {
     ($($ty:ident => $variant:ident, $repr:ty, $borrow:ident, $borrow_mut:ident;)* $(,)?) => {

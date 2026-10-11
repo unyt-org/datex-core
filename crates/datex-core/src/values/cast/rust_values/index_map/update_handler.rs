@@ -10,7 +10,7 @@ use crate::{
         core_values::map::MapAccessError, value_container::ValueContainer,
     },
 };
-use core::{cell::RefCell, hash::Hash, mem, ops::DerefMut};
+use core::{cell::RefCell, hash::Hash};
 use indexmap::IndexMap;
 
 use crate::{
@@ -37,7 +37,7 @@ where
     fn try_set_entry(
         &mut self,
         data: SetEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
         let key = data
             .key
@@ -56,7 +56,7 @@ where
     fn try_delete_entry(
         &mut self,
         data: DeleteEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         let key = data
             .key
@@ -79,6 +79,6 @@ where
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         let previous = core::mem::take(self);
-        Ok(ValueContainer::Local(previous.to_value().into()))
+        Ok(ValueContainer::Local(previous.to_value()))
     }
 }

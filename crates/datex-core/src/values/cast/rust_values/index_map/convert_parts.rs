@@ -1,7 +1,6 @@
 use crate::{
     prelude::*,
     random::RandomState,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::{
         convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
         convert_value_container::ConvertValueContainer,
@@ -22,9 +21,7 @@ impl<K: ConvertValueContainer, V: ConvertValueContainer> HasPartsKind
 impl<K: ConvertValueContainer, V: ConvertValueContainer> IntoParts
     for IndexMap<K, V, RandomState>
 {
-    fn try_into_map_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<Map, ()>
+    fn try_into_map_parts<'a>(self: Box<Self>) -> Result<Map, ()>
     where
         Self: 'a,
     {
@@ -49,8 +46,7 @@ impl<K: ConvertValueContainer + Eq + Hash, V: ConvertValueContainer> FromParts
     {
         let mut index_map = IndexMap::default();
         for (key, value) in parts {
-            let key =
-                K::try_from_value_container(key.into()).map_err(|_| ())?;
+            let key = K::try_from_value_container(key).map_err(|_| ())?;
             let value = V::try_from_value_container(value).map_err(|_| ())?;
             index_map.insert(key, value);
         }

@@ -2,17 +2,17 @@ use crate::{
     traits::try_clone::TryClone,
     values::{
         core_value::CoreValue,
-        value::Value,
-        core_values::integer::typed_integer::TypedInteger,
+        core_values::integer::typed_integer::TypedInteger, value::Value,
     },
 };
 
 macro try_clone_integer($t:ty, $variant:ident) {
     impl TryClone for $t {
         fn try_clone(&self) -> Result<Value, ()> {
-            Ok(CoreValue::TypedInteger(TypedInteger::$variant(
-                self.clone(),
-            )).into())
+            Ok(
+                CoreValue::TypedInteger(TypedInteger::$variant(self.clone()))
+                    .into(),
+            )
         }
     }
 }

@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{
     Serializer,
-    de::{DeserializeSeed, Error, IgnoredAny, MapAccess, Visitor},
+    de::{Error, IgnoredAny, MapAccess, Visitor},
     ser::{SerializeSeq, SerializeStruct, SerializeTuple},
 };
 
@@ -57,7 +57,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Range> {
     }
 
     /// We can have the range represented as a sequence of two elements (start and end)
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
@@ -76,7 +76,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Range> {
 
     /// We expect the range to be represented as a map with "start" and "end" keys, each containing a ValueContainer.
     /// TODO: Add inclusive / exclusive marker here
-    fn visit_map<A>(mut self, mut map: A) -> Result<Range, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Range, A::Error>
     where
         A: MapAccess<'de>,
     {

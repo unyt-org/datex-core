@@ -1,26 +1,18 @@
 use crate::{
     datex_proxy::{
-        data::{
-            EnumVariant, Field, FieldMapping, Fields, Structure, StructureData,
-        },
+        data::{FieldIdent, FieldMapping, Fields, StructureData},
         generator::helpers::{
             SelfAccess, generate_struct_or_enum_variants_fields_mapping,
-            map_enum_variants,
         },
     },
-    generator::helpers::{
-        generate_enum_match_from_parts, generate_from_parts_impl,
-    },
+    generator::helpers::generate_from_parts_impl,
 };
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use crate::datex_proxy::data::FieldIdent;
 
 /// Generates the [FromParts] and [IntoParts] implementations
 pub fn generate_convert_parts(structure_data: &StructureData) -> TokenStream {
-    let StructureData {
-        ident, generics, ..
-    } = structure_data;
+    let StructureData { .. } = structure_data;
 
     let into_parts_impl = generate_into_parts(structure_data);
     let from_parts_impl = generate_from_parts(structure_data);
@@ -54,11 +46,12 @@ fn generate_into_parts(structure_data: &StructureData) -> TokenStream {
         generate_into_list_parts_for_fields,
     );
 
-    let into_single_value_impl = generate_struct_or_enum_variants_fields_mapping(
-        &structure_data.structure,
-        SelfAccess::Boxed,
-        generate_into_single_value_for_fields
-    );
+    let into_single_value_impl =
+        generate_struct_or_enum_variants_fields_mapping(
+            &structure_data.structure,
+            SelfAccess::Boxed,
+            generate_into_single_value_for_fields,
+        );
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -104,7 +97,10 @@ fn generate_into_parts(structure_data: &StructureData) -> TokenStream {
 }
 
 /// Determines the [PartsKind] based on the fields of the structure
-fn get_fields_parts_kind(fields: &Fields, tag: Option<&String>) -> TokenStream {
+fn get_fields_parts_kind(
+    fields: &Fields,
+    _tag: Option<&String>,
+) -> TokenStream {
     match fields {
         Fields::Named(_) => quote! { PartsKind::Map },
         Fields::Unnamed(_) => quote! { PartsKind::List },
@@ -118,7 +114,7 @@ fn get_fields_parts_kind(fields: &Fields, tag: Option<&String>) -> TokenStream {
 
 fn generate_into_map_parts_for_fields(
     fields: &Fields,
-    tag: Option<&String>,
+    _tag: Option<&String>,
 ) -> TokenStream {
     match fields {
         Fields::Named(fields) => {
@@ -153,7 +149,7 @@ fn generate_into_map_parts_for_fields(
 
 fn generate_into_list_parts_for_fields(
     fields: &Fields,
-    tag: Option<&String>,
+    _tag: Option<&String>,
 ) -> TokenStream {
     match fields {
         Fields::Unnamed(fields) => {
@@ -184,7 +180,7 @@ fn generate_into_list_parts_for_fields(
 
 fn generate_into_single_value_for_fields(
     fields: &Fields,
-    tag: Option<&String>,
+    _tag: Option<&String>,
 ) -> TokenStream {
     match fields {
         Fields::Transparent(field) => {
@@ -265,7 +261,6 @@ fn generate_from_parts(structure_data: &StructureData) -> TokenStream {
             generate_from_list_parts_for_fields,
         )
     };
-
 
     let from_single_value_impl = if attributes.no_deserialize {
         quote! { Err(()) }
@@ -414,7 +409,7 @@ fn generate_from_single_value_for_fields(
                     Err(())
                 }
             }
-        },
+        }
         Fields::Named(_) | Fields::Unnamed(_) => quote! { Err(()) }, // only transparent structs can be converted from a single value
     }
 }

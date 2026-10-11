@@ -104,7 +104,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Map> {
         )
     }
 
-    fn visit_map<A>(mut self, mut map: A) -> Result<Map, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Map, A::Error>
     where
         A: MapAccess<'de>,
     {
@@ -119,7 +119,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Map> {
         Ok(MapEntries::StructuralWithStringKeys(entries).into())
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Map, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Map, A::Error>
     where
         A: SeqAccess<'de>,
     {

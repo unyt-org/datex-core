@@ -1,6 +1,5 @@
 use core::hash::{Hash, Hasher};
 
-use crate::collections;
 use crate::collections::default_hasher;
 
 /// A trait for types that can be hashed using the default hasher

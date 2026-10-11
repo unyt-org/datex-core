@@ -1,5 +1,5 @@
-use serde::Deserializer;
 use crate::dif::serde_context::SerdeContext;
+use serde::Deserializer;
 
 /// A trait for types that can be deserialized with a `SerdeContext`.
 pub trait DeserializeWithSerdeContext<'de>: Sized {
@@ -27,6 +27,9 @@ where
         ctx: &SerdeContext<'_>,
         deserializer: &mut dyn erased_serde::Deserializer<'de>,
     ) -> Result<Self, erased_serde::Error> {
-        <T as DeserializeWithSerdeContext<'de>>::deserialize_with_ctx(ctx, deserializer)
+        <T as DeserializeWithSerdeContext<'de>>::deserialize_with_ctx(
+            ctx,
+            deserializer,
+        )
     }
 }

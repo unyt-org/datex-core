@@ -1,15 +1,15 @@
 use crate::values::value_container::ValueContainer;
 use core::fmt;
 
-use crate::{
-    dif::serde_context::SerdeContext,
-    dif::value_with_serde_context::ValueWithSerdeContext,
+use crate::dif::{
+    deserialize_serde_context::DeserializeSerdeContext,
+    serde_context::SerdeContext,
+    value_with_serde_context::ValueWithSerdeContext,
 };
 use serde::{
     de::{self, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct AppendEntryUpdateData {
@@ -27,22 +27,21 @@ impl<'ctx> SerdeContext<'ctx> {
         value: &AppendEntryUpdateData,
         seq: &mut S,
     ) -> Result<(), S::Error> {
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.value,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.value, self))?;
 
         Ok(())
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, AppendEntryUpdateData> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, AppendEntryUpdateData>
+{
     type Value = AppendEntryUpdateData;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "an append entry update data sequence with 1 element")
     }
     fn visit_seq<A: serde::de::SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let value = seq

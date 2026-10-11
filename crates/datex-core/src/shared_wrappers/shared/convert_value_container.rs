@@ -3,10 +3,14 @@ use crate::{
     traits::convert_value_container::ConvertValueContainer,
     values::{
         core_values::native::DatexNative,
-        value_container::ValueContainer,
+        value_container::{
+            ValueContainer,
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl<T> ConvertValueContainer for Shared<T>
 where

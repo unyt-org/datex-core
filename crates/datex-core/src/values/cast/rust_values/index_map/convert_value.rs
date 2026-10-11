@@ -1,15 +1,17 @@
 use crate::{
     random::RandomState,
+    traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
         core_values::native::DatexNativeBase,
+        value::{
+            Value,
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
+        },
     },
 };
 use core::hash::Hash;
 use indexmap::IndexMap;
-use crate::traits::convert_value::ConvertValue;
-use crate::values::value::borrowed_value::{BorrowedValue, BorrowedValueMut};
-use crate::values::value::Value;
 
 impl<K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
     ConvertValue for IndexMap<K, V, RandomState>
@@ -33,9 +35,7 @@ impl<K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
         }
     }
 
-    fn try_borrow_mut_from_value(
-        value: &mut Value,
-    ) -> Result<&mut Self, ()> {
+    fn try_borrow_mut_from_value(value: &mut Value) -> Result<&mut Self, ()> {
         match value {
             Value::Native(native) => native.try_as_mut().ok_or(()),
             _ => Err(()),
@@ -60,8 +60,7 @@ impl<'a, K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
 }
 
 impl<'a, K: DatexNativeBase + Eq + Hash + 'static, V: DatexNativeBase + 'static>
-    TryFrom<BorrowedValueMut<'a>>
-    for GoatMut<'a, IndexMap<K, V, RandomState>>
+    TryFrom<BorrowedValueMut<'a>> for GoatMut<'a, IndexMap<K, V, RandomState>>
 {
     type Error = ();
     fn try_from(value: BorrowedValueMut<'a>) -> Result<Self, Self::Error> {
@@ -81,15 +80,17 @@ mod tests {
     use crate::{
         prelude::*,
         random::RandomState,
+        traits::convert_value::ConvertValue,
         utils::{goat::Goat, goat_mut::GoatMut},
         values::{
             core_value::CoreValue,
-            value::borrowed_value::{BorrowedValue, BorrowedValueMut},
+            value::{
+                Value,
+                borrowed_value::{BorrowedValue, BorrowedValueMut},
+            },
         },
     };
     use indexmap::IndexMap;
-    use crate::traits::convert_value::ConvertValue;
-    use crate::values::value::Value;
 
     type TestMap = IndexMap<i32, i32, RandomState>;
 
@@ -155,9 +156,7 @@ mod tests {
     #[test]
     fn try_borrowed_index_map_wrong_type_fails() {
         let core_value =
-            Value::native(
-                IndexMap::<String, String, RandomState>::default(),
-            );
+            Value::native(IndexMap::<String, String, RandomState>::default());
         let borrowed = BorrowedValue::from(&core_value);
         assert!(Goat::<TestMap>::try_from(borrowed).is_err());
     }
@@ -165,9 +164,7 @@ mod tests {
     #[test]
     fn try_borrowed_index_map_mut_wrong_type_fails() {
         let mut core_value =
-            Value::native(
-                IndexMap::<String, String, RandomState>::default(),
-            );
+            Value::native(IndexMap::<String, String, RandomState>::default());
         let borrowed = BorrowedValueMut::from(&mut core_value);
         assert!(GoatMut::<TestMap>::try_from(borrowed).is_err());
     }

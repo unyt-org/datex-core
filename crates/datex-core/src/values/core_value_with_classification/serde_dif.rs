@@ -1,27 +1,42 @@
+use crate::{
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
+    prelude::*,
+    values::{
+        core_value::CoreValue,
+        core_value_with_classification::CoreValueWithClassification,
+        value::value_classification::{ValueClassification, ValueTag},
+    },
+};
 use core::fmt;
 use num_traits::ToPrimitive;
-use serde::{Deserializer, Serialize, Serializer};
-use serde::de::{Error, MapAccess, Visitor};
-use serde::ser::SerializeMap;
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
-use crate::dif::serde_context::SerdeContext;
-use crate::dif::serialize_with_serde_context::SerializeWithSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::values::core_value::CoreValue;
-use crate::values::core_value_with_classification::CoreValueWithClassification;
-use crate::values::value::value_classification::{ValueClassification, ValueTag};
-use crate::prelude::*;
+use serde::{
+    Deserializer, Serialize, Serializer,
+    de::{Error, MapAccess, Visitor},
+    ser::SerializeMap,
+};
 
 impl SerializeWithSerdeContext for CoreValueWithClassification {
-    fn serialize_with_ctx<S: Serializer>(&self, ctx: &SerdeContext<'_>, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize_with_ctx<S: Serializer>(
+        &self,
+        ctx: &SerdeContext<'_>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
         let classification = &self.classification;
-      
+
         // if tag, serialize as a map with "t" and "v" keys
         if let Some(tag) = &classification.tag {
             let mut map = serializer.serialize_map(Some(2))?;
             map.serialize_entry("t", tag)?;
-            map.serialize_entry("v", &ValueWithSerdeContext::new(&self.inner, ctx))?;
+            map.serialize_entry(
+                "v",
+                &ValueWithSerdeContext::new(&self.inner, ctx),
+            )?;
             map.end()
         }
         // if no tag, just serialize the inner value with the context
@@ -31,7 +46,6 @@ impl SerializeWithSerdeContext for CoreValueWithClassification {
     }
 }
 
-
 impl<'de> DeserializeWithSerdeContext<'de> for CoreValueWithClassification {
     fn deserialize_with_ctx<D>(
         ctx: &SerdeContext<'_>,
@@ -40,12 +54,14 @@ impl<'de> DeserializeWithSerdeContext<'de> for CoreValueWithClassification {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(DeserializeSerdeContext::<CoreValueWithClassification>::new(ctx))
+        deserializer.deserialize_any(DeserializeSerdeContext::<
+            CoreValueWithClassification,
+        >::new(ctx))
     }
 }
 
 impl<'de, 'a, 'ctx> Visitor<'de>
-for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
+    for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
 {
     type Value = CoreValueWithClassification;
 
@@ -58,7 +74,9 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
     where
         E: Error,
     {
-        Ok(CoreValueWithClassification::new(self.cast::<CoreValue>().visit_bool(v)?))
+        Ok(CoreValueWithClassification::new(
+            self.cast::<CoreValue>().visit_bool(v)?,
+        ))
     }
 
     // default mapping for integers: decimal/f64 (with a check for overflow)
@@ -88,9 +106,7 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
         E: Error,
     {
         self.visit_f64(v.to_f64().ok_or_else(|| {
-            Error::custom(format!(
-                "i64 value {v} is too large to fit into f64"
-            ))
+            Error::custom(format!("i64 value {v} is too large to fit into f64"))
         })?)
     }
     fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
@@ -128,9 +144,7 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
         E: Error,
     {
         self.visit_f64(v.to_f64().ok_or_else(|| {
-            Error::custom(format!(
-                "u64 value {v} is too large to fit into f64"
-            ))
+            Error::custom(format!("u64 value {v} is too large to fit into f64"))
         })?)
     }
     fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
@@ -154,14 +168,18 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
     where
         E: Error,
     {
-        Ok(CoreValueWithClassification::new(self.cast::<CoreValue>().visit_f64(v)?))
+        Ok(CoreValueWithClassification::new(
+            self.cast::<CoreValue>().visit_f64(v)?,
+        ))
     }
     /// default mapping for string: text
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: Error,
     {
-        Ok(CoreValueWithClassification::new(self.cast::<CoreValue>().visit_str(v)?))
+        Ok(CoreValueWithClassification::new(
+            self.cast::<CoreValue>().visit_str(v)?,
+        ))
     }
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
@@ -181,14 +199,18 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
     where
         E: Error,
     {
-        Ok(CoreValueWithClassification::new(self.cast::<CoreValue>().visit_unit()?))
+        Ok(CoreValueWithClassification::new(
+            self.cast::<CoreValue>().visit_unit()?,
+        ))
     }
     /// mapping for [core_lib_type_id, core_value]
     fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
-        Ok(CoreValueWithClassification::new(self.cast::<CoreValue>().visit_seq(seq)?))
+        Ok(CoreValueWithClassification::new(
+            self.cast::<CoreValue>().visit_seq(seq)?,
+        ))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -217,7 +239,12 @@ for DeserializeSerdeContext<'a, 'ctx, CoreValueWithClassification>
         }
 
         match core_value {
-            Some(core_value) => Ok(CoreValueWithClassification::new_with_classification(core_value, ValueClassification::new_with_maybe_tag(tag))),
+            Some(core_value) => {
+                Ok(CoreValueWithClassification::new_with_classification(
+                    core_value,
+                    ValueClassification::new_with_maybe_tag(tag),
+                ))
+            }
             None => Err(A::Error::custom(
                 "Expected a 'v' key for the DIF value with tag",
             )),

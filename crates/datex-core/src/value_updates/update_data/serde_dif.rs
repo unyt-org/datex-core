@@ -9,16 +9,16 @@ use crate::{
     prelude::*,
     shared_values::base_shared_value_container::observers::TransceiverId,
     value_updates::update_data::{
-        AppendEntryUpdateData, DecrementUpdateData, DeleteEntryUpdateData,
-        IncrementUpdateData, ListSpliceUpdateData, ReplaceUpdateData,
-        SetEntryUpdateData, Update, UpdateData, UpdateOperation,
+        AppendEntryUpdateData, DeleteEntryUpdateData, ListSpliceUpdateData,
+        ReplaceUpdateData, SetEntryUpdateData, Update, UpdateData,
+        UpdateOperation,
     },
     values::value_container::value_key::ValueKey,
 };
 use core::fmt;
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, SeqAccess, Visitor},
+    de::{self, SeqAccess, Visitor},
     ser::SerializeSeq,
 };
 
@@ -89,7 +89,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Update> {
     }
 
     fn visit_seq<A: SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let transceiver_id: TransceiverId = seq

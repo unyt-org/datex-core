@@ -6,12 +6,14 @@ use crate::{
     shared_values::{SharedContainer, traits::SharedContainerCommon},
     traits::iter_parts::IterParts,
     values::{
-        core_values::endpoint::Endpoint, value_container::ValueContainer,
+        core_values::endpoint::Endpoint,
+        value_container::{
+            ValueContainer, borrowed_value_container::BorrowedValueContainerMut,
+        },
     },
 };
 use core::ops::DerefMut;
 use indexmap::IndexMap;
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainerMut;
 
 #[derive(Debug)]
 pub enum TrackedValueMetadata {

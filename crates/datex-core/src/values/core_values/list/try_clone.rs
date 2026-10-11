@@ -1,8 +1,7 @@
 use crate::{
     traits::try_clone::TryClone,
-    values::{core_value::CoreValue, core_values::list::List},
+    values::{core_value::CoreValue, core_values::list::List, value::Value},
 };
-use crate::values::value::Value;
 
 impl TryClone for List {
     fn try_clone(&self) -> Result<Value, ()> {

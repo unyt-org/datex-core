@@ -136,7 +136,10 @@ impl DIFInterface {
         &mut self,
         address: PointerAddress,
     ) -> Result<SharedContainer, ValueNotFoundInCacheError> {
-        self.cache.borrow().try_get_shared_container(&address).cloned()
+        self.cache
+            .borrow()
+            .try_get_shared_container(&address)
+            .cloned()
     }
 
     pub fn has_address_with_ownership(

@@ -16,7 +16,9 @@ impl Classification for ValueContainer {
             ValueContainer::Local(value) => {
                 Classification::classification(value, cache)
             }
-            ValueContainer::Shared(_shared) => ValueClassification::new_unclassified(),
+            ValueContainer::Shared(_shared) => {
+                ValueClassification::new_unclassified()
+            }
         }
     }
 }

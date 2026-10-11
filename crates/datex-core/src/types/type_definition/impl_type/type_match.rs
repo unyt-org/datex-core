@@ -1,6 +1,5 @@
 use crate::types::{
-    traits::type_match::TypeSuperset,
-    type_definition::impl_type::ImplMarkers,
+    traits::type_match::TypeSuperset, type_definition::impl_type::ImplMarkers,
 };
 
 impl TypeSuperset<ImplMarkers> for ImplMarkers {

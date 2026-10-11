@@ -11,14 +11,17 @@ use crate::{
     core_compiler::{
         core_compilation_context::{CompileInput, DXBWithSharedValues},
         injected_values::compile_injected_values,
-    }, dxb_parser::{
+    },
+    dxb_parser::{
         body::{DXBParserError, SeekRequest, iterate_instructions_with_seek},
         instruction_collector::{
             CollectionResultsPopper, FullOrPartialResult, InstructionCollector,
             LastUnboundedResultCollector, ResultCollector,
             StatementResultCollectionStrategy,
         },
-    }, global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator}, instruction::{
+    },
+    global::operators::{BinaryOperator, ComparisonOperator, UnaryOperator},
+    instruction::{
         Instruction, NestedInstructionResolutionStrategy,
         instruction_data::{
             ApplyData, Float32Data, Float64Data, FloatAsInt16Data,
@@ -29,7 +32,10 @@ use crate::{
         },
         regular_instruction::RegularInstruction,
         type_instruction::TypeInstruction,
-    }, libs::core::type_id::CoreLibBaseTypeId, prelude::*, runtime::{
+    },
+    libs::core::type_id::CoreLibBaseTypeId,
+    prelude::*,
+    runtime::{
         Runtime,
         cache::shared_values_cache::{
             CacheValueRetrievalError, ValueNotFoundInCacheError,
@@ -49,12 +55,14 @@ use crate::{
                 interrupt, interrupt_with_maybe_value, interrupt_with_value,
             },
         },
-    }, shared_values::{
+    },
+    shared_values::{
         PointerAddress, ReferenceMutability, ReferencedSharedContainer,
         RemotePointerAddress, SharedContainer, SharedContainerMutability,
         SharedContainerOwnership,
         base_shared_value_container::BaseSharedValueContainer,
-    }, types::{
+    },
+    types::{
         r#type::Type,
         type_definition::{
             TypeDefinition,
@@ -74,19 +82,25 @@ use crate::{
             union::UnionTypeDefinition,
         },
         type_definition_with_metadata::TypeDefinitionWithMetadata,
-    }, value_updates::{
+    },
+    value_updates::{
         update_data::{AppendEntryUpdateData, DeleteEntryUpdateData},
         update_handler::UpdateHandler,
-    }, values::{
-        core_value::CoreValue, core_value_with_classification::CoreValueWithClassification, core_values::{
+    },
+    values::{
+        core_value::CoreValue,
+        core_value_with_classification::CoreValueWithClassification,
+        core_values::{
             boolean::Boolean,
             callable::{Callable, CallableBody, CoreStub},
             decimal::{Decimal, typed_decimal::TypedDecimal},
             endpoint::Endpoint,
             integer::{Integer, typed_integer::TypedInteger},
             list::List,
-            map::{Map},
-        }, value::Value, value_container::{
+            map::Map,
+        },
+        value::Value,
+        value_container::{
             ValueContainer, error::ValueError, value_key::ValueKey,
         },
     },
@@ -95,7 +109,9 @@ use alloc::rc::Rc;
 use core::{cell::RefCell, ops::DerefMut};
 mod collected_execution_result;
 use crate::{
-    instruction::instruction_data::{CallMethodData, CallableSignatureData},
+    instruction::instruction_data::{
+        CallMethodData, CallableSignatureData, ImplMarkersData,
+    },
     runtime::execution::macros::interrupt_with_borrowed_args_and_maybe_result,
     traits::apply::{ApplyArgument, into_apply_arguments_with_stack_indices},
     types::{
@@ -108,11 +124,10 @@ use crate::{
     values::{
         core_values::callable::DatexBytecodeCallable,
         value::value_classification::{ValueClassification, ValueTag},
+        value_container::borrowed_value_container::BorrowedValueContainer,
     },
 };
 use collected_execution_result::CollectedExecutionResult;
-use crate::instruction::instruction_data::ImplMarkersData;
-use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 /// Main execution loop that drives the execution of the DXB body
 /// The interrupt_provider is used to provide results for synchronous or asynchronous I/O operations
@@ -561,10 +576,12 @@ pub gen fn inner_execution_loop(
 
                             match val {
                                 // simple Type value
-                                Some(ValueContainer::Local(Value::Core(CoreValueWithClassification {
-                                    inner: CoreValue::Type(_ty),
-                                    ..
-                                }))) => todo!(),
+                                Some(ValueContainer::Local(Value::Core(
+                                    CoreValueWithClassification {
+                                        inner: CoreValue::Type(_ty),
+                                        ..
+                                    },
+                                ))) => todo!(),
                                 // FIXME:
                                 // // Type Reference
                                 // Some(ValueContainer::Shared(SharedContainer {
@@ -583,11 +600,14 @@ pub gen fn inner_execution_loop(
                             }
                         }
 
-                        TypeInstruction::ImplMarkers(ImplMarkersData {impls, ..}) => {
-                            CollectedExecutionResult::type_definition(
-                                TypeDefinition::ImplMarkers(ImplMarkers::new(impls))
-                            )
-                        }
+                        TypeInstruction::ImplMarkers(ImplMarkersData {
+                            impls,
+                            ..
+                        }) => CollectedExecutionResult::type_definition(
+                            TypeDefinition::ImplMarkers(ImplMarkers::new(
+                                impls,
+                            )),
+                        ),
 
                         // NOTE: make sure that get_next_expected_instructions does not return None for these instructions!
                         TypeInstruction::List(_)
@@ -921,7 +941,6 @@ pub gen fn inner_execution_loop(
                                             splice.start_index,
                                             splice.delete_count,
                                             values,
-                                        
                                         ), state.runtime.shared_references_cache_refcell()).map_err(|e| e.into())?;
 
                                     // create new list from result values

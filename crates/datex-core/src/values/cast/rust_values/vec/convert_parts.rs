@@ -1,6 +1,5 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::{
         convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
         convert_value_container::ConvertValueContainer,
@@ -14,9 +13,7 @@ impl<T> HasPartsKind for Vec<T> {
     }
 }
 impl<T: ConvertValueContainer> IntoParts for Vec<T> {
-    fn try_into_list_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<List, ()>
+    fn try_into_list_parts<'a>(self: Box<Self>) -> Result<List, ()>
     where
         Self: 'a,
     {

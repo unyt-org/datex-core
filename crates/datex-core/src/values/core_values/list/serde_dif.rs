@@ -1,19 +1,20 @@
 use crate::{
-    dif::serde_context::SerdeContext,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     values::{core_values::list::List, value_container::ValueContainer},
 };
 use serde::{
     Serializer,
+    de::Visitor,
     ser::{SerializeMap, SerializeSeq},
 };
-use serde::de::Visitor;
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 impl SerializeWithSerdeContext for List {
-
     fn serialize_with_ctx<S>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -24,17 +25,17 @@ impl SerializeWithSerdeContext for List {
     {
         let mut state = serializer.serialize_seq(Some(self.len() as usize))?;
         for value in self.iter() {
-            state.serialize_element(&ValueWithSerdeContext::new(
-                value,
-                ctx,
-            ))?;
+            state.serialize_element(&ValueWithSerdeContext::new(value, ctx))?;
         }
         state.end()
     }
 }
 
 impl<'de> DeserializeWithSerdeContext<'de> for List {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<List, D::Error>
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<List, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -52,7 +53,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, List> {
         formatter.write_str("a sequence of values for List")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<List, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<List, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {

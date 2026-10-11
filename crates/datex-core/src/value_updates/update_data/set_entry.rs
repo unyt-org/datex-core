@@ -4,11 +4,13 @@ use serde::{
 };
 
 use crate::{
-    dif::serde_context::SerdeContext,
-    dif::value_with_serde_context::ValueWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        serde_context::SerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     values::value_container::{ValueContainer, value_key::ValueKey},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct SetEntryUpdateData {
@@ -27,20 +29,16 @@ impl<'ctx> SerdeContext<'ctx> {
         value: &SetEntryUpdateData,
         seq: &mut S,
     ) -> Result<(), S::Error> {
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.key,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.key, self))?;
 
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.value,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.value, self))?;
 
         Ok(())
     }
 }
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, SetEntryUpdateData> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, SetEntryUpdateData>
+{
     type Value = SetEntryUpdateData;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -48,7 +46,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, SetEntryU
     }
 
     fn visit_seq<A: serde::de::SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let key = seq

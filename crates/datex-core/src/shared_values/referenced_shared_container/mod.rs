@@ -1,9 +1,9 @@
 mod common;
+mod convert_value_container;
 pub mod get_datex_type;
+mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
-mod convert_value_container;
-mod serde_dif;
 
 use crate::{
     prelude::*,

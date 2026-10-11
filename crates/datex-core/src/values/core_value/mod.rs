@@ -7,16 +7,8 @@ use crate::{
         CoreLibBaseTypeId, CoreLibTypeId, CoreLibVariantTypeId,
     },
     prelude::*,
-    traits::convert_value::ConvertValue,
     types::entities::entity_type_definition::EntityTypeDefinition,
-    values::{
-        core_value_with_classification::CoreValueWithClassification,
-        core_values::{
-            instant::Instant,
-            native::{DatexNative, NativeCoreValue},
-        },
-        value::Value,
-    },
+    values::core_values::instant::Instant,
 };
 pub mod serde_dif;
 use crate::{

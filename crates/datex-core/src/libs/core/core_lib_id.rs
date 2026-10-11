@@ -10,7 +10,9 @@ pub const TYPE_SPACE_BASE: u16 = 1;
 pub const TYPE_VARIANT_SPACE_BASE: u16 = 500;
 pub const VALUE_SPACE_BASE: u16 = 1000;
 
-#[derive(BinWrite, BinRead, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(
+    BinWrite, BinRead, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize,
+)]
 #[serde(transparent)]
 #[brw(little)]
 pub struct CoreLibIdIndex(pub u16);

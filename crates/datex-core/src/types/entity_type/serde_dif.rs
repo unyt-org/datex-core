@@ -8,7 +8,7 @@ use crate::{
     shared_values::SharedContainer,
     types::entity_type::EntityType,
 };
-use serde::{Deserializer, Serialize, Serializer, de::DeserializeSeed};
+use serde::{Deserializer, Serializer, de::DeserializeSeed};
 
 impl<'de> DeserializeWithSerdeContext<'de> for EntityType {
     fn deserialize_with_ctx<D: Deserializer<'de>>(

@@ -1,7 +1,5 @@
 #[cfg(feature = "ast")]
-use crate::traits::{
-    to_datex_expression_data::ToDatexExpressionData,
-};
+use crate::traits::to_datex_expression_data::ToDatexExpressionData;
 use crate::{
     core_compiler::to_instructions::ToInstructions,
     dif::{
@@ -16,10 +14,10 @@ use crate::{
         dyn_eq::DynEq,
         get_core_lib_type_id::GetCoreLibTypeId,
         get_datex_type::GetDatexType,
+        iter_parts::IterParts,
         local_child_path_resolver::LocalChildPathResolver,
         try_clone::TryClone,
         value_access::ValueAccess,
-        iter_parts::IterParts,
     },
     value_updates::update_handler::UpdateHandlerImpl,
     values::core_values::native::DatexNativeOps,

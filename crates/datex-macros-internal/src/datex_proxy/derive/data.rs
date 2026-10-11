@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Generics, Type};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -99,7 +99,6 @@ impl FieldIdent for IndexedField {
     }
 }
 
-
 pub trait FieldType {
     fn ty(&self) -> &Type;
 }
@@ -116,7 +115,6 @@ impl FieldType for NamedField {
     }
 }
 
-
 impl FieldType for IndexedField {
     fn ty(&self) -> &Type {
         self.field.ty()
@@ -125,7 +123,6 @@ impl FieldType for IndexedField {
 
 pub trait AnyField: FieldIdent + FieldType {}
 impl<T> AnyField for T where T: FieldIdent + FieldType {}
-
 
 #[derive(Debug, PartialEq)]
 /// Represents a field in a struct or enum variant, along with its type and attributes.
@@ -146,8 +143,6 @@ impl IndexedField {
         syn::Index::from(self.index)
     }
 }
-
-
 
 #[derive(Debug, PartialEq)]
 /// General attributes that can be applied to any field.
@@ -208,11 +203,11 @@ impl Fields {
     pub fn field_accessors(&self) -> Vec<TokenStream> {
         self.iter().map(|f| f.accessor()).collect()
     }
-    
+
     pub fn is_named(&self) -> bool {
         matches!(self, Fields::Named(_))
     }
-    
+
     /// Returns an iterator over all fields as `&dyn AnyField`.
     pub gen fn iter(&self) -> &dyn AnyField {
         match self {
@@ -226,32 +221,35 @@ impl Fields {
                     yield field as &dyn AnyField;
                 }
             }
-            Fields::Transparent(field) => {
-                yield field as &dyn AnyField
-            }
-            Fields::Unit => {
-                return;
-            }
+            Fields::Transparent(field) => yield field as &dyn AnyField,
+            Fields::Unit => {}
         }
     }
-    
-    pub fn wrap_in_initializer(&self, inner: impl Iterator<Item = TokenStream>) -> TokenStream {
+
+    pub fn wrap_in_initializer(
+        &self,
+        inner: impl Iterator<Item = TokenStream>,
+    ) -> TokenStream {
         match self {
             Fields::Named(fields) => {
-                let field_initializers = fields.iter().zip(inner).map(|(field, initializer)| {
-                    let field_name = field.ident_accessor();
-                    quote! { #field_name: #initializer }
-                });
+                let field_initializers =
+                    fields.iter().zip(inner).map(|(field, initializer)| {
+                        let field_name = field.ident_accessor();
+                        quote! { #field_name: #initializer }
+                    });
                 quote! { { #(#field_initializers),* } }
             }
             Fields::Unnamed(fields) => {
-                let field_initializers = fields.iter().zip(inner).map(|(_field, initializer)| { 
-                    quote! { #initializer }
-                });
+                let field_initializers =
+                    fields.iter().zip(inner).map(|(_field, initializer)| {
+                        quote! { #initializer }
+                    });
                 quote! { ( #(#field_initializers),* ) }
             }
-            Fields::Transparent(field) => {
-                let initializer = inner.into_iter().next().expect("Transparent field should have exactly one initializer");
+            Fields::Transparent(_field) => {
+                let initializer = inner.into_iter().next().expect(
+                    "Transparent field should have exactly one initializer",
+                );
                 quote! { (#initializer) }
             }
             Fields::Unit => {

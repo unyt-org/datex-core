@@ -119,7 +119,7 @@ impl From<EntityType> for ValueClassification {
 impl From<Option<EntityType>> for ValueClassification {
     fn from(entity_type: Option<EntityType>) -> Self {
         ValueClassification {
-            entity_type: entity_type,
+            entity_type,
             ..Default::default()
         }
     }

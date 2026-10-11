@@ -7,7 +7,7 @@ use crate::{
     prelude::*,
     runtime::pointer_address_provider::SelfOwnedPointerAddressProvider,
     shared_values::{
-        SharedContainer, SharedContainerMutability,
+        PointerAddress, SharedContainer, SharedContainerMutability,
         traits::{_ExposeRcInternal, SharedContainerCommon},
     },
     types::{
@@ -17,14 +17,15 @@ use crate::{
     },
     values::{
         core_value::CoreValue,
-        value::{Value, value_classification::ValueClassification},
+        core_value_with_classification::CoreValueWithClassification,
+        value::{
+            Value,
+            value_classification::unresolved_value_classification::UnresolvedValueClassification,
+        },
         value_container::ValueContainer,
     },
 };
 use core::{cell::Ref, ops::Deref};
-use crate::shared_values::PointerAddress;
-use crate::values::core_value_with_classification::CoreValueWithClassification;
-use crate::values::value::value_classification::unresolved_value_classification::UnresolvedValueClassification;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct EntityType(SharedContainer);
@@ -64,7 +65,7 @@ impl EntityType {
     pub fn to_shared_container(self) -> SharedContainer {
         self.0
     }
-    
+
     /// Returns a reference to the inner [SharedContainer] of the [EntityType].
     pub fn shared_container(&self) -> &SharedContainer {
         &self.0
@@ -83,10 +84,12 @@ impl EntityType {
     pub fn entity_definition(&self) -> Ref<'_, EntityTypeDefinition> {
         let val = self.0.value_container();
         Ref::map(val, |v| match v {
-            ValueContainer::Local(Value::Core(CoreValueWithClassification {
-                inner: CoreValue::EntityTypeDefinition(ty),
-                ..
-            })) => ty,
+            ValueContainer::Local(Value::Core(
+                CoreValueWithClassification {
+                    inner: CoreValue::EntityTypeDefinition(ty),
+                    ..
+                },
+            )) => ty,
             _ => unreachable!(
                 "The constraint for SharedContainerContainingEntityType guarantees that the inner value is always a CoreValue::EntityTypeDefinition"
             ),
@@ -113,7 +116,13 @@ impl TryFrom<SharedContainer> for EntityType {
             let is_nominal = {
                 let val = value.collapsed_value();
                 let val_sheep = val.borrow();
-                matches!(*val_sheep, Value::Core(CoreValueWithClassification {inner: CoreValue::EntityTypeDefinition(_), ..}))
+                matches!(
+                    *val_sheep,
+                    Value::Core(CoreValueWithClassification {
+                        inner: CoreValue::EntityTypeDefinition(_),
+                        ..
+                    })
+                )
             };
 
             if is_nominal {
@@ -143,7 +152,10 @@ impl TypeSuperset<PointerAddress> for EntityType {
 impl TypeSatisfiesValueContainer for EntityType {
     fn satisfies_value_container(&self, value: &ValueContainer) -> bool {
         match &value.collapsed_value().borrow().unresolved_classification() {
-            UnresolvedValueClassification{ entity_type_address: Some(entity_type_address), ..} => self.is_superset_of(entity_type_address),
+            UnresolvedValueClassification {
+                entity_type_address: Some(entity_type_address),
+                ..
+            } => self.is_superset_of(entity_type_address),
             _ => false,
         }
     }

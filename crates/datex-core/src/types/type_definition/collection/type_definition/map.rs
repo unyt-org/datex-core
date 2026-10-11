@@ -1,19 +1,23 @@
 use crate::{
-    dif::serde_context::SerdeContext,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
+    types::r#type::Type,
 };
 use core::fmt::{self, Display};
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, SeqAccess, Visitor},
+    de::{self, SeqAccess, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::types::r#type::Type;
 
-use crate::prelude::*;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
+use crate::{
+    dif::deserialize_with_serde_context::DeserializeWithSerdeContext,
+    prelude::*,
+};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct MapCollectionTypeDefinition {
@@ -54,13 +58,18 @@ impl SerializeWithSerdeContext for MapCollectionTypeDefinition {
 }
 
 /// Deserialization implementations for [MapCollectionTypeDefinition].
-impl<'de> DeserializeWithSerdeContext<'de> for MapCollectionTypeDefinition
-{
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for MapCollectionTypeDefinition {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_tuple(2, DeserializeSerdeContext::<MapCollectionTypeDefinition>::new(ctx))
+        deserializer.deserialize_tuple(
+            2,
+            DeserializeSerdeContext::<MapCollectionTypeDefinition>::new(ctx),
+        )
     }
 }
 
@@ -73,7 +82,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         formatter.write_str("a tuple")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {

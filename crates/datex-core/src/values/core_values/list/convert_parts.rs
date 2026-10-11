@@ -1,6 +1,5 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::convert_parts::{FromParts, HasPartsKind, IntoParts, PartsKind},
     values::core_values::list::List,
 };
@@ -12,9 +11,7 @@ impl HasPartsKind for List {
 }
 
 impl IntoParts for List {
-    fn try_into_list_parts<'a>(
-        self: Box<Self>,
-    ) -> Result<List, ()>
+    fn try_into_list_parts<'a>(self: Box<Self>) -> Result<List, ()>
     where
         Self: 'a,
     {

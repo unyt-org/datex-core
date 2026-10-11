@@ -1,14 +1,13 @@
-use core::cell::RefCell;
-
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::AccessError,
-    values::{
-        value_container::value_key::BorrowedValueKey,
+    values::value_container::{
+        borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
+        value_key::BorrowedValueKey,
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 /// Trait for accessing properties of a value as [ValueContainers] or [BorrowedValueContainer]. This is used for accessing properties of values in a generic way, such as for maps and structs.
 pub trait ValueAccess {

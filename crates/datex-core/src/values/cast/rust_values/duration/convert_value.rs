@@ -6,9 +6,7 @@ use crate::{
         core_value_with_classification::CoreValueWithClassification,
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut,
-            },
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     },
 };
@@ -50,9 +48,9 @@ impl<'a> TryFrom<BorrowedValue<'a>> for Goat<'a, Duration> {
     type Error = BorrowedValue<'a>;
     fn try_from(value: BorrowedValue<'a>) -> Result<Self, Self::Error> {
         match value {
-            BorrowedValue::Native(native) => native
-                .try_as()
-                .map_err(|v| BorrowedValue::Native(v)),
+            BorrowedValue::Native(native) => {
+                native.try_as().map_err(BorrowedValue::Native)
+            }
             _ => Err(value),
         }
     }
@@ -62,9 +60,9 @@ impl<'a> TryFrom<BorrowedValueMut<'a>> for GoatMut<'a, Duration> {
     type Error = BorrowedValueMut<'a>;
     fn try_from(value: BorrowedValueMut<'a>) -> Result<Self, Self::Error> {
         match value {
-            BorrowedValueMut::Native(native) => native
-                .try_as_mut()
-                .map_err(|v| BorrowedValueMut::Native(v)),
+            BorrowedValueMut::Native(native) => {
+                native.try_as_mut().map_err(BorrowedValueMut::Native)
+            }
             _ => Err(value),
         }
     }

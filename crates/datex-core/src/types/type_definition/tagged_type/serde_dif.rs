@@ -2,7 +2,7 @@ use core::fmt;
 
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, SeqAccess, Visitor},
+    de::{self, SeqAccess, Visitor},
     ser::SerializeSeq,
 };
 
@@ -64,7 +64,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         formatter.write_str("a tuple [tag, ty]")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {

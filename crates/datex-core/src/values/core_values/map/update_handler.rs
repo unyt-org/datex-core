@@ -6,14 +6,12 @@ use crate::{
     },
 };
 
-use crate::{
-    value_updates::{
-        errors::UpdateError,
-        update_data::{DeleteEntryUpdateData, SetEntryUpdateData},
-        update_handler::{
-            InternalMutabilityUpdateHandler, UpdateCallbackData,
-            UpdateCallbackDataAccess, UpdateHandlerImpl,
-        },
+use crate::value_updates::{
+    errors::UpdateError,
+    update_data::{DeleteEntryUpdateData, SetEntryUpdateData},
+    update_handler::{
+        InternalMutabilityUpdateHandler, UpdateCallbackData,
+        UpdateCallbackDataAccess, UpdateHandlerImpl,
     },
 };
 use core::{cell::RefCell, result::Result};
@@ -26,9 +24,11 @@ impl InternalMutabilityUpdateHandler for Map {
         // Update the update callback data for all child values
         for (key, child) in self.iter_local_values_mut() {
             child.set_update_callback_data(
-                observe_data
-                    .as_ref()
-                    .map(|data| data.with_child_path(key.try_clone_to_value_container().unwrap())), // TODO: what happens if key can't be cloned here? (should not be allowed)
+                observe_data.as_ref().map(|data| {
+                    data.with_child_path(
+                        key.try_clone_to_value_container().unwrap(),
+                    )
+                }), // TODO: what happens if key can't be cloned here? (should not be allowed)
             );
         }
         // Update the update callback data for the list itself
@@ -46,7 +46,7 @@ impl UpdateHandlerImpl for Map {
     fn try_set_entry(
         &mut self,
         data: SetEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
         let key = BorrowedValueKey::from(data.key);
         self.try_set_with_source(key, data.value, None)
@@ -65,7 +65,7 @@ impl UpdateHandlerImpl for Map {
 
     fn try_clear(
         &mut self,
-        cache: &RefCell<SharedReferencesCache>,
+        _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
         self.try_clear_with_source(None)
             .map_err(UpdateError::access_error)

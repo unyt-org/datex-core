@@ -12,10 +12,12 @@ use crate::{
     },
     prelude::*,
 };
+use binrw::{
+    BinResult, BinWrite, Endian,
+    io::{Seek, Write},
+    meta::{EndianKind, WriteEndian},
+};
 use core::{fmt::Display, prelude::rust_2024::*};
-use binrw::io::{Seek, Write};
-use binrw::{BinResult, BinWrite, Endian};
-use binrw::meta::{EndianKind, WriteEndian};
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -56,7 +58,9 @@ impl BinWrite for Instruction {
         _: Self::Args<'_>,
     ) -> BinResult<()> {
         match self {
-            Instruction::Regular(instr) => instr.write_options(writer, endian, ()),
+            Instruction::Regular(instr) => {
+                instr.write_options(writer, endian, ())
+            }
             Instruction::Type(instr) => instr.write_options(writer, endian, ()),
         }
     }

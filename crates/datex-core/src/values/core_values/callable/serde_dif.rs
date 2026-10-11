@@ -11,7 +11,7 @@ use crate::{
 use core::fmt;
 use serde::{
     Deserializer, Serializer,
-    de::{DeserializeSeed, SeqAccess, Visitor},
+    de::{SeqAccess, Visitor},
     ser::SerializeTuple,
 };
 
@@ -65,7 +65,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
             "either an object with string keys or a sequence of [key, value] entries",
         )
     }
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Callable, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Callable, A::Error>
     where
         A: SeqAccess<'de>,
     {

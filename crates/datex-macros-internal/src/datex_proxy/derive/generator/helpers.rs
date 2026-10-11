@@ -10,10 +10,7 @@ pub enum SelfAccess {
     /// Indicates that the self value is mutably borrowed, and field access should use mutable references.
     BorrowedMut,
     /// Indicates that the self value is borrowed, but accessed via a specific identifier (e.g., `value`), and field access should use references.
-    BorrowedIdent {
-        self_value: Ident,
-        self_type: Path,
-    },
+    BorrowedIdent { self_value: Ident, self_type: Path },
     /// Indicates that the self value is moved, and field access should take ownership of the fields.
     Moved,
     /// Indicates that the self is passed as a `Box<Self>`
@@ -37,9 +34,11 @@ pub fn generate_struct_or_enum_variants_fields_mapping(
                 #mapping
             }}
         }
-        Structure::Enum(variants) => map_enum_variants(variants, self_access, |variant| {
-            fields_mapping(&variant.fields, Some(&variant.name))
-        }),
+        Structure::Enum(variants) => {
+            map_enum_variants(variants, self_access, |variant| {
+                fields_mapping(&variant.fields, Some(&variant.name))
+            })
+        }
     }
 }
 
@@ -66,7 +65,7 @@ pub fn map_enum_variants(
         SelfAccess::BorrowedIdent { self_type, .. } => quote! { #self_type },
         _ => quote! { Self },
     };
-    
+
     let arms = enum_ty.iter().map(|variant| {
         let variant_ident = Ident::new(&variant.name, Span::call_site());
         let match_arm_body = generate_match_arm_body(variant);
@@ -103,9 +102,11 @@ pub fn map_enum_variants(
             }
         }
     });
-    
+
     let self_access_pattern = match self_access {
-        SelfAccess::Borrowed | SelfAccess::Moved | SelfAccess::BorrowedMut => quote! { self },
+        SelfAccess::Borrowed | SelfAccess::Moved | SelfAccess::BorrowedMut => {
+            quote! { self }
+        }
         SelfAccess::BorrowedIdent { self_value, .. } => quote! { #self_value },
         SelfAccess::Boxed => quote! { *self },
     };

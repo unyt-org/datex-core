@@ -1,20 +1,22 @@
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     prelude::*,
     shared_values::base_shared_value_container::BaseSharedValueContainer,
     types::type_definition::TypeDefinition,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
     values::value_container::ValueContainer,
 };
 use core::fmt;
 use serde::{
     Deserializer, Serializer,
-    de::{DeserializeSeed, SeqAccess, Visitor},
+    de::{SeqAccess, Visitor},
     ser::{SerializeSeq, SerializeStruct},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
 
 impl SerializeWithSerdeContext for BaseSharedValueContainer {
     fn serialize_with_ctx<S: Serializer>(
@@ -39,24 +41,27 @@ impl SerializeWithSerdeContext for BaseSharedValueContainer {
     }
 }
 
-impl<'de> DeserializeWithSerdeContext<'de> for BaseSharedValueContainer
-{
+impl<'de> DeserializeWithSerdeContext<'de> for BaseSharedValueContainer {
     fn deserialize_with_ctx<D: serde::Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        deserializer.deserialize_seq(DeserializeSerdeContext::<BaseSharedValueContainer>::new(ctx))
+        deserializer.deserialize_seq(DeserializeSerdeContext::<
+            BaseSharedValueContainer,
+        >::new(ctx))
     }
 }
 
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, BaseSharedValueContainer> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, BaseSharedValueContainer>
+{
     type Value = BaseSharedValueContainer;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "a valid BaseSharedValueContainer")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {

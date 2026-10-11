@@ -118,9 +118,9 @@ fn union() {
 #[test]
 fn impl_type() {
     let ty = Type::Definition(
-        TypeDefinition::ImplMarkers(ImplMarkers::new(
-            vec![PointerAddress::self_owned([1u8, 2u8, 3u8, 4u8, 5u8])],
-        ))
+        TypeDefinition::ImplMarkers(ImplMarkers::new(vec![
+            PointerAddress::self_owned([1u8, 2u8, 3u8, 4u8, 5u8]),
+        ]))
         .into(),
     );
     round_trip_type(ty, Runtime::stub());

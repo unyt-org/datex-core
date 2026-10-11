@@ -114,9 +114,7 @@ fn call_instance_method_from_runtime() {
     let example_vc = Value::native(example);
 
     let example_type = Example::datex_type(cache.borrow_mut().deref_mut());
-    let set_a = example_type
-        .try_get_property("set_a".into())
-        .unwrap();
+    let set_a = example_type.try_get_property("set_a".into()).unwrap();
     let set_a_callable = set_a.try_as::<Callable>().unwrap();
 
     let (res, mut borrows) = set_a_callable
@@ -136,9 +134,7 @@ fn call_instance_method_from_runtime() {
     assert_eq!(
         borrows.remove(0),
         // a was updated to 10
-        ValueContainer::from(Value::native(
-            Example { a: 10, b: 2 },
-        ))
+        ValueContainer::from(Value::native(Example { a: 10, b: 2 },))
     );
 }
 
@@ -147,17 +143,12 @@ async fn call_async_instance_method_from_runtime() {
     let runtime = Runtime::stub();
 
     let example = Example::new(1, 2);
-    let example_vc = Value::native(
-        example,
-    );
+    let example_vc = Value::native(example);
 
     let example_type =
         Example::datex_type(runtime.shared_references_cache_mut().deref_mut());
-    let async_test = example_type
-        .try_get_property(
-            "async_test".into(),
-        )
-        .unwrap();
+    let async_test =
+        example_type.try_get_property("async_test".into()).unwrap();
     let async_test_callable = async_test.try_as::<Callable>().unwrap();
 
     let (res, mut borrows) = async_test_callable
@@ -177,9 +168,7 @@ async fn call_async_instance_method_from_runtime() {
     // borrows should contain the original example value
     assert_eq!(
         borrows.remove(0),
-        ValueContainer::from(Value::native(
-            Example::new(1, 2)
-        ))
+        ValueContainer::from(Value::native(Example::new(1, 2)))
     );
 }
 
@@ -210,10 +199,7 @@ fn signatures() {
                 .unwrap()
                 .0
                 .unwrap();
-            assert_eq!(
-                result,
-                ValueContainer::Local(Value::native(3u8))
-            );
+            assert_eq!(result, ValueContainer::Local(Value::native(3u8)));
         }
         _ => {
             panic!("Expected entity type, got {:?}", example_type);
@@ -222,9 +208,8 @@ fn signatures() {
 
     // call method directly on an Example instance via the ValueContainer
     let example_instance = Box::new(Example { a: 1, b: 2 });
-    let example_instance_vc = ValueContainer::from(Value::native(
-        example_instance,
-    ));
+    let example_instance_vc =
+        ValueContainer::from(Value::native(example_instance));
     // TODO: also store type in value container (this will require passing cache to the ValueContainer::from function somehow)
     // Then we can access methods on the type definition here
 

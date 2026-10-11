@@ -9,28 +9,22 @@ use crate::{
     libs::core::{core_lib_id::CoreLibIdIndex, type_id::CoreLibTypeId},
     prelude::*,
     values::{
-        core_value::{CoreValue, serde_dif::CoreValueVisitor},
-        core_values::{
-            boolean::Boolean, decimal::typed_decimal::TypedDecimal,
-            native::NativeCoreValue,
-        },
+        core_value::CoreValue,
+        core_value_with_classification::CoreValueWithClassification,
         value::{
             Value,
             value_classification::{ValueClassification, ValueTag},
         },
-        value_container::ValueContainer,
     },
 };
 use core::fmt;
-use core::ops::Deref;
-use erased_serde::__private::serde::de::{IgnoredAny, MapAccess};
+use erased_serde::__private::serde::de::MapAccess;
 use num::ToPrimitive;
 use serde::{
     Deserializer, Serialize, Serializer,
-    de::{DeserializeSeed, Error as DeError, Visitor},
+    de::{Error as DeError, Visitor},
     ser::{SerializeMap, SerializeTuple},
 };
-use crate::values::core_value_with_classification::CoreValueWithClassification;
 
 impl<'ctx> SerdeContext<'ctx> {
     /// This method is used to serialize a value that can be represented directly depending on the flag set (e.g. a boolean or a text)
@@ -298,7 +292,9 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Value> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        Ok(Value::Core(self.cast::<CoreValueWithClassification>().visit_seq(seq)?))
+        Ok(Value::Core(
+            self.cast::<CoreValueWithClassification>().visit_seq(seq)?,
+        ))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -306,17 +302,17 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Value> {
         A: MapAccess<'de>,
     {
         // get the classification first if it exists and handle the deserialization of the core value accordingly
-        let classification = match map.next_key::<String>()? {
+        let _classification = match map.next_key::<String>()? {
             Some(key) if key == "c" => {
-                map
-                    .next_value_seed(self.cast::<ValueClassification>())?
+                map.next_value_seed(self.cast::<ValueClassification>())?
             }
             _ => ValueClassification::default(),
         };
         // TODO: resolve native value based on entity classification
 
         // Normal, non-native core value:
-        let value = map.next_value_seed(self.cast::<CoreValueWithClassification>())?;
+        let value =
+            map.next_value_seed(self.cast::<CoreValueWithClassification>())?;
 
         Ok(Value::Core(value))
     }

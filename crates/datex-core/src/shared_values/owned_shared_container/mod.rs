@@ -1,11 +1,11 @@
 mod clone_unsafe;
 mod common;
+mod convert_value_container;
 pub mod get_datex_type;
+pub mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod to_instructions;
-mod convert_value_container;
-pub mod serde_dif;
 
 use crate::{
     prelude::*,

@@ -5,13 +5,10 @@ use crate::{
 };
 use binrw::{BinRead, BinWrite};
 use core::{fmt::Display, result::Result};
-use serde::{Deserialize, Serialize};
 pub mod equality;
 mod to_instructions;
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, BinRead, BinWrite,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, BinRead, BinWrite)]
 pub struct Text(
     #[bw(map=|x| TextData(x.clone()))]
     #[br(map=|x: TextData| x.0)]
@@ -25,11 +22,11 @@ mod datex_native_structural;
 mod get_core_lib_type_id;
 mod get_datex_type;
 pub mod ops;
+pub mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod try_clone;
 mod value_access;
-pub mod serde_dif;
 
 impl Display for Text {
     // TODO #319: escape string content

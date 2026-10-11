@@ -78,6 +78,7 @@ use datex_core::{
     },
     traits::{
         classification::Classification, convert_value::ConvertValue,
+        convert_value_container::ConvertValueContainer,
         structural_eq::assert_structural_eq,
     },
     types::{
@@ -90,7 +91,10 @@ use datex_core::{
     },
     values::{
         core_value::CoreValue,
-        core_values::integer::typed_integer::IntegerTypeVariant,
+        core_values::{
+            integer::typed_integer::{IntegerTypeVariant, TypedInteger},
+            list::List,
+        },
         value::{
             Value,
             value_classification::{ValueClassification, ValueTag},
@@ -98,9 +102,6 @@ use datex_core::{
     },
 };
 use test_case::test_case;
-use datex_core::traits::convert_value_container::ConvertValueContainer;
-use datex_core::values::core_values::integer::typed_integer::TypedInteger;
-use datex_core::values::core_values::list::List;
 
 #[test_case(
     Example {
@@ -143,8 +144,7 @@ fn struct_to_value_container() {
     }
     .into();
 
-    let map: Map =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
         map.try_get("b").unwrap(),
@@ -174,18 +174,15 @@ fn skip() {
     }
     .into();
 
-    let map =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map = Map::try_cast_from_value_container(value_container).unwrap();
     assert!(map.has("a"));
     assert!(!map.has("b"));
 
     let value_container = ValueContainer::from(map);
     // Attempting to deserialize should fail because the `b` field is skipped and cannot be deserialized
     assert!(
-        SerdeDatexWithSkip::try_cast_from_value_container(
-            value_container
-        )
-        .is_err()
+        SerdeDatexWithSkip::try_cast_from_value_container(value_container)
+            .is_err()
     )
 }
 
@@ -239,10 +236,9 @@ fn default() {
     let map: Map =
         Map::from(vec![("a".to_string(), ValueContainer::from(42u8))]);
     let value_container = ValueContainer::from(map);
-    let deserialized = SerdeDatexWithDefault::try_cast_from_value_container(
-        value_container,
-    )
-    .unwrap();
+    let deserialized =
+        SerdeDatexWithDefault::try_cast_from_value_container(value_container)
+            .unwrap();
     assert_eq!(deserialized.a, 42);
     assert_eq!(deserialized.b, "".to_string());
 }
@@ -319,9 +315,8 @@ fn struct_to_value() {
     }
     .into();
 
-    let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value))
-            .unwrap();
+    let map = Map::try_cast_from_value_container(ValueContainer::from(value))
+        .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
         map.try_get("b").unwrap(),
@@ -343,9 +338,8 @@ fn new_type_struct_to_value() {
     })
     .into();
 
-    let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value))
-            .unwrap();
+    let map = Map::try_cast_from_value_container(ValueContainer::from(value))
+        .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
         map.try_get("b").unwrap(),
@@ -368,8 +362,7 @@ fn value_container_to_struct() {
         ]));
 
     let example =
-        Example::try_cast_from_value_container(value_container)
-            .unwrap();
+        Example::try_cast_from_value_container(value_container).unwrap();
 
     assert_eq!(example.a, 42u8);
     assert_eq!(example.b, "Test".to_string());
@@ -385,10 +378,9 @@ fn value_to_struct() {
         ("c".to_string(), ValueContainer::from(Endpoint::default())),
     ]));
 
-    let example = Example::try_cast_from_value_container(
-        ValueContainer::from(value),
-    )
-    .unwrap();
+    let example =
+        Example::try_cast_from_value_container(ValueContainer::from(value))
+            .unwrap();
 
     assert_eq!(example.a, 42u8);
     assert_eq!(example.b, "Test".to_string());
@@ -526,8 +518,7 @@ fn struct_with_serde_to_value_container() {
     // Note: uses try_into because of datex(serde)
     let value_container: ValueContainer = serde_example.try_into().unwrap();
 
-    let map: Map =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
         .try_get("serde")
@@ -568,8 +559,7 @@ fn struct_with_serde_infallible_to_value_container() {
     // Note: uses into instead of try_into because of datex(serde_infallible)
     let value_container: ValueContainer = serde_example.into();
 
-    let map: Map =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
         .try_get("serde")
@@ -606,9 +596,8 @@ fn struct_with_value_container() {
     };
 
     let value: Value = example_local.into();
-    let map =
-        Map::try_cast_from_value_container(ValueContainer::from(value))
-            .unwrap();
+    let map = Map::try_cast_from_value_container(ValueContainer::from(value))
+        .unwrap();
     assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
         map.try_get("val").unwrap(),
@@ -631,8 +620,7 @@ fn struct_with_value_container() {
     let value_container: ValueContainer = example_shared.clone().into();
     let value_container_2: ValueContainer = example_shared.into();
 
-    let map_2 =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map_2 = Map::try_cast_from_value_container(value_container).unwrap();
     assert_eq!(map_2.try_get("a").unwrap(), &ValueContainer::from(42u8));
     assert_eq!(map_2.try_get("val").unwrap(), &shared_container);
 
@@ -668,8 +656,7 @@ fn struct_with_owned_shared_value_container() {
 
     let value_container: ValueContainer = example.into();
 
-    let map =
-        Map::try_cast_from_value_container(value_container).unwrap();
+    let map = Map::try_cast_from_value_container(value_container).unwrap();
 
     if let ValueContainer::Shared(SharedContainer::Owned(shared_container)) =
         map.try_get("owned").unwrap()

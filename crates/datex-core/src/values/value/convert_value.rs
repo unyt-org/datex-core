@@ -5,10 +5,14 @@ use crate::{
             Value,
             borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
-        value_container::ValueContainer,
+        value_container::{
+            ValueContainer,
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl ConvertValueContainer for Value {
     fn to_value_container(self) -> ValueContainer {

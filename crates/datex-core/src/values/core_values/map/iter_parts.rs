@@ -1,11 +1,13 @@
 use crate::{
+    prelude::*,
     traits::iter_parts::IterParts,
     values::{
-        core_values::map::{Map},
+        core_values::map::Map,
+        value_container::borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
-use crate::prelude::*;
 
 impl IterParts for Map {
     fn iter_map_parts<'a>(

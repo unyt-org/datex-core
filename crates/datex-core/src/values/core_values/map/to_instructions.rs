@@ -4,7 +4,7 @@ use crate::{
     },
     instruction::{Instruction, regular_instruction::RegularInstruction},
     prelude::*,
-    values::core_values::map::{Map},
+    values::core_values::map::Map,
 };
 impl ToInstructions for Map {
     fn to_instructions<'ctx, 'a>(

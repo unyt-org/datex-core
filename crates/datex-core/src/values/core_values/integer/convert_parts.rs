@@ -1,6 +1,5 @@
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     traits::{
         convert_parts::{FromParts, HasPartsKind, IntoParts},
         convert_value_container::ConvertValueContainer,
@@ -10,9 +9,7 @@ use crate::{
 
 /// Default implementations - cannot be split into parts
 impl IntoParts for Integer {
-    fn try_into_single_value<'a>(
-        self: Box<Self>,
-    ) -> Result<ValueContainer, ()>
+    fn try_into_single_value<'a>(self: Box<Self>) -> Result<ValueContainer, ()>
     where
         Self: 'a,
     {

@@ -1,17 +1,17 @@
-use serde::{Serializer, de::DeserializeSeed, ser::SerializeSeq};
+use serde::{Serializer, ser::SerializeSeq};
 
 use crate::{
-    dif::serde_context::SerdeContext,
-    types::{r#type::Type, type_definition::impl_type::ImplMarkers},
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+    dif::{
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+    },
+    types::type_definition::impl_type::ImplMarkers,
 };
 
-use crate::prelude::*;
 impl SerializeWithSerdeContext for ImplMarkers {
-
     fn serialize_with_ctx<S: Serializer>(
         &self,
-        ctx: &SerdeContext<'_>,
+        _ctx: &SerdeContext<'_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_seq(Some(2))?;
@@ -20,32 +20,41 @@ impl SerializeWithSerdeContext for ImplMarkers {
     }
 }
 
+use crate::dif::{
+    deserialize_serde_context::DeserializeSerdeContext,
+    deserialize_with_serde_context::DeserializeWithSerdeContext,
+};
 use core::fmt;
 use serde::{
     Deserializer,
     de::{self, SeqAccess, Visitor},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'de> DeserializeWithSerdeContext<'de> for ImplMarkers
-{
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+impl<'de> DeserializeWithSerdeContext<'de> for ImplMarkers {
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_tuple(2, DeserializeSerdeContext::<ImplMarkers>::new(ctx))
+        deserializer.deserialize_tuple(
+            2,
+            DeserializeSerdeContext::<ImplMarkers>::new(ctx),
+        )
     }
 }
 
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, ImplMarkers> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, ImplMarkers>
+{
     type Value = ImplMarkers;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a tuple [inner_type, impl_markers]")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
@@ -57,8 +66,6 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, ImplMarke
             return Err(de::Error::custom("expected exactly 2 elements"));
         }
 
-        Ok(ImplMarkers {
-            impl_markers,
-        })
+        Ok(ImplMarkers { impl_markers })
     }
 }

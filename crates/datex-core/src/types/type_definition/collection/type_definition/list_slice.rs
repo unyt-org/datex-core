@@ -1,10 +1,10 @@
 use core::fmt::Display;
 
-use crate::{
-    dif::serde_context::SerdeContext,
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
+use crate::dif::{
+    serde_context::SerdeContext,
+    serialize_with_serde_context::SerializeWithSerdeContext,
 };
-use serde::{Serializer, de::DeserializeSeed, ser::SerializeSeq};
+use serde::{Serializer, ser::SerializeSeq};
 
 use crate::types::r#type::Type;
 
@@ -29,7 +29,6 @@ impl Display for ListSliceCollectionTypeDefinition {
 }
 
 impl SerializeWithSerdeContext for ListSliceCollectionTypeDefinition {
-
     fn serialize_with_ctx<S: Serializer>(
         &self,
         ctx: &SerdeContext<'_>,
@@ -45,22 +44,33 @@ impl SerializeWithSerdeContext for ListSliceCollectionTypeDefinition {
     }
 }
 
+use crate::dif::{
+    deserialize_serde_context::DeserializeSerdeContext,
+    deserialize_with_serde_context::DeserializeWithSerdeContext,
+    value_with_serde_context::ValueWithSerdeContext,
+};
 use core::fmt;
 use serde::{
     Deserializer,
     de::{self, SeqAccess, Visitor},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
-impl<'de> DeserializeWithSerdeContext<'de> for ListSliceCollectionTypeDefinition
+impl<'de> DeserializeWithSerdeContext<'de>
+    for ListSliceCollectionTypeDefinition
 {
-    fn deserialize_with_ctx<D>(ctx: &SerdeContext<'_>, deserializer: D) -> Result<Self, D::Error>
+    fn deserialize_with_ctx<D>(
+        ctx: &SerdeContext<'_>,
+        deserializer: D,
+    ) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_tuple(2, DeserializeSerdeContext::<ListSliceCollectionTypeDefinition>::new(ctx))
+        deserializer.deserialize_tuple(
+            2,
+            DeserializeSerdeContext::<ListSliceCollectionTypeDefinition>::new(
+                ctx,
+            ),
+        )
     }
 }
 
@@ -73,7 +83,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         formatter.write_str("a tuple [item_type, size]")
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {

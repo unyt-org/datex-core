@@ -1,16 +1,17 @@
-use core::{cell::RefCell, ops::DerefMut};
-
 use crate::{
     prelude::*,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::{AccessError, IndexOutOfBoundsError},
     traits::{get_datex_type::GetDatexType, value_access::ValueAccess},
     values::{
         core_values::native::DatexNativeBase,
-        value_container::value_key::BorrowedValueKey,
+        value_container::{
+            borrowed_value_container::{
+                BorrowedValueContainer, BorrowedValueContainerMut,
+            },
+            value_key::BorrowedValueKey,
+        },
     },
 };
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl<T> ValueAccess for Vec<T>
 where

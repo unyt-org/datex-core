@@ -42,8 +42,8 @@ impl ValueEq for Value {
             }
 
             // core vs native equality
-            (Value::Core(core_self), Value::Native(native_other))
-            | (Value::Native(native_other), Value::Core(core_self)) => {
+            (Value::Core(_core_self), Value::Native(_native_other))
+            | (Value::Native(_native_other), Value::Core(_core_self)) => {
                 todo!()
                 // native_other.value.try_into_map_parts(cache)
             }

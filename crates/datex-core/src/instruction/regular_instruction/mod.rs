@@ -35,9 +35,9 @@ use crate::{
         SelfOwnedPointerAddress,
     },
     values::core_values::{
-        instant::Instant,
         decimal::{Decimal, typed_decimal::TypedDecimal},
         endpoint::Endpoint,
+        instant::Instant,
         integer::Integer,
     },
 };
@@ -1313,7 +1313,6 @@ impl RegularInstruction {
                     tagged_value.tag.0, tagged_value.is_empty
                 )
             }
-            
             #[cfg(feature = "disassembler")]
             RegularInstruction::_CallableDeclarationDebugTree(data) => {
                 write!(

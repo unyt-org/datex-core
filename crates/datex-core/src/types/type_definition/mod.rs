@@ -14,8 +14,7 @@ use crate::{
         r#type::Type,
         type_definition::{
             callable::CallableTypeDefinition,
-            collection::CollectionTypeDefinition,
-            impl_type::ImplMarkers,
+            collection::CollectionTypeDefinition, impl_type::ImplMarkers,
             intersection::IntersectionTypeDefinition, list::ListTypeDefinition,
             map::MapTypeDefinition, range::RangeTypeDefinition,
             tagged_type::TaggedTypeDefinition, union::UnionTypeDefinition,

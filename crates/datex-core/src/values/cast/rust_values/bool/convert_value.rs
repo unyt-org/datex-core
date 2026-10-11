@@ -2,20 +2,24 @@ use crate::{
     traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
-        core_value_with_classification::CoreValueWithClassification,
+        core_value::{
+            CoreValue,
+            borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut},
+        },
+        core_value_with_classification::{
+            CoreValueWithClassification,
+            borrowed_core_value_with_classification::{
+                BorrowedCoreValueWithClassification,
+                BorrowedCoreValueWithClassificationMut,
+            },
+        },
         core_values::boolean::Boolean,
         value::{
             Value,
-            borrowed_value::{
-                BorrowedValue, BorrowedValueMut
-            }
+            borrowed_value::{BorrowedValue, BorrowedValueMut},
         },
     },
 };
-use crate::values::core_value::borrowed_core_value::{BorrowedCoreValue, BorrowedCoreValueMut};
-use crate::values::core_value_with_classification::borrowed_core_value_with_classification::{BorrowedCoreValueWithClassification, BorrowedCoreValueWithClassificationMut};
-use crate::values::core_values::native::DatexNative;
 
 impl ConvertValue for bool {
     fn to_value(self) -> Value {
@@ -57,7 +61,6 @@ impl ConvertValue for bool {
     }
 }
 
-
 impl<'a> TryFrom<BorrowedValue<'a>> for Goat<'a, bool> {
     type Error = BorrowedValue<'a>;
     fn try_from(value: BorrowedValue<'a>) -> Result<Self, Self::Error> {
@@ -66,7 +69,9 @@ impl<'a> TryFrom<BorrowedValue<'a>> for Goat<'a, bool> {
                 inner: BorrowedCoreValue::Boolean(v),
                 ..
             }) => Ok(v.map(|v| &v.0)),
-            BorrowedValue::Native(native) => native.try_as().map_err(|v| BorrowedValue::Native(v)),
+            BorrowedValue::Native(native) => {
+                native.try_as().map_err(BorrowedValue::Native)
+            }
             _ => Err(value),
         }
     }
@@ -82,7 +87,9 @@ impl<'a> TryFrom<BorrowedValueMut<'a>> for GoatMut<'a, bool> {
                     ..
                 },
             ) => Ok(v.map(|v| &mut v.0)),
-            BorrowedValueMut::Native(native) => native.try_as_mut().map_err(|v| BorrowedValueMut::Native(v)),
+            BorrowedValueMut::Native(native) => {
+                native.try_as_mut().map_err(BorrowedValueMut::Native)
+            }
             _ => Err(value),
         }
     }

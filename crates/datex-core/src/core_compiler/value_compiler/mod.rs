@@ -32,13 +32,7 @@ use crate::{
         core_compilation_context::{ByteCursor, CoreCompilationContext},
         to_instructions::ToInstructions,
     },
-    instruction::{
-        Instruction,
-        instruction_data::{
-            CallableData, CallableDataBody, CallableSignatureData,
-            ShortTextData,
-        },
-    },
+    instruction::Instruction,
     libs::core::{
         core_lib_id::{CoreLibId, CoreLibIdIndex},
         type_id::CoreLibTypeId,
@@ -49,10 +43,6 @@ use crate::{
     shared_values::{
         PointerAddress, ReferenceMutability, SharedContainer,
         SharedContainerOwnership, traits::SharedContainerCommon,
-    },
-    values::{
-        core_values::callable::CallableBody,
-        value::value_classification::{ValueClassification, ValueTag},
     },
 };
 

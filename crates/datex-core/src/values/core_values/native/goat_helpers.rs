@@ -1,6 +1,7 @@
-use crate::utils::goat::Goat;
-use crate::utils::goat_mut::GoatMut;
-use crate::values::core_values::native::DatexNative;
+use crate::{
+    utils::{goat::Goat, goat_mut::GoatMut},
+    values::core_values::native::DatexNative,
+};
 
 impl<'a> Goat<'a, dyn DatexNative> {
     /// Attempts to downcast the [Goat] of a dynamic [DatexNative] trait object to a [Goat] of a specific type `T`.

@@ -3,7 +3,6 @@ use crate::{
     traits::convert_value::ConvertValue,
     utils::{goat::Goat, goat_mut::GoatMut},
     values::{
-        core_value::CoreValue,
         core_values::native::DatexNativeBase,
         value::{
             Value,

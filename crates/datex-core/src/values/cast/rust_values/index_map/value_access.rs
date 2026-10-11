@@ -1,18 +1,19 @@
 use crate::{
     random::RandomState,
-    runtime::cache::shared_references_cache::SharedReferencesCache,
     shared_values::errors::AccessError,
     traits::{
         convert_value_container::ConvertValueContainer,
         value_access::ValueAccess,
     },
-    values::{
-        value_container::value_key::BorrowedValueKey,
+    values::value_container::{
+        borrowed_value_container::{
+            BorrowedValueContainer, BorrowedValueContainerMut,
+        },
+        value_key::BorrowedValueKey,
     },
 };
-use core::{cell::RefCell, hash::Hash};
+use core::hash::Hash;
 use indexmap::IndexMap;
-use crate::values::value_container::borrowed_value_container::{BorrowedValueContainer, BorrowedValueContainerMut};
 
 impl<K, V> ValueAccess for IndexMap<K, V, RandomState>
 where

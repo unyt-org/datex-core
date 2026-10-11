@@ -10,9 +10,7 @@ use crate::{
         traits::SharedContainerCommon,
     },
     values::{
-        core_value::CoreValue,
-        core_values::native::{DatexNative, NativeCoreValue},
-        value::{Value, value_classification::ValueClassification},
+        core_values::native::DatexNative, value::Value,
         value_container::ValueContainer,
     },
 };
@@ -126,8 +124,10 @@ mod test {
         shared_wrappers::shared::Shared,
     };
 
-    use crate::{prelude::*, values::core_value::CoreValue};
-    use crate::values::value::Value;
+    use crate::{
+        prelude::*,
+        values::{core_value::CoreValue, value::Value},
+    };
 
     #[test]
     fn string_shared() {

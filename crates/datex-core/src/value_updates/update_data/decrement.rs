@@ -1,15 +1,15 @@
 use crate::values::value_container::ValueContainer;
 use core::fmt;
 
-use crate::{
-    dif::serde_context::SerdeContext,
-    dif::value_with_serde_context::ValueWithSerdeContext,
+use crate::dif::{
+    deserialize_serde_context::DeserializeSerdeContext,
+    serde_context::SerdeContext,
+    value_with_serde_context::ValueWithSerdeContext,
 };
 use serde::{
     de::{self, Visitor},
     ser::SerializeSeq,
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct DecrementUpdateData {
@@ -27,14 +27,13 @@ impl<'ctx> SerdeContext<'ctx> {
         value: &DecrementUpdateData,
         seq: &mut S,
     ) -> Result<(), S::Error> {
-        seq.serialize_element(&ValueWithSerdeContext::new(
-            &value.value,
-            self,
-        ))?;
+        seq.serialize_element(&ValueWithSerdeContext::new(&value.value, self))?;
         Ok(())
     }
 }
-impl<'de> Visitor<'de> for DeserializeSerdeContext<'de, '_, DecrementUpdateData> {
+impl<'de> Visitor<'de>
+    for DeserializeSerdeContext<'de, '_, DecrementUpdateData>
+{
     type Value = DecrementUpdateData;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -45,7 +44,7 @@ impl<'de> Visitor<'de> for DeserializeSerdeContext<'de, '_, DecrementUpdateData>
     }
 
     fn visit_seq<A: serde::de::SeqAccess<'de>>(
-        mut self,
+        self,
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let key = seq

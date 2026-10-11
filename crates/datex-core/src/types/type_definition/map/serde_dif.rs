@@ -1,18 +1,18 @@
-use core::fmt;
-
 use crate::{
-    dif::serde_context::SerdeContext,
+    dif::{
+        deserialize_serde_context::DeserializeSerdeContext,
+        deserialize_with_serde_context::DeserializeWithSerdeContext,
+        serde_context::SerdeContext,
+        serialize_with_serde_context::SerializeWithSerdeContext,
+        value_with_serde_context::ValueWithSerdeContext,
+    },
     types::{r#type::Type, type_definition::map::MapTypeDefinition},
-    dif::serialize_with_serde_context::SerializeWithSerdeContext,
 };
 use serde::{
     Deserializer, Serializer,
-    de::{self, DeserializeSeed, SeqAccess, Visitor},
+    de::{SeqAccess, Visitor},
     ser::{SerializeSeq, SerializeTuple},
 };
-use crate::dif::deserialize_serde_context::DeserializeSerdeContext;
-use crate::dif::value_with_serde_context::ValueWithSerdeContext;
-use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
 
 /// Serde implementations for [MapTypeDefinition].
 impl SerializeWithSerdeContext for MapTypeDefinition {
@@ -43,15 +43,9 @@ impl SerializeWithSerdeContext for (Type, Type) {
     ) -> Result<S::Ok, S::Error> {
         let mut tuple = serializer.serialize_tuple(2)?;
 
-        tuple.serialize_element(&ValueWithSerdeContext::new(
-            &self.0,
-            ctx,
-        ))?;
+        tuple.serialize_element(&ValueWithSerdeContext::new(&self.0, ctx))?;
 
-        tuple.serialize_element(&ValueWithSerdeContext::new(
-            &self.1,
-            ctx,
-        ))?;
+        tuple.serialize_element(&ValueWithSerdeContext::new(&self.1, ctx))?;
 
         tuple.end()
     }
@@ -62,12 +56,16 @@ impl<'de> DeserializeWithSerdeContext<'de> for MapTypeDefinition {
         ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        deserializer.deserialize_seq(DeserializeSerdeContext::<MapTypeDefinition>::new(ctx))
+        deserializer.deserialize_seq(
+            DeserializeSerdeContext::<MapTypeDefinition>::new(ctx),
+        )
     }
 }
 
 /// Visitor implementations for deserialization of [MapTypeDefinition].
-impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, MapTypeDefinition> {
+impl<'de, 'a, 'ctx> Visitor<'de>
+    for DeserializeSerdeContext<'a, 'ctx, MapTypeDefinition>
+{
     fn expecting(
         &self,
         formatter: &mut core::fmt::Formatter,
@@ -75,7 +73,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, MapTypeDe
         formatter.write_str("a map type definition")
     }
     type Value = MapTypeDefinition;
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {

@@ -26,8 +26,10 @@ pub mod serde_dif;
 mod to_instructions;
 mod update_handler;
 mod value_access;
-use crate::prelude::*;
-use crate::values::value::value_classification::{ValueClassification, ValueTag};
+use crate::{
+    prelude::*,
+    values::value::value_classification::{ValueClassification, ValueTag},
+};
 
 pub mod borrowed_core_value_with_classification;
 mod hash;

@@ -1,5 +1,5 @@
-use core::hash::{Hash, Hasher};
 use crate::values::core_value::borrowed_core_value::BorrowedCoreValue;
+use core::hash::{Hash, Hasher};
 
 impl Hash for BorrowedCoreValue<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {

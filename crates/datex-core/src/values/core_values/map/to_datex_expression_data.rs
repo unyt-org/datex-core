@@ -1,7 +1,7 @@
 use crate::{
     ast::{expressions::DatexExpressionData, spanned::Spanned},
     traits::to_datex_expression_data::ToDatexExpressionData,
-    values::{core_values::map::Map, value_container::ValueContainer},
+    values::core_values::map::Map,
 };
 
 impl ToDatexExpressionData for Map {
@@ -10,9 +10,7 @@ impl ToDatexExpressionData for Map {
             self.iter()
                 .map(|(key, value)| {
                     (
-                        key
-                            .to_datex_expression_data()
-                            .with_default_span(),
+                        key.to_datex_expression_data().with_default_span(),
                         value.to_datex_expression_data().with_default_span(),
                     )
                 })

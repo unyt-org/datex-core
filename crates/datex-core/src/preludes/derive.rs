@@ -68,11 +68,10 @@ macro_rules! derive_prelude {
                 UpdateCallbackDataAccess, UpdateHandlerImpl,
             },
             values::{
-                value_container:: borrowed_value_container::{
-                    BorrowedValueContainer,
-                    BorrowedValueContainerMut,
-                },
                 core_value::CoreValue,
+                core_value::borrowed_core_value::{
+                    BorrowedCoreValue, BorrowedCoreValueMut,
+                },
                 core_values::{
                     callable::{Callable, CallableBody},
                     list::List,
@@ -80,12 +79,12 @@ macro_rules! derive_prelude {
                     native::{DatexNative, DatexNativeOps},
                     text::Text,
                 },
-                core_value::borrowed_core_value::{
-                    BorrowedCoreValue, BorrowedCoreValueMut,
-                },
                 value::{
                     Value,
                     value_classification::{ValueClassification, ValueTag},
+                },
+                value_container::borrowed_value_container::{
+                    BorrowedValueContainer, BorrowedValueContainerMut,
                 },
                 value_container::{
                     ValueContainer, value_key::BorrowedValueKey,
