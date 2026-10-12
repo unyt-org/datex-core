@@ -25,7 +25,8 @@ use datex_core::{
 };
 use datex_macros_internal::Datex;
 use serde::de::IntoDeserializer;
-
+use datex_core::libs::core::type_id::CoreLibVariantTypeId;
+use datex_core::values::core_values::integer::typed_integer::IntegerTypeVariant;
 use crate::datex_structs_derive::dif::{
     deserialize_from_dif_default_ctx, serialize_to_json_value_default_ctx,
 };
@@ -37,6 +38,45 @@ enum ExampleEnum {
     TupleSingle(Endpoint),
     TupleMultiple(Endpoint, u8),
     Struct { x: String, y: u16 },
+}
+
+#[test]
+fn enum_struct_to_dif() {
+    let variant = ExampleEnum::Struct {
+        x: "test".to_string(),
+        y: 24,
+    };
+    let serialized = serialize_to_json_value_default_ctx(&variant);
+    let json_value = serde_json::json!({
+        "t": "Struct",
+        "v": {
+            "x": "test",
+            "y": [CoreLibIdIndex::from(CoreLibVariantTypeId::Integer(IntegerTypeVariant::U16)), 24]
+        }
+    });
+    println!("json_value: {json_value:#}");
+    assert_eq!(serialized, json_value);
+}
+
+#[test]
+fn enum_struct_from_dif() {
+    let json_value = serde_json::json!({
+        "t": "Struct",
+        "v": {
+            "x": "test",
+            "y": [CoreLibIdIndex::from(CoreLibVariantTypeId::Integer(IntegerTypeVariant::U16)), 24]
+        }
+    });
+    let deserialized: ExampleEnum =
+        deserialize_from_dif_default_ctx(&json_value);
+
+    assert_eq!(
+        deserialized,
+        ExampleEnum::Struct {
+            x: "test".to_string(),
+            y: 24
+        }
+    );
 }
 
 #[test]
