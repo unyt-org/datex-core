@@ -9,6 +9,8 @@ use crate::{
     values::core_values::decimal::Decimal,
 };
 use serde::{Deserialize, Serializer};
+use serde::de::Error;
+use crate::values::core_value::CoreValue;
 
 impl SerializeWithSerdeContext for Decimal {
     fn serialize_with_ctx<S: Serializer>(
@@ -27,10 +29,12 @@ impl SerializeWithSerdeContext for Decimal {
 
 impl<'de> DeserializeWithSerdeContext<'de> for Decimal {
     fn deserialize_with_ctx<D: serde::de::Deserializer<'de>>(
-        _ctx: &SerdeContext<'_>,
+        ctx: &SerdeContext<'_>,
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Decimal::try_from_string(&s).map_err(serde::de::Error::custom)
+        match ctx.deserialize_core_value(deserializer)? {
+            CoreValue::Decimal(td) => Ok(td),
+            _ => Err(D::Error::custom("Expected CoreValue::Decimal")),
+        }
     }
 }

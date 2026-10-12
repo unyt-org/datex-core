@@ -1,3 +1,4 @@
+use std::any::Any;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
 use syn::{Generics, Type};
@@ -64,6 +65,10 @@ pub struct StructureAttributes {
     pub docs: Option<String>,
 }
 
+pub trait CommonFieldAttributes {
+    fn attributes(&self) -> &FieldAttributes;
+}
+
 pub trait FieldIdent {
     /// Returns a normalized identifier for the field that can be used as a variable name.
     /// For named fields, it returns the field name as an identifier.
@@ -121,8 +126,48 @@ impl FieldType for IndexedField {
     }
 }
 
-pub trait AnyField: FieldIdent + FieldType {}
-impl<T> AnyField for T where T: FieldIdent + FieldType {}
+impl CommonFieldAttributes for Field {
+    fn attributes(&self) -> &FieldAttributes {
+        &self.attributes
+    }
+}
+
+impl CommonFieldAttributes for IndexedField {
+    fn attributes(&self) -> &FieldAttributes {
+        &self.field.attributes
+    }
+}
+
+impl CommonFieldAttributes for NamedField {
+    fn attributes(&self) -> &FieldAttributes {
+        &self.field.attributes
+    }
+}
+
+pub trait AsConcreteField {
+    fn try_as_named_field(&self) -> Option<&NamedField> {
+        None
+    }
+    fn try_as_indexed_field(&self) -> Option<&IndexedField> {
+        None
+    }
+}
+
+impl AsConcreteField for NamedField {
+    fn try_as_named_field(&self) -> Option<&NamedField> {
+        Some(self)
+    }
+}
+
+impl AsConcreteField for IndexedField {
+    fn try_as_indexed_field(&self) -> Option<&IndexedField> {
+        Some(self)
+    }
+}
+
+pub trait AnyField: AsConcreteField + FieldIdent + FieldType + CommonFieldAttributes {}
+
+impl<T> AnyField for T where T: AsConcreteField + FieldIdent + FieldType + CommonFieldAttributes {}
 
 #[derive(Debug, PartialEq)]
 /// Represents a field in a struct or enum variant, along with its type and attributes.
@@ -222,7 +267,9 @@ impl Fields {
                 }
             }
             Fields::Transparent(field) => yield field as &dyn AnyField,
-            Fields::Unit => {}
+            Fields::Unit => {
+                return;
+            }
         }
     }
 

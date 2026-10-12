@@ -226,7 +226,7 @@ fn default() {
     let cache = RefCell::new(SharedReferencesCache::default());
 
     #[derive(Datex, Debug, PartialEq)]
-    #[datex(only_structural)]
+    #[datex(structural)]
     struct SerdeDatexWithDefault {
         a: u8,
         #[datex(default)]

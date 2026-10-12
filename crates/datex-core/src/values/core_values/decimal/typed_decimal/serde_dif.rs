@@ -21,7 +21,7 @@ impl SerializeWithSerdeContext for TypedDecimal {
             self,
             CoreLibVariantTypeId::Decimal(self.variant()).into(),
             serializer,
-            false,
+            matches!(self, TypedDecimal::F64(_)),
         )
     }
 }

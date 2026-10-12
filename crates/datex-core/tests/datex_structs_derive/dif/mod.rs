@@ -10,8 +10,8 @@ use datex_core::{
 };
 use serde::de::IntoDeserializer;
 
-mod r#enum;
-mod r#struct;
+mod enum_structural;
+mod struct_structural;
 
 /// TODO: general helper function in datex_core
 pub fn serialize_to_json_value(

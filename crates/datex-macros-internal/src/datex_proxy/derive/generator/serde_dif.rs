@@ -9,6 +9,8 @@ use crate::datex_proxy::{
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use syn::{GenericArgument, PathArguments, Type};
+use crate::datex_proxy::data::AnyField;
 
 /// Creates the implementation of the [SerializeWithSerdeContext] and [DeserializeWithSerdeContext] trait for the given structure data.
 /// Returns a TokenStream of the implementation.
@@ -351,7 +353,16 @@ fn generate_dif_serialize_for_fields(
                 seq.end()
             }},
 
-            _ => quote! {
+            Fields::Unnamed(_) => quote! {{
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element(
+                    &CoreLibIdIndex::from(CoreLibBaseTypeId::List),
+                )?;
+                seq.serialize_element(&#value)?;
+                seq.end()
+            }},
+
+            Fields::Transparent(_) | Fields::Unit => quote! {
                 serde::Serialize::serialize(&#value, serializer)
             },
         },
@@ -462,13 +473,15 @@ fn generate_dif_deserialize_for_struct(
         Fields::Unnamed(unnamed) => {
             generate_visitor_methods_for_unnamed_fields(unnamed)
         }
-        Fields::Transparent(_) => {
-            // TODO:
-            quote! {}
+        Fields::Transparent(inner) => {
+            // does not need the custom visitor, just pass through to the inner type's deserialization
+            return (
+                generate_deserialize_impl_for_transparent_struct(ident, inner),
+                quote! {}
+            )
         }
         Fields::Unit => {
-            // TODO:
-            quote! {}
+            generate_visitor_methods_for_unit(ident)
         }
     };
 
@@ -602,7 +615,7 @@ fn generate_visitor_methods_for_named_fields(
                 .ok_or_else(|| {
                     _SeqAccess::Error::invalid_length(
                         0,
-                        &"expect two element sewq",
+                        &"expect two element seq",
                     )
                 })?;
 
@@ -632,12 +645,43 @@ fn generate_visitor_methods_for_unnamed_fields(
     quote! {}
 }
 
+fn generate_visitor_methods_for_unit(
+    ident: &syn::Ident,
+) -> TokenStream {
+    quote! {
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(#ident)
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(#ident)
+        }
+    }
+}
+
+fn generate_deserialize_impl_for_transparent_struct(
+    ident: &syn::Ident,
+    field: &IndexedField,
+) -> TokenStream {
+    let inner_ty = field.ty();
+    quote! {
+        let value: #inner_ty = DeserializeSerdeContext::<#inner_ty>::new(ctx).deserialize(deserializer)?;
+        Ok(#ident(value))
+    }
+}
+
 fn generate_property_mappings(
     fields: &Fields,
 ) -> (Vec<TokenStream>, Vec<TokenStream>, Vec<TokenStream>) {
     fields
         .iter()
-        .map(|field| {
+        .map(|field: &dyn AnyField | {
             let field_ty = field.ty();
             let normalized_ident = field.normalized_ident();
             let field_name = field.original_name();
@@ -650,11 +694,47 @@ fn generate_property_mappings(
                 #normalized_ident: None
             };
 
-            let field_collapse = quote! {
-                self.#normalized_ident.ok_or_else(|| #field_name)?
+            // special case: null values and omitted properties are treated
+            // the same for structural types, so a missing property for an Option field is set to None per default
+            let is_option_field = is_option(field_ty);
+
+            // also fall back to default value if not set if datex(default) is set
+            let skip_with_default = field.try_as_named_field().map(|named_field| {
+                named_field.attributes.skip_with_default
+            }).unwrap_or(false);
+
+            let field_collapse = if skip_with_default || is_option_field {
+                quote! {
+                    self.#normalized_ident.unwrap_or_default()
+                }
+            } else {
+                quote! {
+                    self.#normalized_ident.ok_or_else(|| #field_name)?
+                }
             };
 
             (field_init, field_default, field_collapse)
         })
         .collect()
+}
+
+
+fn is_option(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            type_path.path.segments.last().is_some_and(|segment| {
+                segment.ident == "Option"
+                    && matches!(
+                        &segment.arguments,
+                        PathArguments::AngleBracketed(args)
+                            if args.args.len() == 1
+                                && matches!(
+                                    args.args.first(),
+                                    Some(GenericArgument::Type(_))
+                                )
+                    )
+            })
+        }
+        _ => false,
+    }
 }

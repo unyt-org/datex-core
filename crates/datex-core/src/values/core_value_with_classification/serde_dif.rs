@@ -181,6 +181,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
             self.cast::<CoreValue>().visit_str(v)?,
         ))
     }
+    
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
         E: Error,
