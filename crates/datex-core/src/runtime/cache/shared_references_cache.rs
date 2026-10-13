@@ -279,6 +279,7 @@ impl SharedReferencesCache {
     {
         let id = TypeId::of::<T>();
         if !self.resolving_structural_types.insert(id) {
+            // FIXME: allo recursive structural types
             panic!(
                 "Can not use recursive structural DATEX types: {}",
                 core::any::type_name::<T>(),

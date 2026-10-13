@@ -4,6 +4,7 @@ use crate::datex_proxy::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
+use crate::datex_proxy::generator::helpers::get_pointer_address;
 
 /// Generates the [Classification] implementations
 pub fn generate_classification(structure_data: &StructureData) -> TokenStream {
@@ -42,6 +43,15 @@ fn generate_classification_methods(
         }
         Structure::Struct(_) => None,
     };
+    
+    // If the type is an entity, generate the entity_type and entity_type_address methods
+    let pointer_address_init = if structure_data.attributes.type_kind.is_entity() {
+        let pointer_address_init = get_pointer_address(structure_data);
+        quote! { Some(PointerAddress::SelfOwned(#pointer_address_init))}
+    }
+    else {
+        quote! { None }
+    };
 
     let entity_type_method = if structure_data.attributes.type_kind.is_entity()
     {
@@ -50,11 +60,11 @@ fn generate_classification_methods(
                 &self,
                 cache: &mut SharedReferencesCache,
             ) -> Option<EntityType> {
-                todo!()
+                todo!("entity_type")
             }
 
             fn entity_type_address(&self) -> Option<PointerAddress> {
-                todo!()
+                #pointer_address_init
             }
         })
     } else {

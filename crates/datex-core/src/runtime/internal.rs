@@ -59,8 +59,11 @@ use core::{
     cell::{Ref, RefCell, RefMut},
     pin::Pin,
 };
+use core::ops::DerefMut;
 use indexmap::IndexMap;
 use log::{debug, error, info};
+use crate::datex_registry::{all_datex_types, get_all_modules};
+use crate::types::r#type::Type;
 
 #[derive(Debug)]
 pub struct RuntimeInternal {
@@ -130,7 +133,7 @@ impl RuntimeInternal {
     ) -> RuntimeInternal {
         let pointer_availability_lookup =
             PointerAvailabilityLookup::new(endpoint.clone());
-        RuntimeInternal {
+        let internal = RuntimeInternal {
             version: env!("CARGO_PKG_VERSION").to_string(),
             endpoint,
             shared_references_cache,
@@ -149,8 +152,34 @@ impl RuntimeInternal {
             pointer_availability_lookup: RefCell::new(
                 pointer_availability_lookup,
             ),
-        }
+        };
+
+        internal.register_static_data();
+
+        internal
     }
+
+    /// Registers global modules and types in the cache
+    fn register_static_data(&self) {
+        let mut cache = self.shared_references_cache_mut();
+        let cache = cache.deref_mut();
+
+        // register all registered rust modules as datex endpoint properties
+        let modules = get_all_modules(cache);
+        for (name, value) in modules {
+            self.register_endpoint_property(&name, value.into());
+        }
+
+        // register all types in cache
+        let types = all_datex_types(cache);
+        for ty in types {
+            if let Type::Entity(ty) = ty && let SharedContainer::Owned(container) = ty.shared_container() {
+                cache.register_owned_shared_container(&container.derive_with_max_mutability())
+            }
+        }
+
+    }
+
     pub fn version(&self) -> &str {
         &self.version
     }
@@ -190,6 +219,12 @@ impl RuntimeInternal {
             props.get_mut(key)
         })
         .ok()
+    }
+
+    pub fn register_endpoint_property(&self, name: &str, value: ValueContainer) {
+        self
+            .endpoint_properties_mut()
+            .insert(name.to_string(), value);
     }
 
     pub fn pointer_availability_lookup(

@@ -10,6 +10,7 @@ use crate::{
         get_datex_core_crate_name_with_options, get_project_relative_file_path,
     },
 };
+use crate::datex_proxy::generator::helpers::get_pointer_address;
 
 pub fn generate_core_lib_type_id(
     structure_data: &StructureData,
@@ -227,12 +228,8 @@ fn generate_type(structure_data: &StructureData) -> TokenStream {
             )
         }
     } else {
-        // FIXME: calculate pointer address statically in macro at compile time
-        let unique_name = format!(
-            "{}::{}",
-            structure_data.namespace.join("::"),
-            structure_data.ident
-        );
+        let ptr_address_init = get_pointer_address(structure_data);
+        
         let name = structure_data
             .attributes
             .datex_name
@@ -240,11 +237,7 @@ fn generate_type(structure_data: &StructureData) -> TokenStream {
             .unwrap_or(structure_data.ident.to_string());
         // TODO: move out of macro as utility function
         quote! {{
-            let address = unsafe {
-                SelfOwnedPointerAddress::new_static_from_name(
-                    #unique_name
-                )
-            };
+            let address = #ptr_address_init;
             match unsafe {
                 cache.reserve_shared_type(address.clone())
             } {

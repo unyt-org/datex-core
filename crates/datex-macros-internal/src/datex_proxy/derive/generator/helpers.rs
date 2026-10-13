@@ -1,4 +1,4 @@
-use crate::datex_proxy::data::{EnumVariant, Fields, Structure};
+use crate::datex_proxy::data::{EnumVariant, Fields, Structure, StructureData};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::Path;
@@ -179,4 +179,23 @@ pub fn generate_enum_match_from_parts(
             _ => Err(()),
         }
     }}
+}
+
+/// Generates a TokenStream that creates a SelfOwnedPointerAddress for the given structure data.
+pub fn get_pointer_address(
+    structure_data: &StructureData,
+) -> TokenStream {
+    // FIXME: calculate pointer address statically in macro at compile time
+    let unique_name = format!(
+        "{}::{}",
+        structure_data.namespace.join("::"),
+        structure_data.ident
+    );
+    quote! {
+        unsafe {
+            SelfOwnedPointerAddress::new_static_from_name(
+                #unique_name
+            )
+        }
+    }
 }

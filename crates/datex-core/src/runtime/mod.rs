@@ -52,23 +52,14 @@ impl Deref for Runtime {
 /// around RuntimeInternal
 impl Runtime {
     pub(crate) fn new(runtime_internal: RuntimeInternal) -> Runtime {
-        let runtime = Runtime {
+        Runtime {
             internal: Rc::new(runtime_internal),
-        };
-        // register all registered rust modules as datex endpoint properties
-        get_all_modules(runtime.shared_references_cache_mut().deref_mut())
-            .into_iter()
-            .for_each(|(name, value)| {
-                runtime.register_endpoint_property(&name, value.into());
-            });
-
-        runtime
+        }
     }
 
     fn register_endpoint_property(&self, name: &str, value: ValueContainer) {
         self.internal
-            .endpoint_properties_mut()
-            .insert(name.to_string(), value);
+            .register_endpoint_property(name, value);
     }
 
     pub fn stub() -> Runtime {

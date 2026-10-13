@@ -16,6 +16,7 @@ use serde::{
     de::{SeqAccess, Visitor},
     ser::SerializeSeq,
 };
+use crate::values::value::value_classification::unresolved_value_classification::UnresolvedValueClassification;
 
 /// Serialization for [ValueClassification].
 impl SerializeWithSerdeContext for ValueClassification {
@@ -52,6 +53,38 @@ impl SerializeWithSerdeContext for ValueClassification {
         seq.end()
     }
 }
+
+impl Serialize for UnresolvedValueClassification {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(None)?;
+
+        // Serialize entity_type_address if it exists
+        if let Some(entity_type_address) = &self.entity_type_address {
+            seq.serialize_element(&entity_type_address)?;
+            if self.impls.is_empty() && self.tag.is_none() {
+                return seq.end();
+            }
+        } else {
+            seq.serialize_element(&Option::<()>::None)?;
+        }
+
+        // tag is handled in layer below
+
+        // Serialize impls if they exist
+        if !self.impls.is_empty() {
+            seq.serialize_element(&self.impls)?;
+        }
+
+        seq.end()
+    }
+}
+
 
 impl<'de> DeserializeWithSerdeContext<'de> for ValueClassification {
     fn deserialize_with_ctx<D>(

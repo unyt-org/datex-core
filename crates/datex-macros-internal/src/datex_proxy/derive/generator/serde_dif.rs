@@ -160,7 +160,8 @@ fn generate_dif_serialize_for_fields(
                 use serde::ser::SerializeMap;
 
                 let value = #value;
-                let mut map = serializer.serialize_map(Some(2))?;
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("_", "t")?;
                 map.serialize_entry("t", #tag)?;
                 map.serialize_entry("v", &value)?;
                 map.end()
@@ -330,7 +331,8 @@ fn generate_dif_serialize_for_fields(
                 where
                     S: serde::Serializer,
                 {
-                    let mut map = serializer.serialize_map(Some(2))?;
+                    let mut map = serializer.serialize_map(Some(3))?;
+                    map.serialize_entry("_", "t")?;
                     map.serialize_entry("t", self.tag)?;
                     map.serialize_entry("v", self.value)?;
                     map.end()

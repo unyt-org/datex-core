@@ -14,17 +14,29 @@ use crate::{
 };
 use alloc::format;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::runtime::cache::shared_values_cache::CacheValueRetrievalError;
+
+impl SharedContainer {
+    pub fn resolve_with_serde_context(
+        pointer_address_with_ownership: PointerAddressWithOwnership,
+        ctx: &SerdeContext<'_>,
+    ) -> Result<Self, CacheValueRetrievalError> {
+        let PointerAddressWithOwnership { address, ownership } =
+            pointer_address_with_ownership;
+        ctx.shared_container_cache
+            .borrow_mut()
+            .try_get_shared_container_with_ownership(&address, ownership)
+    }
+}
 
 impl<'de> DeserializeWithSerdeContext<'de> for SharedContainer {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
         d: D,
     ) -> Result<SharedContainer, D::Error> {
-        let PointerAddressWithOwnership { address, ownership } =
+        let pointer_address_with_ownership =
             PointerAddressWithOwnership::deserialize(d)?;
-        ctx.shared_container_cache
-            .borrow_mut()
-            .try_get_shared_container_with_ownership(&address, ownership)
+        SharedContainer::resolve_with_serde_context(pointer_address_with_ownership, ctx)
             .map_err(|e| {
                 serde::de::Error::custom(format!(
                     "Failed to retrieve shared container from cache: {}",

@@ -105,7 +105,7 @@ impl SerializeWithSerdeContext for Value {
         S: Serializer,
     {
         match self {
-            Value::Native(native) => native.with_ctx(ctx).serialize(serializer),
+            Value::Native(native) => native.serialize_with_ctx(ctx, serializer),
             Value::Core(core) => core.serialize_with_ctx(ctx, serializer),
         }
     }
@@ -126,7 +126,8 @@ impl SerializeWithSerdeContext for (&CoreValue, &Option<ValueTag>) {
         }
         // else serialize as a map with "t" and "v" keys
         else {
-            let mut map = serializer.serialize_map(Some(2))?;
+            let mut map = serializer.serialize_map(Some(3))?;
+            map.serialize_entry("_", "t")?;
             map.serialize_entry("t", &self.1)?;
             map.serialize_entry(
                 "v",
@@ -300,20 +301,37 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Value> {
     where
         A: MapAccess<'de>,
     {
-        // get the classification first if it exists and handle the deserialization of the core value accordingly
-        let _classification = match map.next_key::<String>()? {
-            Some(key) if key == "c" => {
-                map.next_value_seed(self.cast::<ValueClassification>())?
+        let mut classification = ValueClassification::new_unclassified();
+
+        // loop over keys until we find "c" or "v" or reach the end of the map
+        while let Some(key) = map.next_key::<String>()? {
+            // if "_" indicator is present, skip it and continue to the next key
+            // not relevant on this level
+            if key == "_" {
+                let _: serde_json::Value = map.next_value()?;
+                continue;
             }
-            _ => ValueClassification::default(),
-        };
-        // TODO: resolve native value based on entity classification
-
-        // Normal, non-native core value:
-        let value =
-            map.next_value_seed(self.cast::<CoreValueWithClassification>())?;
-
-        Ok(Value::Core(value))
+            // get the classification first if it exists
+            else if key == "c" {
+                classification = map.next_value_seed(self.cast::<ValueClassification>())?;
+                // resolve native value based on entity classification
+                if let Some(entity_type) = classification.entity_type {
+                    todo!("deserialize into entity type: {:#?}", entity_type.shared_container())
+                }
+                // otherwise, continue to the next key to find "v"
+            }
+            // Normal, non-native core value:
+            else if key == "v" {
+                let mut value = map.next_value_seed(self.cast::<CoreValueWithClassification>())?;
+                value.classification = value.classification.merge(classification);
+                return Ok(Value::Core(value));
+            } else {
+                return Err(DeError::custom(format!(
+                    "Unexpected key in map: {key}"
+                )));
+            }
+        }
+        Err(DeError::custom("Expected key 'v' not found in map"))
     }
 }
 

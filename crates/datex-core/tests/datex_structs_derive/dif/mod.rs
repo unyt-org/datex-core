@@ -9,9 +9,11 @@ use datex_core::{
     runtime::cache::shared_values_cache::SharedValuesCache,
 };
 use serde::de::IntoDeserializer;
+use datex_core::runtime::Runtime;
 
 mod enum_structural;
 mod struct_structural;
+pub mod entities;
 
 /// TODO: general helper function in datex_core
 pub fn serialize_to_json_value(

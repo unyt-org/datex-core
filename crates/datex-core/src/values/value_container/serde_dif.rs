@@ -18,8 +18,10 @@ use serde::{
     Deserializer,
     de::{MapAccess, Visitor},
 };
+use crate::dif::pointer_address::PointerAddressWithOwnership;
+use crate::values::core_value_with_classification::CoreValueWithClassification;
 
-pub const SHARED_CONTAINER_KEY: &str = "$";
+pub const DIF_INDICATOR_KEY: &str = "_";
 
 /// Deserialization for [ValueContainer] using a [SerdeContext] to provide access to the memory during deserialization.
 impl<'de> DeserializeWithSerdeContext<'de> for ValueContainer {
@@ -171,25 +173,52 @@ impl<'de, 'a, 'ctx> Visitor<'de>
     ) -> Result<ValueContainer, A::Error> {
         let Some(key) = map.next_key::<String>()? else {
             return Err(serde::de::Error::custom(
-                "expected shared container map with '$' as key",
+                format!("expected an indicator key '{DIF_INDICATOR_KEY}', but the map is empty")
             ));
         };
 
-        if key != SHARED_CONTAINER_KEY {
+        if key != DIF_INDICATOR_KEY {
             return Err(serde::de::Error::custom(format!(
-                "unexpected key {key:?} in shared container map, expected '{SHARED_CONTAINER_KEY}'"
+                "unexpected key {key:?}, expected an indicator key '{DIF_INDICATOR_KEY}'"
             )));
         }
 
-        let shared = map.next_value_seed(self.cast::<SharedContainer>())?;
+        let indicator: String = map.next_value()?;
 
-        if let Some(extra_key) = map.next_key::<String>()? {
-            return Err(serde::de::Error::custom(format!(
-                "unexpected extra key {extra_key:?} in shared container map, expected only '{SHARED_CONTAINER_KEY}'"
-            )));
+        // if indicator key is "c", then the value is a classified value, and we need to deserialize Value
+        if indicator == "c" {
+            let value = self.cast::<Value>().visit_map(map)?;
+            Ok(ValueContainer::Local(value))
+        }
+        // if the indicator key is "t", this is a tagged value, and we need to deserialize Value
+        else if indicator == "t" {
+            let value = self.cast::<CoreValueWithClassification>().visit_map(map)?;
+            Ok(ValueContainer::Local(Value::Core(value)))
+        }
+        else {
+            let pointer_address_with_ownership =
+                PointerAddressWithOwnership::try_from(indicator.as_str()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Failed to parse pointer address from indicator value '{indicator}': {e}"
+                    ))
+                })?;
+            let shared = SharedContainer::resolve_with_serde_context(pointer_address_with_ownership, self.ctx)
+                .map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Failed to retrieve shared container from cache: {}",
+                        e
+                    ))
+                })?;
+
+            if let Some(extra_key) = map.next_key::<String>()? {
+                return Err(serde::de::Error::custom(format!(
+                    "unexpected extra key {extra_key:?}, expected only an indicator key '{DIF_INDICATOR_KEY}'"
+                )));
+            }
+
+            Ok(ValueContainer::Shared(shared))
         }
 
-        Ok(ValueContainer::Shared(shared))
     }
 }
 
@@ -208,7 +237,7 @@ impl SerializeWithSerdeContext for ValueContainer {
                 let pointer = unsafe { ctx.pointer_string(shared) };
 
                 let mut map = serializer.serialize_map(Some(1))?;
-                map.serialize_entry(SHARED_CONTAINER_KEY, &pointer)?;
+                map.serialize_entry(DIF_INDICATOR_KEY, &pointer)?;
                 map.end()
             }
             ValueContainer::Local(local) => {
@@ -279,7 +308,7 @@ mod tests {
         let address_string =
             serde_json::from_str::<serde_json::Value>(&serialized)
                 .unwrap()
-                .get(SHARED_CONTAINER_KEY)
+                .get(DIF_INDICATOR_KEY)
                 .unwrap()
                 .as_str()
                 .unwrap()

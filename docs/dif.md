@@ -8,19 +8,19 @@ type DIFValueContainer = DISharedValue | DIFValue
 type DIFPointerAddressWithOwnership = string; // e.g. "'mut$12345"
 type DIFPointerAddress = string; // e.g. "$12345"
 
-type DISharedValue = { $: DIFPointerAddressWithOwnership }
+type DISharedValue = { _: DIFPointerAddressWithOwnership }
 ```
 
 ## Values
 
 ```ts
 type DIFValue =
-    | { c?: DIFClassification, v: DIFCoreValueWithTag }
+    | { _: 'c', c?: DIFClassification, v: DIFCoreValueWithTag }
     | DIFCoreValueWithTag
 
 type DIFCoreValueWithTag =
     | DIFDirectRepresentationValue
-    | {t: DIFValueTag, v: DIFCoreValue}
+    | {_: 't', t: DIFValueTag, v: DIFCoreValue}
     | DIFCoreValue
 
 type DIFCoreValue = [CoreLibTypeId, DIFRawValue] // core lib type id, raw value
