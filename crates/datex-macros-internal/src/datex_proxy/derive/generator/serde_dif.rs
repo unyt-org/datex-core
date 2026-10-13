@@ -1,7 +1,7 @@
 use crate::datex_proxy::{
     data::{
-        EnumVariant, FieldIdent, FieldMapping, FieldType, Fields, IndexedField,
-        NamedField, Structure, StructureData,
+        AnyField, EnumVariant, FieldIdent, FieldMapping, FieldType, Fields,
+        IndexedField, NamedField, Structure, StructureData,
     },
     generator::helpers::{
         SelfAccess, generate_struct_or_enum_variants_fields_mapping,
@@ -10,7 +10,6 @@ use crate::datex_proxy::{
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{GenericArgument, PathArguments, Type};
-use crate::datex_proxy::data::AnyField;
 
 /// Creates the implementation of the [SerializeWithSerdeContext] and [DeserializeWithSerdeContext] trait for the given structure data.
 /// Returns a TokenStream of the implementation.
@@ -72,9 +71,14 @@ fn generate_serde_deserialize(structure_data: &StructureData) -> TokenStream {
             structure_data,
             fields,
             &Ident::new(
-                &format!("{}DeserializeCollector", ident),
+                &format!("{}InnerDeserializeCollector", ident),
                 Span::call_site(),
             ),
+            &Ident::new(
+                &format!("{}OuterDeserializeCollector", ident),
+                Span::call_site(),
+            ),
+            &Ident::new(&format!("{}InnerWrapper", ident), Span::call_site()),
         ),
         Structure::Enum(variants) => {
             generate_dif_deserialize_for_enum(structure_data, variants)
@@ -211,7 +215,7 @@ fn generate_dif_serialize_for_fields(
 
             let len = named_fields.len();
 
-            quote! {{
+            quote! {
                 struct __DatexFieldsMap<'a, 'ctx> {
                     ctx: &'a SerdeContext<'ctx>,
                     #(#field_definitions,)*
@@ -237,7 +241,7 @@ fn generate_dif_serialize_for_fields(
                     ctx,
                     #(#field_initializers,)*
                 }
-            }}
+            }
         }
 
         Fields::Unnamed(unnamed_fields) => {
@@ -452,7 +456,9 @@ fn generate_dif_deserialize_for_enum(
 fn generate_dif_deserialize_for_struct(
     structure_data: &StructureData,
     fields: &Fields,
-    collector_ident: &Ident,
+    inner_collector: &Ident,
+    outer_collector: &Ident,
+    inner_wrapper: &Ident,
 ) -> (TokenStream, TokenStream) {
     let StructureData { ident, .. } = structure_data;
 
@@ -462,83 +468,138 @@ fn generate_dif_deserialize_for_struct(
     let collapse_init =
         fields.wrap_in_initializer(property_collapses.into_iter());
 
-    let deserialize_impl = quote! {
-        deserializer.deserialize_any(#collector_ident::new(ctx))
+    let outer_deserialize_impl = quote! {
+        deserializer.deserialize_any(#outer_collector::new(ctx))
     };
 
-    let visitor_methods = match fields {
-        Fields::Named(named) => {
-            generate_visitor_methods_for_named_fields(named)
-        }
-        Fields::Unnamed(unnamed) => {
-            generate_visitor_methods_for_unnamed_fields(unnamed)
-        }
+    let (outer_visitor_methods, inner_visitor_methods) = match fields {
+        Fields::Named(named) => (
+            generate_outer_visit_seq(
+                inner_wrapper,
+                &Ident::new("Map", Span::call_site()),
+            ),
+            Some(generate_inner_visitor_methods_for_named_fields(named)),
+        ),
+        Fields::Unnamed(unnamed) => (
+            generate_outer_visit_seq(
+                inner_wrapper,
+                &Ident::new("List", Span::call_site()),
+            ),
+            Some(generate_inner_visitor_methods_for_unnamed_fields(unnamed)),
+        ),
         Fields::Transparent(inner) => {
             // does not need the custom visitor, just pass through to the inner type's deserialization
             return (
                 generate_deserialize_impl_for_transparent_struct(ident, inner),
-                quote! {}
-            )
+                quote! {},
+            );
         }
-        Fields::Unit => {
-            generate_visitor_methods_for_unit(ident)
-        }
+        Fields::Unit => (generate_inner_visitor_methods_for_unit(ident), None),
     };
 
-    let visitor_impl = quote! {
-
-        struct #collector_ident<'a, 'ctx> {
-            pub __ctx: &'a SerdeContext<'ctx>,
-            #(#properties),*
-        }
-
-        impl<'a, 'ctx> #collector_ident<'a, 'ctx> {
-            fn new(ctx: &'a SerdeContext<'ctx>) -> Self {
-                #collector_ident::from(ctx)
+    let inner_visitor_impl = if let Some(inner_visitor_methods) =
+        inner_visitor_methods
+    {
+        let inner_wrapper_impl = quote! {
+            struct #inner_wrapper<'a, 'ctx> {
+                pub __ctx: &'a SerdeContext<'ctx>,
             }
-            fn collapse(self) -> Result<#ident, &'static str> {
-                Ok(#ident #collapse_init)
-            }
-        }
 
-        impl<'a, 'ctx> From<&'a SerdeContext<'ctx>> for #collector_ident<'a, 'ctx> {
-            fn from(ctx: &'a SerdeContext<'ctx>) -> Self {
-                #collector_ident {
-                    __ctx: ctx,
-                    #(#property_defaults),*
+            impl<'a, 'ctx> #inner_wrapper<'a, 'ctx> {
+                fn new(ctx: &'a SerdeContext<'ctx>) -> Self {
+                    #inner_wrapper { __ctx: ctx }
                 }
             }
+
+            impl<'de, 'a, 'ctx> DeserializeSeed<'de> for #inner_wrapper<'a, 'ctx> {
+                type Value = #ident;
+
+                fn deserialize<D>(self, deserializer: D, ) -> Result<Self::Value, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    deserializer.deserialize_any(#inner_collector::new(self.__ctx))
+                }
+            }
+        };
+
+        quote! {
+            #inner_wrapper_impl
+
+            struct #inner_collector<'a, 'ctx> {
+                pub __ctx: &'a SerdeContext<'ctx>,
+                #(#properties),*
+            }
+
+            impl<'a, 'ctx> #inner_collector<'a, 'ctx> {
+                fn new(ctx: &'a SerdeContext<'ctx>) -> Self {
+                    #inner_collector::from(ctx)
+                }
+                fn collapse(self) -> Result<#ident, &'static str> {
+                    Ok(#ident #collapse_init)
+                }
+            }
+
+            impl<'a, 'ctx> From<&'a SerdeContext<'ctx>> for #inner_collector<'a, 'ctx> {
+                fn from(ctx: &'a SerdeContext<'ctx>) -> Self {
+                    #inner_collector {
+                        __ctx: ctx,
+                        #(#property_defaults),*
+                    }
+                }
+            }
+
+            impl<'de, 'a, 'ctx> Visitor<'de> for #inner_collector<'a, 'ctx> {
+                type Value = #ident;
+
+                fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    f.write_str(
+                        "the inner value serialization",
+                    )
+                }
+
+                #inner_visitor_methods
+            }
+
+        }
+    } else {
+        quote! {}
+    };
+
+    let outer_visitor_impl = quote! {
+        struct #outer_collector<'a, 'ctx> {
+            pub __ctx: &'a SerdeContext<'ctx>,
         }
 
-        impl<'a, 'ctx, T> From<&'a DeserializeSerdeContext<'a, 'ctx, T>> for #collector_ident<'a, 'ctx> {
-            fn from(value: &'a DeserializeSerdeContext<'a, 'ctx, T>) -> Self {
-                #collector_ident::from(value.ctx)
+        impl<'a, 'ctx> #outer_collector<'a, 'ctx> {
+            fn new(ctx: &'a SerdeContext<'ctx>) -> Self {
+                #outer_collector { __ctx: ctx }
             }
         }
 
-        impl<'a, 'ctx, T> From<&'a #collector_ident<'a, 'ctx>> for DeserializeSerdeContext<'a, 'ctx, T> {
-            fn from(value: &'a #collector_ident<'a, 'ctx>) -> Self {
-                DeserializeSerdeContext::new(value.__ctx)
-            }
-        }
-
-        impl<'de, 'a, 'ctx> Visitor<'de> for #collector_ident<'a, 'ctx> {
+        impl<'de, 'a, 'ctx> Visitor<'de> for #outer_collector<'a, 'ctx> {
             type Value = #ident;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 f.write_str(
-                    "either an object with string keys or a sequence of [key, value] entries",
+                    "the form [key, value] to mark [CoreLibId, Value] pair",
                 )
             }
 
-            #visitor_methods
+            #outer_visitor_methods
         }
     };
 
-    (deserialize_impl, visitor_impl)
+    (
+        outer_deserialize_impl,
+        quote! {
+            #inner_visitor_impl
+            #outer_visitor_impl
+        },
+    )
 }
 
-fn generate_visitor_methods_for_named_fields(
+fn generate_inner_visitor_methods_for_named_fields(
     fields: &[NamedField],
 ) -> TokenStream {
     let map_key_deserializers = fields.iter().map(|field| {
@@ -564,7 +625,6 @@ fn generate_visitor_methods_for_named_fields(
     });
 
     quote! {
-        // TODO we could deprecate visit_map and do this in the visit seq, instead of calling visit_map
         fn visit_map<_MapAccess>(mut self, mut map: _MapAccess) -> Result<Self::Value, _MapAccess::Error>
         where
             _MapAccess: MapAccess<'de>,
@@ -581,7 +641,14 @@ fn generate_visitor_methods_for_named_fields(
 
             self.collapse().map_err(|err| _MapAccess::Error::missing_field(err))
         }
+    }
+}
 
+fn generate_outer_visit_seq(
+    inner_wrapper: &Ident,
+    core_lib_name: &Ident,
+) -> TokenStream {
+    quote! {
         fn visit_seq<_SeqAccess>(
             self,
             mut seq: _SeqAccess,
@@ -589,27 +656,6 @@ fn generate_visitor_methods_for_named_fields(
         where
             _SeqAccess: SeqAccess<'de>,
         {
-            use serde::de::{DeserializeSeed, Deserializer, Error, IgnoredAny, Visitor};
-
-            struct MapSeed<V>(V);
-
-            impl<'de, V> DeserializeSeed<'de> for MapSeed<V>
-            where
-                V: Visitor<'de>,
-            {
-                type Value = V::Value;
-
-                fn deserialize<D>(
-                    self,
-                    deserializer: D,
-                ) -> Result<Self::Value, D::Error>
-                where
-                    D: Deserializer<'de>,
-                {
-                    deserializer.deserialize_map(self.0)
-                }
-            }
-
             let core_lib_index: CoreLibIdIndex = seq
                 .next_element()?
                 .ok_or_else(|| {
@@ -619,35 +665,59 @@ fn generate_visitor_methods_for_named_fields(
                     )
                 })?;
 
-            if core_lib_index != CoreLibIdIndex::from(CoreLibBaseTypeId::Map) {
+            if core_lib_index != CoreLibIdIndex::from(CoreLibBaseTypeId::#core_lib_name) {
                 return Err(_SeqAccess::Error::custom(
                     "Invalid core lib id",
                 ));
             }
-
-            let value = seq
-                .next_element_seed(MapSeed(self))?
+            seq
+                .next_element_seed(
+                    #inner_wrapper::new(self.__ctx)
+                )?
                 .ok_or_else(|| {
                     _SeqAccess::Error::invalid_length(
                         1,
                         &"expect two element seq",
                     )
-                })?;
-            // TODO error if more then 2 element in seq?
-            Ok(value)
+                })
         }
     }
 }
 
-fn generate_visitor_methods_for_unnamed_fields(
-    _fields: &[IndexedField],
+fn generate_inner_visitor_methods_for_unnamed_fields(
+    fields: &[IndexedField],
 ) -> TokenStream {
-    quote! {}
+    let list_key_deserializers = fields.iter().map(|field| {
+        let field_index = field.accessor();
+        let normalized_ident = field.normalized_ident();
+        let ty = field.ty();
+
+        match field.field.attributes.field_mapping {
+            FieldMapping::Datex => quote! {
+                let value = seq.next_element_seed(DeserializeSerdeContext::<#ty>::new(self.__ctx))?;
+                self.#normalized_ident = value;
+            },
+            FieldMapping::Serde => quote! {
+                let value_container = seq.next_element_seed(DeserializeSerdeContext::<ValueContainer>::new(self.__ctx))?;
+                let value = try_serde_from_value_container(value_container).map_err(|_err| _SeqAccess::Error::custom(format!("Failed to deserialize index {}", #field_index)))?;
+                self.#normalized_ident = value;
+            }
+        }
+    });
+
+    quote! {
+        fn visit_seq<_SeqAccess>(mut self, mut seq: _SeqAccess) -> Result<Self::Value, _SeqAccess::Error>
+        where
+            _SeqAccess: SeqAccess<'de>,
+        {
+            #(#list_key_deserializers)*
+
+            self.collapse().map_err(|err| _SeqAccess::Error::missing_field(err))
+        }
+    }
 }
 
-fn generate_visitor_methods_for_unit(
-    ident: &syn::Ident,
-) -> TokenStream {
+fn generate_inner_visitor_methods_for_unit(ident: &syn::Ident) -> TokenStream {
     quote! {
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
@@ -681,7 +751,7 @@ fn generate_property_mappings(
 ) -> (Vec<TokenStream>, Vec<TokenStream>, Vec<TokenStream>) {
     fields
         .iter()
-        .map(|field: &dyn AnyField | {
+        .map(|field: &dyn AnyField| {
             let field_ty = field.ty();
             let normalized_ident = field.normalized_ident();
             let field_name = field.original_name();
@@ -699,9 +769,10 @@ fn generate_property_mappings(
             let is_option_field = is_option(field_ty);
 
             // also fall back to default value if not set if datex(default) is set
-            let skip_with_default = field.try_as_named_field().map(|named_field| {
-                named_field.attributes.skip_with_default
-            }).unwrap_or(false);
+            let skip_with_default = field
+                .try_as_named_field()
+                .map(|named_field| named_field.attributes.skip_with_default)
+                .unwrap_or(false);
 
             let field_collapse = if skip_with_default || is_option_field {
                 quote! {
@@ -717,7 +788,6 @@ fn generate_property_mappings(
         })
         .collect()
 }
-
 
 fn is_option(ty: &Type) -> bool {
     match ty {
