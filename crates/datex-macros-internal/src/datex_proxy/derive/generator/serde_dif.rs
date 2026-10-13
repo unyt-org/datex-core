@@ -215,7 +215,7 @@ fn generate_dif_serialize_for_fields(
 
             let len = named_fields.len();
 
-            quote! {
+            quote! {{
                 struct __DatexFieldsMap<'a, 'ctx> {
                     ctx: &'a SerdeContext<'ctx>,
                     #(#field_definitions,)*
@@ -241,7 +241,7 @@ fn generate_dif_serialize_for_fields(
                     ctx,
                     #(#field_initializers,)*
                 }
-            }
+            }}
         }
 
         Fields::Unnamed(unnamed_fields) => {
