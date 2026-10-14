@@ -54,7 +54,7 @@ pub fn generate_impl_glue_code(
             .to_string()
     };
     let name = item.self_ty.to_token_stream().to_string();
-    let prelude = derive_datex_prelude();
+    let prelude = derive_datex_prelude(false);
 
     quote! {
         #input

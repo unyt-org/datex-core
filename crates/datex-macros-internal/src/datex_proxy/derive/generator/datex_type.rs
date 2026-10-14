@@ -74,7 +74,7 @@ pub fn generate_datex_type(structure_data: &StructureData) -> TokenStream {
 
 fn generate_type_registration(structure_data: &StructureData) -> TokenStream {
     let datex_core_crate_name =
-        get_datex_core_crate_name_with_options(&structure_data.attributes);
+        get_datex_core_crate_name_with_options(structure_data.attributes.force_datex_core_namespace);
 
     let StructureData {
         ident,

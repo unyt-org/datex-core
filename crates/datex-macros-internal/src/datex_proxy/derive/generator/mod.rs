@@ -54,7 +54,7 @@ pub fn generate_derive_code(structure_data: StructureData) -> TokenStream {
             _ => quote! {},
         };
 
-    let prelude = derive_datex_prelude();
+    let prelude = derive_datex_prelude(structure_data.attributes.force_datex_core_namespace);
     quote! {
         const _: () = {
             #prelude

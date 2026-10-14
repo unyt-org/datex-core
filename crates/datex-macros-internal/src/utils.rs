@@ -49,8 +49,8 @@ pub fn get_datex_core_crate_name() -> Path {
     }
 }
 
-pub fn derive_datex_prelude() -> TokenStream {
-    let datex_core_crate_name = get_datex_core_crate_name();
+pub fn derive_datex_prelude(force_datex_core_namespace: bool) -> TokenStream {
+    let datex_core_crate_name = get_datex_core_crate_name_with_options(force_datex_core_namespace);
     let is_crate_internal =
         datex_core_crate_name.to_token_stream().to_string() == "crate";
 
@@ -91,9 +91,9 @@ pub fn derive_datex_prelude() -> TokenStream {
 }
 
 pub fn get_datex_core_crate_name_with_options(
-    attributes: &StructureAttributes,
+    force_datex_core_namespace: bool,
 ) -> Path {
-    if attributes.force_datex_core_namespace {
+    if force_datex_core_namespace {
         PathSegment::from(Ident::new("datex_core", Span::call_site())).into()
     } else {
         get_datex_core_crate_name()

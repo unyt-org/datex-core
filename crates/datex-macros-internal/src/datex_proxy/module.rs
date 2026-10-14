@@ -64,7 +64,7 @@ pub fn generate_mod_glue_code(
     // map items to their token streams
     let datex_items: Vec<TokenStream> =
         items.iter().filter_map(map_to_datex_item).collect();
-    let prelude = derive_datex_prelude();
+    let prelude = derive_datex_prelude(false);
     quote! {
         #(#attrs)*
         #vis mod #ident {
