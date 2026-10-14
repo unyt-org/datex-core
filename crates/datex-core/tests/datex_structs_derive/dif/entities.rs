@@ -64,6 +64,7 @@ fn named_entity_struct_from_dif() {
     // type must exist in the runtime cache
     let resolved_type_container = SharedContainer::Referenced(runtime.shared_references_cache().get_owned_reference(&entity_type_ptr_address).unwrap().clone());
 
+
     // explicitly store the resolved type in the values cache to ensure it can be deserialized correctly
     // TODO: test this by first serializing the type?
     let mut values_cache = SharedValuesCache::default();

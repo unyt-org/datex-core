@@ -8,7 +8,10 @@ use crate::{
     values::core_values::callable::Callable,
 };
 mod to_instructions;
+pub mod dyn_deserialize;
+
 use core::fmt::Display;
+use crate::types::entities::entity_type_definition::dyn_deserialize::DeFn;
 
 /// Represents a definition of an "entity" type,
 /// which describes a nominal type identified by a unique pointer id.
@@ -18,6 +21,8 @@ pub struct EntityTypeDefinition {
     pub(crate) name: String,
     pub(crate) allowed_variants: Vec<String>,
     pub(crate) impls: Vec<EntityImpl>,
+    // TODO: dif feature flag?
+    pub(crate) deserialize_from_dif: Option<DeFn>,
 }
 
 impl Display for EntityTypeDefinition {
@@ -36,6 +41,7 @@ impl EntityTypeDefinition {
             name,
             allowed_variants: Vec::new(),
             impls: Vec::new(),
+            deserialize_from_dif: None,
         }
     }
 
@@ -49,11 +55,31 @@ impl EntityTypeDefinition {
             name,
             allowed_variants: Vec::new(),
             impls,
+            deserialize_from_dif: None,
+        }
+    }
+    
+    pub fn new_with_impls_and_deserialize(
+        definition: TypeDefinition,
+        name: String,
+        impls: Vec<EntityImpl>,
+        deserialize_from_dif: Option<DeFn>,
+    ) -> EntityTypeDefinition {
+        EntityTypeDefinition {
+            definition,
+            name,
+            allowed_variants: Vec::new(),
+            impls,
+            deserialize_from_dif,
         }
     }
 
     pub fn impls(&self) -> &[EntityImpl] {
         &self.impls
+    }
+    
+    pub fn deserialize_from_dif(&self) -> Option<&DeFn> {
+        self.deserialize_from_dif.as_ref()
     }
 
     /// Returns a reference to the method for the given method name, if it exists in this implementation.

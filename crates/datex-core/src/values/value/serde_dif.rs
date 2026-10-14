@@ -24,6 +24,7 @@ use serde::{
     de::{Error as DeError, MapAccess, Visitor},
     ser::{SerializeMap, SerializeTuple},
 };
+use crate::types::entities::entity_type_definition::dyn_deserialize::DynSeed;
 
 impl<'ctx> SerdeContext<'ctx> {
     /// This method is used to serialize a value that can be represented directly depending on the flag set (e.g. a boolean or a text)
@@ -315,10 +316,19 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Value> {
             else if key == "c" {
                 classification = map.next_value_seed(self.cast::<ValueClassification>())?;
                 // resolve native value based on entity classification
-                if let Some(entity_type) = classification.entity_type {
-                    todo!("deserialize into entity type: {:#?}", entity_type.shared_container())
+                if let Some(entity_type) = &classification.entity_type &&
+                    let Some(deserialize_fn) = entity_type.entity_definition().deserialize_from_dif {
+                        // next key must be "v" for the value, otherwise error
+                        let key = map.next_key::<String>()?.ok_or_else(|| DeError::custom("Expected key 'v' not found in map"))?;
+                        if key != "v" {
+                            return Err(DeError::custom(format!(
+                                "Expected key 'v' not found in map, found key '{key}' instead"
+                            )));
+                        }
+                        // deserialize via the entity type deserialize function
+                        let value = map.next_value_seed(DynSeed { f: deserialize_fn, ctx: self.ctx })?;
+                        return Ok(value);
                 }
-                // otherwise, continue to the next key to find "v"
             }
             // Normal, non-native core value:
             else if key == "v" {

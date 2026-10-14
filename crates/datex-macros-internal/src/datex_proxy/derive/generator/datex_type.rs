@@ -217,6 +217,7 @@ fn generate_datex_enum_type(enum_ty: &[EnumVariant]) -> TokenStream {
 
 /// Wraps a type definition. Returns a TokenStream of [Type].
 fn generate_type(structure_data: &StructureData) -> TokenStream {
+    let ident = &structure_data.ident;
     let type_definition = match &structure_data.structure {
         Structure::Enum(enum_val) => generate_datex_enum_type(enum_val),
         Structure::Struct(fields) => generate_datex_type_definition(fields),
@@ -251,10 +252,11 @@ fn generate_type(structure_data: &StructureData) -> TokenStream {
 
                         let impls = get_impls_for::<Self>(cache);
 
-                        let definition = EntityTypeDefinition::new_with_impls(
+                        let definition = EntityTypeDefinition::new_with_impls_and_deserialize(
                             type_definition.into(),
                             #name.to_string(),
                             impls,
+                            Some(de_as::<#ident> as DeFn),
                         );
 
                         cache.finish_shared_type(
