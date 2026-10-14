@@ -2,7 +2,7 @@ use core::hash::{Hash, Hasher};
 
 use crate::{
     traits::{
-        datex_hash::DatexHash, dyn_eq::DynEq, structural_eq::StructuralEq,
+        structural_eq::StructuralEq,
         value_eq::ValueEq,
     },
     values::value::Value,
@@ -17,7 +17,7 @@ impl StructuralEq for Value {
                 core_self.structural_eq(core_other)
             }
             (Value::Native(native_self), Value::Native(native_other)) => {
-                native_self.dyn_eq(native_other) // TODO, structural_dyn_eq
+                native_self.structural_eq(native_other)
             }
             _ => {
                 todo!("Structural equality not implemented for these variants")
@@ -38,7 +38,7 @@ impl ValueEq for Value {
 
             // native vs native equality
             (Value::Native(native_self), Value::Native(native_other)) => {
-                native_self.dyn_eq(native_other)
+                native_self.value_eq(native_other)
             }
 
             // core vs native equality

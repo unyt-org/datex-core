@@ -20,6 +20,12 @@ struct NamedExampleEntityStruct {
     b: String,
 }
 
+#[derive(Datex, Debug, Clone, PartialEq)]
+struct NamedExampleEntityStructFake {
+    a: u8,
+    b: String,
+}
+
 #[test]
 fn named_entity_struct_to_dif() {
     let cache = &mut SharedReferencesCache::default();
@@ -91,5 +97,9 @@ fn named_entity_struct_from_dif() {
 
     assert_eq!(deserialized.a, 42);
     assert_eq!(deserialized.b, "Hello, Datex!");
+
+    // cannot deserialize to a different struct with the same fields, as the type pointer address will not match
+    let deserialized_vc: ValueContainer = deserialize_from_dif(&ctx, &json_value);
+    assert!(deserialized_vc.try_into_value::<NamedExampleEntityStructFake>().is_err());
 }
 

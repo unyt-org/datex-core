@@ -19,6 +19,7 @@ mod get_datex_type;
 pub mod goat_helpers;
 mod ops;
 pub mod serde_dif;
+pub mod equality;
 
 use crate::{
     libs::core::type_id::CoreLibTypeId,

@@ -1,4 +1,6 @@
 use core::any::Any;
+use core::fmt::Debug;
+use crate::values::core_values::native::DatexNative;
 
 /// A trait for dynamic equality comparison of types that implement `Any`.
 pub trait DynEq: Any {
@@ -21,7 +23,7 @@ where
 /// This implementation checks if the other type can be downcast to the same type and compares them for equality.
 impl<T> DynEq for T
 where
-    T: Any + PartialEq,
+    T: Any + PartialEq + Debug + DatexNative,
 {
     fn dyn_eq(&self, other: &dyn Any) -> bool {
         other.downcast_ref::<T>() == Some(self)

@@ -168,7 +168,7 @@ async fn call_async_instance_method_from_runtime() {
     // borrows should contain the original example value
     assert_eq!(
         borrows.remove(0),
-        ValueContainer::from(Value::native(Example::new(1, 2)))
+        ValueContainer::Local(Value::native(Example::new(1, 2)))
     );
 }
 
