@@ -158,7 +158,7 @@ impl List {
     /// Returns the previous value at the index if it was replaced.
     pub fn try_set(
         &mut self,
-        index: i64,
+        index: u32,
         value: ValueContainer,
     ) -> Result<ValueContainer, IndexOutOfBoundsError> {
         self.try_set_with_source(index, value, Some(TransceiverId::Local))
@@ -168,7 +168,7 @@ impl List {
     /// If the index is out of bounds, an error is returned.
     pub fn try_delete(
         &mut self,
-        index: i64,
+        index: u32,
     ) -> Result<ValueContainer, IndexOutOfBoundsError> {
         self.try_delete_with_source(index, Some(TransceiverId::Local))
     }

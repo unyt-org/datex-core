@@ -10,7 +10,7 @@ use crate::{
     values::{
         core_values::map::{Map, MapAccessError, MapEntries},
         value::Value,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 use core::mem;
@@ -19,18 +19,16 @@ impl Map {
     /// Removes a key from the map, returning the value if it existed.
     pub fn try_delete_with_source<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
         source: Option<TransceiverId>,
     ) -> Result<ValueContainer, MapAccessError> {
-        let key = key.into();
         let res = match &mut self.entries {
-            MapEntries::Dynamic(map) => key.with_value_container(|key| {
+            MapEntries::Dynamic(map) =>
                 map.shift_remove(key).ok_or_else(|| {
                     MapAccessError::KeyNotFound(KeyNotFoundError::new(
                         key.clone(),
                     ))
-                })
-            }),
+                }),
             MapEntries::Structural(_)
             | MapEntries::StructuralWithStringKeys(_) => {
                 Err(MapAccessError::Immutable)
@@ -39,7 +37,7 @@ impl Map {
         .without_local_observers();
 
         self.maybe_trigger_update_callback(source, || {
-            UpdateOperation::delete_entry(key.into())
+            UpdateOperation::delete_entry(key.clone())
         });
 
         Ok(res)
@@ -51,16 +49,14 @@ impl Map {
     /// The map should no longer be used after this operation.
     pub unsafe fn try_delete_unchecked_with_source<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
         source: Option<TransceiverId>,
     ) -> Result<ValueContainer, KeyNotFoundError> {
-        let key = key.into();
         let res = match &mut self.entries {
-            MapEntries::Dynamic(map) => key.with_value_container(|key| {
+            MapEntries::Dynamic(map) =>
                 map.shift_remove(key)
-                    .ok_or_else(|| KeyNotFoundError::new(key.clone()))
-            }),
-            MapEntries::Structural(vec) => key.with_value_container(|key| {
+                    .ok_or_else(|| KeyNotFoundError::new(key.clone())),
+            MapEntries::Structural(vec) => {
                 for (k, v) in vec.iter_mut() {
                     if k == key {
                         return Ok(core::mem::replace(
@@ -70,9 +66,9 @@ impl Map {
                     }
                 }
                 Err(KeyNotFoundError::new(key.clone()))
-            }),
+            },
             MapEntries::StructuralWithStringKeys(vec) => {
-                if let Some(string) = key.try_as_text() {
+                if let Some(string) = key.try_as::<String>() {
                     for (k, v) in vec.iter_mut() {
                         if k == string {
                             return Ok(core::mem::replace(
@@ -89,7 +85,7 @@ impl Map {
         }?;
 
         self.maybe_trigger_update_callback(source, || {
-            UpdateOperation::delete_entry(key.into())
+            UpdateOperation::delete_entry(key.clone())
         });
 
         Ok(res)
@@ -123,7 +119,7 @@ impl Map {
     /// This is the preferred way to set values in the map.
     pub(crate) fn try_set_with_source<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: impl Into<ValueContainer>,
         value: impl Into<ValueContainer>,
         source: Option<TransceiverId>,
     ) -> Result<Option<ValueContainer>, KeyNotFoundError> {
@@ -139,18 +135,16 @@ impl Map {
 
         let res = match &mut self.entries {
             MapEntries::Dynamic(map) => {
-                Ok(key
-                    .with_value_container(|key| map.insert(key.clone(), value)))
+                Ok(map.insert(key.clone(), value))
             }
-            MapEntries::Structural(vec) => key.with_value_container(|key| {
-                if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == key) {
+            MapEntries::Structural(vec) =>
+                if let Some((_, v)) = vec.iter_mut().find(|(k, _)| k == &key) {
                     Ok(Some(core::mem::replace(v, value)))
                 } else {
                     Err(KeyNotFoundError::new(key.clone()))
-                }
-            }),
+                },
             MapEntries::StructuralWithStringKeys(vec) => {
-                if let Some(string) = key.try_as_text() {
+                if let Some(string) = key.try_as::<String>() {
                     if let Some((_, v)) =
                         vec.iter_mut().find(|(k, _)| k == string)
                     {

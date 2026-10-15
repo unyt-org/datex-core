@@ -12,7 +12,7 @@ use crate::{
             UpdateCallbackDataAccess, UpdateHandlerImpl, UpdateResult,
         },
     },
-    values::{value::Value, value_container::value_key::ValueKey},
+    values::{value::Value, value_container::ValueContainer},
 };
 
 impl InternalMutabilityUpdateHandler for Value {
@@ -42,7 +42,7 @@ impl Value {
     pub(crate) fn try_update_collapsed_local_inner(
         &mut self,
         operation: UpdateOperation,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: Option<TransceiverId>,
         cache: &RefCell<SharedReferencesCache>,
     ) -> UpdateResult {
@@ -97,7 +97,7 @@ mod tests {
         values::{
             core_values::{list::List, map::Map},
             value::Value,
-            value_container::{ValueContainer, value_key::ValueKey},
+            value_container::{ValueContainer},
         },
     };
     use core::{assert_matches, cell::RefCell, ops::Deref};
@@ -118,7 +118,7 @@ mod tests {
             &cache,
         )
         .expect("Failed to push value to list");
-        let updated_value = list.try_get_property(3).unwrap();
+        let updated_value = list.try_get_property(&ValueContainer::from(3)).unwrap();
         assert_eq!(updated_value.try_as::<i32>().unwrap().deref(), &4);
 
         // Try to push to non-list value
@@ -147,7 +147,7 @@ mod tests {
             &cache,
         )
         .expect("Failed to set existing property");
-        let updated_value = map.try_get_property("key1").unwrap();
+        let updated_value = map.try_get_property(&ValueContainer::from("key1")).unwrap();
         assert_eq!(updated_value.try_as::<i32>().unwrap().deref(), &42);
 
         // Set new property
@@ -158,7 +158,7 @@ mod tests {
             &cache,
         );
         assert!(result.is_ok());
-        let new_value = map.try_get_property("new").unwrap();
+        let new_value = map.try_get_property(&ValueContainer::from("new")).unwrap();
         assert_eq!(new_value.try_as::<i32>().unwrap().deref(), &99);
     }
 
@@ -179,7 +179,7 @@ mod tests {
             &cache,
         )
         .expect("Failed to set existing index");
-        let updated_value = list.try_get_property(1).unwrap();
+        let updated_value = list.try_get_property(&ValueContainer::from(1)).unwrap();
         assert_eq!(updated_value.try_as::<i32>().unwrap().deref(), &42);
 
         // Try to set out-of-bounds index
@@ -233,7 +233,7 @@ mod tests {
                 &cache,
             )
             .expect("Failed to set existing property");
-        let name = struct_val.try_get_property("name").unwrap();
+        let name = struct_val.try_get_property(&ValueContainer::from("name")).unwrap();
         assert_eq!(name.try_as::<str>().unwrap().deref(), "Bob");
 
         // Try to set non-existing property
@@ -280,14 +280,14 @@ mod tests {
                     "inner".into(),
                     ValueContainer::from(42),
                 ),
-                vec![ValueKey::Text("outer".to_string())],
+                vec![ValueContainer::local("outer".to_string())],
                 None,
                 &cache,
             )
             .expect("Failed to set existing nested property");
-        let prop = nested_map.try_get_property("outer").unwrap();
+        let prop = nested_map.try_get_property(&ValueContainer::from("outer")).unwrap();
         let inner_value = prop.try_as::<Map>().unwrap();
-        let inner_value = inner_value.try_get("inner").unwrap();
+        let inner_value = inner_value.try_get(&ValueContainer::from("inner")).unwrap();
         assert_eq!(inner_value.try_as::<i32>().unwrap().deref(), &42);
     }
 
@@ -341,12 +341,12 @@ mod tests {
         {
             // get inner list value and check that it has the correct update callback data
             // (should be auto derived for children)
-            let inner = list.try_get_property_mut(0).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(0)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             assert_matches!(inner_list.get_update_callback_data(), Some(UpdateCallbackData {
                 path,
                 ..
-            }) if path == &vec![ValueKey::Index(0)]);
+            }) if path == &vec![ValueContainer::local(0)]);
 
             // reset callback tracking
             callback_updates.borrow_mut().clear();
@@ -368,7 +368,7 @@ mod tests {
                 updates[0].operation(),
                 &UpdateOperation::append_entry(ValueContainer::from(6))
             );
-            assert_eq!(updates[0].path(), &vec![ValueKey::Index(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
         }
 
         // reset callback tracking
@@ -380,7 +380,7 @@ mod tests {
                 0.into(),
                 ValueContainer::from(List::from(vec![7])),
             ),
-            vec![ValueKey::Index(0)],
+            vec![ValueContainer::local(0)],
             Some(TransceiverId::Local),
             &cache,
         )
@@ -396,7 +396,7 @@ mod tests {
                     ValueContainer::from(List::from(vec![7]))
                 )
             );
-            assert_eq!(updates[0].path(), &vec![ValueKey::Index(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
         }
 
         // reset callback tracking
@@ -405,7 +405,7 @@ mod tests {
         // update inner list with normal push method directly
         {
             // get inner list value
-            let inner = list.try_get_property_mut(0).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(0)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             inner_list.push(42);
         }
@@ -417,7 +417,7 @@ mod tests {
                 updates[0].operation(),
                 &UpdateOperation::append_entry(ValueContainer::from(42))
             );
-            assert_eq!(updates[0].path(), &vec![ValueKey::Index(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
         }
 
         // reset callback tracking
@@ -436,12 +436,12 @@ mod tests {
             .unwrap();
 
             // check that the callback data was set on the new inner list
-            let inner = list.try_get_property_mut(1).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(1)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             assert_matches!(inner_list.get_update_callback_data(), Some(UpdateCallbackData {
                 path,
                 ..
-            }) if path == &vec![ValueKey::Index(1)]);
+            }) if path == &vec![ValueContainer::local(1)]);
 
             // check that update callback was triggered
             {
@@ -468,7 +468,7 @@ mod tests {
             let updates = callback_updates.borrow();
             assert_eq!(updates.len(), 1);
             assert_eq!(updates[0].operation(), &UpdateOperation::clear());
-            assert_eq!(updates[0].path(), &vec![ValueKey::Index(1)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(1)]);
         }
     }
 }

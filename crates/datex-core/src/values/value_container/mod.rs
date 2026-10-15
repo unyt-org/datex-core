@@ -1,7 +1,7 @@
 //! This module contains the implementation of the [ValueContainer] enum, which represents a container for values in the DATEX type system.
 //! A [ValueContainer] can either be a local value, which directly contains a [Value], or a shared value, which contains a reference to a [SharedContainer].
 use crate::{
-    utils::sheep::Sheep, values::value_container::value_key::BorrowedValueKey,
+    utils::sheep::Sheep,
 };
 mod equality;
 mod identity;
@@ -24,7 +24,6 @@ pub mod borrowed_value_container;
 
 mod apply;
 mod update_handler;
-pub mod value_key;
 use crate::{
     shared_values::{
         OwnedSharedContainer, ReferencedSharedContainer,
@@ -311,22 +310,6 @@ impl From<OwnedSharedContainer> for ValueContainer {
 impl From<ReferencedSharedContainer> for ValueContainer {
     fn from(shared: ReferencedSharedContainer) -> Self {
         ValueContainer::Shared(shared.into())
-    }
-}
-
-impl<'a> From<BorrowedValueKey<'a>> for ValueContainer {
-    fn from(value_key: BorrowedValueKey) -> Self {
-        match value_key {
-            BorrowedValueKey::Text(text) => {
-                ValueContainer::Local(text.into_owned().into())
-            }
-            BorrowedValueKey::Index(index) => {
-                ValueContainer::Local(index.into())
-            }
-            BorrowedValueKey::Value(value_container) => {
-                value_container.into_owned()
-            }
-        }
     }
 }
 

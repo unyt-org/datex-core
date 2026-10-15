@@ -12,7 +12,7 @@ use crate::{
     values::{
         core_value::CoreValue,
         value::Value,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 
@@ -30,6 +30,7 @@ use crate::{
     prelude::*,
     values::value::value_classification::{ValueClassification, ValueTag},
 };
+use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 pub mod borrowed_core_value_with_classification;
 mod hash;
@@ -129,7 +130,7 @@ impl CoreValueWithClassification {
     /// Takes (removes) a property from the value if applicable (e.g. for map and structs)
     pub fn try_take_property<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, AccessError> {
         // TODO
@@ -139,15 +140,15 @@ impl CoreValueWithClassification {
                 Ok(map.try_delete(key)?)
             }
             CoreValue::List(ref mut list) => {
-                if let Some(index) = key.into().try_as_index() {
-                    Ok(list.try_delete(index)?)
+                if let Some(index) = key.try_as::<u32>() {
+                    Ok(list.try_delete(*index)?)
                 } else {
                     Err(AccessError::InvalidIndexKey)
                 }
             }
             CoreValue::Text(ref text) => {
-                if let Some(index) = key.into().try_as_index() {
-                    let char = text.char_at(index)?;
+                if let Some(index) = key.try_as::<u32>() {
+                    let char = text.char_at(*index)?;                
                     Ok(ValueContainer::from(char.to_string()))
                 } else {
                     Err(AccessError::InvalidIndexKey)
@@ -164,7 +165,7 @@ impl CoreValueWithClassification {
 
     pub fn try_delete_property<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<(), AccessError> {
         match self.inner {
             CoreValue::Map(ref mut map) => {
@@ -173,8 +174,8 @@ impl CoreValueWithClassification {
                 Ok(())
             }
             CoreValue::List(ref mut list) => {
-                if let Some(index) = key.into().try_as_index() {
-                    list.try_delete(index)?;
+                if let Some(index) = key.try_as::<u32>() {
+                    list.try_delete(*index)?;
                     Ok(())
                 } else {
                     Err(AccessError::InvalidIndexKey)
@@ -195,32 +196,31 @@ impl CoreValueWithClassification {
     /// Sets a property on the value if applicable (e.g. for maps)
     pub fn try_set_property<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: impl Into<ValueContainer>,
         val: ValueContainer,
     ) -> Result<(), AccessError> {
         let key = key.into();
-
         match self.inner {
             CoreValue::Map(ref mut map) => {
                 // If the value is an map, set the property
                 map.try_set(key, val)?;
             }
             CoreValue::List(ref mut list) => {
-                if let Some(index) = key.try_as_index() {
-                    list.try_set(index, val)
+                if let Some(index) = key.try_as::<u32>() {
+                    list.try_set(*index, val)
                         .map_err(AccessError::IndexOutOfBounds)?;
                 } else {
                     return Err(AccessError::InvalidIndexKey);
                 }
             }
             CoreValue::Text(ref mut text) => {
-                if let Some(index) = key.try_as_index() {
+                if let Some(index) = key.try_as::<u32>() {
                     if let ValueContainer::Local(Value::Core(v)) = &val
                         && let CoreValue::Text(new_char) = &v.inner
                         && new_char.0.len() == 1
                     {
                         let char = new_char.0.chars().next().unwrap_or('\0');
-                        text.set_char_at(index, char).map_err(|err| {
+                        text.set_char_at(*index, char).map_err(|err| {
                             AccessError::IndexOutOfBounds(err)
                         })?;
                     } else {

@@ -14,7 +14,7 @@ use crate::{
             callable::{Callable, CallableBody},
             native::DatexNative,
         },
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 mod apply;
@@ -80,6 +80,12 @@ pub enum Value {
 impl<T: ConvertValue> From<T> for Value {
     fn from(inner: T) -> Self {
         inner.to_value()
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Value::Native(NativeCoreValue::new(value.to_string()))
     }
 }
 
@@ -304,16 +310,16 @@ impl Value {
     /// Gets a property on the value if applicable (e.g. for map and structs)
     pub fn try_get_property<'a>(
         &self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
-        <Self as ValueAccess>::try_get_property(self, key.into())
+        <Self as ValueAccess>::try_get_property(self, key)
     }
 
     pub fn try_get_property_mut<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainerMut<'_>, AccessError> {
-        <Self as ValueAccess>::try_get_property_mut(self, key.into())
+        <Self as ValueAccess>::try_get_property_mut(self, key)
     }
 
     /// Returns the actual current [TypeDefinition] of the value

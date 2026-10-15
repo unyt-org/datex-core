@@ -145,13 +145,13 @@ fn struct_to_value_container() {
     .into();
 
     let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
-        map.try_get("b").unwrap(),
+        map.try_get(&ValueContainer::from("b")).unwrap(),
         &ValueContainer::from("Test".to_string())
     );
     assert_eq!(
-        map.try_get("c").unwrap(),
+        map.try_get(&ValueContainer::from("c")).unwrap(),
         &ValueContainer::from(Endpoint::default())
     );
 }
@@ -175,8 +175,8 @@ fn skip() {
     .into();
 
     let map = Map::try_cast_from_value_container(value_container).unwrap();
-    assert!(map.has("a"));
-    assert!(!map.has("b"));
+    assert!(map.has(&ValueContainer::from("a")));
+    assert!(!map.has(&ValueContainer::from("b")));
 
     let value_container = ValueContainer::from(map);
     // Attempting to deserialize should fail because the `b` field is skipped and cannot be deserialized
@@ -317,13 +317,13 @@ fn struct_to_value() {
 
     let map = Map::try_cast_from_value_container(ValueContainer::from(value))
         .unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
-        map.try_get("b").unwrap(),
+        map.try_get(&ValueContainer::from("b")).unwrap(),
         &ValueContainer::from("Test".to_string())
     );
     assert_eq!(
-        map.try_get("c").unwrap(),
+        map.try_get(&ValueContainer::from("c")).unwrap(),
         &ValueContainer::from(Endpoint::default())
     );
 }
@@ -340,13 +340,13 @@ fn new_type_struct_to_value() {
 
     let map = Map::try_cast_from_value_container(ValueContainer::from(value))
         .unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
-        map.try_get("b").unwrap(),
+        map.try_get(&ValueContainer::from("b")).unwrap(),
         &ValueContainer::from("Test".to_string())
     );
     assert_eq!(
-        map.try_get("c").unwrap(),
+        map.try_get(&ValueContainer::from("c")).unwrap(),
         &ValueContainer::from(Endpoint::default())
     );
 }
@@ -519,19 +519,19 @@ fn struct_with_serde_to_value_container() {
     let value_container: ValueContainer = serde_example.try_into().unwrap();
 
     let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
-        .try_get("serde")
+        .try_get(&ValueContainer::from("serde"))
         .unwrap()
         .clone()
         .try_into_value()
         .unwrap();
     assert_eq!(
-        serde_map.try_get("inner_a").unwrap(),
+        serde_map.try_get(&ValueContainer::from("inner_a")).unwrap(),
         &ValueContainer::from(1u8)
     );
     assert_eq!(
-        serde_map.try_get("inner_b").unwrap(),
+        serde_map.try_get(&ValueContainer::from("inner_b")).unwrap(),
         &ValueContainer::from("Inner".to_string())
     );
 }
@@ -560,19 +560,19 @@ fn struct_with_serde_infallible_to_value_container() {
     let value_container: ValueContainer = serde_example.into();
 
     let map: Map = Map::try_cast_from_value_container(value_container).unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     let serde_map: Map = map
-        .try_get("serde")
+        .try_get(&ValueContainer::from("serde"))
         .unwrap()
         .clone()
         .try_into_value()
         .unwrap();
     assert_eq!(
-        serde_map.try_get("inner_a").unwrap(),
+        serde_map.try_get(&ValueContainer::from("inner_a")).unwrap(),
         &ValueContainer::from(1u8)
     );
     assert_eq!(
-        serde_map.try_get("inner_b").unwrap(),
+        serde_map.try_get(&ValueContainer::from("inner_b")).unwrap(),
         &ValueContainer::from("Inner".to_string())
     );
 }
@@ -598,9 +598,9 @@ fn struct_with_value_container() {
     let value: Value = example_local.into();
     let map = Map::try_cast_from_value_container(ValueContainer::from(value))
         .unwrap();
-    assert_eq!(map.try_get("a").unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
     assert_eq!(
-        map.try_get("val").unwrap(),
+        map.try_get(&ValueContainer::from("val")).unwrap(),
         &ValueContainer::from("Test".to_string())
     );
 
@@ -621,8 +621,8 @@ fn struct_with_value_container() {
     let value_container_2: ValueContainer = example_shared.into();
 
     let map_2 = Map::try_cast_from_value_container(value_container).unwrap();
-    assert_eq!(map_2.try_get("a").unwrap(), &ValueContainer::from(42u8));
-    assert_eq!(map_2.try_get("val").unwrap(), &shared_container);
+    assert_eq!(map_2.try_get(&ValueContainer::from("a")).unwrap(), &ValueContainer::from(42u8));
+    assert_eq!(map_2.try_get(&ValueContainer::from("val")).unwrap(), &shared_container);
 
     let deserialized_example_shared =
         ExampleWithValueContainer::try_cast_from_value_container(
@@ -659,7 +659,7 @@ fn struct_with_owned_shared_value_container() {
     let map = Map::try_cast_from_value_container(value_container).unwrap();
 
     if let ValueContainer::Shared(SharedContainer::Owned(shared_container)) =
-        map.try_get("owned").unwrap()
+        map.try_get(&ValueContainer::from("owned")).unwrap()
     {
         assert_eq!(*shared_container.pointer_address(), address);
     } else {

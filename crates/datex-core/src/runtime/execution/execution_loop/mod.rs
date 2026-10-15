@@ -101,7 +101,7 @@ use crate::{
         },
         value::Value,
         value_container::{
-            ValueContainer, error::ValueError, value_key::ValueKey,
+            ValueContainer, error::ValueError,
         },
     },
 };
@@ -1106,7 +1106,7 @@ pub gen fn inner_execution_loop(
                                     } else {
                                         let collapsed_value = target.collapsed_value();
                                         collapsed_value.borrow().try_get_property(
-                                            &property_name,
+                                            &ValueContainer::from(property_name),
                                         )
                                             .map(BorrowedValueContainer::try_clone_to_value_container)  // FIXME: no clone?
                                             .map_err(ExecutionError::access_error)?
@@ -1127,7 +1127,7 @@ pub gen fn inner_execution_loop(
                                     let collapsed_value = value_container.collapsed_value();
                                     let res = collapsed_value.borrow()
                                         .try_get_property(
-                                            property_index
+                                            &ValueContainer::from(property_index)
                                         )
                                         .map(BorrowedValueContainer::try_clone_to_value_container) // FIXME: no clone?
                                         .map_err(ExecutionError::access_error)?
@@ -1164,7 +1164,7 @@ pub gen fn inner_execution_loop(
                                     let res = value_container.try_delete_entry(
                                         vec![], // FIXME path
                                         source_id,
-                                        DeleteEntryUpdateData { key: ValueKey::Index(property_index as i64) },
+                                        DeleteEntryUpdateData { key: ValueContainer::local(property_index as i64) },
                                         state.runtime.shared_references_cache_refcell()
                                     ).map_err(ExecutionError::update_error)?;
                                     ValueContainer::new_from_option(res)
@@ -1197,7 +1197,7 @@ pub gen fn inner_execution_loop(
                                     } else {
                                         try_set_property(
                                             target,
-                                            ValueKey::Text(
+                                            ValueContainer::local(
                                                 property_data.0,
                                             ),
                                             value,
@@ -1221,7 +1221,7 @@ pub gen fn inner_execution_loop(
 
                                     let _res = try_set_property(
                                         value_container,
-                                        ValueKey::Index(
+                                        ValueContainer::local(
                                             property_data.0 as i64,
                                         ),
                                         value,
@@ -1245,7 +1245,7 @@ pub gen fn inner_execution_loop(
 
                                     let _res = try_set_property(
                                         value_container,
-                                        ValueKey::Value(key),
+                                        key,
                                         value,
                                         vec![], // FIXME path
                                         source_id,

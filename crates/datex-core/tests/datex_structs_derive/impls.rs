@@ -114,7 +114,7 @@ fn call_instance_method_from_runtime() {
     let example_vc = Value::native(example);
 
     let example_type = Example::datex_type(cache.borrow_mut().deref_mut());
-    let set_a = example_type.try_get_property("set_a".into()).unwrap();
+    let set_a = example_type.try_get_property(&ValueContainer::from("set_a")).unwrap();
     let set_a_callable = set_a.try_as::<Callable>().unwrap();
 
     let (res, mut borrows) = set_a_callable
@@ -148,7 +148,7 @@ async fn call_async_instance_method_from_runtime() {
     let example_type =
         Example::datex_type(runtime.shared_references_cache_mut().deref_mut());
     let async_test =
-        example_type.try_get_property("async_test".into()).unwrap();
+        example_type.try_get_property(&ValueContainer::from("async_test")).unwrap();
     let async_test_callable = async_test.try_as::<Callable>().unwrap();
 
     let (res, mut borrows) = async_test_callable

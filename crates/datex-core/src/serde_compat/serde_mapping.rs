@@ -312,7 +312,7 @@ impl<'de> Deserialize<'de> for CoreValue {
                 let mut map = Map::default();
                 while let Some(key) = access.next_key::<String>()? {
                     let value: ValueContainer = access.next_value()?;
-                    map.set_unchecked(&key, value);
+                    map.set_unchecked(ValueContainer::from(key), value);
                 }
                 Ok(CoreValue::Map(map))
             }

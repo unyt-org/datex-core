@@ -10,7 +10,7 @@ use crate::{
     values::{
         core_value::CoreValue,
         value::Value,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 pub mod equality;
@@ -178,66 +178,62 @@ impl Map {
 
     /// Gets a value in the map by reference.
     /// Returns None if the key is not found.
-    pub fn try_get<'a>(
+    pub fn try_get(
         &self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<&ValueContainer, KeyNotFoundError> {
-        let key = key.into();
         match &self.entries {
             MapEntries::Dynamic(map) => {
-                key.with_value_container(|key| map.get(key))
+                map.get(key)
             }
-            MapEntries::Structural(vec) => key.with_value_container(|key| {
+            MapEntries::Structural(vec) => {
                 vec.iter().find(|(k, _)| k == key).map(|(_, v)| v)
-            }),
+            }
             MapEntries::StructuralWithStringKeys(vec) => {
                 // only works if key is a string
-                if let Some(string) = key.try_as_text() {
+                if let Some(string) = key.try_as::<String>() {
                     vec.iter().find(|(k, _)| k == string).map(|(_, v)| v)
                 } else {
                     None
                 }
             }
         }
-        .ok_or_else(|| KeyNotFoundError::new(key.into()))
+        .ok_or_else(|| KeyNotFoundError::new(key.clone()))
     }
 
     pub fn try_get_mut<'a>(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<&mut ValueContainer, KeyNotFoundError> {
-        let key = key.into();
         match &mut self.entries {
             MapEntries::Dynamic(map) => {
-                key.with_value_container(|key| map.get_mut(key))
+                map.get_mut(key)
             }
-            MapEntries::Structural(vec) => key.with_value_container(|key| {
+            MapEntries::Structural(vec) => {
                 vec.iter_mut().find(|(k, _)| k == key).map(|(_, v)| v)
-            }),
+            }
             MapEntries::StructuralWithStringKeys(vec) => {
                 // only works if key is a string
-                if let Some(string) = key.try_as_text() {
+                if let Some(string) = key.try_as::<String>() {
                     vec.iter_mut().find(|(k, _)| k == string).map(|(_, v)| v)
                 } else {
                     None
                 }
             }
         }
-        .ok_or_else(|| KeyNotFoundError::new(key.into()))
+        .ok_or_else(|| KeyNotFoundError::new(key.clone()))
     }
 
     /// Checks if the map contains the given key.
-    pub fn has<'a>(&self, key: impl Into<BorrowedValueKey<'a>>) -> bool {
+    pub fn has<'a>(&self, key: &ValueContainer) -> bool {
         match &self.entries {
             MapEntries::Dynamic(map) => {
-                key.into().with_value_container(|key| map.contains_key(key))
+                map.contains_key(key)
             }
-            MapEntries::Structural(vec) => key
-                .into()
-                .with_value_container(|key| vec.iter().any(|(k, _)| k == key)),
+            MapEntries::Structural(vec) => vec.iter().any(|(k, _)| k == key),
             MapEntries::StructuralWithStringKeys(vec) => {
                 // only works if key is a string
-                if let Some(string) = key.into().try_as_text() {
+                if let Some(string) = key.try_as::<String>() {
                     vec.iter().any(|(k, _)| k == string)
                 } else {
                     false
@@ -332,9 +328,9 @@ impl Map {
     }
 
     /// Sets a value in the map, panicking if it fails.
-    pub(crate) fn set_unchecked<'a>(
+    pub(crate) fn set_unchecked(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: impl Into<ValueContainer>,
         value: impl Into<ValueContainer>,
     ) {
         self.try_set(key, value)
@@ -342,9 +338,9 @@ impl Map {
     }
 
     /// Removes a key from the map, returning the value if it existed.
-    pub fn try_delete<'a>(
+    pub fn try_delete(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<ValueContainer, MapAccessError> {
         self.try_delete_with_source(key, Some(TransceiverId::Local))
     }
@@ -353,9 +349,10 @@ impl Map {
     /// Also works for structural maps, but creates a map that no longer matches the assumed type.
     /// # Safety
     /// The map should no longer be used after this operation.
-    pub unsafe fn try_delete_unchecked<'a>(
+    /// FIXME: find a way to pass static str keys here
+    pub unsafe fn try_delete_unchecked(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: &ValueContainer,
     ) -> Result<ValueContainer, KeyNotFoundError> {
         unsafe {
             self.try_delete_unchecked_with_source(
@@ -372,9 +369,9 @@ impl Map {
 
     /// Sets a value in the map, returning an error if it fails.
     /// This is the preferred way to set values in the map.
-    pub(crate) fn try_set<'a>(
+    pub(crate) fn try_set(
         &mut self,
-        key: impl Into<BorrowedValueKey<'a>>,
+        key: impl Into<ValueContainer>,
         value: impl Into<ValueContainer>,
     ) -> Result<Option<ValueContainer>, KeyNotFoundError> {
         self.try_set_with_source(key, value.into(), Some(TransceiverId::Local))
@@ -601,8 +598,8 @@ mod tests {
         map.set_unchecked("key1", 42);
         map.set_unchecked("key2", "value2".to_string());
         assert_eq!(map.size(), 2);
-        assert_eq!(map.try_get("key1").unwrap().to_string(), "42");
-        assert_eq!(map.try_get("key2").unwrap().to_string(), "\"value2\"");
+        assert_eq!(map.try_get(&ValueContainer::from("key1")).unwrap().to_string(), "42");
+        assert_eq!(map.try_get(&ValueContainer::from("key2")).unwrap().to_string(), "\"value2\"");
         assert_eq!(map.to_string(), r#"{"key1": 42, "key2": "value2"}"#);
     }
 
@@ -612,7 +609,7 @@ mod tests {
         map.set_unchecked("key1", 42);
         map.set_unchecked("key1", "new_value".to_string());
         assert_eq!(map.size(), 1);
-        assert_eq!(map.try_get("key1").unwrap().to_string(), "\"new_value\"");
+        assert_eq!(map.try_get(&ValueContainer::from("key1")).unwrap().to_string(), "\"new_value\"");
     }
 
     #[test]
@@ -650,7 +647,7 @@ mod tests {
     fn decimal_nan_value_key() {
         let mut map = Map::default();
         let nan_value = ValueContainer::from(Decimal::Nan);
-        map.set_unchecked(&nan_value, "value".to_string());
+        map.set_unchecked(nan_value.clone(), "value".to_string());
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
@@ -660,7 +657,7 @@ mod tests {
         assert!(map.has(&new_nan_value));
 
         // adding new_nan_value should not increase size
-        map.set_unchecked(&new_nan_value, "new_value".to_string());
+        map.set_unchecked(new_nan_value, "new_value".to_string());
         assert_eq!(map.size(), 1);
     }
 
@@ -668,7 +665,7 @@ mod tests {
     fn float_nan_value_key() {
         let mut map = Map::default();
         let nan_value = ValueContainer::from(f64::NAN);
-        map.set_unchecked(&nan_value, "value".to_string());
+        map.set_unchecked(nan_value.clone(), "value".to_string());
         // same NaN value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&nan_value));
@@ -682,7 +679,7 @@ mod tests {
         assert!(!map.has(&float32_nan_value));
 
         // adding new_nan_value should not increase size
-        map.set_unchecked(&new_nan_value, "new_value".to_string());
+        map.set_unchecked(new_nan_value, "new_value".to_string());
         assert_eq!(map.size(), 1);
     }
 
@@ -690,7 +687,7 @@ mod tests {
     fn decimal_zero_value_key() {
         let mut map = Map::default();
         let zero_value = ValueContainer::from(Decimal::Zero);
-        map.set_unchecked(&zero_value, "value".to_string());
+        map.set_unchecked(zero_value.clone(), "value".to_string());
         // same Zero value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_value));
@@ -704,7 +701,7 @@ mod tests {
         assert!(map.has(&neg_zero_value));
 
         // adding neg_zero_value should not increase size
-        map.set_unchecked(&neg_zero_value, "new_value".to_string());
+        map.set_unchecked(neg_zero_value, "new_value".to_string());
         assert_eq!(map.size(), 1);
     }
 
@@ -712,7 +709,7 @@ mod tests {
     fn float_zero_value_key() {
         let mut map = Map::default();
         let zero_value = ValueContainer::from(0.0f64);
-        map.set_unchecked(&zero_value, "value".to_string());
+        map.set_unchecked(zero_value.clone(), "value".to_string());
         // same 0.0 value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_value));
@@ -724,7 +721,7 @@ mod tests {
         assert!(map.has(&neg_zero_value));
 
         // adding neg_zero_value should not increase size
-        map.set_unchecked(&neg_zero_value, "new_value".to_string());
+        map.set_unchecked(neg_zero_value, "new_value".to_string());
         assert_eq!(map.size(), 1);
 
         // new 0.0f32 value should not be found
@@ -737,7 +734,7 @@ mod tests {
         let mut map = Map::default();
         let zero_big_decimal =
             ValueContainer::from(TypedDecimal::Decimal(Decimal::Zero));
-        map.set_unchecked(&zero_big_decimal, "value".to_string());
+        map.set_unchecked(zero_big_decimal.clone(), "value".to_string());
         // same Zero value should be found
         assert_eq!(map.size(), 1);
         assert!(map.has(&zero_big_decimal));
@@ -751,7 +748,7 @@ mod tests {
         assert!(map.has(&neg_zero_big_decimal));
 
         // adding neg_zero_big_decimal should not increase size
-        map.set_unchecked(&neg_zero_big_decimal, "new_value".to_string());
+        map.set_unchecked(neg_zero_big_decimal, "new_value".to_string());
         assert_eq!(map.size(), 1);
     }
 }

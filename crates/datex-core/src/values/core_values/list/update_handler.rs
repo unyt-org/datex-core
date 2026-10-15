@@ -4,7 +4,7 @@ use crate::{
     shared_values::errors::AccessError,
     values::{
         core_values::list::List,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 
@@ -50,10 +50,10 @@ impl UpdateHandlerImpl for List {
         data: SetEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
-        let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
+        let key = data.key.try_as::<u32>().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
         )?;
-        self.try_set_with_source(key, data.value, None)
+        self.try_set_with_source(*key, data.value, None)
             .map(Some)
             .map_err(UpdateError::access_error)
     }
@@ -63,10 +63,10 @@ impl UpdateHandlerImpl for List {
         data: DeleteEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
-        let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
+        let key = data.key.try_as::<u32>().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
         )?;
-        self.try_delete_with_source(key, None)
+        self.try_delete_with_source(*key, None)
             .map_err(UpdateError::access_error)
     }
 

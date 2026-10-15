@@ -9,14 +9,14 @@ use crate::{
         UpdateReturn, errors::UpdateError, update_data::UpdateOperation,
         update_handler::UpdateResult,
     },
-    values::value_container::{ValueContainer, value_key::ValueKey},
+    values::value_container::{ValueContainer},
 };
 
 impl BaseSharedValueContainer {
     pub(crate) fn try_handle_update(
         &mut self,
         operation: UpdateOperation,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         cache: &RefCell<SharedReferencesCache>,
     ) -> UpdateResult {
         self.assert_can_mutate()?;

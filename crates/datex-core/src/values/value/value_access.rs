@@ -8,15 +8,15 @@ use crate::{
             borrowed_value_container::{
                 BorrowedValueContainer, BorrowedValueContainerMut,
             },
-            value_key::BorrowedValueKey,
         },
     },
 };
+use crate::values::value_container::ValueContainer;
 
 impl ValueAccess for Value {
     fn try_get_property(
         &self,
-        key: BorrowedValueKey,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
         match &self {
             Value::Core(core) => core.try_get_property(key),
@@ -32,7 +32,7 @@ impl ValueAccess for Value {
 
     fn try_get_property_mut(
         &mut self,
-        key: BorrowedValueKey,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainerMut<'_>, AccessError> {
         match self {
             Value::Core(core) => core.try_get_property_mut(key),

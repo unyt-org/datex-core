@@ -18,22 +18,22 @@ use crate::{
             borrowed_value_container::{
                 BorrowedValueContainer, BorrowedValueContainerMut,
             },
-            value_key::BorrowedValueKey,
         },
     },
 };
 use core::cell::Ref;
+use crate::values::value_container::ValueContainer;
 
 impl ValueAccess for CoreValueWithClassification {
     fn try_get_property(
         &self,
-        key: BorrowedValueKey,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
         match &self.inner {
             CoreValue::Map(map) => map.try_get_property(key),
             CoreValue::List(list) => list.try_get_property(key),
             CoreValue::Type(Type::Entity(container)) => {
-                if let Some(key) = key.try_as_text() {
+                if let Some(key) = key.try_as::<String>() {
                     let reference = Ref::filter_map(
                         container.entity_definition(),
                         |entity_definition| {
@@ -69,7 +69,7 @@ impl ValueAccess for CoreValueWithClassification {
 
     fn try_get_property_mut(
         &mut self,
-        key: BorrowedValueKey,
+        key: &ValueContainer,
     ) -> Result<BorrowedValueContainerMut<'_>, AccessError> {
         match &mut self.inner {
             CoreValue::Map(map) => map.try_get_property_mut(key),

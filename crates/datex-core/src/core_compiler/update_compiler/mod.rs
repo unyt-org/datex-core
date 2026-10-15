@@ -20,7 +20,7 @@ use crate::{
         AppendEntryUpdateData, DeleteEntryUpdateData, ListSpliceUpdateData,
         ReplaceUpdateData, SetEntryUpdateData, UpdateData, UpdateOperation,
     },
-    values::value_container::value_key::ValueKey,
+    values::value_container::ValueContainer,
 };
 
 /// Compiles an update operation on a shared container into DXB
@@ -162,19 +162,15 @@ pub fn append_set_property_value_key<
     T: BufferProvider + ValueVisitor<'ctx>,
 >(
     context: &mut T,
-    value_key: &ValueKey,
+    value_key: &ValueContainer,
 ) {
-    match *value_key {
-        ValueKey::Text(ref text) => {
-            context.write(RegularInstruction::set_entry_text(text.clone()));
-        }
-        ValueKey::Index(index) => {
-            context.write(RegularInstruction::set_entry_index(index as u32))
-        }
-        ValueKey::Value(ref value) => {
-            context.write(RegularInstruction::set_entry_dynamic());
-            context.visit_value_container(value);
-        }
+    if let Some(string) = value_key.try_as::<String>() {
+        context.write(RegularInstruction::set_entry_text(string.clone()));
+    } else if let Some(index) = value_key.try_as::<u32>() { // TODO: integer conversion
+        context.write(RegularInstruction::set_entry_index(*index));
+    } else {
+        context.write(RegularInstruction::set_entry_dynamic());
+        context.visit_value_container(value_key);
     }
 }
 
@@ -205,7 +201,7 @@ mod tests {
         },
         values::{
             core_values::map::Map,
-            value_container::{ValueContainer, value_key::ValueKey},
+            value_container::{ValueContainer},
         },
     };
 
@@ -213,7 +209,7 @@ mod tests {
     fn test_compile_update_set_entry() {
         let container = SharedContainer::new_owned_with_inferred_allowed_type(
             Map::from(vec![(
-                ValueContainer::from("test_key".to_string()),
+                ValueContainer::from("test_key"),
                 ValueContainer::from(42u8),
             )]),
             SharedContainerMutability::Mutable,
@@ -223,7 +219,7 @@ mod tests {
         let address = container.pointer_address();
 
         let update_data = UpdateData::new(UpdateOperation::set_entry(
-            ValueKey::Text("test_key".to_string()),
+            ValueContainer::from("test_key"),
             ValueContainer::from(100u8),
         ));
 

@@ -139,6 +139,7 @@ pub mod tests {
             value::Value,
         },
     };
+    use crate::values::value_container::ValueContainer;
 
     #[derive(Datex, Clone)]
     #[datex(structural)]
@@ -169,7 +170,7 @@ pub mod tests {
         let setup_data = config_interface.config.try_clone().unwrap();
         let map: Map = setup_data.try_into_value().unwrap();
         assert_eq!(
-            map.try_get("field1")
+            map.try_get(&ValueContainer::from("field1"))
                 .unwrap()
                 .clone()
                 .try_into_value::<String>()
@@ -177,7 +178,7 @@ pub mod tests {
             "value".to_string()
         );
         assert_eq!(
-            map.try_get("field2")
+            map.try_get(&ValueContainer::from("field2"))
                 .unwrap()
                 .clone()
                 .try_into_value::<i32>()

@@ -9,11 +9,11 @@ use crate::{
         borrowed_value_container::{
             BorrowedValueContainer, BorrowedValueContainerMut,
         },
-        value_key::BorrowedValueKey,
     },
 };
 use core::hash::Hash;
 use indexmap::IndexMap;
+use crate::values::value_container::ValueContainer;
 
 impl<K, V> ValueAccess for IndexMap<K, V, RandomState>
 where
@@ -22,14 +22,14 @@ where
 {
     fn try_get_property(
         &self,
-        _key: BorrowedValueKey,
+        _key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
         todo!()
     }
 
     fn try_get_property_mut(
         &mut self,
-        _key: BorrowedValueKey,
+        _key: &ValueContainer,
     ) -> Result<BorrowedValueContainerMut<'_>, AccessError> {
         todo!()
     }

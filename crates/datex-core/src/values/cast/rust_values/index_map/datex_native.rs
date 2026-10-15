@@ -5,7 +5,7 @@ use crate::{
     values::{
         core_values::native::{DatexNative, DatexNativeBase, DatexNativeOps},
         value::Value,
-        value_container::value_key::ValueKey,
+        value_container::ValueContainer,
     },
 };
 use core::{any::Any, hash::Hash};
@@ -37,8 +37,8 @@ where
 {
     fn resolve_value_for_path(
         &mut self,
-        _first: &ValueKey,
-        _remaining_path: &[ValueKey],
+        _first: &ValueContainer,
+        _remaining_path: &[ValueContainer],
     ) -> Result<&mut Value, UpdateError> {
         todo!()
     }

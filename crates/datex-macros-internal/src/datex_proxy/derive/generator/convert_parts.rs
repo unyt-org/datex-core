@@ -321,7 +321,7 @@ fn generate_from_map_parts_for_fields(
                 quote! {
                     #field_ident: {
                         /// SAFETY: parts is not used afterward
-                        let #accessor = unsafe { parts.try_delete_unchecked(#field_name) };
+                        let #accessor = unsafe { parts.try_delete_unchecked(&ValueContainer::from(#field_name)) };
                         #from_value_container
                     },
                 }

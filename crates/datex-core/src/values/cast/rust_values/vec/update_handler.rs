@@ -15,7 +15,7 @@ use crate::{
     },
     values::{
         core_values::native::DatexNativeBase,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 impl<T: DatexNativeBase + 'static> UpdateCallbackDataAccess for Vec<T> {}
@@ -25,7 +25,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
         data: SetEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
-        let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
+        let key = *data.key.try_as::<u32>().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
         )? as usize;
         self.get_mut(key)
@@ -49,7 +49,7 @@ impl<T: DatexNativeBase + 'static> UpdateHandlerImpl for Vec<T> {
         data: DeleteEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
-        let key = BorrowedValueKey::from(data.key).try_as_index().ok_or_else(
+        let key = *data.key.try_as::<u32>().ok_or_else(
             || UpdateError::access_error(AccessError::InvalidIndexKey),
         )? as usize;
         let removed = self.try_remove(key).ok_or_else(|| {

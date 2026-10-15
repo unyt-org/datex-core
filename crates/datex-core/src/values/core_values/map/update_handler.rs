@@ -2,7 +2,7 @@ use crate::{
     runtime::cache::shared_references_cache::SharedReferencesCache,
     values::{
         core_values::map::Map,
-        value_container::{ValueContainer, value_key::BorrowedValueKey},
+        value_container::{ValueContainer},
     },
 };
 
@@ -15,6 +15,7 @@ use crate::value_updates::{
     },
 };
 use core::{cell::RefCell, result::Result};
+use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 impl InternalMutabilityUpdateHandler for Map {
     fn set_update_callback_data(
@@ -48,8 +49,7 @@ impl UpdateHandlerImpl for Map {
         data: SetEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<Option<ValueContainer>, UpdateError> {
-        let key = BorrowedValueKey::from(data.key);
-        self.try_set_with_source(key, data.value, None)
+        self.try_set_with_source(data.key, data.value, None)
             .map_err(UpdateError::access_error)
     }
 
@@ -58,8 +58,7 @@ impl UpdateHandlerImpl for Map {
         data: DeleteEntryUpdateData,
         _cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
-        let key = BorrowedValueKey::from(data.key);
-        self.try_delete_with_source(key, None)
+        self.try_delete_with_source(&data.key, None)
             .map_err(UpdateError::access_error)
     }
 

@@ -919,9 +919,9 @@ mod tests {
         info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(map.try_get("x"), Ok(&Integer::from(1).into()));
-        assert_eq!(map.try_get("y"), Ok(&Integer::from(2).into()));
-        assert_eq!(map.try_get("z"), Ok(&Integer::from(42).into()));
+        assert_eq!(map.try_get(&ValueContainer::from("x")), Ok(&Integer::from(1).into()));
+        assert_eq!(map.try_get(&ValueContainer::from("y")), Ok(&Integer::from(2).into()));
+        assert_eq!(map.try_get(&ValueContainer::from("z")), Ok(&Integer::from(42).into()));
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![

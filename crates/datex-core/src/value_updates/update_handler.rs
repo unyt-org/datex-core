@@ -15,7 +15,7 @@ use crate::{
     },
     values::{
         value::Value,
-        value_container::{ValueContainer, value_key::ValueKey},
+        value_container::{ValueContainer},
     },
 };
 use core::{
@@ -44,7 +44,7 @@ pub trait UpdateHandler {
 
     fn try_set_entry(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: SetEntryUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -63,7 +63,7 @@ pub trait UpdateHandler {
 
     fn try_delete_entry(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: DeleteEntryUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -82,7 +82,7 @@ pub trait UpdateHandler {
 
     fn try_append_entry(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: AppendEntryUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -106,7 +106,7 @@ pub trait UpdateHandler {
 
     fn try_clear(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         cache: &RefCell<SharedReferencesCache>,
     ) -> Result<ValueContainer, UpdateError> {
@@ -125,7 +125,7 @@ pub trait UpdateHandler {
 
     fn try_list_splice(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: ListSpliceUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -148,7 +148,7 @@ pub trait UpdateHandler {
 
     fn try_increment(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: IncrementUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -171,7 +171,7 @@ pub trait UpdateHandler {
     }
     fn try_decrement(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: DecrementUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -194,7 +194,7 @@ pub trait UpdateHandler {
     }
     fn try_replace(
         &mut self,
-        path: Vec<ValueKey>,
+        path: Vec<ValueContainer>,
         source_id: TransceiverId,
         data: ReplaceUpdateData,
         cache: &RefCell<SharedReferencesCache>,
@@ -221,12 +221,12 @@ pub trait UpdateHandler {
 /// by a shared container
 pub struct UpdateCallbackData {
     pub callback: ObserverCallback,
-    pub path: Vec<ValueKey>,
+    pub path: Vec<ValueContainer>,
 }
 impl UpdateCallbackData {
     /// Creates a new UpdateCallbackData with the same callback,
     /// appending the provided child_key to the path.
-    pub fn with_child_path(&self, child_key: impl Into<ValueKey>) -> Self {
+    pub fn with_child_path(&self, child_key: impl Into<ValueContainer>) -> Self {
         let mut new_path = self.path.clone();
         new_path.push(child_key.into());
         UpdateCallbackData {
@@ -260,7 +260,7 @@ pub trait InternalMutabilityUpdateHandler: UpdateCallbackDataAccess {
     /// Updates the update callback data for a child value based on the current update callback data of the parent.
     fn set_child_update_callback_data(
         &self,
-        child_key: impl Into<ValueKey>,
+        child_key: impl Into<ValueContainer>,
         child_value: &mut Value,
     ) {
         if let Some(callback_data) = self.get_update_callback_data() {
@@ -275,7 +275,7 @@ pub trait InternalMutabilityUpdateHandler: UpdateCallbackDataAccess {
     /// based on the current update callback data of the parent.
     fn set_child_update_callback_data_if_local(
         &self,
-        child_key: &(impl Into<ValueKey> + Clone),
+        child_key: &(impl Into<ValueContainer> + Clone),
         child_value: &mut ValueContainer,
     ) {
         if let ValueContainer::Local(child_value) = child_value {

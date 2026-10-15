@@ -54,10 +54,9 @@ impl Text {
     pub fn as_string(&self) -> String {
         self.0.clone()
     }
-    pub fn char_at(&self, index: i64) -> Result<char, IndexOutOfBoundsError> {
-        let index = self.wrap_index(index);
-        self.0.chars().nth(index).ok_or(IndexOutOfBoundsError {
-            index: index as u32,
+    pub fn char_at(&self, index: u32) -> Result<char, IndexOutOfBoundsError> {
+        self.0.chars().nth(index as usize).ok_or(IndexOutOfBoundsError {
+            index,
         })
     }
 
@@ -182,12 +181,11 @@ impl Text {
     }
     pub fn set_char_at(
         &mut self,
-        index: i64,
+        index: u32,
         c: char,
     ) -> Result<(), IndexOutOfBoundsError> {
-        let index = self.get_valid_index(index)?;
         let mut chars: Vec<char> = self.0.chars().collect();
-        chars[index] = c;
+        chars[index as usize] = c;
         self.0 = chars.iter().collect();
         Ok(())
     }

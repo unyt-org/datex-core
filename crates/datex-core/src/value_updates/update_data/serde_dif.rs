@@ -13,7 +13,7 @@ use crate::{
         ReplaceUpdateData, SetEntryUpdateData, Update, UpdateData,
         UpdateOperation,
     },
-    values::value_container::value_key::ValueKey,
+    values::value_container::ValueContainer,
 };
 use core::fmt;
 use serde::{
@@ -71,6 +71,21 @@ impl SerializeWithSerdeContext for Update {
     }
 }
 
+impl SerializeWithSerdeContext for &[ValueContainer] {
+    fn serialize_with_ctx<S: serde::Serializer>(
+        &self,
+        ctx: &SerdeContext<'_>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut seq_serializer = serializer.serialize_seq(Some(self.len()))?;
+        for key in *self {
+            seq_serializer
+                .serialize_element(&ValueWithSerdeContext::new(key, ctx))?;
+        }
+        seq_serializer.end()
+    }
+}
+
 impl<'de> DeserializeWithSerdeContext<'de> for Update {
     fn deserialize_with_ctx<D: Deserializer<'de>>(
         ctx: &SerdeContext<'_>,
@@ -97,7 +112,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Update> {
             .ok_or_else(|| de::Error::invalid_length(1, &self))?;
 
         let path = seq
-            .next_element_seed(self.cast::<Vec<ValueKey>>())?
+            .next_element_seed(self.cast::<Vec<ValueContainer>>())?
             .ok_or_else(|| de::Error::invalid_length(2, &self))?;
 
         let kind: String = seq

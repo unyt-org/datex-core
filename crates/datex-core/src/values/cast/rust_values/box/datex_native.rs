@@ -8,7 +8,7 @@ use crate::{
     values::{
         core_values::native::{DatexNative, DatexNativeOps},
         value::Value,
-        value_container::{ValueContainer, value_key::ValueKey},
+        value_container::{ValueContainer},
     },
 };
 use core::any::Any;
@@ -26,15 +26,15 @@ impl<T: DatexNative + GetDatexType + Classification> DatexNativeOps for Box<T> {
 impl<T: LocalChildPathResolver> LocalChildPathResolver for Box<T> {
     fn resolve_child(
         &mut self,
-        key: &ValueKey,
+        key: &ValueContainer,
     ) -> Result<&mut ValueContainer, UpdateError> {
         self.as_mut().resolve_child(key)
     }
 
     fn resolve_value_for_path(
         &mut self,
-        first: &ValueKey,
-        remaining_path: &[ValueKey],
+        first: &ValueContainer,
+        remaining_path: &[ValueContainer],
     ) -> Result<&mut Value, UpdateError> {
         self.as_mut().resolve_value_for_path(first, remaining_path)
     }

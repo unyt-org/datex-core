@@ -12,16 +12,16 @@ use crate::{
         update_data::{SetEntryUpdateData, UpdateOperation},
         update_handler::UpdateHandler,
     },
-    values::value_container::{ValueContainer, value_key::ValueKey},
+    values::value_container::{ValueContainer},
 };
 
 /// Sets a property on the target [ValueContainer] using the provided key and value.
 /// If the property cannot be set, an [ExecutionError::UpdateError] is returned.
 pub fn try_set_property(
     target: &mut ValueContainer,
-    key: ValueKey,
+    key: ValueContainer,
     value: ValueContainer,
-    path: Vec<ValueKey>,
+    path: Vec<ValueContainer>,
     transceiver_id: TransceiverId,
     cache: &RefCell<SharedReferencesCache>,
 ) -> Result<Option<ValueContainer>, ExecutionError> {

@@ -9,16 +9,16 @@ use crate::{
         serde_context::SerdeContext,
         value_with_serde_context::ValueWithSerdeContext,
     },
-    values::value_container::{ValueContainer, value_key::ValueKey},
+    values::value_container::{ValueContainer},
 };
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct SetEntryUpdateData {
-    pub key: ValueKey,
+    pub key: ValueContainer,
     pub value: ValueContainer,
 }
 impl SetEntryUpdateData {
-    pub fn new(key: ValueKey, value: ValueContainer) -> Self {
+    pub fn new(key: ValueContainer, value: ValueContainer) -> Self {
         SetEntryUpdateData { key, value }
     }
 }
@@ -50,7 +50,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let key = seq
-            .next_element_seed(self.cast::<ValueKey>())?
+            .next_element_seed(self.cast::<ValueContainer>())?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
 
         let value = seq

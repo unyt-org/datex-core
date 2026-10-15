@@ -58,7 +58,7 @@ mod tests {
         value_updates::update_data::{UpdateData, UpdateOperation},
         values::{
             core_values::list::List,
-            value_container::{ValueContainer, value_key::ValueKey},
+            value_container::{ValueContainer},
         },
     };
     use alloc::rc::Rc;
@@ -165,7 +165,7 @@ mod tests {
                     TransceiverId::Local,
                     UpdateData::new_with_path(
                         UpdateOperation::append_entry(ValueContainer::from(2),),
-                        vec![ValueKey::Index(0)]
+                        vec![ValueContainer::local(0)]
                     )
                 )
             )

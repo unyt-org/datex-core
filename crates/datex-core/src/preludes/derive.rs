@@ -91,7 +91,7 @@ macro_rules! derive_prelude {
                     BorrowedValueContainer, BorrowedValueContainerMut,
                 },
                 value_container::{
-                    ValueContainer, value_key::BorrowedValueKey,
+                    ValueContainer,
                 },
             },
             types::entities::entity_type_definition::dyn_deserialize::{DeFn, de_as}

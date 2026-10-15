@@ -41,7 +41,6 @@ where
     ) -> Result<Option<ValueContainer>, UpdateError> {
         let key = data
             .key
-            .into_value_container()
             .try_into_value()
             .map_err(|_| UpdateError::type_error(TypeError::Invalid))?;
         let value = data
@@ -60,7 +59,6 @@ where
     ) -> Result<ValueContainer, UpdateError> {
         let key = data
             .key
-            .into_value_container()
             .try_into_value::<K>()
             .map_err(|_| UpdateError::type_error(TypeError::Invalid))?;
 

@@ -1,4 +1,4 @@
-use crate::values::value_container::value_key::ValueKey;
+use crate::values::value_container::ValueContainer;
 use core::fmt;
 
 use crate::dif::{
@@ -13,10 +13,10 @@ use serde::{
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct DeleteEntryUpdateData {
-    pub key: ValueKey,
+    pub key: ValueContainer,
 }
 impl DeleteEntryUpdateData {
-    pub fn new(key: ValueKey) -> Self {
+    pub fn new(key: ValueContainer) -> Self {
         DeleteEntryUpdateData { key }
     }
 }
@@ -48,7 +48,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         mut seq: A,
     ) -> Result<Self::Value, A::Error> {
         let key = seq
-            .next_element_seed(self.cast::<ValueKey>())?
+            .next_element_seed(self.cast::<ValueContainer>())?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
 
         Ok(DeleteEntryUpdateData { key })

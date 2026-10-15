@@ -2,7 +2,7 @@ use crate::{
     value_updates::errors::UpdateError,
     values::{
         value::Value,
-        value_container::{ValueContainer, value_key::ValueKey},
+        value_container::{ValueContainer},
     },
 };
 
@@ -11,15 +11,15 @@ use crate::{
 pub trait LocalChildPathResolver {
     fn resolve_child(
         &mut self,
-        _key: &ValueKey,
+        _key: &ValueContainer,
     ) -> Result<&mut ValueContainer, UpdateError> {
         Err(UpdateError::InvalidUpdate)
     }
 
     fn resolve_value_for_path(
         &mut self,
-        first: &ValueKey,
-        remaining_path: &[ValueKey],
+        first: &ValueContainer,
+        remaining_path: &[ValueContainer],
     ) -> Result<&mut Value, UpdateError> {
         let child = self.resolve_child(first)?;
 
