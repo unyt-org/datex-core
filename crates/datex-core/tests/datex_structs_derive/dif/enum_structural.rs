@@ -1,4 +1,3 @@
-use core::cell::RefCell;
 use datex_core::{
     dif::{
         deserialize_with_serde_context::DeserializeWithSerdeContext,
@@ -93,7 +92,7 @@ fn enum_struct_roundtrip() {
         "t": "Struct",
         "v": {
             "x": "test",
-            "y": 24
+            "y": [CoreLibIdIndex::from(CoreLibVariantTypeId::Integer(IntegerTypeVariant::U16)), 24]
         }
     });
     println!("json_value: {json_value:#}");
@@ -117,10 +116,10 @@ fn enum_tuple_single_roundtrip() {
     println!("json_value: {json_value:#}");
     assert_eq!(serialized, json_value);
 
-    // let deserialized: ExampleEnum =
-    //     deserialize_from_dif_default_ctx(&json_value);
+    let deserialized: ExampleEnum =
+        deserialize_from_dif_default_ctx(&json_value);
 
-    // assert_eq!(deserialized, variant);
+    assert_eq!(deserialized, variant);
 }
 
 #[test]
@@ -130,15 +129,18 @@ fn enum_tuple_multiple_roundtrip() {
     let json_value = serde_json::json!({
         "_": "t",
         "t": "TupleMultiple",
-        "v": [[CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"], 42]
+        "v": [
+            [CoreLibIdIndex::from(CoreLibBaseTypeId::Endpoint), "@jonas"], 
+            [CoreLibIdIndex::from(CoreLibVariantTypeId::Integer(IntegerTypeVariant::U8)), 42]
+        ]
     });
     println!("json_value: {json_value:#}");
     assert_eq!(serialized, json_value);
 
-    // let deserialized: ExampleEnum =
-    //     deserialize_from_dif_default_ctx(&json_value);
+    let deserialized: ExampleEnum =
+        deserialize_from_dif_default_ctx(&json_value);
 
-    // assert_eq!(deserialized, variant);
+    assert_eq!(deserialized, variant);
 }
 
 #[test]
@@ -153,8 +155,8 @@ fn enum_unit_roundtrip() {
     println!("json_value: {json_value:#}");
     assert_eq!(serialized, json_value);
 
-    // let deserialized: ExampleEnum =
-    //     deserialize_from_dif_default_ctx(&json_value);
+    let deserialized: ExampleEnum =
+        deserialize_from_dif_default_ctx(&json_value);
 
-    // assert_eq!(deserialized, variant);
+    assert_eq!(deserialized, variant);
 }

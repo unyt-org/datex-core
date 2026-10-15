@@ -150,14 +150,6 @@ pub enum InterfacePriority {
     Priority(u16),
 }
 
-#[derive(Datex)]
-#[datex(structural)]
-pub enum WTFENUM {
-    WhateverA(u16, i32),
-    WhateverB(String, i8),
-    WhateverC { hello: i8 },
-}
-
 impl From<Option<u16>> for InterfacePriority {
     fn from(value: Option<u16>) -> Self {
         match value {

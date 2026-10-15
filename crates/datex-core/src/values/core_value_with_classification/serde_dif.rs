@@ -223,6 +223,16 @@ impl<'de, 'a, 'ctx> Visitor<'de>
 
         while let Some(field) = map.next_key::<String>()? {
             match field.as_str() {
+                "_" => {
+                    // if is "_" key, skip it (but expect value to be "t")
+                    let marker: String = map.next_value()?;
+                    if marker != "t" {
+                        return Err(A::Error::custom(format!(
+                            "Expected '_' key to have value 't' for DIF value with tag, but got: {}",
+                            marker
+                        )));
+                    }
+                }
                 "v" => {
                     core_value =
                         Some(map.next_value_seed(self.cast::<CoreValue>())?);
