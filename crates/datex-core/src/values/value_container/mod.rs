@@ -45,6 +45,8 @@ use core::{
     ops::FnOnce,
 };
 use serde::Serialize;
+use crate::instruction::regular_instruction::RegularInstruction;
+use crate::values::core_values::text::Text;
 
 pub mod classification;
 pub mod convert_parts;
@@ -152,6 +154,21 @@ impl ValueContainer {
         T::try_borrow_mut_from_value_container(self).ok()
     }
 
+    /// Tries to get an immutable reference to the value as a string slice.
+    /// Does not perform any type conversion.
+    /// In contrast to [ValueContainer::try_as::<String>()], this method also works for [Text] values containing a static string slice.
+    pub fn try_as_str(&self) -> Option<&str> {
+        if let Some(string) = self.try_as::<String>() {
+            Some(string.as_str())
+        }
+        // FIXME: must be handled explicitly because 'static str cannot be converted to String
+        else if let Some(text) = self.try_as::<Text>() {
+            Some(text.as_str())
+        } else {
+            None
+        }
+    }
+    
     /// Tries to get the current collapsed value as a specified type.
     /// Does not perform any type conversion.
     /// This only works for local values, not for shared values.

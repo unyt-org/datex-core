@@ -212,11 +212,11 @@ mod tests {
         let cache = RefCell::new(SharedReferencesCache::default());
         let mut struct_val = Value::from(Map::from(vec![
             (
-                ValueContainer::from("name".to_string()),
-                ValueContainer::from("Alice".to_string()),
+                ValueContainer::from("name"),
+                ValueContainer::from("Alice"),
             ),
             (
-                ValueContainer::from("age".to_string()),
+                ValueContainer::from("age"),
                 ValueContainer::from(30),
             ),
         ]));

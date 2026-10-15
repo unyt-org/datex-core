@@ -49,7 +49,7 @@ use crate::{
     utils::impl_display_for_datex_value::impl_display_for_datex_value,
     value_updates::update_handler::InternalMutabilityUpdateHandler,
     values::{
-        core_values::{endpoint::Endpoint, native::NativeCoreValue},
+        core_values::{endpoint::Endpoint, text::Text, native::NativeCoreValue},
         value::value_classification::{
             ValueClassification,
             unresolved_value_classification::UnresolvedValueClassification,
@@ -83,9 +83,9 @@ impl<T: ConvertValue> From<T> for Value {
     }
 }
 
-impl From<&str> for Value {
-    fn from(value: &str) -> Self {
-        Value::Native(NativeCoreValue::new(value.to_string()))
+impl From<&'static str> for Value {
+    fn from(value: &'static str) -> Self {
+        Value::core(CoreValue::Text(Text::StaticStr(value)))
     }
 }
 

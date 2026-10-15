@@ -22,6 +22,7 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
+use crate::values::core_values::text::Text;
 
 /// Compiles an update operation on a shared container into DXB
 /// e.g. [UpdateData::SetEntry] to $x.a = b;
@@ -164,9 +165,10 @@ pub fn append_set_property_value_key<
     context: &mut T,
     value_key: &ValueContainer,
 ) {
-    if let Some(string) = value_key.try_as::<String>() {
-        context.write(RegularInstruction::set_entry_text(string.clone()));
-    } else if let Some(index) = value_key.try_as::<u32>() { // TODO: integer conversion
+    if let Some(string) = value_key.try_as_str() {
+        context.write(RegularInstruction::set_entry_text(string.to_string()));
+    }
+    else if let Some(index) = value_key.try_as::<u32>() { // TODO: integer conversion
         context.write(RegularInstruction::set_entry_index(*index));
     } else {
         context.write(RegularInstruction::set_entry_dynamic());
