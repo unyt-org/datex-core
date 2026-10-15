@@ -58,7 +58,7 @@ impl From<String> for LiteralTypeDefinition {
 }
 impl From<&str> for LiteralTypeDefinition {
     fn from(value: &str) -> Self {
-        LiteralTypeDefinition::Text(value.into())
+        LiteralTypeDefinition::Text(Text::String(value.to_string()))
     }
 }
 

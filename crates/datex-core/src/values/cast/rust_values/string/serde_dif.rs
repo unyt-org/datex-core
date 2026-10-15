@@ -29,7 +29,7 @@ impl<'de> DeserializeWithSerdeContext<'de> for String {
         deserializer: D,
     ) -> Result<Self, D::Error> {
         match ctx.deserialize_core_value(deserializer)? {
-            CoreValue::Text(val) => Ok(val.0),
+            CoreValue::Text(val) => Ok(val.to_string()),
             _ => Err(D::Error::custom("Expected CoreValue::Text")),
         }
     }

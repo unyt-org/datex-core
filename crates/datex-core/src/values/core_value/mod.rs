@@ -151,13 +151,13 @@ impl CoreValue {
     pub fn cast_to_text(&self) -> Text {
         match self {
             CoreValue::Text(text) => text.clone(),
-            _ => Text(self.to_string()),
+            _ => Text::String(self.to_string()),
         }
     }
 
     pub fn cast_to_bool(&self) -> Option<Boolean> {
         match self {
-            CoreValue::Text(text) => Some(Boolean(!text.0.is_empty())),
+            CoreValue::Text(text) => Some(Boolean(!text.as_str().is_empty())),
             CoreValue::Boolean(bool) => Some(bool.clone()),
             CoreValue::TypedInteger(int) => Some(Boolean(int.as_i128()? != 0)),
             CoreValue::Null => Some(Boolean(false)),

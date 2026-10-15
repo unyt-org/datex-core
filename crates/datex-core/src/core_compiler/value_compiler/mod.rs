@@ -544,7 +544,7 @@ pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
             inner: CoreValue::Text(text),
             ..
         })) => {
-            append_key_string(context, &text.0);
+            append_key_string(context, text.as_str());
         }
         _ => {
             context.write(RegularInstruction::key_value_dynamic());
@@ -559,15 +559,15 @@ pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
 #[deprecated(note = "Use ToInstructions trait instead")]
 pub fn append_key_string<T: BufferProvider>(
     context: &mut T,
-    key_string: &String,
+    key_string: &str,
 ) {
     if key_string.len() < 256 {
         context.write(RegularInstruction::key_value_short_text(
-            key_string.clone(),
+            key_string.to_string(),
         ));
     } else {
         context.write(RegularInstruction::key_value_dynamic());
-        context.write(RegularInstruction::text(key_string.clone()));
+        context.write(RegularInstruction::text(key_string.to_string()));
     }
 }
 

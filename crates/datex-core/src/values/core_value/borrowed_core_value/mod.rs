@@ -133,7 +133,7 @@ impl<'a> From<&'a CoreValue> for BorrowedCoreValue<'a> {
                 BorrowedCoreValue::TypedDecimal(Goat::Borrowed(typed_decimal))
             }
             CoreValue::Text(text) => {
-                BorrowedCoreValue::Text(Goat::Borrowed(&text.0))
+                BorrowedCoreValue::Text(Goat::Borrowed(&text.as_str()))
             }
             CoreValue::Endpoint(endpoint) => {
                 BorrowedCoreValue::Endpoint(Goat::Borrowed(endpoint))
@@ -278,7 +278,7 @@ impl<'a> From<&'a mut CoreValue> for BorrowedCoreValueMut<'a> {
                 ))
             }
             CoreValue::Text(text) => {
-                BorrowedCoreValueMut::Text(GoatMut::Borrowed(&mut text.0))
+                BorrowedCoreValueMut::Text(GoatMut::Borrowed(text.try_as_mut_str().expect("fixme")))
             }
             CoreValue::Endpoint(endpoint) => {
                 BorrowedCoreValueMut::Endpoint(GoatMut::Borrowed(endpoint))

@@ -121,7 +121,7 @@ impl CoreLibraryValues {
             },
         ))) = args.first().map(|v| &v.value)
         {
-            output.push_str(&text.0);
+            output.push_str(text.as_str());
             // if there are still values after the string, add a space
             if args.len() > 1 {
                 output.push(' ');

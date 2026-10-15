@@ -15,7 +15,7 @@ impl Serialize for Text {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0)
+        serializer.serialize_str(self.as_str())
     }
 }
 
@@ -40,6 +40,6 @@ impl<'de> DeserializeWithSerdeContext<'de> for Text {
         deserializer: D,
     ) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Ok(Text(s))
+        Ok(Text::String(s))
     }
 }

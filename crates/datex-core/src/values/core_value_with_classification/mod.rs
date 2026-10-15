@@ -30,6 +30,7 @@ use crate::{
     prelude::*,
     values::value::value_classification::{ValueClassification, ValueTag},
 };
+use crate::values::core_values::text::SetCharAtError;
 use crate::values::value_container::borrowed_value_container::BorrowedValueContainer;
 
 pub mod borrowed_core_value_with_classification;
@@ -217,11 +218,16 @@ impl CoreValueWithClassification {
                 if let Some(index) = key.try_as::<u32>() {
                     if let ValueContainer::Local(Value::Core(v)) = &val
                         && let CoreValue::Text(new_char) = &v.inner
-                        && new_char.0.len() == 1
+                        && new_char.len() == 1
                     {
-                        let char = new_char.0.chars().next().unwrap_or('\0');
+                        let char = new_char.as_str().chars().next().unwrap_or('\0');
                         text.set_char_at(*index, char).map_err(|err| {
-                            AccessError::IndexOutOfBounds(err)
+                            match err {
+                                SetCharAtError::IndexOutOfBoundsError(err) => AccessError::IndexOutOfBounds(err),
+                                SetCharAtError::NotMutableError => AccessError::InvalidOperation(
+                                    "Cannot set char in non-mutable text".to_string(),
+                                ),
+                            }
                         })?;
                     } else {
                         return Err(AccessError::InvalidOperation(

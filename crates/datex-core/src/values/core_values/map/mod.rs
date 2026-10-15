@@ -276,9 +276,9 @@ impl Map {
                         },
                     )) = key
                     {
-                        if !allowed.contains(&text.0.as_str()) {
+                        if !allowed.contains(&text.as_str()) {
                             return Err(UnexpectedPropertyError {
-                                key: text.0.clone(),
+                                key: text.to_string(),
                             });
                         }
                     } else {

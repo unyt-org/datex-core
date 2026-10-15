@@ -42,6 +42,7 @@ use serde::{
     de::{DeserializeSeed, SeqAccess, Visitor},
 };
 use serde_with::__private__::DeError;
+use crate::values::core_values::text::Text;
 
 impl SerializeWithSerdeContext for CoreValue {
     fn serialize_with_ctx<S: Serializer>(
@@ -188,7 +189,7 @@ impl<'de, 'a, 'ctx> Visitor<'de>
     where
         E: DeError,
     {
-        Ok(CoreValue::Text(v.into()))
+        Ok(CoreValue::Text(Text::String(v.to_string())))
     }
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
@@ -707,7 +708,7 @@ impl<'de, 'a, 'ctx> Visitor<'de> for CoreValueVisitor<'a, 'ctx> {
     {
         match self.core_lib_id {
             CoreLibTypeId::Base(CoreLibBaseTypeId::Text) => {
-                Ok(CoreValue::Text(v.into()))
+                Ok(CoreValue::Text(Text::String(v.to_string())))
             }
             CoreLibTypeId::Base(CoreLibBaseTypeId::Endpoint) => {
                 Ok(CoreValue::Endpoint(Endpoint::from_str(v).map_err(|e| {
@@ -1218,7 +1219,7 @@ mod tests {
         let actual =
             deserialize_value(base(CoreLibBaseTypeId::Text), json!(v)).unwrap();
 
-        assert_eq!(actual, CoreValue::Text(v.into()));
+        assert_eq!(actual, CoreValue::Text(Text::String(v.to_string())));
     }
 
     #[test]

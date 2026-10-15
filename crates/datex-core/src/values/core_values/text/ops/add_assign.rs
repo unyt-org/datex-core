@@ -6,6 +6,10 @@ use crate::values::core_values::text::Text;
 /// This can never panic since the Text::from from string will always succeed
 impl AddAssign<Text> for Text {
     fn add_assign(&mut self, rhs: Text) {
-        self.0 += &rhs.0;
+        if let Ok(str) =self.try_as_mut_string() {
+            str.push_str(&rhs.to_string());
+        } else {
+            todo!()
+        }
     }
 }

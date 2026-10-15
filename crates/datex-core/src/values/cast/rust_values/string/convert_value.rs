@@ -26,13 +26,13 @@ use crate::{
 };
 impl ConvertValue for String {
     fn to_value(self) -> Value {
-        CoreValue::Text(Text(self)).into()
+        CoreValue::Text(Text::String(self)).into()
     }
 
     fn try_from_value(value: Value) -> Result<Self, Value> {
         match value {
             Value::Core(CoreValueWithClassification {
-                inner: CoreValue::Text(Text(string)),
+                inner: CoreValue::Text(Text::String(string)),
                 ..
             }) => Ok(string),
             Value::Native(native) => {
@@ -45,7 +45,7 @@ impl ConvertValue for String {
     fn try_borrow_from_value(value: &Value) -> Result<&Self, ()> {
         match value {
             Value::Core(CoreValueWithClassification {
-                inner: CoreValue::Text(Text(string)),
+                inner: CoreValue::Text(Text::String(string)),
                 ..
             }) => Ok(string),
             Value::Native(native) => native.try_as().ok_or(()),
@@ -56,7 +56,7 @@ impl ConvertValue for String {
     fn try_borrow_mut_from_value(value: &mut Value) -> Result<&mut Self, ()> {
         match value {
             Value::Core(CoreValueWithClassification {
-                inner: CoreValue::Text(Text(string)),
+                inner: CoreValue::Text(Text::String(string)),
                 ..
             }) => Ok(string),
             Value::Native(native) => native.try_as_mut().ok_or(()),
@@ -127,12 +127,12 @@ mod tests {
     #[test]
     fn try_string_from_core_value() {
         let core_value =
-            CoreValue::Text(Text("Hello, World!".to_string())).to_value();
+            CoreValue::Text(Text::StaticStr("Hello, World!")).to_value();
         let result = core_value.try_as::<String>();
         assert_eq!(result.unwrap(), "Hello, World!");
 
         let core_value =
-            CoreValue::Text(Text("Hello, World!".to_string())).to_value();
+            CoreValue::Text(Text::StaticStr("Hello, World!")).to_value();
         let result = core_value.try_into_value::<String>();
         assert_eq!(result.unwrap(), "Hello, World!");
     }
@@ -140,14 +140,14 @@ mod tests {
     #[test]
     fn try_borrow_string_from_core_value() {
         let core_value =
-            CoreValue::Text(Text("Hello, World!".to_string())).to_value();
+            CoreValue::Text(Text::String("Hello, World!".to_string())).to_value();
         let result = core_value.try_as::<String>();
         assert_eq!(result.unwrap(), "Hello, World!");
     }
 
     #[test]
     fn try_borrow_mut_string_from_core_value() {
-        let mut core_value = Text("Hello, World!".to_string()).to_value();
+        let mut core_value = Text::StaticStr("Hello, World!").to_value();
         let result = core_value.try_as_mut::<String>();
 
         let value = result.unwrap();

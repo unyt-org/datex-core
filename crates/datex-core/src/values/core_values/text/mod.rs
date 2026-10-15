@@ -1,19 +1,19 @@
 //! This module contains the implementation of the [Text] struct, which represents a string value in the type system.
 use crate::{
-    instruction::instruction_data::TextData, prelude::*,
+    prelude::*,
     shared_values::errors::IndexOutOfBoundsError,
 };
-use binrw::{BinRead, BinWrite};
 use core::{fmt::Display, result::Result};
 pub mod equality;
 mod to_instructions;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, BinRead, BinWrite)]
-pub struct Text(
-    #[bw(map=|x| TextData(x.clone()))]
-    #[br(map=|x: TextData| x.0)]
-    pub String,
-);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Text {
+    /// Represents a dynamically allocated string.
+    String(String),
+    /// Represents a statically allocated string slice.
+    StaticStr(&'static str),
+}
 mod classification;
 mod convert_parts;
 pub mod datex_hash;
@@ -27,43 +27,71 @@ pub mod serde_dif;
 mod to_datex_expression_data;
 mod try_clone;
 mod value_access;
+pub mod binrw;
 
 impl Display for Text {
     // TODO #319: escape string content
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::write!(f, "\"{}\"", self.0)
+        core::write!(f, "\"{}\"", self.as_str())
     }
 }
 
 impl Text {
     pub fn new<S: Into<String>>(s: S) -> Self {
-        Text(s.into())
+        Text::String(s.into())
     }
     pub fn len(&self) -> usize {
-        self.0.len()
+        match self {
+            Text::String(s) => s.len(),
+            Text::StaticStr(s) => s.len(),
+        }
     }
     pub fn to_uppercase(&self) -> Text {
-        Text(self.0.to_uppercase())
+        match self {
+            Text::String(s) => Text::String(s.to_uppercase()),
+            Text::StaticStr(s) => Text::String(s.to_uppercase()),
+        }
     }
     pub fn to_lowercase(&self) -> Text {
-        Text(self.0.to_lowercase())
+        match self {
+            Text::String(s) => Text::String(s.to_lowercase()),
+            Text::StaticStr(s) => Text::String(s.to_lowercase()),
+        }
     }
     pub fn as_str(&self) -> &str {
-        &self.0
+        match self {
+            Text::String(s) => s.as_str(),
+            Text::StaticStr(s) => s,
+        }
     }
+    
+    pub fn try_as_mut_str(&mut self) -> Result<&mut str, ()> {
+        match self {
+            Text::String(s) => Ok(s.as_mut_str()),
+            Text::StaticStr(_) => Err(()),
+        }
+    }
+    
     pub fn as_string(&self) -> String {
-        self.0.clone()
+        match self {
+            Text::String(s) => s.clone(),
+            Text::StaticStr(s) => s.to_string(),
+        }
     }
     pub fn char_at(&self, index: u32) -> Result<char, IndexOutOfBoundsError> {
-        self.0.chars().nth(index as usize).ok_or(IndexOutOfBoundsError {
-            index,
-        })
+        match self {
+            Text::String(s) => s.chars().nth(index as usize).ok_or(IndexOutOfBoundsError { index }),
+            Text::StaticStr(s) => s.chars().nth(index as usize).ok_or(IndexOutOfBoundsError { index }),
+        }
     }
 
     #[inline]
     fn wrap_index(&self, index: i64) -> usize {
         if index < 0 {
-            let len = self.0.chars().count() as i64;
+            let len = match self {
+                Text::String(s) => s.chars().count() as i64,
+                Text::StaticStr(s) => s.chars().count() as i64,
+            };
             (len + index) as usize
         } else {
             index as usize
@@ -75,7 +103,7 @@ impl Text {
         index: i64,
     ) -> Result<usize, IndexOutOfBoundsError> {
         let index = self.wrap_index(index);
-        if (index) < self.0.len() {
+        if (index) < self.as_str().len() {
             Ok(index)
         } else {
             Err(IndexOutOfBoundsError {
@@ -85,122 +113,156 @@ impl Text {
     }
 
     pub fn substring(&self, start: usize, end: usize) -> Option<Text> {
-        if start > end || end > self.0.len() {
+        if start > end || end > self.len() {
             return None;
         }
-        Some(Text(self.0[start..end].to_string()))
+        Some(Text::String(self.as_str()[start..end].to_string()))
     }
     pub fn contains(&self, substring: &str) -> bool {
-        self.0.contains(substring)
+        self.as_str().contains(substring)
     }
     pub fn starts_with(&self, prefix: &str) -> bool {
-        self.0.starts_with(prefix)
+        self.as_str().starts_with(prefix)
     }
     pub fn ends_with(&self, suffix: &str) -> bool {
-        self.0.ends_with(suffix)
+        self.as_str().ends_with(suffix)
     }
     pub fn index_of(&self, substring: &str) -> Option<usize> {
-        self.0.find(substring)
+        self.as_str().find(substring)
     }
     pub fn last_index_of(&self, substring: &str) -> Option<usize> {
-        self.0.rfind(substring)
+        self.as_str().rfind(substring)
     }
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.as_str().is_empty()
     }
     pub fn trim(&self) -> Text {
-        Text(self.0.trim().to_string())
+        Text::String(self.as_str().trim().to_string())
     }
     pub fn trim_start(&self) -> Text {
-        Text(self.0.trim_start().to_string())
+        Text::String(self.as_str().trim_start().to_string())
     }
     pub fn split(&self, delimiter: &str) -> Vec<Text> {
-        self.0
+        self.as_str()
             .split(delimiter)
-            .map(|s| Text(s.to_string()))
+            .map(|s| Text::String(s.to_string()))
             .collect()
     }
     pub fn join(texts: &[Text], separator: &str) -> Text {
         let joined = texts
             .iter()
-            .map(|t| t.0.as_str())
+            .map(|t| t.as_str())
             .collect::<Vec<&str>>()
             .join(separator);
-        Text(joined)
+        Text::String(joined)
     }
     pub fn repeat(&self, n: usize) -> Text {
-        Text(self.0.repeat(n))
+        Text::String(self.as_str().repeat(n))
     }
 }
 
 // modifiers
 impl Text {
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-    pub fn reverse(&mut self) {
-        let reversed = self.0.chars().rev().collect::<String>();
-        self.0 = reversed;
-    }
-    pub fn push_str(&mut self, s: &str) {
-        self.0.push_str(s);
-    }
-    pub fn push_char(&mut self, c: char) {
-        self.0.push(c);
-    }
-    pub fn pop_char(&mut self) -> Option<char> {
-        self.0.pop()
-    }
-    pub fn insert(&mut self, index: usize, s: &str) -> Result<(), String> {
-        if index > self.0.len() {
-            return Err("Index out of bounds".to_string());
+    /// Returns a mutable reference to the inner String if the Text is a String variant, otherwise returns an error.
+    /// This allows for modifying the inner String directly, but will fail if the Text is a StaticStr variant.
+    pub fn try_as_mut_string(&mut self) -> Result<&mut String, ()> {
+        match self {
+            Text::String(s) => Ok(s),
+            Text::StaticStr(_) => Err(()),
         }
-        self.0.insert_str(index, s);
-        Ok(())
     }
+    pub fn clear(&mut self) -> Result<(), ()> {
+        self.try_as_mut_string().map(|s| s.clear())
+    }
+    pub fn reverse(&mut self) -> Result<(), ()> {
+        self.try_as_mut_string().map(|s| {
+            let reversed = s.chars().rev().collect::<String>();
+            *s = reversed;
+        })
+    }
+    pub fn push_str(&mut self, s: &str) -> Result<(), ()> {
+        self.try_as_mut_string().map(|inner| inner.push_str(s))
+    }
+    pub fn push_char(&mut self, c: char) -> Result<(), ()> {
+        self.try_as_mut_string().map(|inner| inner.push(c))
+    }
+    pub fn pop_char(&mut self) -> Result<Option<char>, ()> {
+        self.try_as_mut_string().map(|inner| inner.pop())
+    }
+
+    /// Inserts a string slice at the specified index in the Text.
+    /// Returns an error if the Text is a StaticStr variant or if the index is out of bounds.
+    pub fn insert(&mut self, index: usize, s: &str) -> Result<(), ()> {
+        self.try_as_mut_string().map(|inner| {
+            if index > inner.len() {
+                return Err(())
+            }
+            inner.insert_str(index, s);
+            Ok(())
+        }).flatten()
+    }
+
     // TODO #320: Add proper error handling, also for insert and other analog to MapAccessError
-    pub fn remove(&mut self, index: usize) -> Result<char, String> {
-        if index >= self.0.len() {
-            return Err("Index out of bounds".to_string());
-        }
-        Ok(self.0.remove(index))
+    pub fn remove(&mut self, index: usize) -> Result<char, ()> {
+        self.try_as_mut_string().map(|inner| {
+            if index >= inner.len() {
+                return Err(())
+            }
+            Ok(inner.remove(index))
+        }).flatten()
     }
-    pub fn replace(&mut self, from: &str, to: &str) {
-        self.0 = self.0.replace(from, to);
+    pub fn replace(&mut self, from: &str, to: &str) -> Result<(), ()> {
+        self.try_as_mut_string().map(|inner| {
+            *inner = inner.replace(from, to);
+            Ok(())
+        }).flatten()
     }
     pub fn replace_range(
         &mut self,
         range: core::ops::Range<usize>,
         replace_with: &str,
-    ) -> Result<(), String> {
-        if range.start > range.end || range.end > self.0.len() {
-            return Err("Range out of bounds".to_string());
-        }
-        self.0.replace_range(range, replace_with);
-        Ok(())
+    ) -> Result<(), ()> {
+        self.try_as_mut_string().map(|inner| {
+            if range.start > range.end || range.end > inner.len() {
+                return Err(())
+            }
+            inner.replace_range(range, replace_with);
+            Ok(())
+        }).flatten()
     }
     pub fn set_char_at(
         &mut self,
         index: u32,
         c: char,
-    ) -> Result<(), IndexOutOfBoundsError> {
-        let mut chars: Vec<char> = self.0.chars().collect();
-        chars[index as usize] = c;
-        self.0 = chars.iter().collect();
-        Ok(())
+    ) -> Result<(), SetCharAtError> {
+        self.try_as_mut_string()
+            .map(|inner| {
+                let mut chars: Vec<char> = inner.chars().collect();
+                chars[index as usize] = c;
+                *inner = chars.iter().collect();
+                Ok(())
+            })
+            .map_err(|_| SetCharAtError::NotMutableError)
+            .flatten()
     }
 }
 
+pub enum SetCharAtError {
+    IndexOutOfBoundsError(IndexOutOfBoundsError),
+    NotMutableError,
+}
+
+
 /// The froms are used for this magic. This will automatically convert
 /// the Rust types to Text when using the += operator.
-impl From<&str> for Text {
-    fn from(s: &str) -> Self {
-        Text(s.to_string())
+impl From<&'static str> for Text {
+    fn from(s: &'static str) -> Self {
+        Text::StaticStr(s)
     }
 }
 
 impl From<String> for Text {
     fn from(s: String) -> Self {
-        Text(s)
+        Text::String(s)
     }
 }

@@ -371,9 +371,9 @@ impl ToInstructions for PropertyAssignment {
 
             match &property.data() {
                 DatexExpressionData::Text(key)
-                    if key.0.len() <= u8::MAX as usize =>
+                    if key.len() <= u8::MAX as usize =>
                 {
-                    yield RegularInstruction::set_entry_text(key.0.clone())
+                    yield RegularInstruction::set_entry_text(key.to_string())
                         .into();
                 }
 
@@ -513,8 +513,8 @@ impl ToInstructions for PropertyAccess {
             // depending on the key, handle different property accesses
             match self.property.data() {
                 // simple text key if length fits in u8
-                DatexExpressionData::Text(key) if key.0.len() <= 255 => {
-                    yield RegularInstruction::get_entry_text(key.0.clone())
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    yield RegularInstruction::get_entry_text(key.to_string())
                         .into();
                 }
                 // index access if integer fits in u32
@@ -607,13 +607,13 @@ impl ToInstructions for Map {
                     DatexExpressionData::Text(text) => {
                         if text.len() < 256 {
                             yield RegularInstruction::key_value_short_text(
-                                text.0.clone(),
+                                text.to_string(),
                             )
                             .into();
                         } else {
                             yield RegularInstruction::key_value_dynamic()
                                 .into();
-                            yield RegularInstruction::text(text.0.clone())
+                            yield RegularInstruction::text(text.to_string())
                                 .into();
                         }
                     }

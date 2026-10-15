@@ -6,12 +6,12 @@ use crate::{
 
 impl ToDatexExpressionData for &str {
     fn to_datex_expression_data(&self) -> DatexExpressionData {
-        DatexExpressionData::Text(Text(self.to_string()))
+        DatexExpressionData::Text(Text::String(self.to_string()))
     }
 }
 
 impl ToDatexExpressionData for String {
     fn to_datex_expression_data(&self) -> DatexExpressionData {
-        DatexExpressionData::Text(Text(self.clone()))
+        DatexExpressionData::Text(Text::String(self.clone()))
     }
 }

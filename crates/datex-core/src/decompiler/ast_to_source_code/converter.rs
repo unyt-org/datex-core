@@ -151,7 +151,7 @@ impl AstToSourceCodeConverter {
     /// Escape text to be a valid source code string literal
     fn text_to_source_code(&self, text: &Text) -> String {
         let text = text
-            .0
+            .as_str()
             .replace('\\', r#"\\"#)
             .replace('"', r#"\""#)
             .replace('\u{0008}', r#"\b"#)
@@ -168,9 +168,9 @@ impl AstToSourceCodeConverter {
     fn key_to_string(&self, key: &Text) -> String {
         // if text does not just contain a-z, A-Z, 0-9, _, and starts with a-z, A-Z,  _, add quotes
         if !self.options.json_compat
-            && is_alphanumeric_identifier(key.0.as_str())
+            && is_alphanumeric_identifier(key.as_str())
         {
-            key.0.to_string()
+            key.to_string()
         } else {
             self.text_to_source_code(key)
         }

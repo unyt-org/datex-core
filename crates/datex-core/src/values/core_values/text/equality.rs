@@ -4,6 +4,6 @@ use crate::{
 
 impl StructuralEq for Text {
     fn structural_eq(&self, other: &Self) -> bool {
-        self.0 == other.0
+        self.as_str() == other.as_str()
     }
 }

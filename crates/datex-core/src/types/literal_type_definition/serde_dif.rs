@@ -22,7 +22,7 @@ impl Serialize for LiteralTypeDefinition {
             }
 
             LiteralTypeDefinition::Text(value) => {
-                serializer.serialize_str(&value.0)
+                serializer.serialize_str(value.as_str())
             }
 
             other => {
@@ -61,6 +61,7 @@ use serde::{
     Deserialize,
     de::{self, Deserializer, Visitor},
 };
+use crate::values::core_values::text::Text;
 
 impl<'de> Deserialize<'de> for LiteralTypeDefinition {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -91,7 +92,7 @@ impl<'de> Visitor<'de> for LiteralTypeDefinitionVisitor {
     where
         E: de::Error,
     {
-        Ok(LiteralTypeDefinition::Text(value.into()))
+        Ok(LiteralTypeDefinition::Text(Text::String(value.to_string())))
     }
 
     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>

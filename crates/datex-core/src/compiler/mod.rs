@@ -957,8 +957,8 @@ fn compile_expression(
             // depending on the key, handle different property accesses
             match property_access.property.data() {
                 // simple text key if length fits in u8
-                DatexExpressionData::Text(key) if key.0.len() <= 255 => {
-                    compile_text_property_access(compilation_context, &key.0)
+                DatexExpressionData::Text(key) if key.len() <= 255 => {
+                    compile_text_property_access(compilation_context, key.as_str())
                 }
                 // index access if integer fits in u32
                 DatexExpressionData::Integer(index)
@@ -1001,7 +1001,7 @@ fn compile_expression(
                 // simple text key if length fits in u8
                 DatexExpressionData::Text(key) if key.len() <= 255 => {
                     compilation_context.write(
-                        RegularInstruction::set_entry_text(key.0.clone()),
+                        RegularInstruction::set_entry_text(key.to_string()),
                     );
                 }
                 // index access if integer fits in u32
@@ -1700,7 +1700,7 @@ fn compile_key_value_entry(
     match *key.data {
         // text -> insert key string
         DatexExpressionData::Text(text) => {
-            append_key_string(compilation_context.core_context(), &text.0);
+            append_key_string(compilation_context.core_context(), text.as_str());
         }
         // other -> insert key as dynamic
         _ => {

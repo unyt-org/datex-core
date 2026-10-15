@@ -353,7 +353,7 @@ impl<'a> TryFrom<&'a CoreValue> for &'a str {
 
     fn try_from(value: &'a CoreValue) -> Result<Self, Self::Error> {
         match value {
-            CoreValue::Text(Text(value)) => Ok(value.as_str()),
+            CoreValue::Text(Text::String(value)) => Ok(value.as_str()),
             _ => Err(()),
         }
     }
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn try_from_value() {
         let value =
-            Value::from(CoreValue::Text(Text("Hello, World!".to_string())));
+            Value::from(CoreValue::Text(Text::StaticStr("Hello, World!")));
         let result = value.try_into_value::<String>();
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Hello, World!");

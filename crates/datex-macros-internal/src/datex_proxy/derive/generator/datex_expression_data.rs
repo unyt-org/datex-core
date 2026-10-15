@@ -116,7 +116,7 @@ fn named_field_to_expression_data(field: &NamedField) -> TokenStream {
     let name = field.datex_field_name().to_string();
     quote! {
         (
-            DatexExpressionData::Text(Text(#name.to_string())).with_default_span(),
+            DatexExpressionData::Text(Text::String(#name.to_string())).with_default_span(),
             #expression_data,
         )
     }

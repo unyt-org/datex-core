@@ -17,6 +17,7 @@ use serde::{
     de::Visitor,
     ser::{SerializeMap, SerializeSeq},
 };
+use crate::values::core_values::text::Text;
 
 impl Serialize for ValueContainer {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -266,7 +267,7 @@ impl<'de> Deserialize<'de> for CoreValue {
                 self,
                 v: &str,
             ) -> Result<Self::Value, E> {
-                Ok(CoreValue::Text(v.into()))
+                Ok(CoreValue::Text(Text::String(v.to_string())))
             }
 
             fn visit_string<E: serde::de::Error>(
