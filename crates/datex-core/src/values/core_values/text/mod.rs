@@ -7,7 +7,7 @@ use core::{fmt::Display, result::Result};
 pub mod equality;
 mod to_instructions;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub enum Text {
     /// Represents a dynamically allocated string.
     String(String),
@@ -28,6 +28,7 @@ mod to_datex_expression_data;
 mod try_clone;
 mod value_access;
 pub mod binrw;
+pub mod hash;
 
 impl Display for Text {
     // TODO #319: escape string content
@@ -64,14 +65,14 @@ impl Text {
             Text::StaticStr(s) => s,
         }
     }
-    
+
     pub fn try_as_mut_str(&mut self) -> Result<&mut str, ()> {
         match self {
             Text::String(s) => Ok(s.as_mut_str()),
             Text::StaticStr(_) => Err(()),
         }
     }
-    
+
     pub fn as_string(&self) -> String {
         match self {
             Text::String(s) => s.clone(),

@@ -16,7 +16,7 @@ impl ToInstructions for Text {
         'ctx: 'a,
     {
         // FIXME: more efficient way to do this without collecting?
-        let instructions = self.to_string().to_instructions(ctx).collect::<Vec<_>>();
+        let instructions = self.as_string().to_instructions(ctx).collect::<Vec<_>>();
         Box::new(instructions.into_iter())
     }
 }

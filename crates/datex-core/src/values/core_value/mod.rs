@@ -168,7 +168,7 @@ impl CoreValue {
     pub fn cast_to_decimal(&self) -> Option<Decimal> {
         match self {
             CoreValue::Text(text) => {
-                text.to_string().parse::<f64>().ok().map(Decimal::from)
+                text.as_string().parse::<f64>().ok().map(Decimal::from)
             }
             CoreValue::TypedInteger(int) => {
                 Some(Decimal::from(int.as_i128()? as f64))
@@ -230,7 +230,7 @@ impl CoreValue {
     pub fn _cast_to_integer_internal(&self) -> Option<TypedInteger> {
         match self {
             CoreValue::Text(text) => {
-                Integer::try_from_string(&text.to_string())
+                Integer::try_from_string(&text.as_string())
                     .map(|x| Some(x.to_smallest_fitting()))
                     .unwrap_or(None)
             }
@@ -256,7 +256,7 @@ impl CoreValue {
     pub fn cast_to_integer(&self) -> Option<Integer> {
         match self {
             CoreValue::Text(text) => {
-                Integer::try_from_string(&text.to_string()).ok()
+                Integer::try_from_string(&text.as_string()).ok()
             }
             CoreValue::TypedInteger(int) => Some(int.as_integer()),
             CoreValue::Integer(int) => Some(int.clone()),

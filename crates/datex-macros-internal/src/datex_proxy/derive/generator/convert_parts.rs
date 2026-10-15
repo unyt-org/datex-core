@@ -126,7 +126,7 @@ fn generate_into_map_parts_for_fields(
                 );
                 quote! {
                     yield (
-                        ValueContainer::from(#field_name.to_string()),
+                        ValueContainer::from(#field_name),
                         #field_value_container,
                     );
                 }

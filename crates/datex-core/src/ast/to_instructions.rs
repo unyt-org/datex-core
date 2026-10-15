@@ -607,13 +607,13 @@ impl ToInstructions for Map {
                     DatexExpressionData::Text(text) => {
                         if text.len() < 256 {
                             yield RegularInstruction::key_value_short_text(
-                                text.to_string(),
+                                text.as_string(),
                             )
                             .into();
                         } else {
                             yield RegularInstruction::key_value_dynamic()
                                 .into();
-                            yield RegularInstruction::text(text.to_string())
+                            yield RegularInstruction::text(text.as_string())
                                 .into();
                         }
                     }

@@ -278,7 +278,7 @@ impl Map {
                     {
                         if !allowed.contains(&text.as_str()) {
                             return Err(UnexpectedPropertyError {
-                                key: text.to_string(),
+                                key: text.as_string(),
                             });
                         }
                     } else {
