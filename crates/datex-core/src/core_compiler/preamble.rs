@@ -46,20 +46,25 @@ impl BufferProvider for PreambleContext<'_> {
 // x.a.b = x; /// #0.a.b = x;
 
 impl<'ctx> ValueVisitor<'ctx> for PreambleContext<'ctx> {
-    fn visit_value_container(&mut self, value_container: &ValueContainer) {
+    fn visit_value_container(
+        &mut self,
+        value_container: &ValueContainer,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'ctx> {
         match value_container {
-            ValueContainer::Local(value) => append_value(self, value),
+            ValueContainer::Local(value) => value.to_instructions(self),
             ValueContainer::Shared(shared_container) => {
                 match self.self_referencing_containers.get_mut(shared_container)
                 {
                     // not self referencing
                     None => {
                         // placeholder, will be later replaced via setter
+                        // TODO Make to yield
                         append_shared_container(
                             self,
                             shared_container,
                             self.known_container.contains(shared_container),
                         );
+                        Box::new(std::iter::empty())
                     }
                     // shared container has already been inserted, use stack value
                     // depending on the move flag, we either take the value or borrow it
@@ -331,16 +336,16 @@ fn append_shared_container(
     context: &mut PreambleContext,
     container: &SharedContainer,
     is_known: bool,
-) {
+) -> Box<dyn Iterator<Item = Instruction>> {
     match container {
         SharedContainer::Owned(owned_container) => {
             let value_container = owned_container.value_container();
-            append_move_with_value(
+            Box::new(append_move_with_value(
                 context,
                 owned_container.container_mutability(),
                 owned_container.pointer_address().clone(),
                 Some(value_container.deref()),
-            );
+            ))
         }
         SharedContainer::Referenced(referenced_container) => {
             if referenced_container.treat_as_move() {
@@ -373,26 +378,35 @@ fn append_shared_container(
 }
 
 /// Appends a move instruction to the preamble to move an owned shared containers
-fn append_move_with_value(
-    context: &mut PreambleContext,
+gen fn append_move_with_value<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     container_mutability: SharedContainerMutability,
     previous_address: SelfOwnedPointerAddress,
     value_container: Option<&ValueContainer>,
-) {
-    context.write(RegularInstruction::move_with_value(MoveWithValue {
+) -> Instruction {
+    yield RegularInstruction::move_with_value(MoveWithValue {
         mutability: container_mutability,
         previous_address,
-    }));
+    })
+    .into();
 
     if let Some(value_container) = value_container {
         match value_container {
-            ValueContainer::Local(value) => append_value(context, value),
+            ValueContainer::Local(value) => {
+                for instruction in value.to_instructions(context) {
+                    yield instruction;
+                }
+            }
             ValueContainer::Shared(_) => {
-                context.visit_value_container(value_container);
+                for instruction in
+                    context.visit_value_container(value_container)
+                {
+                    yield instruction;
+                }
             }
         }
     } else {
-        context.write(RegularInstruction::Uninitialized);
+        yield RegularInstruction::Uninitialized.into();
     }
 }
 

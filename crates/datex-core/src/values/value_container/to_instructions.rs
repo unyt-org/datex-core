@@ -15,19 +15,20 @@ impl ToInstructions for ValueContainer {
     where
         'ctx: 'a,
     {
-        Box::new(gen move {
-            match self {
-                ValueContainer::Local(value) => {
-                    for instruction in value.to_instructions(ctx) {
-                        yield instruction;
-                    }
-                }
-                ValueContainer::Shared(shared_container) => {
-                    for instruction in shared_container.to_instructions(ctx) {
-                        yield instruction;
-                    }
-                }
-            }
-        })
+        ctx.visit_value_container(self)
+        // Box::new(gen move {
+        //     match self {
+        //         ValueContainer::Local(value) => {
+        //             for instruction in value.to_instructions(ctx) {
+        //                 yield instruction;
+        //             }
+        //         }
+        //         ValueContainer::Shared(shared_container) => {
+        //             for instruction in shared_container.to_instructions(ctx) {
+        //                 yield instruction;
+        //             }
+        //         }
+        //     }
+        // })
     }
 }
