@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::{
     ast::expressions::DatexExpression,
     core_compiler::{
@@ -6,15 +7,14 @@ use crate::{
     instruction::Instruction,
     prelude::*,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for DatexExpression {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
-        Box::new(self.data().to_instructions(ctx))
+        Box::new(self.data().to_instructions(visitor))
     }
 }

@@ -76,6 +76,8 @@ use precompiler::{
     precompile_ast,
     precompiled_ast::{AstMetadata, RichAst, VariableMetadata},
 };
+use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
+use crate::core_compiler::to_instructions::yield_all_ok;
 
 pub mod context;
 pub mod datex_expression_to_instruction;
@@ -86,6 +88,7 @@ pub mod scope;
 pub mod type_compiler;
 #[cfg(feature = "std")]
 pub mod workspace;
+pub mod ast_node_to_instructions;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions {
@@ -260,21 +263,20 @@ pub fn compile_script_or_return_static_value(
     )?;
     let lookup = runtime.pointer_availability_lookup();
     let mut compilation_context = CompilationContext::new(
-        Vec::with_capacity(256),
         vec![],
         options.compile_scope.execution_mode,
         CompileInput::new(&lookup, &options.receivers),
+        options.compile_scope,
     );
     // FIXME #480: no clone here
-    let scope = compile_ast(
+    let scope = compile_rich_ast(
+        compilation_context,
         ast.clone(),
-        &mut compilation_context,
-        options.compile_scope,
     )?;
     if compilation_context.has_non_static_value {
         Ok((
             StaticValueOrDXB::DXB(
-                compilation_context.into_dxb_with_shared_values(),
+                compilation_context.compile_to_dxb_with_shared_values(),
             ),
             scope,
         ))
@@ -428,14 +430,14 @@ pub fn compile_template(
     let lookup = runtime.pointer_availability_lookup();
     let input = CompileInput::new(&lookup, &options.receivers);
     let mut compilation_context = CompilationContext::new(
-        Vec::with_capacity(256),
         inserted_values,
         options.compile_scope.execution_mode,
         input,
+        options.compile_scope,
     );
     let compile_start = TimingInstant::now();
-    let res = compile_ast(ast, &mut compilation_context, options.compile_scope)
-        .map(|scope| (compilation_context.into_dxb_with_shared_values(), scope))
+    let res = compile_rich_ast(&mut compilation_context, ast)
+        .map(|scope| (compilation_context.compile_to_dxb_with_shared_values(), scope))
         .map_err(SpannedCompilerError::from);
 
     debug!(
@@ -445,15 +447,6 @@ pub fn compile_template(
     res
 }
 
-/// Compiles a precompiled DATEX AST, returning the compilation context and scope
-fn compile_ast(
-    ast: RichAst,
-    compilation_context: &mut CompilationContext,
-    scope: CompilationScope,
-) -> Result<CompilationScope, CompilerError> {
-    let compilation_scope = compile_rich_ast(compilation_context, ast, scope)?;
-    Ok(compilation_scope)
-}
 
 /// Tries to extract a static value from a DATEX expression AST.
 /// If the expression is not a static value (e.g., contains a placeholder or dynamic operation),
@@ -529,25 +522,20 @@ fn precompile_to_rich_ast(
 }
 
 pub fn compile_rich_ast(
-    compilation_context: &mut CompilationContext,
+    compilation_context: CompilationContext,
     rich_ast: RichAst,
-    scope: CompilationScope,
-) -> Result<CompilationScope, CompilerError> {
-    let org = core::mem::replace(&mut compilation_context.scope, scope);
-    compile_expression(
-        compilation_context,
-        rich_ast,
-        CompileMetadata::outer(),
-    )?;
-    let result_scope = core::mem::replace(&mut compilation_context.scope, org);
-    Ok(result_scope)
+) -> Result<(DXBWithSharedValues, CompilationScope), CompilerError> {
+    compilation_context.compile_ast_node_to_dxb_with_shared_values(
+        &*rich_ast.ast.data,
+        &mut *rich_ast.metadata.borrow_mut(),
+    )
 }
 
-fn compile_expression(
-    compilation_context: &mut CompilationContext,
+gen fn compile_expression<'a>(
+    compilation_context: &'a mut CompilationContext<'a>,
     rich_ast: RichAst,
     meta: CompileMetadata,
-) -> Result<(), CompilerError> {
+) -> Result<Instruction, CompilerError> {
     let metadata = rich_ast.metadata;
     let ast = rich_ast.ast;
 
@@ -557,48 +545,7 @@ fn compile_expression(
         ty: _,
     } = ast;
     match *data {
-        // TODO remove all the instructions and switch to [ToInstruction] trait, fix scopes
-        DatexExpressionData::List(list) => {
-            compilation_context
-                .core_context
-                .write(RegularInstruction::list(list.items.len() as u32));
-            for item in list.items {
-                compile_expression(
-                    compilation_context,
-                    RichAst::new(item, &metadata),
-                    CompileMetadata::default(),
-                )?;
-            }
-        }
-        DatexExpressionData::Map(map) => {
-            // TODO #434: Handle string keyed maps (structs)
-            match map.entries.len() {
-                0..=255 => {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::SHORT_MAP);
-                    append_u8(
-                        compilation_context.cursor(),
-                        map.entries.len() as u8,
-                    );
-                }
-                _ => {
-                    compilation_context
-                        .append_instruction_code(InstructionCode::MAP);
-                    append_u32(
-                        compilation_context.cursor(),
-                        map.entries.len() as u32, // FIXME #672: conversion from usize to u32
-                    );
-                }
-            }
-            for (key, value) in map.entries {
-                compile_key_value_entry(
-                    compilation_context,
-                    key,
-                    value,
-                    &metadata,
-                )?;
-            }
-        }
+
         DatexExpressionData::Placeholder(placeholder_type) => {
             // FIXME #720
             let placeholder = compilation_context
@@ -612,7 +559,7 @@ fn compile_expression(
                     ValueContainer::Local(value) => match placeholder_type {
                         ValueAccessType::SharedRef
                         | ValueAccessType::SharedRefMut => {
-                            return Err(
+                            return yield Err(
                                 CompilerError::SharedRefToNonSharedValue,
                             );
                         }
@@ -779,64 +726,6 @@ fn compile_expression(
             }
         }
 
-        // unary operations (negation, not, etc.)
-        DatexExpressionData::UnaryOperation(UnaryOperation {
-            operator,
-            expression,
-        }) => {
-            compilation_context
-                .append_instruction_code(InstructionCode::from(&operator));
-            compile_expression(
-                compilation_context,
-                RichAst::new(expression, &metadata),
-                CompileMetadata::default(),
-            )?;
-        }
-
-        // operations (add, subtract, multiply, divide, etc.)
-        DatexExpressionData::BinaryOperation(BinaryOperation {
-            operator,
-            left,
-            right,
-            ..
-        }) => {
-            compilation_context.mark_has_non_static_value();
-            // append binary code for operation if not already current binary operator
-            compilation_context
-                .append_instruction_code(InstructionCode::from(&operator));
-            compile_expression(
-                compilation_context,
-                RichAst::new(left, &metadata),
-                CompileMetadata::default(),
-            )?;
-            compile_expression(
-                compilation_context,
-                RichAst::new(right, &metadata),
-                CompileMetadata::default(),
-            )?;
-        }
-
-        // comparisons (e.g., equal, not equal, greater than, etc.)
-        DatexExpressionData::ComparisonOperation(ComparisonOperation {
-            operator,
-            left,
-            right,
-        }) => {
-            compilation_context.mark_has_non_static_value();
-            // append binary code for operation if not already current binary operator
-            compilation_context
-                .append_instruction_code(InstructionCode::from(&operator));
-            compile_expression(
-                compilation_context,
-                RichAst::new(left, &metadata),
-                CompileMetadata::default(),
-            )?;
-            compile_expression(
-                compilation_context,
-                RichAst::new(right, &metadata),
-                CompileMetadata::default(),
-            )?;
-        }
 
         // apply
         DatexExpressionData::Apply(apply) => {
@@ -1394,22 +1283,6 @@ fn compile_expression(
             )?;
         }
 
-        DatexExpressionData::Tag(tag_expression) => {
-            let tag_instruction = RegularInstruction::tagged_value(
-                tag_expression.tag,
-                tag_expression.expression.is_none(),
-            );
-            compilation_context.write(tag_instruction);
-
-            // append expression
-            if let Some(inner_expression) = tag_expression.expression {
-                compile_expression(
-                    compilation_context,
-                    RichAst::new(inner_expression, &metadata),
-                    CompileMetadata::default(),
-                )?;
-            }
-        }
 
         DatexExpressionData::Conditional(Conditional {
             condition,
@@ -1420,12 +1293,11 @@ fn compile_expression(
             let input = compilation_context.core_context.input.clone();
             let condition_bytes = {
                 let mut ctx = CompilationContext::new(
-                    Vec::with_capacity(256),
                     compilation_context.inserted_values.clone(),
                     compilation_context.execution_mode,
                     input.clone(),
+                    compilation_context.scope.clone(),
                 );
-                ctx.scope = compilation_context.scope.clone();
 
                 compile_expression(
                     &mut ctx,
@@ -1435,18 +1307,17 @@ fn compile_expression(
                 let DXBWithSharedValues {
                     dxb,
                     shared_values: _,
-                } = ctx.into_dxb_with_shared_values();
+                } = ctx.compile_to_dxb_with_shared_values();
                 dxb
             };
 
             let then_bytes = {
                 let mut ctx = CompilationContext::new(
-                    Vec::with_capacity(256),
                     compilation_context.inserted_values.clone(),
                     compilation_context.execution_mode,
                     input.clone(),
+                    compilation_context.scope.clone(),
                 );
-                ctx.scope = compilation_context.scope.clone();
                 compile_expression(
                     &mut ctx,
                     RichAst::new(then_branch, &metadata),
@@ -1455,19 +1326,18 @@ fn compile_expression(
                 let DXBWithSharedValues {
                     dxb,
                     shared_values: _,
-                } = ctx.into_dxb_with_shared_values();
+                } = ctx.compile_to_dxb_with_shared_values();
                 dxb
             };
 
             let else_bytes = match else_branch {
                 Some(else_expr) => {
                     let mut ctx = CompilationContext::new(
-                        Vec::with_capacity(256),
                         compilation_context.inserted_values.clone(),
                         compilation_context.execution_mode,
                         input,
+                        compilation_context.scope.clone()
                     );
-                    ctx.scope = compilation_context.scope.clone();
                     compile_expression(
                         &mut ctx,
                         RichAst::new(else_expr, &metadata),
@@ -1476,7 +1346,7 @@ fn compile_expression(
                     let DXBWithSharedValues {
                         dxb,
                         shared_values: _,
-                    } = ctx.into_dxb_with_shared_values();
+                    } = ctx.compile_to_dxb_with_shared_values();
                     dxb
                 }
                 None => Vec::new(),
@@ -1513,11 +1383,6 @@ fn compile_expression(
             );
         }
 
-        DatexExpressionData::ResolveCoreLibId(core_lib_id) => {
-            compilation_context.write(RegularInstruction::get_core_lib_value(
-                core_lib_id.into(),
-            ));
-        }
 
         DatexExpressionData::CallableDeclaration(CallableDeclaration {
             signature,
@@ -1614,21 +1479,15 @@ fn compile_expression(
     Ok(())
 }
 
-fn compile_child_realm_instructions(
+pub fn compile_child_realm_instructions(
     compilation_context: &mut CompilationContext,
-    ast: DatexExpression,
+    ast: &DatexExpression,
     injected_variable_count: u32,
-    metadata: &Rc<RefCell<AstMetadata>>,
+    metadata: &mut AstMetadata,
     existing_variables: Vec<Variable>,
 ) -> Result<(InstructionBlockData, CompilationScope), CompilerError> {
     let input = compilation_context.core_context.input.clone();
     // compile remote execution block
-    let mut execution_block_ctx = CompilationContext::new(
-        Vec::with_capacity(256),
-        vec![],
-        ExecutionMode::Static,
-        input,
-    );
 
     let stack_index_offset =
         StackIndex(injected_variable_count + existing_variables.len() as u32);
@@ -1640,26 +1499,33 @@ fn compile_child_realm_instructions(
         stack_index_offset,
         injected_values_offset,
     );
-
     for variable in existing_variables {
         child_scope.register_variable_slot(variable);
     }
 
-    let external_scope = compile_rich_ast(
-        &mut execution_block_ctx,
-        RichAst::new(ast, metadata),
+    let execution_block_ctx = CompilationContext::new(
+        vec![],
+        ExecutionMode::Static,
+        input,
         child_scope,
-    )?;
-    // reset to current scope
-    let external_parent_scope = external_scope
-        .pop_external()
-        .ok_or(CompilerError::ScopePopError)?;
+    );
 
     // TODO: what to do with the shared values? [shared_values]
-    let DXBWithSharedValues {
-        dxb,
-        shared_values: _,
-    } = execution_block_ctx.into_dxb_with_shared_values();
+    let (
+        DXBWithSharedValues {
+            dxb,
+            shared_values: _,
+        },
+        child_scope
+    ) = execution_block_ctx.compile_ast_node_to_dxb_with_shared_values(
+        &*ast.data,
+        metadata,
+    )?;
+
+    // reset to current scope
+    let external_parent_scope = child_scope
+        .pop_external()
+        .ok_or(CompilerError::ScopePopError)?;
 
     // insert remote execution instruction
     Ok((
@@ -1803,11 +1669,7 @@ fn compile_dynamic_property_assignment(
 #[cfg(test)]
 #[cfg(feature = "disassembler")]
 pub mod tests {
-    use super::{
-        CompilationContext, CompileOptions, StaticValueOrDXB, compile_ast,
-        compile_script, compile_script_or_return_static_value,
-        compile_template, parse_datex_script_to_rich_ast_simple_error,
-    };
+    use super::{compile_rich_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error, CompilationContext, CompileOptions, StaticValueOrDXB};
     use crate::{
         ast::expressions::{CallableDeclaration, CallableSignature},
         compiler::scope::CompilationScope,
@@ -1906,12 +1768,12 @@ pub mod tests {
         .unwrap();
         let input = unsafe { default_compile_input() };
         let mut compilation_context = CompilationContext::new(
-            Vec::with_capacity(256),
             vec![],
             options.compile_scope.execution_mode,
             input,
+            options.compile_scope,
         );
-        compile_ast(ast, &mut compilation_context, options.compile_scope)
+        compile_rich_ast(compilation_context, ast)
             .unwrap();
         compilation_context
     }

@@ -14,12 +14,10 @@ use crate::{
     values::core_values::callable::{Callable, CallableBody},
 };
 impl ToInstructions for Callable {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             let (body, injected_values) = match &self.body {

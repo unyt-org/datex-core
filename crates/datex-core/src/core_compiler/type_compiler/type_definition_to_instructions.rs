@@ -36,21 +36,18 @@ use crate::{
     },
 };
 use core::ops::Deref;
+use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for TypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             match self {
                 TypeDefinition::ImplMarkers(impl_type_def) => {
-                    for instruction in impl_type_def.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(impl_type_def.to_instructions(visitor));
                 }
                 TypeDefinition::Literal(literal_type_definition) => {
                     yield TypeInstruction::Literal(
@@ -59,72 +56,35 @@ impl ToInstructions for TypeDefinition {
                     .into();
                 }
                 TypeDefinition::List(list_type_definition) => {
-                    for instruction in list_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(list_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Map(map_type_definition) => {
-                    for instruction in map_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(map_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Range(range_type_definition) => {
-                    for instruction in
-                        range_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(range_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Collection(collection_type_definition) => {
-                    for instruction in
-                        collection_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(collection_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Shared(shared_container_containing_type) => {
-                    if let Some(tracking) = ctx.shared_value_tracking() {
-                        tracking.borrow_mut().register_shared_value(
-                            &shared_container_containing_type
-                                .clone_with_move_indicator_if_owned(),
-                        );
-                    }
+                    yield_all!(shared_container_containing_type.to_instructions(visitor));
                 }
                 TypeDefinition::Box(nested) => {
                     yield TypeInstruction::Boxed.into();
-                    for instruction in nested.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(nested.deref().to_instructions(visitor));
                 }
                 TypeDefinition::Callable(callable_type_definition) => {
-                    for instruction in
-                        callable_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(callable_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Intersection(intersection_type_definition) => {
-                    for instruction in
-                        intersection_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(intersection_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::Union(union_type_definition) => {
-                    for instruction in
-                        union_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(union_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::TaggedType(tagged_type_definition) => {
-                    for instruction in
-                        tagged_type_definition.to_instructions(ctx)
-                    {
-                        yield instruction;
-                    }
+                    yield_all!(tagged_type_definition.to_instructions(visitor));
                 }
                 TypeDefinition::CoreType(core_lib_type_id) => {
                     yield TypeInstruction::CoreType(*core_lib_type_id).into();
@@ -135,28 +95,22 @@ impl ToInstructions for TypeDefinition {
 }
 
 impl ToInstructions for TypeDefinitionWithMetadata {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen {
             yield TypeInstruction::DefinitionWithMetadata(self.metadata).into();
-            for instruction in self.definition.to_instructions(ctx) {
-                yield instruction;
-            }
+            yield_all!(self.metadata.to_instructions(visitor))
         })
     }
 }
 impl ToInstructions for ImplMarkers {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        _ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen {
             yield TypeInstruction::ImplMarkers(ImplMarkersData {
@@ -169,12 +123,10 @@ impl ToInstructions for ImplMarkers {
 }
 
 impl ToInstructions for ListTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::List(ListData {
@@ -182,21 +134,17 @@ impl ToInstructions for ListTypeDefinition {
             })
             .into();
             for ty in self.iter() {
-                for instruction in ty.to_instructions(ctx).collect::<Vec<_>>() {
-                    yield instruction;
-                }
+                yield_all!(ty.to_instructions(visitor));
             }
         })
     }
 }
 
 impl ToInstructions for MapTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::Map(MapData {
@@ -204,75 +152,46 @@ impl ToInstructions for MapTypeDefinition {
             })
             .into();
             for (key_ty, value_ty) in self.iter() {
-                // FIXME: collect required everywhere due to lifetime issues with the generator and optional mut ref
-                for instruction in
-                    key_ty.to_instructions(ctx).collect::<Vec<_>>()
-                {
-                    yield instruction;
-                }
-                for instruction in
-                    value_ty.to_instructions(ctx).collect::<Vec<_>>()
-                {
-                    yield instruction;
-                }
+                yield_all!(key_ty.to_instructions(visitor));
+                yield_all!(value_ty.to_instructions(visitor));
             }
         })
     }
 }
 
 impl ToInstructions for RangeTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::Range.into();
-            for instruction in
-                self.start.deref().to_instructions(ctx).collect::<Vec<_>>()
-            {
-                yield instruction;
-            }
-            for instruction in
-                self.end.deref().to_instructions(ctx).collect::<Vec<_>>()
-            {
-                yield instruction;
-            }
+            yield_all!(self.start.deref().to_instructions(visitor));
+            yield_all!(self.end.deref().to_instructions(visitor));
         })
     }
 }
 
 impl ToInstructions for CollectionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             match self {
                 CollectionTypeDefinition::List(list) => {
-                    for instruction in list.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(list.to_instructions(visitor));
                 }
                 CollectionTypeDefinition::Map(map) => {
-                    for instruction in map.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(map.to_instructions(visitor));
                 }
                 CollectionTypeDefinition::ListSlice(list) => {
-                    for instruction in list.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(list.to_instructions(visitor));
                 }
                 CollectionTypeDefinition::Range(range) => {
-                    for instruction in range.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(range.to_instructions(visitor));
                 }
             }
         })
@@ -280,35 +199,29 @@ impl ToInstructions for CollectionTypeDefinition {
 }
 
 impl ToInstructions for ListCollectionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen {
             yield TypeInstruction::ListCollection.into();
-            for instruction in self.0.deref().to_instructions(ctx) {
-                yield instruction;
-            }
+            yield_all!(self.0.deref().to_instructions(visitor))
         })
     }
 }
 impl ToInstructions for MapCollectionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::MapCollection.into();
             for instruction in self
                 .key_type
                 .deref()
-                .to_instructions(ctx)
+                .to_instructions(visitor)
                 .collect::<Vec<_>>()
             {
                 yield instruction;
@@ -316,7 +229,7 @@ impl ToInstructions for MapCollectionTypeDefinition {
             for instruction in self
                 .value_type
                 .deref()
-                .to_instructions(ctx)
+                .to_instructions(visitor)
                 .collect::<Vec<_>>()
             {
                 yield instruction;
@@ -326,12 +239,10 @@ impl ToInstructions for MapCollectionTypeDefinition {
 }
 
 impl ToInstructions for ListSliceCollectionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::ListSliceCollection(
@@ -343,7 +254,7 @@ impl ToInstructions for ListSliceCollectionTypeDefinition {
             for instruction in self
                 .item_type
                 .deref()
-                .to_instructions(ctx)
+                .to_instructions(visitor)
                 .collect::<Vec<_>>()
             {
                 yield instruction;
@@ -353,12 +264,10 @@ impl ToInstructions for ListSliceCollectionTypeDefinition {
 }
 
 impl ToInstructions for IntersectionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::Intersection(IntersectionData {
@@ -366,7 +275,7 @@ impl ToInstructions for IntersectionTypeDefinition {
             })
             .into();
             for ty in self.iter() {
-                for instruction in ty.to_instructions(ctx).collect::<Vec<_>>() {
+                for instruction in ty.to_instructions(visitor).collect::<Vec<_>>() {
                     yield instruction;
                 }
             }
@@ -375,12 +284,10 @@ impl ToInstructions for IntersectionTypeDefinition {
 }
 
 impl ToInstructions for CallableTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::Callable(CallableSignatureData {
@@ -406,27 +313,27 @@ impl ToInstructions for CallableTypeDefinition {
             })
             .into();
             for (_, ty) in &self.parameters {
-                for instruction in ty.to_instructions(ctx).collect::<Vec<_>>() {
+                for instruction in ty.to_instructions(visitor).collect::<Vec<_>>() {
                     yield instruction;
                 }
             }
             if let Some((_, rest_type)) = &self.rest_parameter {
                 for instruction in
-                    rest_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+                    rest_type.deref().to_instructions(visitor).collect::<Vec<_>>()
                 {
                     yield instruction;
                 }
             }
             if let Some(return_type) = &self.return_type {
                 for instruction in
-                    return_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+                    return_type.deref().to_instructions(visitor).collect::<Vec<_>>()
                 {
                     yield instruction;
                 }
             }
             if let Some(yeet_type) = &self.yeet_type {
                 for instruction in
-                    yeet_type.deref().to_instructions(ctx).collect::<Vec<_>>()
+                    yeet_type.deref().to_instructions(visitor).collect::<Vec<_>>()
                 {
                     yield instruction;
                 }
@@ -436,12 +343,10 @@ impl ToInstructions for CallableTypeDefinition {
 }
 
 impl ToInstructions for UnionTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::Union(UnionData {
@@ -449,7 +354,7 @@ impl ToInstructions for UnionTypeDefinition {
             })
             .into();
             for ty in self.iter() {
-                for instruction in ty.to_instructions(ctx).collect::<Vec<_>>() {
+                for instruction in ty.to_instructions(visitor).collect::<Vec<_>>() {
                     yield instruction;
                 }
             }
@@ -458,12 +363,10 @@ impl ToInstructions for UnionTypeDefinition {
 }
 
 impl ToInstructions for TaggedTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield TypeInstruction::TaggedType(TaggedTypeData::new(
@@ -473,7 +376,7 @@ impl ToInstructions for TaggedTypeDefinition {
             .into();
             if let Some(ty) = &self.ty {
                 for instruction in
-                    ty.deref().to_instructions(ctx).collect::<Vec<_>>()
+                    ty.deref().to_instructions(visitor).collect::<Vec<_>>()
                 {
                     yield instruction;
                 }

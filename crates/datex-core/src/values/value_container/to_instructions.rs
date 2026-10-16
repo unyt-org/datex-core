@@ -6,29 +6,17 @@ use crate::{
     prelude::*,
     values::value_container::ValueContainer,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for ValueContainer {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
-        ctx.visit_value_container(self)
-        // Box::new(gen move {
-        //     match self {
-        //         ValueContainer::Local(value) => {
-        //             for instruction in value.to_instructions(ctx) {
-        //                 yield instruction;
-        //             }
-        //         }
-        //         ValueContainer::Shared(shared_container) => {
-        //             for instruction in shared_container.to_instructions(ctx) {
-        //                 yield instruction;
-        //             }
-        //         }
-        //     }
-        // })
+        match self {
+            ValueContainer::Local(value) => value.to_instructions(visitor),
+            ValueContainer::Shared(shared) => visitor.visit_shared_container(shared)
+        }
     }
 }

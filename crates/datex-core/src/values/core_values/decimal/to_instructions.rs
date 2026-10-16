@@ -8,12 +8,10 @@ use crate::{
 };
 
 impl ToInstructions for Decimal {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        _ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             match &self {

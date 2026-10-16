@@ -1,28 +1,25 @@
+use binrw::BinWrite;
 use crate::{
-    core_compiler::shared_value_tracking::SharedValueTracking,
-    instruction::Instruction, types::r#type::Type,
-    values::value_container::ValueContainer,
+    instruction::Instruction, shared_values::SharedContainer,
 };
-use core::cell::RefCell;
+use crate::core_compiler::core_compilation_context::ByteCursor;
+use crate::core_compiler::to_instructions::ToInstructions;
 
-pub trait ValueVisitor<'ctx> {
-    // fn visit_value_container(
-    //     &mut self,
-    //     value: &ValueContainer,
-    // ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>;
-    // fn visit_value_container<'b>(
-    //     &'b mut self,
-    //     value_container: &'b ValueContainer,
-    // ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
-    fn visit_value_container<'b>(
-        &'ctx mut self,
-        value_container: &'b ValueContainer,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
-    where
-        'b: 'ctx;
-    fn visit_type(&mut self, ty: &Type);
+pub trait ValueVisitor {
+    fn visit_shared_container<'a>(
+        &'a mut self,
+        value_container: &'a SharedContainer,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a>;
+}
 
-    fn shared_value_tracking(
-        &self,
-    ) -> Option<&RefCell<SharedValueTracking<'ctx>>>;
+/// Compiles a [ToInstructions] value using the visitor and returns the final byte buffer.
+pub fn compile_instructions_to_dxb(
+    visitor: &mut impl ValueVisitor,
+    input: impl ToInstructions
+) -> Vec<u8> {
+    let mut buffer = ByteCursor::new(Vec::new());
+    for mut instruction in input.to_instructions(visitor) {
+        instruction.write(&mut buffer).unwrap();
+    }
+    buffer.into_inner()
 }

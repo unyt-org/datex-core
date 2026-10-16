@@ -1,3 +1,5 @@
+pub mod value_visitor;
+
 use crate::{
     ast::type_expressions::TypeExpression,
     compiler::scope::CompilationScope,
@@ -17,6 +19,9 @@ use crate::{
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Cursor, meta::WriteEndian};
+use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
+use crate::compiler::error::CompilerError;
+use crate::compiler::precompiler::precompiled_ast::AstMetadata;
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext<'a> {
@@ -33,31 +38,38 @@ impl<'a> CompilationContext<'a> {
     const INT_32_BYTES: u8 = 4;
 
     pub fn new(
-        buffer: Vec<u8>,
         inserted_values: Vec<Option<ValueContainer>>,
         execution_mode: ExecutionMode,
         input: CompileInput<'a>,
+        scope: CompilationScope,
     ) -> Self {
         CompilationContext {
             inserted_value_index: 0,
-            core_context: CoreCompilationContext::new(buffer, input),
+            core_context: CoreCompilationContext::new(input),
             inserted_values,
             has_non_static_value: false,
-            execution_mode,
-            scope: CompilationScope::new(ExecutionMode::default()),
+            execution_mode, // FIXME: execution mode is already in scope, is it necessary to have it here as well?
+            scope,
         }
     }
 
-    pub fn buffer_index(&self) -> u64 {
-        self.core_context.cursor().position()
+    /// Compiles a [ToInstructions] value with shared value tracking and appends a preamble with the injected shared values.
+    /// Returns the final byte buffer and the list of shared values that were moved or referenced during compilation
+    pub fn compile_to_dxb_with_shared_values(self, input: impl ToInstructions) -> DXBWithSharedValues {
+        self.core_context.compile_to_dxb_with_shared_values(input)
     }
 
-    pub fn cursor(&mut self) -> &mut Cursor<Vec<u8>> {
-        self.core_context.cursor_mut()
-    }
-
-    pub fn into_dxb_with_shared_values(self) -> DXBWithSharedValues {
-        self.core_context.into_dxb_with_shared_values()
+    /// Compiles an AST node that implements [AstNodeToInstructions] with shared value tracking and appends a preamble with the injected shared values.
+    pub fn compile_ast_node_to_dxb_with_shared_values(
+        mut self,
+        ast_node: &impl AstNodeToInstructions,
+        metadata: &mut AstMetadata,
+    ) -> Result<(DXBWithSharedValues, CompilationScope), CompilerError> {
+        let dxb = ast_node.try_compile_to_dxb(
+            &mut self,
+            metadata,
+        )?;
+        Ok((self.core_context.append_preamble_to_dxb(dxb), self.scope))
     }
 
     pub fn core_context(&mut self) -> &mut CoreCompilationContext<'a> {
@@ -83,20 +95,6 @@ impl<'a> CompilationContext<'a> {
         for<'b> <T as binrw::BinWrite>::Args<'b>: core::default::Default,
     {
         self.core_context.write(value);
-    }
-
-    /// Converts a [TypeExpression] to [TypeInstruction]s and appends them to the current buffer.
-    pub fn append_compiled_type_expression(
-        &mut self,
-        type_expression: &TypeExpression,
-    ) {
-        // TODO: collect needed?
-        let instructions = type_expression
-            .to_instructions(&mut self.core_context)
-            .collect::<Vec<Instruction>>();
-        for instruction in instructions {
-            append_instruction(self.cursor(), instruction);
-        }
     }
 
     #[deprecated(note = "use write() instead")]

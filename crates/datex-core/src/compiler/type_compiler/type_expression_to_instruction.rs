@@ -1,3 +1,4 @@
+use core::ops::Deref;
 use crate::{
     ast::type_expressions::{TypeExpression, TypeExpressionData},
     core_compiler::{
@@ -7,14 +8,13 @@ use crate::{
     prelude::*,
     types::literal_type_definition::LiteralTypeDefinition,
 };
+use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for TypeExpression {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             match self.data() {
@@ -41,16 +41,8 @@ impl ToInstructions for TypeExpression {
                 }
                 TypeExpressionData::Range(range) => {
                     yield TypeInstruction::Range.into();
-                    for instr in
-                        range.start.to_instructions(ctx).collect::<Vec<_>>()
-                    {
-                        yield instr;
-                    }
-                    for instr in
-                        range.end.to_instructions(ctx).collect::<Vec<_>>()
-                    {
-                        yield instr;
-                    }
+                    yield_all!(range.start.deref().to_instructions(visitor));
+                    yield_all!(range.end.deref().to_instructions(visitor));
                 }
                 e => todo!(
                     "Type expression to instruction not implemented for {:?}",

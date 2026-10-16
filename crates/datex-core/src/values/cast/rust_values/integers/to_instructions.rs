@@ -1,93 +1,89 @@
 use crate::{
     core_compiler::into_regular_instruction::{
-        IntoRegularInstruction, impl_regular_to_instructions,
+        ToRegularInstruction,
     },
     instruction::regular_instruction::RegularInstruction,
 };
-impl IntoRegularInstruction for u8 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for u8 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint8(*self)
     }
 }
 
-impl IntoRegularInstruction for u16 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for u16 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint16(*self)
     }
 }
-impl IntoRegularInstruction for u32 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for u32 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint32(*self)
     }
 }
-impl IntoRegularInstruction for u64 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for u64 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint64(*self)
     }
 }
-impl IntoRegularInstruction for u128 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for u128 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint128(*self)
     }
 }
 
-impl IntoRegularInstruction for i8 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for i8 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int8(*self)
     }
 }
 
-impl IntoRegularInstruction for i16 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for i16 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int16(*self)
     }
 }
 
-impl IntoRegularInstruction for i32 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for i32 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int32(*self)
     }
 }
 
-impl IntoRegularInstruction for i64 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for i64 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int64(*self)
     }
 }
-impl IntoRegularInstruction for i128 {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for i128 {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int128(*self)
     }
 }
 
 #[cfg(target_pointer_width = "32")]
-impl IntoRegularInstruction for isize {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for isize {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int32(*self as i32)
     }
 }
 
 #[cfg(target_pointer_width = "32")]
-impl IntoRegularInstruction for usize {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for usize {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint32(*self as u32)
     }
 }
 
 #[cfg(target_pointer_width = "64")]
-impl IntoRegularInstruction for isize {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for isize {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::int64(*self as i64)
     }
 }
 
 #[cfg(target_pointer_width = "64")]
-impl IntoRegularInstruction for usize {
-    fn into_regular_instruction(&self) -> RegularInstruction {
+impl ToRegularInstruction for usize {
+    fn to_regular_instruction(&self) -> RegularInstruction {
         RegularInstruction::uint64(*self as u64)
     }
 }
-
-impl_regular_to_instructions!(
-    u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, isize, usize,
-);

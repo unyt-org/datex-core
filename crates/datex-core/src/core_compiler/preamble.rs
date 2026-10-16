@@ -28,6 +28,7 @@ use crate::{
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Write};
+use crate::core_compiler::to_instructions::yield_all;
 
 #[derive(Debug)]
 struct PreambleContext<'a> {
@@ -45,83 +46,56 @@ impl BufferProvider for PreambleContext<'_> {
 // var x = shared {a: {b: null}};
 // x.a.b = x; /// #0.a.b = x;
 
-impl<'ctx> ValueVisitor<'ctx> for PreambleContext<'ctx> {
-    fn visit_value_container<'b>(
-        &'ctx mut self,
-        value_container: &'b ValueContainer,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
-    where
-        'b: 'ctx,
+impl<'ctx> ValueVisitor for PreambleContext<'ctx> {
+    fn visit_shared_container<'a>(
+        &'a mut self,
+        shared_container: &'a SharedContainer,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     {
-        match value_container {
-            ValueContainer::Local(value) => value.to_instructions(self),
-            ValueContainer::Shared(shared_container) => {
-                match self.self_referencing_containers.get_mut(shared_container)
-                {
-                    // not self referencing
-                    None => {
-                        // placeholder, will be later replaced via setter
-                        // TODO Make to yield
-                        Box::new(append_shared_container(
-                            self,
-                            shared_container,
-                            self.known_container.contains(shared_container),
-                        ))
-                    }
-                    // shared container has already been inserted, use stack value
-                    // depending on the move flag, we either take the value or borrow it
-                    Some(stack_index) => {
-                        if shared_container.treat_as_move() {
-                            todo!("Create test case here!");
-                            RegularInstruction::take_stack_value(*stack_index)
-                                .write(self.cursor)
-                                .unwrap();
-                        } else {
-                            match shared_container.ownership() {
-                                // FIXME can we be sure, that this can not happen?
-                                SharedContainerOwnership::Owned => {
-                                    unreachable!("Owned shared container")
-                                }
-                                SharedContainerOwnership::Referenced(
-                                    reference_mut,
-                                ) => match reference_mut {
-                                    ReferenceMutability::Immutable => {
-                                        Box::new(core::iter::once(
-                                            RegularInstruction::get_stack_value_shared_ref(*stack_index).into()
-                                        ))
-                                    }
-                                    ReferenceMutability::Mutable => {
-                                        Box::new(core::iter::once(
-                                            RegularInstruction::get_stack_value_shared_ref_mut(*stack_index).into()
-                                        ))
-                                    }
-                                },
-                            }
+        match self.self_referencing_containers.get(shared_container)
+        {
+            // not self referencing
+            None => {
+                // placeholder, will be later replaced via setter
+                // TODO Make to yield
+                Box::new(append_shared_container(
+                    self,
+                    shared_container,
+                    self.known_container.contains(shared_container),
+                ))
+            }
+            // shared container has already been inserted, use stack value
+            // depending on the move flag, we either take the value or borrow it
+            Some(stack_index) => {
+                if shared_container.treat_as_move() {
+                    todo!("Create test case here!");
+                    RegularInstruction::take_stack_value(*stack_index)
+                        .write(self.cursor)
+                        .unwrap();
+                } else {
+                    match shared_container.ownership() {
+                        // FIXME can we be sure, that this can not happen?
+                        SharedContainerOwnership::Owned => {
+                            unreachable!("Owned shared container")
                         }
+                        SharedContainerOwnership::Referenced(
+                            reference_mut,
+                        ) => match reference_mut {
+                            ReferenceMutability::Immutable => {
+                                Box::new(core::iter::once(
+                                    RegularInstruction::get_stack_value_shared_ref(*stack_index).into()
+                                ))
+                            }
+                            ReferenceMutability::Mutable => {
+                                Box::new(core::iter::once(
+                                    RegularInstruction::get_stack_value_shared_ref_mut(*stack_index).into()
+                                ))
+                            }
+                        },
                     }
                 }
             }
         }
-    }
-
-    fn visit_type(&mut self, ty: &Type) {
-        match ty {
-            // intercept shared types
-            Type::Entity(_) => todo!(),
-            _ => {
-                let instructions =
-                    ty.to_instructions(self).collect::<Vec<Instruction>>();
-                for instruction in instructions {
-                    append_instruction(self.cursor_mut(), instruction);
-                }
-            }
-        }
-    }
-
-    fn shared_value_tracking(
-        &self,
-    ) -> Option<&RefCell<SharedValueTracking<'ctx>>> {
-        None
     }
 }
 
@@ -317,7 +291,6 @@ gen fn append_uninitialized_shared_container<'ctx>(
                 }
             } else {
                 for instruction in append_referenced_shared_container(
-                    context,
                     referenced_container,
                 ) {
                     yield instruction;
@@ -325,28 +298,21 @@ gen fn append_uninitialized_shared_container<'ctx>(
             }
         }
     };
+
+    return;
 }
 
-fn append_self_referencing_shared_container_to_stack<'ctx, 'b>(
+fn append_self_referencing_shared_container_to_stack<'ctx>(
     context: &'ctx mut PreambleContext<'ctx>,
-    container: &'b SharedContainer,
-    statements_count: &'b mut u32,
+    container: &'ctx SharedContainer,
+    statements_count: &'ctx mut u32,
     uninitialized_index: StackIndex,
 ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
-where
-    'b: 'ctx,
 {
     Box::new(gen move {
         *statements_count += 1;
         yield RegularInstruction::set_shared_container_value().into();
-        let vc = {
-            context
-                .visit_value_container(container.value_container().deref())
-                .collect::<Vec<_>>()
-        };
-        for instruction in vc {
-            yield instruction;
-        }
+        yield_all!(container.value_container().deref().to_instructions(context));
         yield RegularInstruction::borrow_stack_value(uninitialized_index)
             .into();
     })
@@ -412,7 +378,6 @@ gen fn append_shared_container<'ctx>(
                 }
             } else {
                 for instruction in append_referenced_shared_container(
-                    context,
                     referenced_container,
                 ) {
                     yield instruction;
@@ -436,27 +401,15 @@ gen fn append_move_with_value<'ctx>(
     .into();
 
     if let Some(value_container) = value_container {
-        match value_container {
-            ValueContainer::Local(value) => {
-                for instruction in value.to_instructions(context) {
-                    yield instruction;
-                }
-            }
-            ValueContainer::Shared(_) => {
-                for instruction in
-                    context.visit_value_container(value_container)
-                {
-                    yield instruction;
-                }
-            }
-        }
+        yield_all!(value_container.to_instructions(context));
     } else {
         yield RegularInstruction::Uninitialized.into();
     }
+
+    return;
 }
 
 gen fn append_referenced_shared_container<'ctx>(
-    context: &mut PreambleContext<'ctx>,
     referenced_container: &ReferencedSharedContainer,
 ) -> Instruction {
     match referenced_container.pointer_address() {
@@ -479,6 +432,8 @@ gen fn append_referenced_shared_container<'ctx>(
             .into();
         }
     }
+
+    return;
 }
 
 gen fn append_referenced_shared_container_with_value<'ctx>(
@@ -501,12 +456,8 @@ gen fn append_referenced_shared_container_with_value<'ctx>(
             if unitialized {
                 yield RegularInstruction::Uninitialized.into();
             } else {
-                // TODO: no clone?
-                for instructions in context.visit_value_container(
-                    referenced_container.value_container().deref(),
-                ) {
-                    yield instructions;
-                }
+                // TODO: no collect?
+                yield_all!(referenced_container.value_container().deref().to_instructions(context));
             }
         }
         // insert without value for non self owned references
@@ -520,6 +471,8 @@ gen fn append_referenced_shared_container_with_value<'ctx>(
             .into();
         }
     }
+
+    return;
 }
 
 #[cfg(test)]

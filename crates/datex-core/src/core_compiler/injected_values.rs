@@ -52,7 +52,7 @@ pub fn compile_injected_values(
         let DXBWithSharedValues {
             dxb: preambles_dxb,
             shared_values,
-        } = context.into_dxb_with_shared_values();
+        } = context.compile_to_dxb_with_shared_values();
 
         // prepend statements block
         let mut cursor = ByteCursor::new(Vec::new());
@@ -136,7 +136,9 @@ fn compile_injected_values_with_context(
         .write(RegularInstruction::list(injected_values.len() as u32));
 
     for value_container in injected_values {
-        compilation_context.visit_value_container(value_container);
+        for instruction in compilation_context.visit_shared_container(value_container) {
+            compilation_context.write(instruction);
+        }
     }
 }
 

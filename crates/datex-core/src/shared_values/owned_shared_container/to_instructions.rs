@@ -8,21 +8,13 @@ use crate::{
 };
 
 impl ToInstructions for OwnedSharedContainer {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         let reference =
             SharedContainer::Referenced(self.clone_with_move_indicator());
-        Box::new(gen move {
-            for instruction in
-                reference.to_instructions(ctx).collect::<Vec<_>>()
-            {
-                yield instruction;
-            }
-        })
+        reference.to_instructions(visitor)
     }
 }

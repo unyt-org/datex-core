@@ -78,8 +78,8 @@ pub fn compile_value_container(
 ) -> DXBWithSharedValues {
     let mut context =
         CoreCompilationContext::new(Vec::with_capacity(256), compile_input);
-    context.visit_value_container(value_container);
-    context.into_dxb_with_shared_values()
+    context.visit_shared_container(value_container);
+    context.compile_to_dxb_with_shared_values()
 }
 
 pub fn compile_value(
@@ -105,7 +105,7 @@ pub fn compile_panic(
         vec![ValueContainer::Local(panic_value.into())],
     );
 
-    context.into_dxb_with_shared_values().dxb
+    context.compile_to_dxb_with_shared_values().dxb
 }
 
 /// Appends a shared container to the buffer by registering it in the shared value tracking and appending the stack index
@@ -141,16 +141,16 @@ pub fn append_local_pointer_address(
 
 /// Compiles a value container to the buffer of the provided context
 #[deprecated(note = "Use ToInstructions trait instead")]
-pub fn append_value_container<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
+pub fn append_value_container<T: BufferProvider + ValueVisitor>(
     context: &mut T,
     value_container: &ValueContainer,
 ) {
-    context.visit_value_container(value_container);
+    context.visit_shared_container(value_container);
 }
 
 /// Compiles a value to the buffer of the provided context
 #[deprecated(note = "Use ToInstructions trait instead")]
-pub fn append_value<'ctx, T: BufferProvider + ValueVisitor<'ctx> + 'ctx>(
+pub fn append_value<T: BufferProvider + ValueVisitor>(
     context: &mut T,
     value: &Value,
 ) {
@@ -361,14 +361,14 @@ pub fn append_core_type_cast(
     todo!()
 }
 
-pub fn append_apply<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
+pub fn append_apply<'ctx, T: BufferProvider + ValueVisitor>(
     context: &mut T,
     callee: RegularInstruction,
     args: Vec<ValueContainer>,
 ) {
     context.write(RegularInstruction::apply(args.len() as u8));
     for arg in args {
-        context.visit_value_container(&arg);
+        context.visit_shared_container(&arg);
     }
     context.write(callee);
 }
@@ -532,7 +532,7 @@ pub fn append_get_core_lib_value(cursor: &mut ByteCursor, id: CoreLibId) {
 }
 
 /// Appends a key-value pair for map entries, optimizing for short text keys
-pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
+pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor>(
     context: &mut T,
     key: &ValueContainer,
     value: &ValueContainer,
@@ -548,11 +548,15 @@ pub fn append_key_value_pair<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
         }
         _ => {
             context.write(RegularInstruction::key_value_dynamic());
-            context.visit_value_container(key);
+            for instruction in context.visit_shared_container(key) {
+                context.write(instruction);
+            }
         }
     }
     // insert value
-    context.visit_value_container(value);
+    for instruction in context.visit_shared_container(value) {
+        context.write(instruction);
+    }
 }
 
 /// Appends a key string for map entries, optimizing for short text keys
@@ -743,7 +747,7 @@ mod tests {
         let shared_container = ValueContainer::Shared(owned_shared);
         let mut context = core_compilation_context();
 
-        context.visit_value_container(&shared_container);
+        context.visit_shared_container(&shared_container);
 
         // The address should now be registered in the shared value tracking
         assert_matches!(
@@ -760,7 +764,7 @@ mod tests {
         );
 
         assert_instructions_equal!(
-            &context.into_dxb_with_shared_values().dxb,
+            &context.compile_to_dxb_with_shared_values().dxb,
             (RegularInstruction::statements_with_children(
                 false,
                 instructions!(
@@ -832,7 +836,7 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        context.visit_value_container(&shared_container);
+        context.visit_shared_container(&shared_container);
 
         assert_matches!(
             context
@@ -867,7 +871,7 @@ mod tests {
             }
         );
 
-        let dxb = context.into_dxb_with_shared_values().dxb;
+        let dxb = context.compile_to_dxb_with_shared_values().dxb;
 
         assert_instructions_equal!(
             &dxb,
@@ -950,7 +954,7 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        context.visit_value_container(&shared_container);
+        context.visit_shared_container(&shared_container);
 
         assert_matches!(
             context
@@ -976,7 +980,7 @@ mod tests {
             }
         );
 
-        let dxb = context.into_dxb_with_shared_values().dxb;
+        let dxb = context.compile_to_dxb_with_shared_values().dxb;
 
         assert_instructions_equal!(
             &dxb,
@@ -1033,7 +1037,7 @@ mod tests {
         let shared_container = ValueContainer::Shared(reference.clone());
         let mut context = core_compilation_context();
 
-        context.visit_value_container(&shared_container);
+        context.visit_shared_container(&shared_container);
 
         assert_matches!(
             context
@@ -1049,7 +1053,7 @@ mod tests {
             }
         );
 
-        let dxb = context.into_dxb_with_shared_values().dxb;
+        let dxb = context.compile_to_dxb_with_shared_values().dxb;
 
         assert_instructions_equal!(
             &dxb,
@@ -1115,7 +1119,7 @@ mod tests {
             .into(),
         );
         let mut context = core_compilation_context();
-        context.visit_value_container(&local);
+        context.visit_shared_container(&local);
 
         assert_matches!(
             context
@@ -1144,7 +1148,7 @@ mod tests {
             }
         );
 
-        let dxb = context.into_dxb_with_shared_values().dxb;
+        let dxb = context.compile_to_dxb_with_shared_values().dxb;
 
         assert_instructions_equal!(
             &dxb,
@@ -1219,7 +1223,7 @@ mod tests {
         };
 
         let mut context = core_compilation_context();
-        context.visit_value_container(&ValueContainer::Shared(shared));
+        context.visit_shared_container(&ValueContainer::Shared(shared));
 
         assert_matches!(
             context
@@ -1235,7 +1239,7 @@ mod tests {
             }
         );
 
-        let dxb = context.into_dxb_with_shared_values().dxb;
+        let dxb = context.compile_to_dxb_with_shared_values().dxb;
 
         assert_instructions_equal!(
             &dxb,

@@ -1,3 +1,5 @@
+pub mod value_visitor;
+
 use crate::{
     global::stack_index::StackIndex,
     prelude::*,

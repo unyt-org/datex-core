@@ -7,12 +7,10 @@ use crate::{
     values::core_values::decimal::typed_decimal::TypedDecimal,
 };
 impl ToInstructions for TypedDecimal {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        _ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             todo!(

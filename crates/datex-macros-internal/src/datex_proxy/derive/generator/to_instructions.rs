@@ -28,12 +28,10 @@ pub fn generate_to_instructions(structure_data: &StructureData) -> TokenStream {
 
     quote! {
         impl #impl_generics ToInstructions for #ident #ty_generics #where_clause {
-            fn to_instructions<'ctx, 'a>(
+            fn to_instructions<'a>(
                 &'a self,
-                ctx: &'a mut dyn ValueVisitor<'ctx>,
+                ctx: &'a mut dyn ValueVisitor,
             ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-            where
-                'ctx: 'a,
             {
                 Box::new(gen move {
                     #body

@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -6,27 +7,23 @@ use crate::{
     prelude::*,
     values::value::Value,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
+use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for Value {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             // append inner instructions
             match self {
                 Value::Native(native) => {
-                    for instruction in native.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(native.to_instructions(visitor));
                 }
                 Value::Core(core) => {
-                    for instruction in core.to_instructions(ctx) {
-                        yield instruction;
-                    }
+                    yield_all!(core.to_instructions(visitor));
                 }
             }
         })

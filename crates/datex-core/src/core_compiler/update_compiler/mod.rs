@@ -1,5 +1,6 @@
 //! Compiler for update operations on shared containers into DXB instructions.
 
+use std::cell::RefCell;
 use crate::{
     core_compiler::{
         buffer_provider::BufferProvider,
@@ -22,7 +23,9 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
-use crate::values::core_values::text::Text;
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
+use crate::core_compiler::to_instructions::yield_all;
+use crate::instruction::Instruction;
 
 /// Compiles an update operation on a shared container into DXB
 /// e.g. [UpdateData::SetEntry] to $x.a = b;
@@ -36,48 +39,46 @@ pub fn compile_updates(
         compile_input,
     );
     append_updates(&mut context, container, updates);
-    context.into_dxb_with_shared_values()
+    context.compile_to_dxb_with_shared_values()
 }
 
 /// Appends a list of update operations on a shared container
 /// The updates are appended as a single statement block, with the shared container being pushed to the stack first, followed by each update operation.
-fn append_updates<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_updates<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     container: &SharedContainer,
     updates: &[&UpdateData],
-) {
+) -> Instruction {
     let statements_count = 1 + updates.len() as u32; // 1 for the push to stack, and 1 for each update operation
 
-    context.write(RegularInstruction::statements(statements_count, true));
-    context.write(RegularInstruction::push_to_stack());
-    context.write(RegularInstruction::shared_ref(SharedRef {
+    yield RegularInstruction::statements(statements_count, true).into();
+    yield RegularInstruction::push_to_stack().into();
+    yield RegularInstruction::shared_ref(SharedRef {
         address: container.pointer_address(),
         ref_mutability: ReferenceMutability::Mutable, // can always be upgraded to mutable since the executing endpoint is the owner
         container_mutability: SharedContainerMutability::Mutable, // must be mutable for updates
-    }));
+    }).into();
 
     for update in updates {
         // TODO append update.path
-        append_update_operation(context, update.operation());
+        yield_all!(append_update_operation(visitor, cache, update.operation()));
     }
 }
 
 /// Appends a single update operation on a shared container
-fn append_update_operation<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_update_operation<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     operation: &UpdateOperation,
-) {
+) -> Instruction {
     match operation {
-        UpdateOperation::SetEntry(data) => append_set_entry(context, data),
-        UpdateOperation::AppendEntry(data) => {
-            append_append_entry(context, data)
-        }
-        UpdateOperation::Replace(data) => append_replace(context, data),
-        UpdateOperation::Clear => append_clear(context),
-        UpdateOperation::DeleteEntry(data) => {
-            append_delete_entry(context, data)
-        }
-        UpdateOperation::ListSplice(data) => append_list_splice(context, data),
+        UpdateOperation::SetEntry(data) => yield_all!(append_set_entry(visitor, cache, data)),
+        UpdateOperation::AppendEntry(data) => yield_all!(append_append_entry(visitor, cache, data)),
+        UpdateOperation::Replace(data) => yield_all!(append_replace(visitor, cache, data)),
+        UpdateOperation::Clear => yield_all!(append_clear(visitor)),
+        UpdateOperation::DeleteEntry(data) => yield_all!(append_delete_entry(visitor, data)),
+        UpdateOperation::ListSplice(data) => yield_all!(append_list_splice(visitor, cache, data)),
         UpdateOperation::Increment(_data) => {
             todo!()
         }
@@ -85,95 +86,109 @@ fn append_update_operation<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
             todo!()
         }
     }
+
+    return;
 }
 
 /// Appends a set entry operation on a shared container
-fn append_set_entry<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_set_entry<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     set_entry_update_data: &SetEntryUpdateData,
-) {
+) -> Instruction {
     // key
-    append_set_property_value_key(context, &set_entry_update_data.key);
+    yield_all!(append_set_property_value_key(visitor, cache, &set_entry_update_data.key));
     // value
-    context.visit_value_container(&set_entry_update_data.value);
+    yield_all!(visitor.visit_shared_container(cache, &set_entry_update_data.value));
     // target
-    context.write(RegularInstruction::borrow_stack_value(StackIndex(0)));
+    yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
+
+    return;
 }
 
 /// Appends a replace operation on a shared container
-fn append_replace<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_replace<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     replace_update_data: &ReplaceUpdateData,
-) {
-    context.write(RegularInstruction::set_shared_container_value());
-    context.visit_value_container(&replace_update_data.value);
+) -> Instruction {
+    yield RegularInstruction::set_shared_container_value().into();
+    yield_all!(visitor.visit_shared_container(cache, &replace_update_data.value));
     // target
-    context.write(RegularInstruction::borrow_stack_value(StackIndex(0)));
+    yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
+    return;
 }
 
 /// Appends an append entry operation on a shared container
-fn append_append_entry<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_append_entry<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     append_entry_update_data: &AppendEntryUpdateData,
-) {
-    context.write(RegularInstruction::append_entry());
-    context.visit_value_container(&append_entry_update_data.value);
+) -> Instruction {
+    yield RegularInstruction::append_entry().into();
+    yield_all!(visitor.visit_shared_container(cache, &append_entry_update_data.value));
+
     // target
-    context.write(RegularInstruction::borrow_stack_value(StackIndex(0)));
+    yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
+    return;
 }
 
 /// Appends a list splice operation on a shared container
-fn append_list_splice<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    context: &mut T,
+gen fn append_list_splice<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     list_splice_update_data: &ListSpliceUpdateData,
-) {
-    context.write(RegularInstruction::splice(
+) -> Instruction {
+    yield RegularInstruction::splice(
         list_splice_update_data.start,
         list_splice_update_data.delete_count,
         list_splice_update_data.items.len() as u32,
-    ));
+    ).into();
 
     for item in &list_splice_update_data.items {
-        context.visit_value_container(item);
+        yield_all!(visitor.visit_shared_container(cache, item));
     }
 
     // target
-    context.write(RegularInstruction::borrow_stack_value(StackIndex(0)));
+    yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
+
+    return;
 }
 
 /// Appends a clear operation on a shared container
-fn append_clear<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(context: &mut T) {
-    context.write(RegularInstruction::clear());
+gen fn append_clear(visitor: &mut impl ValueVisitor) -> Instruction {
+    yield RegularInstruction::clear().into();
 
     // target
-    context.write(RegularInstruction::borrow_stack_value(StackIndex(0)));
+    yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
+    return;
 }
 
 /// Appends a delete entry operation on a shared container
-fn append_delete_entry<'ctx, T: BufferProvider + ValueVisitor<'ctx>>(
-    _context: &mut T,
+gen fn append_delete_entry(
+    visitor: &mut impl ValueVisitor,
     _delete_entry_update_data: &DeleteEntryUpdateData,
-) {
+) -> Instruction {
     todo!()
 }
 
 /// Appends a set property operation on a shared container, based on the provided value key.
-pub fn append_set_property_value_key<
-    'ctx,
-    T: BufferProvider + ValueVisitor<'ctx>,
->(
-    context: &mut T,
+pub gen fn append_set_property_value_key<'a>(
+    visitor: &mut impl ValueVisitor,
+    cache: Option<&RefCell<SharedValueTracking<'a>>>,
     value_key: &ValueContainer,
-) {
+) -> Instruction {
     if let Some(string) = value_key.try_as_str() {
-        context.write(RegularInstruction::set_entry_text(string.to_string()));
+        yield RegularInstruction::set_entry_text(string.to_string()).into();
     }
     else if let Some(index) = value_key.try_as::<u32>() { // TODO: integer conversion
-        context.write(RegularInstruction::set_entry_index(*index));
+        yield RegularInstruction::set_entry_index(*index).into();
     } else {
-        context.write(RegularInstruction::set_entry_dynamic());
-        context.visit_value_container(value_key);
+        yield RegularInstruction::set_entry_dynamic().into();
+        yield_all!(visitor.visit_shared_container(cache, value_key));
     }
+
+    return;
 }
 
 #[cfg(test)]

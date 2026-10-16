@@ -7,12 +7,10 @@ use crate::{
     values::core_values::list::List,
 };
 impl ToInstructions for List {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         self.items.to_instructions(ctx)
     }

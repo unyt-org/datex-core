@@ -7,12 +7,10 @@ use crate::{
     values::core_values::map::Map,
 };
 impl ToInstructions for Map {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield RegularInstruction::map(self.size() as u32).into();

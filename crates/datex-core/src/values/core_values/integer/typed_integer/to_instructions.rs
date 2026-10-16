@@ -7,12 +7,10 @@ use crate::{
     values::core_values::integer::typed_integer::TypedInteger,
 };
 impl ToInstructions for TypedInteger {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             match self {

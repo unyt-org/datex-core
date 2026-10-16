@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -5,23 +6,21 @@ use crate::{
     instruction::{Instruction, regular_instruction::RegularInstruction},
     prelude::*,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
+use crate::core_compiler::to_instructions::yield_all;
 
 impl<V> ToInstructions for Box<V>
 where
     V: ToInstructions + ?Sized,
 {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield RegularInstruction::boxed_value().into();
-            for instruction in self.as_ref().to_instructions(ctx) {
-                yield instruction;
-            }
+            yield_all!(self.as_ref().to_instructions(visitor))
         })
     }
 }

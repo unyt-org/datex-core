@@ -8,24 +8,26 @@ use crate::{
     prelude::*,
 };
 
-pub struct InstructionContext<'tracking, 'ctx> {
-    pub shared_value_tracking:
-        Option<&'ctx RefCell<SharedValueTracking<'tracking>>>,
+
+pub trait ToInstructions {
+    fn to_instructions<'a>(
+        &'a self,
+        visitor: &'a mut dyn ValueVisitor,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a>;
 }
 
-impl<'tracking, 'ctx> InstructionContext<'tracking, 'ctx> {
-    pub fn empty() -> Self {
-        Self {
-            shared_value_tracking: None,
-        }
+/// A macro to yield instructions from a value that implements `ToInstructions`.
+/// This expands to a loop that iterates over the instructions produced by the `to_instructions` method of the value, yielding each instruction to the caller.
+pub macro yield_all($iterator:expr) {
+    for instruction in $iterator {
+        yield instruction;
     }
 }
 
-pub trait ToInstructions {
-    fn to_instructions<'ctx, 'a>(
-        &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a;
+/// A macro to yield `Ok` instructions from a value that implements `ToInstructions`.
+/// This expands to a loop that iterates over the instructions produced by the `to_instructions` method of the value, yielding each instruction wrapped in `Ok` to the caller.
+pub macro yield_all_ok($iterator:expr) {
+    for instruction in $iterator {
+        yield Ok(instruction);
+    }
 }

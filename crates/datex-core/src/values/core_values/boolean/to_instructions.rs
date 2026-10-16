@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -6,15 +7,14 @@ use crate::{
     prelude::*,
     values::core_values::boolean::Boolean,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for Boolean {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
-        self.0.to_instructions(ctx)
+        self.0.to_instructions(visitor)
     }
 }

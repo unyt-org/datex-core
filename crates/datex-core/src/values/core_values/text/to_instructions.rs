@@ -8,12 +8,10 @@ use crate::{
 };
 
 impl ToInstructions for Text {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        ctx: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         // FIXME: more efficient way to do this without collecting?
         let instructions = self.as_string().to_instructions(ctx).collect::<Vec<_>>();

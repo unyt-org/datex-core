@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -6,23 +7,18 @@ use crate::{
     prelude::*,
     values::core_values::range::Range,
 };
+use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for Range {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        ctx: &'a mut dyn ValueVisitor<'ctx>,
+        visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             yield RegularInstruction::range().into();
-            for instr in self.start.to_instructions(ctx) {
-                yield instr;
-            }
-            for instr in self.end.to_instructions(ctx) {
-                yield instr;
-            }
+            yield_all!(self.start.deref().to_instructions(visitor));
+            yield_all!(self.end.deref().to_instructions(visitor));
         })
     }
 }

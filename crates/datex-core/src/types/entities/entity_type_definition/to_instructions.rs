@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -6,14 +7,13 @@ use crate::{
     prelude::*,
     types::entities::entity_type_definition::EntityTypeDefinition,
 };
+use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for EntityTypeDefinition {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
-        _ctx: &'a mut dyn ValueVisitor<'ctx>,
+        _visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         Box::new(gen move {
             todo!("Implement ToInstructions for EntityTypeDefinition")
