@@ -8,18 +8,18 @@ use crate::{
     dif::{
         deserialize_serde_context::DeserializeSerdeContext,
         deserialize_with_serde_context::DeserializeWithSerdeContext,
+        pointer_address::PointerAddressWithOwnership,
         serde_context::SerdeContext,
         serialize_with_serde_context::SerializeWithSerdeContext,
     },
     prelude::*,
+    values::core_value_with_classification::CoreValueWithClassification,
 };
 use core::fmt;
 use serde::{
     Deserializer,
     de::{MapAccess, Visitor},
 };
-use crate::dif::pointer_address::PointerAddressWithOwnership;
-use crate::values::core_value_with_classification::CoreValueWithClassification;
 
 pub const DIF_INDICATOR_KEY: &str = "_";
 
@@ -172,9 +172,9 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         mut map: A,
     ) -> Result<ValueContainer, A::Error> {
         let Some(key) = map.next_key::<String>()? else {
-            return Err(serde::de::Error::custom(
-                format!("expected an indicator key '{DIF_INDICATOR_KEY}', but the map is empty")
-            ));
+            return Err(serde::de::Error::custom(format!(
+                "expected an indicator key '{DIF_INDICATOR_KEY}', but the map is empty"
+            )));
         };
 
         if key != DIF_INDICATOR_KEY {
@@ -192,23 +192,26 @@ impl<'de, 'a, 'ctx> Visitor<'de>
         }
         // if the indicator key is "t", this is a tagged value, and we need to deserialize Value
         else if indicator == "t" {
-            let value = self.cast::<CoreValueWithClassification>().visit_map(map)?;
+            let value =
+                self.cast::<CoreValueWithClassification>().visit_map(map)?;
             Ok(ValueContainer::Local(Value::Core(value)))
-        }
-        else {
+        } else {
             let pointer_address_with_ownership =
                 PointerAddressWithOwnership::try_from(indicator.as_str()).map_err(|e| {
                     serde::de::Error::custom(format!(
                         "Failed to parse pointer address from indicator value '{indicator}': {e}"
                     ))
                 })?;
-            let shared = SharedContainer::resolve_with_serde_context(pointer_address_with_ownership, self.ctx)
-                .map_err(|e| {
-                    serde::de::Error::custom(format!(
-                        "Failed to retrieve shared container from cache: {}",
-                        e
-                    ))
-                })?;
+            let shared = SharedContainer::resolve_with_serde_context(
+                pointer_address_with_ownership,
+                self.ctx,
+            )
+            .map_err(|e| {
+                serde::de::Error::custom(format!(
+                    "Failed to retrieve shared container from cache: {}",
+                    e
+                ))
+            })?;
 
             if let Some(extra_key) = map.next_key::<String>()? {
                 return Err(serde::de::Error::custom(format!(
@@ -218,7 +221,6 @@ impl<'de, 'a, 'ctx> Visitor<'de>
 
             Ok(ValueContainer::Shared(shared))
         }
-
     }
 }
 
@@ -359,7 +361,7 @@ mod tests {
     #[test]
     fn deserialize_nested_pointer_address() {
         let cache = RefCell::new(SharedValuesCache::default());
-        let mut context = SerdeContext::new(&cache);
+        let context = SerdeContext::new(&cache);
 
         let owned_container =
             OwnedSharedContainer::new_with_inferred_allowed_type(
@@ -375,7 +377,7 @@ mod tests {
             .borrow_mut()
             .store_shared_container(referenced_container);
         let json = format!(
-            r#"[{},[{{"$":"'{}"}}]]"#,
+            r#"[{},[{{"_":"'{}"}}]]"#,
             CoreLibIdIndex::from(CoreLibBaseTypeId::List),
             pointer_address
         );
