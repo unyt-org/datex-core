@@ -14,7 +14,7 @@ use crate::{
     },
     global::stack_index::StackIndex,
     instruction::{
-        Instruction,
+        self, Instruction,
         instruction_data::{MoveWithValue, SharedRef, SharedRefWithValue},
         regular_instruction::RegularInstruction,
     },
@@ -46,10 +46,13 @@ impl BufferProvider for PreambleContext<'_> {
 // x.a.b = x; /// #0.a.b = x;
 
 impl<'ctx> ValueVisitor<'ctx> for PreambleContext<'ctx> {
-    fn visit_value_container(
-        &mut self,
-        value_container: &ValueContainer,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'ctx> {
+    fn visit_value_container<'b>(
+        &'ctx mut self,
+        value_container: &'b ValueContainer,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
+    where
+        'b: 'ctx,
+    {
         match value_container {
             ValueContainer::Local(value) => value.to_instructions(self),
             ValueContainer::Shared(shared_container) => {
@@ -59,12 +62,11 @@ impl<'ctx> ValueVisitor<'ctx> for PreambleContext<'ctx> {
                     None => {
                         // placeholder, will be later replaced via setter
                         // TODO Make to yield
-                        append_shared_container(
+                        Box::new(append_shared_container(
                             self,
                             shared_container,
                             self.known_container.contains(shared_container),
-                        );
-                        Box::new(std::iter::empty())
+                        ))
                     }
                     // shared container has already been inserted, use stack value
                     // depending on the move flag, we either take the value or borrow it
@@ -84,14 +86,14 @@ impl<'ctx> ValueVisitor<'ctx> for PreambleContext<'ctx> {
                                     reference_mut,
                                 ) => match reference_mut {
                                     ReferenceMutability::Immutable => {
-                                        RegularInstruction::get_stack_value_shared_ref(*stack_index)
-                                                .write(self.cursor)
-                                                .unwrap();
+                                        Box::new(core::iter::once(
+                                            RegularInstruction::get_stack_value_shared_ref(*stack_index).into()
+                                        ))
                                     }
                                     ReferenceMutability::Mutable => {
-                                        RegularInstruction::get_stack_value_shared_ref_mut(*stack_index)
-                                                .write(self.cursor)
-                                                .unwrap();
+                                        Box::new(core::iter::once(
+                                            RegularInstruction::get_stack_value_shared_ref_mut(*stack_index).into()
+                                        ))
                                     }
                                 },
                             }
@@ -162,12 +164,17 @@ pub(super) fn append_injected_values_preamble(
         // loop through the tracked values in reverse order (as optimization)
         for (tracked_value, metadata) in tracked_values.iter() {
             if metadata.is_self_referencing() {
-                let new_index = append_uninitialized_shared_container(
+                let new_index = context.get_next_stack_index();
+                for instruction in append_uninitialized_shared_container(
                     context,
                     tracked_value,
                     metadata,
                     inner_statement_count,
-                );
+                )
+                .collect::<Vec<_>>()
+                {
+                    instruction.write(context.cursor_mut());
+                }
                 context
                     .self_referencing_containers
                     .insert(tracked_value.clone(), new_index);
@@ -185,20 +192,31 @@ pub(super) fn append_injected_values_preamble(
             {
                 let new_index = if is_self_referencing {
                     let uninitialized_index = *context.self_referencing_containers.get(&tracked_value).expect("Self referencing container should have been inserted");
-                    append_self_referencing_shared_container_to_stack(
-                        context,
-                        &tracked_value,
-                        inner_statement_count,
-                        uninitialized_index,
-                    );
+                    for instruction in
+                        append_self_referencing_shared_container_to_stack(
+                            context,
+                            &tracked_value,
+                            inner_statement_count,
+                            uninitialized_index,
+                        )
+                        .collect::<Vec<_>>()
+                    {
+                        instruction.write(context.cursor_mut());
+                    }
                     uninitialized_index
                 } else {
-                    append_shared_container_to_stack(
+                    let index = context.get_next_stack_index();
+                    for instruction in append_shared_container_to_stack(
                         context,
                         &tracked_value,
                         is_known,
                         inner_statement_count,
                     )
+                    .collect::<Vec<_>>()
+                    {
+                        instruction.write(context.cursor_mut());
+                    }
+                    index
                 };
                 root_containers.push(tracked_value);
                 root_container_stack_indices[index.0 as usize] =
@@ -253,29 +271,30 @@ pub(super) fn append_injected_values_preamble(
     (byte_cursor.into_inner(), root_containers)
 }
 
-fn append_uninitialized_shared_container(
-    context: &mut PreambleContext,
+gen fn append_uninitialized_shared_container<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     container: &SharedContainer,
     metadata: &TrackedValueMetadata,
     statements_count: &mut u32,
-) -> StackIndex {
+) -> Instruction {
     *statements_count += 1;
-    let index = context.get_next_stack_index();
 
     // append push to stack
-    context.write(RegularInstruction::push_to_stack());
+    yield RegularInstruction::push_to_stack().into();
     match container {
         SharedContainer::Owned(owned_container) => {
-            append_move_with_value(
+            for instruction in append_move_with_value(
                 context,
                 owned_container.container_mutability(),
                 owned_container.pointer_address().clone(),
                 None,
-            );
+            ) {
+                yield instruction;
+            }
         }
         SharedContainer::Referenced(referenced_container) => {
             if referenced_container.treat_as_move() {
-                append_move_with_value(
+                for instruction in append_move_with_value(
                     context,
                     referenced_container.container_mutability(),
                     match referenced_container.pointer_address() {
@@ -285,72 +304,92 @@ fn append_uninitialized_shared_container(
                         ),
                     },
                     None,
-                )
+                ) {
+                    yield instruction;
+                }
             } else if !metadata.is_known() {
-                append_referenced_shared_container_with_value(
+                for instruction in append_referenced_shared_container_with_value(
                     context,
                     referenced_container,
                     true,
-                );
+                ) {
+                    yield instruction;
+                }
             } else {
-                append_referenced_shared_container(
+                for instruction in append_referenced_shared_container(
                     context,
                     referenced_container,
-                );
+                ) {
+                    yield instruction;
+                }
             }
         }
     };
-    index
 }
 
-fn append_self_referencing_shared_container_to_stack(
-    context: &mut PreambleContext,
-    container: &SharedContainer,
-    statements_count: &mut u32,
+fn append_self_referencing_shared_container_to_stack<'ctx, 'b>(
+    context: &'ctx mut PreambleContext<'ctx>,
+    container: &'b SharedContainer,
+    statements_count: &'b mut u32,
     uninitialized_index: StackIndex,
-) {
-    *statements_count += 1;
-    context.write(RegularInstruction::set_shared_container_value());
-    context.visit_value_container(container.value_container().deref());
-    context.write(RegularInstruction::borrow_stack_value(uninitialized_index));
+) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
+where
+    'b: 'ctx,
+{
+    Box::new(gen move {
+        *statements_count += 1;
+        yield RegularInstruction::set_shared_container_value().into();
+        let vc = {
+            context
+                .visit_value_container(container.value_container().deref())
+                .collect::<Vec<_>>()
+        };
+        for instruction in vc {
+            yield instruction;
+        }
+        yield RegularInstruction::borrow_stack_value(uninitialized_index)
+            .into();
+    })
 }
 
-fn append_shared_container_to_stack(
-    context: &mut PreambleContext,
+gen fn append_shared_container_to_stack<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     container: &SharedContainer,
     is_known: bool,
     statements_count: &mut u32,
-) -> StackIndex {
+) -> Instruction {
     *statements_count += 1;
-
-    let index = context.get_next_stack_index();
 
     // append push to stack
-    context.write(RegularInstruction::push_to_stack());
-    append_shared_container(context, container, is_known);
-
-    index
+    yield RegularInstruction::push_to_stack().into();
+    for instruction in append_shared_container(context, container, is_known) {
+        yield instruction;
+    }
 }
 
-fn append_shared_container(
-    context: &mut PreambleContext,
+gen fn append_shared_container<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     container: &SharedContainer,
     is_known: bool,
-) -> Box<dyn Iterator<Item = Instruction>> {
+) -> Instruction {
     match container {
         SharedContainer::Owned(owned_container) => {
             let value_container = owned_container.value_container();
-            Box::new(append_move_with_value(
+            for instruction in append_move_with_value(
                 context,
                 owned_container.container_mutability(),
                 owned_container.pointer_address().clone(),
                 Some(value_container.deref()),
-            ))
+            )
+            .collect::<Vec<_>>()
+            {
+                yield instruction;
+            }
         }
         SharedContainer::Referenced(referenced_container) => {
             if referenced_container.treat_as_move() {
                 let value_container = referenced_container.value_container();
-                append_move_with_value(
+                for instruction in append_move_with_value(
                     context,
                     referenced_container.container_mutability(),
                     match referenced_container.pointer_address() {
@@ -360,18 +399,24 @@ fn append_shared_container(
                         ),
                     },
                     Some(value_container.deref()),
-                )
+                ).collect::<Vec<_>>() {
+                    yield instruction;
+                }
             } else if !is_known {
-                append_referenced_shared_container_with_value(
+                for instruction in append_referenced_shared_container_with_value(
                     context,
                     referenced_container,
                     false,
-                );
+                ) {
+                    yield instruction;
+                }
             } else {
-                append_referenced_shared_container(
+                for instruction in append_referenced_shared_container(
                     context,
                     referenced_container,
-                );
+                ) {
+                    yield instruction;
+                }
             }
         }
     }
@@ -410,63 +455,69 @@ gen fn append_move_with_value<'ctx>(
     }
 }
 
-fn append_referenced_shared_container(
-    context: &mut PreambleContext,
+gen fn append_referenced_shared_container<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     referenced_container: &ReferencedSharedContainer,
-) {
+) -> Instruction {
     match referenced_container.pointer_address() {
         PointerAddress::SelfOwned(pointer_address) => {
-            context.write(RegularInstruction::shared_ref(SharedRef {
+            yield RegularInstruction::shared_ref(SharedRef {
                 address: PointerAddress::SelfOwned(pointer_address),
                 ref_mutability: referenced_container.reference_mutability(),
                 container_mutability: referenced_container
                     .container_mutability(),
-            }));
+            })
+            .into();
         }
         PointerAddress::Remote(pointer_address) => {
-            context.write(RegularInstruction::shared_ref(SharedRef {
+            yield RegularInstruction::shared_ref(SharedRef {
                 address: PointerAddress::Remote(pointer_address),
                 ref_mutability: referenced_container.reference_mutability(),
                 container_mutability: referenced_container
                     .container_mutability(),
-            }));
+            })
+            .into();
         }
     }
 }
 
-fn append_referenced_shared_container_with_value(
-    context: &mut PreambleContext,
+gen fn append_referenced_shared_container_with_value<'ctx>(
+    context: &mut PreambleContext<'ctx>,
     referenced_container: &ReferencedSharedContainer,
     unitialized: bool,
-) {
+) -> Instruction {
     match referenced_container.pointer_address() {
         // insert with value for self owned references
         PointerAddress::SelfOwned(pointer_address) => {
-            context.write(RegularInstruction::shared_ref_with_value(
+            yield RegularInstruction::shared_ref_with_value(
                 SharedRefWithValue {
                     address: pointer_address,
                     ref_mutability: referenced_container.reference_mutability(),
                     container_mutability: referenced_container
                         .container_mutability(),
                 },
-            ));
+            )
+            .into();
             if unitialized {
-                context.write(RegularInstruction::Uninitialized);
+                yield RegularInstruction::Uninitialized.into();
             } else {
                 // TODO: no clone?
-                context.visit_value_container(
+                for instructions in context.visit_value_container(
                     referenced_container.value_container().deref(),
-                );
+                ) {
+                    yield instructions;
+                }
             }
         }
         // insert without value for non self owned references
         PointerAddress::Remote(pointer_address) => {
-            context.write(RegularInstruction::shared_ref(SharedRef {
+            yield RegularInstruction::shared_ref(SharedRef {
                 address: PointerAddress::Remote(pointer_address),
                 ref_mutability: referenced_container.reference_mutability(),
                 container_mutability: referenced_container
                     .container_mutability(),
-            }));
+            })
+            .into();
         }
     }
 }

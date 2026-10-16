@@ -4,6 +4,9 @@ use binrw::{BinWrite, meta::WriteEndian};
 pub trait BufferProvider {
     fn cursor_mut(&mut self) -> &mut ByteCursor;
 
+    #[deprecated(
+        note = "Use yield instructions, write is done on cursor directly"
+    )]
     fn write<T: BinWrite + WriteEndian>(&mut self, value: T)
     where
         for<'a> <T as binrw::BinWrite>::Args<'a>: core::default::Default,
