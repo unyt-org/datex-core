@@ -15,7 +15,8 @@ use crate::{
     shared_values::{ReferenceMutability, SharedContainerMutability},
 };
 use core::str::FromStr;
-use crate::ast::expressions::CallableDeclaration;
+use std::ops::Deref;
+use crate::ast::expressions::{CallableDeclaration, DatexExpression};
 use crate::compiler::{Variable};
 use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
 use crate::compiler::context::CompilationContext;
@@ -27,6 +28,16 @@ use crate::global::stack_index::StackIndex;
 use crate::instruction::instruction_data::{CallableDeclarationData, CallableSignatureData, ShortTextData};
 
 
+
+impl AstNodeToInstructions for DatexExpression {
+    fn ast_node_to_instructions<'a>(
+        &'a self, 
+        compilation_context: &mut CompilationContext, 
+        metadata: &mut AstMetadata
+    ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a> {
+        self.data.deref().ast_node_to_instructions(compilation_context, metadata)
+    }
+}
 impl AstNodeToInstructions for DatexExpressionData {
     fn ast_node_to_instructions<'a>(
         &'a self,
@@ -262,7 +273,7 @@ impl AstNodeToInstructions for CallableDeclaration {
                     variables,
                 )?;
 
-            *compilation_context.scope = new_scope;
+            compilation_context.scope = new_scope;
 
             yield Ok(RegularInstruction::CallableDeclaration(
                 CallableDeclarationData {

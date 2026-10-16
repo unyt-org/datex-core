@@ -13,8 +13,8 @@ impl ToInstructions for OwnedSharedContainer {
         visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     {
-        let reference =
-            SharedContainer::Referenced(self.clone_with_move_indicator());
-        reference.to_instructions(visitor)
+        let reference = SharedContainer::Referenced(self.clone_with_move_indicator());
+        let instructions: Vec<Instruction> = reference.to_instructions(visitor).collect(); // FIXME: no collect
+        Box::new(instructions.into_iter())
     }
 }

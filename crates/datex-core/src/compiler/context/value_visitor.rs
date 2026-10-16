@@ -9,6 +9,6 @@ impl<'ctx> ValueVisitor for CompilationContext<'ctx> {
         shared_container: &'a SharedContainer
     ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
         // Delegate the visit to the shared value tracking system
-        self.core_context.shared_value_tracking.borrow_mut().visit_shared_container(shared_container)
+        self.core_context.shared_value_tracking.get_mut().visit_shared_container(shared_container)
     }
 }

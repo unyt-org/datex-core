@@ -1,9 +1,7 @@
 //! Compiler for update operations on shared containers into DXB instructions.
 
-use std::cell::RefCell;
 use crate::{
     core_compiler::{
-        buffer_provider::BufferProvider,
         core_compilation_context::{
             CompileInput, CoreCompilationContext, DXBWithSharedValues,
         },
@@ -23,8 +21,7 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
-use crate::core_compiler::to_instructions::yield_all;
+use crate::core_compiler::to_instructions::{yield_all, ToInstructions};
 use crate::instruction::Instruction;
 
 /// Compiles an update operation on a shared container into DXB
@@ -34,19 +31,27 @@ pub fn compile_updates(
     updates: &[&UpdateData],
     compile_input: CompileInput,
 ) -> DXBWithSharedValues {
-    let mut context = CoreCompilationContext::new(
-        Vec::with_capacity(updates.len() * 50),
-        compile_input,
-    );
-    append_updates(&mut context, container, updates);
-    context.compile_to_dxb_with_shared_values()
+    CoreCompilationContext::new(compile_input).compile_to_dxb_with_shared_values(
+        (container, updates)
+    )
+}
+
+impl ToInstructions for (&SharedContainer, &[&UpdateData]) {
+    fn to_instructions<'a>(
+        &'a self,
+        visitor: &'a mut dyn ValueVisitor,
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
+        let (container, updates) = self;
+        Box::new(gen move {
+            yield_all!(append_updates(visitor, container, updates));
+        })
+    }
 }
 
 /// Appends a list of update operations on a shared container
 /// The updates are appended as a single statement block, with the shared container being pushed to the stack first, followed by each update operation.
 gen fn append_updates<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     container: &SharedContainer,
     updates: &[&UpdateData],
 ) -> Instruction {
@@ -62,23 +67,22 @@ gen fn append_updates<'a>(
 
     for update in updates {
         // TODO append update.path
-        yield_all!(append_update_operation(visitor, cache, update.operation()));
+        yield_all!(append_update_operation(visitor, update.operation()));
     }
 }
 
 /// Appends a single update operation on a shared container
 gen fn append_update_operation<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     operation: &UpdateOperation,
 ) -> Instruction {
     match operation {
-        UpdateOperation::SetEntry(data) => yield_all!(append_set_entry(visitor, cache, data)),
-        UpdateOperation::AppendEntry(data) => yield_all!(append_append_entry(visitor, cache, data)),
-        UpdateOperation::Replace(data) => yield_all!(append_replace(visitor, cache, data)),
+        UpdateOperation::SetEntry(data) => yield_all!(append_set_entry(visitor, data)),
+        UpdateOperation::AppendEntry(data) => yield_all!(append_append_entry(visitor, data)),
+        UpdateOperation::Replace(data) => yield_all!(append_replace(visitor, data)),
         UpdateOperation::Clear => yield_all!(append_clear(visitor)),
         UpdateOperation::DeleteEntry(data) => yield_all!(append_delete_entry(visitor, data)),
-        UpdateOperation::ListSplice(data) => yield_all!(append_list_splice(visitor, cache, data)),
+        UpdateOperation::ListSplice(data) => yield_all!(append_list_splice(visitor, data)),
         UpdateOperation::Increment(_data) => {
             todo!()
         }
@@ -92,14 +96,13 @@ gen fn append_update_operation<'a>(
 
 /// Appends a set entry operation on a shared container
 gen fn append_set_entry<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     set_entry_update_data: &SetEntryUpdateData,
 ) -> Instruction {
     // key
-    yield_all!(append_set_property_value_key(visitor, cache, &set_entry_update_data.key));
+    yield_all!(append_set_property_value_key(visitor, &set_entry_update_data.key));
     // value
-    yield_all!(visitor.visit_shared_container(cache, &set_entry_update_data.value));
+    yield_all!(set_entry_update_data.value.to_instructions(visitor));
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
 
@@ -108,12 +111,11 @@ gen fn append_set_entry<'a>(
 
 /// Appends a replace operation on a shared container
 gen fn append_replace<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     replace_update_data: &ReplaceUpdateData,
 ) -> Instruction {
     yield RegularInstruction::set_shared_container_value().into();
-    yield_all!(visitor.visit_shared_container(cache, &replace_update_data.value));
+    yield_all!(replace_update_data.value.to_instructions(visitor));
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
     return;
@@ -121,12 +123,11 @@ gen fn append_replace<'a>(
 
 /// Appends an append entry operation on a shared container
 gen fn append_append_entry<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     append_entry_update_data: &AppendEntryUpdateData,
 ) -> Instruction {
     yield RegularInstruction::append_entry().into();
-    yield_all!(visitor.visit_shared_container(cache, &append_entry_update_data.value));
+    yield_all!(append_entry_update_data.value.to_instructions(visitor));
 
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
@@ -135,8 +136,7 @@ gen fn append_append_entry<'a>(
 
 /// Appends a list splice operation on a shared container
 gen fn append_list_splice<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     list_splice_update_data: &ListSpliceUpdateData,
 ) -> Instruction {
     yield RegularInstruction::splice(
@@ -146,7 +146,7 @@ gen fn append_list_splice<'a>(
     ).into();
 
     for item in &list_splice_update_data.items {
-        yield_all!(visitor.visit_shared_container(cache, item));
+        yield_all!(item.to_instructions(visitor));
     }
 
     // target
@@ -156,7 +156,7 @@ gen fn append_list_splice<'a>(
 }
 
 /// Appends a clear operation on a shared container
-gen fn append_clear(visitor: &mut impl ValueVisitor) -> Instruction {
+gen fn append_clear(visitor: &mut dyn ValueVisitor) -> Instruction {
     yield RegularInstruction::clear().into();
 
     // target
@@ -166,7 +166,7 @@ gen fn append_clear(visitor: &mut impl ValueVisitor) -> Instruction {
 
 /// Appends a delete entry operation on a shared container
 gen fn append_delete_entry(
-    visitor: &mut impl ValueVisitor,
+    visitor: &mut dyn ValueVisitor,
     _delete_entry_update_data: &DeleteEntryUpdateData,
 ) -> Instruction {
     todo!()
@@ -174,8 +174,7 @@ gen fn append_delete_entry(
 
 /// Appends a set property operation on a shared container, based on the provided value key.
 pub gen fn append_set_property_value_key<'a>(
-    visitor: &mut impl ValueVisitor,
-    cache: Option<&RefCell<SharedValueTracking<'a>>>,
+    visitor: &mut dyn ValueVisitor,
     value_key: &ValueContainer,
 ) -> Instruction {
     if let Some(string) = value_key.try_as_str() {
@@ -185,7 +184,7 @@ pub gen fn append_set_property_value_key<'a>(
         yield RegularInstruction::set_entry_index(*index).into();
     } else {
         yield RegularInstruction::set_entry_dynamic().into();
-        yield_all!(visitor.visit_shared_container(cache, value_key));
+        yield_all!(value_key.to_instructions(visitor));
     }
 
     return;

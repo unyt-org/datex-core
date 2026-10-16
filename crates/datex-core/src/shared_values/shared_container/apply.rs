@@ -1,5 +1,5 @@
 use crate::{
-    core_compiler::InstructionInput,
+    core_compiler::instruction_input::InstructionInput,
     instruction::{
         instruction_data::ApplyData, regular_instruction::RegularInstruction,
     },

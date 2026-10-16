@@ -2,7 +2,7 @@ use crate::{
     channel::mpsc::{UnboundedReceiver, create_unbounded_channel},
     collections::HashMap,
     core_compiler::{
-        InstructionInput, core_compilation_context::DXBWithSharedValues,
+        instruction_input::InstructionInput, core_compilation_context::DXBWithSharedValues,
         core_compile,
     },
     dif::dif_interface::DIFInterface,

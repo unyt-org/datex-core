@@ -40,7 +40,7 @@ pub fn compile_injected_values(
         })
     } else {
         let mut context =
-            CoreCompilationContext::new(Vec::new(), compile_input);
+            CoreCompilationContext::new(compile_input);
 
         validate_injected_value_declaration_for_values(
             &instruction_block_data.injected_values,

@@ -10,12 +10,10 @@ use crate::{
 };
 
 impl ToInstructions for SharedContainer {
-    fn to_instructions<'ctx, 'a>(
+    fn to_instructions<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    where
-        'ctx: 'a,
     {
         visitor.visit_shared_container(self)
     }

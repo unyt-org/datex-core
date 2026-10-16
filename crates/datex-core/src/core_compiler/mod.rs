@@ -23,6 +23,8 @@ use crate::{
 };
 pub use traits::*;
 use crate::core_compiler::instruction_input::InstructionInput;
+use crate::core_compiler::to_instructions::{yield_all, ToInstructions};
+use crate::core_compiler::value_visitor::compile_instruction_iterator_to_dxb;
 
 /// Compiles a [DXBWithSharedValues] from the provided [PointerAvailabilityLookup], [Endpoint]s, and [InstructionInput]s.
 pub fn core_compile(
@@ -30,8 +32,22 @@ pub fn core_compile(
     endpoints: &[Endpoint],
     instructions_input: Vec<InstructionInput>,
 ) -> DXBWithSharedValues {
-    CoreCompilationContext::new_for_endpoints(
+    let mut ctx = CoreCompilationContext::new_for_endpoints(
         pointer_availability_lookup,
         endpoints,
-    ).compile_to_dxb_with_shared_values(instructions_input)
+    );
+    
+    let dxb_gen = gen move {
+        for input in instructions_input {
+            match input {
+                InstructionInput::Instruction(instruction) => yield instruction,
+                InstructionInput::ValueContainer(value_container) => yield_all!(value_container.to_instructions(ctx.shared_value_tracking.get_mut())),
+            }
+            yield_all!(input.to_instructions(ctx.shared_value_tracking.get_mut()));
+        }
+    };
+
+    let dxb = compile_instruction_iterator_to_dxb(dxb_gen);
+    
+    ctx.append_preamble_to_dxb(dxb)
 }

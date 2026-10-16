@@ -76,11 +76,9 @@ use precompiler::{
     precompile_ast,
     precompiled_ast::{AstMetadata, RichAst, VariableMetadata},
 };
-use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
-use crate::core_compiler::to_instructions::yield_all_ok;
+use crate::compiler::context::CompilationResult;
 
 pub mod context;
-pub mod datex_expression_to_instruction;
 pub mod error;
 pub mod metadata;
 pub mod precompiler;
@@ -235,7 +233,7 @@ pub fn compile_script(
     runtime: Runtime,
 ) -> Result<(Vec<u8>, CompilationScope), SpannedCompilerError> {
     compile_template(datex_script, vec![], options, runtime)
-        .map(|e| (e.0.dxb, e.1))
+        .map(|e| (e.dxb_with_shared_values.dxb, e.scope))
 }
 
 /// Directly extracts a static value from a DATEX script as a `ValueContainer`.
@@ -262,28 +260,25 @@ pub fn compile_script_or_return_static_value(
         runtime.clone(),
     )?;
     let lookup = runtime.pointer_availability_lookup();
-    let mut compilation_context = CompilationContext::new(
+    let compilation_context = CompilationContext::new(
         vec![],
         options.compile_scope.execution_mode,
         CompileInput::new(&lookup, &options.receivers),
         options.compile_scope,
     );
-    // FIXME #480: no clone here
-    let scope = compile_rich_ast(
-        compilation_context,
-        ast.clone(),
+    let compilation_result = compilation_context.compile_ast_node_to_dxb_with_shared_values(
+        &*ast.ast.data,
+        &mut ast.metadata.borrow_mut(),
     )?;
-    if compilation_context.has_non_static_value {
+    if compilation_result.has_non_static_value {
         Ok((
-            StaticValueOrDXB::DXB(
-                compilation_context.compile_to_dxb_with_shared_values(),
-            ),
-            scope,
+            StaticValueOrDXB::DXB(compilation_result.dxb_with_shared_values),
+            compilation_result.scope,
         ))
     } else {
         // try to extract static value from AST
         extract_static_value_from_ast(&ast.ast)
-            .map(|value| (StaticValueOrDXB::StaticValue(Some(value)), scope))
+            .map(|value| (StaticValueOrDXB::StaticValue(Some(value)), compilation_result.scope))
             .ok_or_else(|| {
                 SpannedCompilerError::from(CompilerError::NonStaticValue)
             })
@@ -421,7 +416,7 @@ pub fn compile_template(
     inserted_values: Vec<Option<ValueContainer>>,
     mut options: CompileOptions,
     runtime: Runtime,
-) -> Result<(DXBWithSharedValues, CompilationScope), SpannedCompilerError> {
+) -> Result<CompilationResult, SpannedCompilerError> {
     let ast = parse_datex_script_to_rich_ast_simple_error(
         datex_script,
         &mut options,
@@ -436,8 +431,8 @@ pub fn compile_template(
         options.compile_scope,
     );
     let compile_start = TimingInstant::now();
-    let res = compile_rich_ast(&mut compilation_context, ast)
-        .map(|scope| (compilation_context.compile_to_dxb_with_shared_values(), scope))
+    let res = compilation_context
+        .compile_ast_with_metadata_to_dxb_with_shared_values(ast)
         .map_err(SpannedCompilerError::from);
 
     debug!(
@@ -519,16 +514,6 @@ fn precompile_to_rich_ast(
     };
 
     Ok(rich_ast)
-}
-
-pub fn compile_rich_ast(
-    compilation_context: CompilationContext,
-    rich_ast: RichAst,
-) -> Result<(DXBWithSharedValues, CompilationScope), CompilerError> {
-    compilation_context.compile_ast_node_to_dxb_with_shared_values(
-        &*rich_ast.ast.data,
-        &mut *rich_ast.metadata.borrow_mut(),
-    )
 }
 
 gen fn compile_expression<'a>(
@@ -1511,13 +1496,14 @@ pub fn compile_child_realm_instructions(
     );
 
     // TODO: what to do with the shared values? [shared_values]
-    let (
-        DXBWithSharedValues {
+    let CompilationResult {
+        dxb_with_shared_values: DXBWithSharedValues {
             dxb,
             shared_values: _,
         },
-        child_scope
-    ) = execution_block_ctx.compile_ast_node_to_dxb_with_shared_values(
+        scope: child_scope,
+        ..
+    } = execution_block_ctx.compile_ast_node_to_dxb_with_shared_values(
         &*ast.data,
         metadata,
     )?;
@@ -1669,7 +1655,7 @@ fn compile_dynamic_property_assignment(
 #[cfg(test)]
 #[cfg(feature = "disassembler")]
 pub mod tests {
-    use super::{compile_rich_ast, compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error, CompilationContext, CompileOptions, StaticValueOrDXB};
+    use super::{compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error, CompilationContext, CompileOptions, StaticValueOrDXB};
     use crate::{
         ast::expressions::{CallableDeclaration, CallableSignature},
         compiler::scope::CompilationScope,
@@ -1733,6 +1719,7 @@ pub mod tests {
     use alloc::format;
     use core::assert_matches;
     use log::*;
+    use crate::compiler::context::CompilationResult;
 
     fn compile_unwrap(script: &str) -> Vec<u8> {
         compile_script(script, CompileOptions::default(), Runtime::stub())
@@ -1758,7 +1745,7 @@ pub mod tests {
         result
     }
 
-    fn get_compilation_context(script: &'_ str) -> CompilationContext<'_> {
+    fn get_compilation_result(script: &'_ str) -> CompilationResult {
         let mut options = CompileOptions::default();
         let ast = parse_datex_script_to_rich_ast_simple_error(
             script,
@@ -1773,9 +1760,8 @@ pub mod tests {
             input,
             options.compile_scope,
         );
-        compile_rich_ast(compilation_context, ast)
-            .unwrap();
-        compilation_context
+        compilation_context.compile_ast_with_metadata_to_dxb_with_shared_values(ast)
+            .unwrap()
     }
 
     fn compile_datex_script_debug_unbounded(
@@ -2644,7 +2630,7 @@ pub mod tests {
             Runtime::stub(),
         )
         .expect("Failed to compile template")
-        .0
+        .dxb_with_shared_values
         .dxb
     }
 
@@ -2674,7 +2660,7 @@ pub mod tests {
         let a = TypedInteger::from(1u8);
         let result = compile!(Runtime::stub(), "?", a);
         assert_eq!(
-            result.unwrap().0.dxb,
+            result.unwrap().dxb_with_shared_values.dxb,
             vec![InstructionCode::UINT_8.into(), 1,]
         );
     }
@@ -2688,7 +2674,7 @@ pub mod tests {
             TypedInteger::from(2u8)
         );
         assert_eq!(
-            result.unwrap().0.dxb,
+            result.unwrap().dxb_with_shared_values.dxb,
             vec![
                 InstructionCode::ADD.into(),
                 InstructionCode::UINT_8.into(),
@@ -2727,45 +2713,45 @@ pub mod tests {
     fn static_value_detection() {
         // non-static
         let script = "1 + 2";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(compilation_scope.has_non_static_value);
 
         let script = "1 2";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(compilation_scope.has_non_static_value);
 
         let script = "1;2";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(compilation_scope.has_non_static_value);
 
         let script = r#"{("x" + "y"): 1}"#;
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(compilation_scope.has_non_static_value);
 
         // static
         let script = "1";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
 
         let script = "[]";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
 
         let script = "{}";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
 
         let script = "[1,2,3]";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
 
         let script = "{a: 2}";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
 
         // because of unary - 42
         let script = "-42";
-        let compilation_scope = get_compilation_context(script);
+        let compilation_scope = get_compilation_result(script);
         assert!(!compilation_scope.has_non_static_value);
     }
 

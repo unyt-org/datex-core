@@ -71,6 +71,7 @@ impl ToInstructions for CoreValue {
                     yield_all!(range.to_instructions(visitor));
                 }
                 CoreValue::Box(value_container) => {
+                    yield RegularInstruction::boxed_value().into();
                     yield_all!(value_container.to_instructions(visitor));
                 }
                 CoreValue::Instant(instant) => {

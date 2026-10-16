@@ -23,6 +23,11 @@ where
     }
 }
 
+
+// Tells the compiler that Box<T> does not implement ToRegularInstruction, even if T does.
+// This allows implementing impl<V> ToInstructions for Box<V> without conflicting.
+impl<T: ?Sized> !ToRegularInstruction for Box<T> {}
+
 // TODO: still needed?
 // #[macro_export]
 // macro_rules! impl_regular_to_instructions {

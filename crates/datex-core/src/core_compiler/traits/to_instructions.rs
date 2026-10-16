@@ -1,8 +1,6 @@
-use core::cell::RefCell;
-
 use crate::{
     core_compiler::{
-        shared_value_tracking::SharedValueTracking, value_visitor::ValueVisitor,
+        value_visitor::ValueVisitor,
     },
     instruction::Instruction,
     prelude::*,

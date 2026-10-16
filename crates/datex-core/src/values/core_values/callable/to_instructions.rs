@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -79,19 +80,19 @@ impl ToInstructions for Callable {
             }
             // add rest parameter type
             if let Some((_, param)) = &self.signature.rest_parameter {
-                for instruction in param.to_instructions(ctx) {
+                for instruction in param.deref().to_instructions(ctx) {
                     yield instruction;
                 }
             }
             // add return type
             if let Some(ty) = &self.signature.return_type {
-                for instruction in ty.to_instructions(ctx) {
+                for instruction in ty.deref().to_instructions(ctx) {
                     yield instruction;
                 }
             }
             // add yield type
             if let Some(ty) = &self.signature.yeet_type {
-                for instruction in ty.to_instructions(ctx) {
+                for instruction in ty.deref().to_instructions(ctx) {
                     yield instruction;
                 }
             }

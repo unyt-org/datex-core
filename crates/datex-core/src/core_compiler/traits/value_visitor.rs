@@ -18,7 +18,18 @@ pub fn compile_instructions_to_dxb(
     input: impl ToInstructions
 ) -> Vec<u8> {
     let mut buffer = ByteCursor::new(Vec::new());
-    for mut instruction in input.to_instructions(visitor) {
+    for instruction in input.to_instructions(visitor) {
+        instruction.write(&mut buffer).unwrap();
+    }
+    buffer.into_inner()
+}
+
+/// Compiles an iterator of [Instruction]s and returns the final byte buffer.
+pub fn compile_instruction_iterator_to_dxb(
+    iterator: impl Iterator<Item = Instruction>,
+) -> Vec<u8> {
+    let mut buffer = ByteCursor::new(Vec::new());
+    for instruction in iterator {
         instruction.write(&mut buffer).unwrap();
     }
     buffer.into_inner()

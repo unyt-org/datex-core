@@ -25,6 +25,7 @@ pub use local::*;
 use log::info;
 pub use remote::*;
 pub use script::*;
+use crate::compiler::context::CompilationResult;
 
 mod local;
 mod remote;
@@ -113,9 +114,9 @@ impl ExecutionContext {
             self.runtime().clone(),
         );
         match res {
-            Ok((result, compile_scope)) => {
-                self.set_compile_scope(compile_scope);
-                Ok(result)
+            Ok(CompilationResult {dxb_with_shared_values, scope, ..}) => {
+                self.set_compile_scope(scope);
+                Ok(dxb_with_shared_values)
             }
             Err(err) => Err(err),
         }

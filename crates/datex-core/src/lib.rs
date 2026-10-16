@@ -8,6 +8,7 @@
 #![feature(deref_patterns)]
 #![feature(if_let_guard)]
 #![feature(try_trait_v2)]
+#![feature(negative_impls, with_negative_coherence)]
 // #![allow(unused_parens)]
 #![feature(associated_type_defaults)]
 #![feature(core_float_math)]

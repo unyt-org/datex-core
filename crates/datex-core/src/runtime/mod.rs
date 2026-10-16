@@ -28,7 +28,7 @@ mod runner;
 pub mod test_utils;
 
 use crate::{
-    core_compiler::InstructionInput, datex_registry::get_all_modules,
+    core_compiler::instruction_input::InstructionInput,
     values::core_values::endpoint::Endpoint,
 };
 pub use config::*;

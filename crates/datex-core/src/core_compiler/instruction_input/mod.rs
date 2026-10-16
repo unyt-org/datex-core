@@ -1,5 +1,3 @@
-pub mod to_instructions;
-
 use crate::instruction::Instruction;
 use crate::instruction::regular_instruction::RegularInstruction;
 use crate::instruction::type_instruction::TypeInstruction;

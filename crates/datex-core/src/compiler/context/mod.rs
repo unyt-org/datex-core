@@ -21,7 +21,7 @@ use crate::{
 use binrw::{BinWrite, io::Cursor, meta::WriteEndian};
 use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
 use crate::compiler::error::CompilerError;
-use crate::compiler::precompiler::precompiled_ast::AstMetadata;
+use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext<'a> {
@@ -32,6 +32,14 @@ pub struct CompilationContext<'a> {
     pub has_non_static_value: bool,
     pub execution_mode: ExecutionMode,
     pub scope: CompilationScope,
+}
+
+/// result of a compilation, including the compiled DXB and the scope of the compile context
+#[derive(Debug)]
+pub struct CompilationResult {
+    pub dxb_with_shared_values: DXBWithSharedValues,
+    pub scope: CompilationScope,
+    pub has_non_static_value: bool,
 }
 
 impl<'a> CompilationContext<'a> {
@@ -64,12 +72,27 @@ impl<'a> CompilationContext<'a> {
         mut self,
         ast_node: &impl AstNodeToInstructions,
         metadata: &mut AstMetadata,
-    ) -> Result<(DXBWithSharedValues, CompilationScope), CompilerError> {
+    ) -> Result<CompilationResult, CompilerError> {
         let dxb = ast_node.try_compile_to_dxb(
             &mut self,
             metadata,
         )?;
-        Ok((self.core_context.append_preamble_to_dxb(dxb), self.scope))
+        Ok(CompilationResult {
+            dxb_with_shared_values: self.core_context.append_preamble_to_dxb(dxb),
+            scope: self.scope,
+            has_non_static_value: self.has_non_static_value,
+        })
+    }
+
+    /// Compiles a [RichAst] with shared value tracking and appends a preamble with the injected shared values.
+    pub fn compile_ast_with_metadata_to_dxb_with_shared_values(
+        self,
+        rich_ast: RichAst,
+    ) -> Result<CompilationResult, CompilerError> {
+        self.compile_ast_node_to_dxb_with_shared_values(
+            &*rich_ast.ast.data,
+            &mut *rich_ast.metadata.borrow_mut(),
+        )
     }
 
     pub fn core_context(&mut self) -> &mut CoreCompilationContext<'a> {
@@ -78,12 +101,6 @@ impl<'a> CompilationContext<'a> {
 
     pub fn insert_stack_index(&mut self, stack_index: StackIndex) {
         append_u32(self.cursor(), stack_index.0);
-    }
-
-    pub fn set_u32_at_index(&mut self, u32: u32, index: usize) {
-        let buf = self.cursor().get_mut();
-        buf[index..index + CompilationContext::INT_32_BYTES as usize]
-            .copy_from_slice(&u32.to_le_bytes());
     }
 
     pub fn mark_has_non_static_value(&mut self) {
