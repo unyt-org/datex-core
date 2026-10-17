@@ -1,11 +1,11 @@
-#[derive(Debug, Clone, Default)]
-pub struct CompileMetadata {
+#[derive(Debug, Clone, Default, Copy)]
+pub struct CompileContextMetadata {
     is_outer_context: bool,
 }
 
-impl CompileMetadata {
+impl CompileContextMetadata {
     pub fn outer() -> Self {
-        CompileMetadata {
+        CompileContextMetadata {
             is_outer_context: true,
         }
     }

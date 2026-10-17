@@ -123,7 +123,7 @@ impl<'a> CoreCompilationContext<'a> {
 
     /// Compiles a [ToInstructions] value with shared value tracking and appends a preamble with the injected shared values.
     /// Returns the final byte buffer and the list of shared values that were moved or referenced during compilation
-    pub fn compile_to_dxb_with_shared_values(mut self, input: impl ToInstructions) -> DXBWithSharedValues {
+    pub fn compile_to_dxb_with_shared_values(mut self, input: &impl ToInstructions) -> DXBWithSharedValues {
         let compiled_body = compile_instructions_to_dxb(self.shared_value_tracking.get_mut(), input);
 
         self.append_preamble_to_dxb(compiled_body)

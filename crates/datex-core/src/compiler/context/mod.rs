@@ -1,21 +1,15 @@
 pub mod value_visitor;
 
 use crate::{
-    ast::type_expressions::TypeExpression,
     compiler::scope::CompilationScope,
     core_compiler::{
-        buffer_provider::BufferProvider,
         core_compilation_context::{
             CompileInput, CoreCompilationContext, DXBWithSharedValues,
         },
         to_instructions::ToInstructions,
-        value_compiler::{append_instruction, append_instruction_code},
     },
-    global::stack_index::StackIndex,
-    instruction::{Instruction, instruction_codes::InstructionCode},
     prelude::*,
     runtime::execution::context::ExecutionMode,
-    utils::buffers::append_u32,
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Cursor, meta::WriteEndian};
@@ -63,7 +57,7 @@ impl<'a> CompilationContext<'a> {
 
     /// Compiles a [ToInstructions] value with shared value tracking and appends a preamble with the injected shared values.
     /// Returns the final byte buffer and the list of shared values that were moved or referenced during compilation
-    pub fn compile_to_dxb_with_shared_values(self, input: impl ToInstructions) -> DXBWithSharedValues {
+    pub fn compile_to_dxb_with_shared_values(self, input: &impl ToInstructions) -> DXBWithSharedValues {
         self.core_context.compile_to_dxb_with_shared_values(input)
     }
 
@@ -98,24 +92,9 @@ impl<'a> CompilationContext<'a> {
     pub fn core_context(&mut self) -> &mut CoreCompilationContext<'a> {
         &mut self.core_context
     }
-
-    pub fn insert_stack_index(&mut self, stack_index: StackIndex) {
-        append_u32(self.cursor(), stack_index.0);
-    }
+    
 
     pub fn mark_has_non_static_value(&mut self) {
         self.has_non_static_value = true;
-    }
-
-    pub fn write<T: BinWrite + WriteEndian>(&mut self, value: T)
-    where
-        for<'b> <T as binrw::BinWrite>::Args<'b>: core::default::Default,
-    {
-        self.core_context.write(value);
-    }
-
-    #[deprecated(note = "use write() instead")]
-    pub fn append_instruction_code(&mut self, code: InstructionCode) {
-        append_instruction_code(self.cursor(), code);
     }
 }

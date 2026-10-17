@@ -15,7 +15,7 @@ pub trait ValueVisitor {
 /// Compiles a [ToInstructions] value using the visitor and returns the final byte buffer.
 pub fn compile_instructions_to_dxb(
     visitor: &mut impl ValueVisitor,
-    input: impl ToInstructions
+    input: &impl ToInstructions
 ) -> Vec<u8> {
     let mut buffer = ByteCursor::new(Vec::new());
     for instruction in input.to_instructions(visitor) {

@@ -4,6 +4,7 @@ pub mod get_datex_type;
 mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
+mod to_instructions;
 
 use crate::{
     prelude::*,

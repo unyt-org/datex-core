@@ -6,7 +6,6 @@ use crate::{
     prelude::*,
     values::value_container::ValueContainer,
 };
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for ValueContainer {
     fn to_instructions<'a>(

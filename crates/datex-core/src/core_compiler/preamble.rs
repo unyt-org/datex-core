@@ -3,18 +3,16 @@ use core::{cell::RefCell, ops::Deref};
 use crate::{
     collections::HashMap,
     core_compiler::{
-        buffer_provider::BufferProvider,
         core_compilation_context::ByteCursor,
         shared_value_tracking::{
-            SharedValueTracking, TrackedValueCollection, TrackedValueMetadata,
+            TrackedValueCollection, TrackedValueMetadata,
         },
         to_instructions::ToInstructions,
-        value_compiler::{append_instruction, append_value},
         value_visitor::ValueVisitor,
     },
     global::stack_index::StackIndex,
     instruction::{
-        self, Instruction,
+        Instruction,
         instruction_data::{MoveWithValue, SharedRef, SharedRefWithValue},
         regular_instruction::RegularInstruction,
     },
@@ -24,7 +22,6 @@ use crate::{
         SelfOwnedPointerAddress, SharedContainer, SharedContainerMutability,
         SharedContainerOwnership, traits::SharedContainerCommon,
     },
-    types::r#type::Type,
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Write};
@@ -38,11 +35,6 @@ struct PreambleContext<'a> {
     current_stack_index: StackIndex,
 }
 
-impl BufferProvider for PreambleContext<'_> {
-    fn cursor_mut(&mut self) -> &mut ByteCursor {
-        self.cursor
-    }
-}
 // var x = shared {a: {b: null}};
 // x.a.b = x; /// #0.a.b = x;
 

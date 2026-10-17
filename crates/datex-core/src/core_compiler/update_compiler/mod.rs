@@ -32,7 +32,7 @@ pub fn compile_updates(
     compile_input: CompileInput,
 ) -> DXBWithSharedValues {
     CoreCompilationContext::new(compile_input).compile_to_dxb_with_shared_values(
-        (container, updates)
+        &(container, updates)
     )
 }
 
