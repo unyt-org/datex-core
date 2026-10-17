@@ -63,15 +63,14 @@ use crate::{
         core_values::endpoint::Endpoint, value_container::ValueContainer,
     },
 };
-use binrw::io::Write;
-use core::{cell::RefCell, str::FromStr};
+use core::{str::FromStr};
 use log::{debug, info};
 use precompiler::{
     options::PrecompilerOptions,
     precompile_ast,
     precompiled_ast::{AstMetadata, RichAst, VariableMetadata},
 };
-use crate::compiler::context::CompilationResult;
+use crate::compiler::compilation_result::CompilationResult;
 
 pub mod context;
 pub mod error;
@@ -82,6 +81,7 @@ pub mod type_compiler;
 #[cfg(feature = "std")]
 pub mod workspace;
 pub mod ast_node_to_instructions;
+pub mod compilation_result;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions {
@@ -643,7 +643,7 @@ pub mod tests {
     use alloc::format;
     use core::assert_matches;
     use log::*;
-    use crate::compiler::context::CompilationResult;
+    use crate::compiler::compilation_result::CompilationResult;
 
     fn compile_unwrap(script: &str) -> Vec<u8> {
         compile_script(script, CompileOptions::default(), Runtime::stub())

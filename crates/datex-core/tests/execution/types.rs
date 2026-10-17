@@ -42,7 +42,7 @@ use datex_core::{
     },
 };
 use test_case::test_case;
-use datex_core::compiler::context::CompilationResult;
+use datex_core::compiler::compilation_result::CompilationResult;
 
 #[test_case(LiteralTypeDefinition::Integer(Integer::from(42)))]
 #[test_case(LiteralTypeDefinition::TypedInteger(3u8.into()))]

@@ -5,6 +5,7 @@ use crate::instruction::regular_instruction::RegularInstruction;
 use crate::core_compiler::to_instructions::ToInstructions;
 use crate::core_compiler::value_visitor::ValueVisitor;
 use crate::instruction::Instruction;
+use crate::prelude::*;
 
 
 pub trait ToRegularInstruction {

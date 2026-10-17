@@ -19,7 +19,7 @@ use log::info;
 use crate::ast::expressions::{CallableDeclaration, Conditional, DatexExpression, RemoteExecution, Statements, UnboundedStatement, ValueAccessType, VariableAccess, VariableAssignment, VariableDeclaration, VariableKind};
 use crate::compiler::{compile_child_realm_instructions, Variable, VariableModel};
 use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
-use crate::compiler::context::{CompilationContext, CompilationResult};
+use crate::compiler::context::{CompilationContext};
 use crate::compiler::error::CompilerError;
 use crate::compiler::metadata::CompileContextMetadata;
 use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
@@ -1196,7 +1196,7 @@ impl AstNodeToInstructions for Map {
                     // other -> insert key as dynamic
                     _ => {
                         yield Ok(RegularInstruction::key_value_dynamic().into());
-                        yield_all!(value.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                        yield_all!(key.ast_node_to_instructions_inner(compilation_context, ast_metadata));
                     }
                 };
 

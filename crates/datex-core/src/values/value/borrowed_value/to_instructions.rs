@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -8,7 +7,6 @@ use crate::{
     values::value::borrowed_value::BorrowedValue,
 };
 use itertools::Itertools;
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 
 impl ToInstructions for BorrowedValue<'_> {
     fn to_instructions<'a>(

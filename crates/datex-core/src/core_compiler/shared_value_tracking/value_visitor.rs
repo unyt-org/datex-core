@@ -4,6 +4,7 @@ use crate::instruction::Instruction;
 use crate::instruction::regular_instruction::RegularInstruction;
 use crate::shared_values::{ReferenceMutability, SharedContainer, SharedContainerOwnership};
 use crate::shared_values::traits::SharedContainerCommon;
+use crate::prelude::*;
 
 impl<'ctx> ValueVisitor for SharedValueTracking<'ctx> {
     /// Registers a visited shared value in the shared value tracking

@@ -20,8 +20,7 @@ use datex_core::{
         value_container::ValueContainer,
     },
 };
-use log::info;
-use datex_core::compiler::context::CompilationResult;
+use datex_core::compiler::compilation_result::CompilationResult;
 
 pub mod local_values;
 pub mod shared_values;

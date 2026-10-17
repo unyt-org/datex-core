@@ -16,6 +16,7 @@ use binrw::{BinWrite, io::Cursor, meta::WriteEndian};
 use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
 use crate::compiler::error::CompilerError;
 use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
+use crate::compiler::compilation_result::CompilationResult;
 
 /// compilation context, created for each compiler call, even if compiling a script for the same scope
 pub struct CompilationContext<'a> {
@@ -26,14 +27,6 @@ pub struct CompilationContext<'a> {
     pub has_non_static_value: bool,
     pub execution_mode: ExecutionMode,
     pub scope: CompilationScope,
-}
-
-/// result of a compilation, including the compiled DXB and the scope of the compile context
-#[derive(Debug)]
-pub struct CompilationResult {
-    pub dxb_with_shared_values: DXBWithSharedValues,
-    pub scope: CompilationScope,
-    pub has_non_static_value: bool,
 }
 
 impl<'a> CompilationContext<'a> {
@@ -92,7 +85,7 @@ impl<'a> CompilationContext<'a> {
     pub fn core_context(&mut self) -> &mut CoreCompilationContext<'a> {
         &mut self.core_context
     }
-    
+
 
     pub fn mark_has_non_static_value(&mut self) {
         self.has_non_static_value = true;

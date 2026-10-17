@@ -1,4 +1,3 @@
-use std::any::Any;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
 use syn::{Generics, Type};

@@ -25,7 +25,6 @@ pub use local::*;
 use log::info;
 pub use remote::*;
 pub use script::*;
-use crate::compiler::context::CompilationResult;
 
 mod local;
 mod remote;
@@ -101,6 +100,7 @@ impl ExecutionContext {
         inserted_values: &[ValueContainer],
         receivers: Vec<Endpoint>,
     ) -> Result<DXBWithSharedValues, SpannedCompilerError> {
+        use crate::compiler::compilation_result::CompilationResult;
         let compile_scope = self.compile_scope();
         // TODO #107: don't clone compile_scope if possible
         let res = compile_template(

@@ -2,6 +2,7 @@ use crate::compiler::context::CompilationContext;
 use crate::core_compiler::value_visitor::ValueVisitor;
 use crate::instruction::Instruction;
 use crate::shared_values::{SharedContainer};
+use crate::prelude::*;
 
 impl<'ctx> ValueVisitor for CompilationContext<'ctx> {
     fn visit_shared_container<'a>(

@@ -1,6 +1,6 @@
 use core::ops::AddAssign;
-
 use crate::values::core_values::text::Text;
+use crate::prelude::*;
 
 /// Allow TypedDatexValue<Text> += String and TypedDatexValue<Text> += &str
 /// This can never panic since the Text::from from string will always succeed

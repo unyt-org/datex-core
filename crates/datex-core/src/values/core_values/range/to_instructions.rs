@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use core::ops::Deref;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,

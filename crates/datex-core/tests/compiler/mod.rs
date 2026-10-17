@@ -77,7 +77,6 @@ c";"#,
 pub fn compile_expressions() {
     compare_compiled_with_decompiled("1+2;");
     compare_compiled_with_decompiled("[1,2]");
-    // ARR_START 1 2 3 SCOPE_END
     compare_compiled_with_decompiled("[1,2,3+4]");
     compare_compiled_with_decompiled("[1,2,[3,4,[5]]];");
     compare_compiled_with_decompiled("[1,2,[3],[4,5],6]");

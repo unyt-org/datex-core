@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -7,7 +6,6 @@ use crate::{
     prelude::*,
     values::value::Value,
 };
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
 use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for Value {

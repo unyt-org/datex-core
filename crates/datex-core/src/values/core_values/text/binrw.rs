@@ -4,6 +4,7 @@ use binrw::io::Read;
 use binrw::{BinRead, BinResult, BinWrite, Endian};
 use crate::instruction::instruction_data::TextData;
 use crate::values::core_values::text::Text;
+use crate::prelude::*;
 
 impl BinRead for Text {
     type Args<'a> = <TextData as BinRead>::Args<'a>;

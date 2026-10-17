@@ -317,6 +317,8 @@ mod tests {
             }
         );
 
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -391,7 +393,7 @@ mod tests {
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
         let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
-        
+
         assert_matches!(
             context
                 .shared_value_tracking
@@ -424,7 +426,9 @@ mod tests {
                 ..
             }
         );
-        
+
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -507,7 +511,7 @@ mod tests {
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
         let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
-        
+
         assert_matches!(
             context
                 .shared_value_tracking
@@ -531,7 +535,9 @@ mod tests {
                 is_known: false,
             }
         );
-        
+
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -588,7 +594,7 @@ mod tests {
         let mut context = core_compilation_context();
 
         let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
-        
+
         assert_matches!(
             context
                 .shared_value_tracking
@@ -602,7 +608,9 @@ mod tests {
                 is_self_referencing: false,
             }
         );
-        
+
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -668,7 +676,7 @@ mod tests {
         );
         let mut context = core_compilation_context();
         let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &local);
-        
+
         assert_matches!(
             context
                 .shared_value_tracking
@@ -695,7 +703,9 @@ mod tests {
                 is_self_referencing: false,
             }
         );
-        
+
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -771,7 +781,7 @@ mod tests {
         let mut context = core_compilation_context();
         let shared_container = ValueContainer::Shared(shared);
         let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
-        
+
         assert_matches!(
             context
                 .shared_value_tracking
@@ -785,7 +795,9 @@ mod tests {
                 is_self_referencing: true,
             }
         );
-        
+
+        let dxb = context.append_preamble_to_dxb(dxb).dxb;
+
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
