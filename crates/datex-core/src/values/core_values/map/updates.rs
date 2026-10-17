@@ -18,7 +18,7 @@ use core::mem;
 
 impl Map {
     /// Removes a key from the map, returning the value if it existed.
-    pub fn try_delete_with_source<'a>(
+    pub fn try_delete_with_source(
         &mut self,
         key: &ValueContainer,
         source: Option<TransceiverId>,
@@ -47,7 +47,7 @@ impl Map {
     /// Also works for structural maps, but creates a map that no longer matches the assumed type.
     /// # Safety
     /// The map should no longer be used after this operation.
-    pub unsafe fn try_delete_unchecked_with_source<'a>(
+    pub unsafe fn try_delete_unchecked_with_source(
         &mut self,
         key: &ValueContainer,
         source: Option<TransceiverId>,

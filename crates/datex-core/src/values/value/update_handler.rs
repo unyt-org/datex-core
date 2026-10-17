@@ -341,12 +341,12 @@ mod tests {
         {
             // get inner list value and check that it has the correct update callback data
             // (should be auto derived for children)
-            let inner = list.try_get_property_mut(&ValueContainer::from(0)).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(0u32)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             assert_matches!(inner_list.get_update_callback_data(), Some(UpdateCallbackData {
                 path,
                 ..
-            }) if path == &vec![ValueContainer::local(0)]);
+            }) if path == &vec![ValueContainer::local(0u32)]);
 
             // reset callback tracking
             callback_updates.borrow_mut().clear();
@@ -368,7 +368,7 @@ mod tests {
                 updates[0].operation(),
                 &UpdateOperation::append_entry(ValueContainer::from(6))
             );
-            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0u32)]);
         }
 
         // reset callback tracking
@@ -377,10 +377,10 @@ mod tests {
         // Update inner list via outer list and check that callback is triggered with correct path
         list.try_update_collapsed_local_inner(
             UpdateOperation::set_entry(
-                0.into(),
+                0u32.into(),
                 ValueContainer::from(List::from(vec![7])),
             ),
-            vec![ValueContainer::local(0)],
+            vec![ValueContainer::local(0u32)],
             Some(TransceiverId::Local),
             &cache,
         )
@@ -392,11 +392,11 @@ mod tests {
             assert_eq!(
                 updates[0].operation(),
                 &UpdateOperation::set_entry(
-                    0.into(),
+                    0u32.into(),
                     ValueContainer::from(List::from(vec![7]))
                 )
             );
-            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0u32)]);
         }
 
         // reset callback tracking
@@ -405,7 +405,7 @@ mod tests {
         // update inner list with normal push method directly
         {
             // get inner list value
-            let inner = list.try_get_property_mut(&ValueContainer::from(0)).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(0u32)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             inner_list.push(42);
         }
@@ -417,7 +417,7 @@ mod tests {
                 updates[0].operation(),
                 &UpdateOperation::append_entry(ValueContainer::from(42))
             );
-            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(0u32)]);
         }
 
         // reset callback tracking
@@ -428,7 +428,7 @@ mod tests {
             // add new inner list value
             let new_inner = ValueContainer::from(List::from(vec![7]));
             list.try_update_collapsed_local_inner(
-                UpdateOperation::set_entry(1.into(), new_inner),
+                UpdateOperation::set_entry(1u32.into(), new_inner),
                 vec![],
                 Some(TransceiverId::Local),
                 &cache,
@@ -436,7 +436,7 @@ mod tests {
             .unwrap();
 
             // check that the callback data was set on the new inner list
-            let inner = list.try_get_property_mut(&ValueContainer::from(1)).unwrap();
+            let inner = list.try_get_property_mut(&ValueContainer::from(1u32)).unwrap();
             let mut inner_list = inner.try_as_mut::<List>().unwrap();
             assert_matches!(inner_list.get_update_callback_data(), Some(UpdateCallbackData {
                 path,
@@ -468,7 +468,7 @@ mod tests {
             let updates = callback_updates.borrow();
             assert_eq!(updates.len(), 1);
             assert_eq!(updates[0].operation(), &UpdateOperation::clear());
-            assert_eq!(updates[0].path(), &vec![ValueContainer::local(1)]);
+            assert_eq!(updates[0].path(), &vec![ValueContainer::local(1u32)]);
         }
     }
 }

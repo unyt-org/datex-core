@@ -165,7 +165,7 @@ mod tests {
                     TransceiverId::Local,
                     UpdateData::new_with_path(
                         UpdateOperation::append_entry(ValueContainer::from(2),),
-                        vec![ValueContainer::local(0)]
+                        vec![ValueContainer::local(0u32)]
                     )
                 )
             )

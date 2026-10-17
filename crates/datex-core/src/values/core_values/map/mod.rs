@@ -498,6 +498,18 @@ impl From<Vec<(String, ValueContainer)>> for Map {
     }
 }
 
+impl From<Vec<(&'static str, ValueContainer)>> for Map {
+    /// Create a dynamic map from a vector of string keys and value containers.
+    fn from(vec: Vec<(&'static str, ValueContainer)>) -> Self {
+        Map::new_dynamic(
+            vec.into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect::<IndexMap<ValueContainer, ValueContainer, RandomState>>(),
+        )
+    }
+}
+
+
 impl<K, V> FromIterator<(K, V)> for Map
 where
     K: Into<ValueContainer>,

@@ -23,7 +23,7 @@ impl ValueAccess for EntityType {
         &self,
         key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
-        if let Some(key) = key.try_as::<String>() {
+        if let Some(key) = key.try_as_str() {
             let callable_ref = Ref::filter_map(
                 self.entity_definition(),
                 |entity_definition| entity_definition.try_get_property(key),

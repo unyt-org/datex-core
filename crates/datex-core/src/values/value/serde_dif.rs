@@ -393,7 +393,7 @@ mod tests {
         let cache = RefCell::new(SharedValuesCache::default());
         let mut context = SerdeContext::new(&cache);
 
-        // { endpoint: "@jonas" } -> [<map-idx>, { endpoint: [<endpoint-idx>, "@jonas"] }]
+        // { endpoint: "@jonas" } -> [<map-idx>, ["endpoint", [<endpoint-idx>, "@jonas"] ]]
         let value = Value::from(CoreValue::Map(
             Map::new_structural(vec![(
                 "endpoint".into(),
@@ -402,25 +402,6 @@ mod tests {
                 )),
             )]),
         ));
-        let serialized = context.serialize_to_json(&value);
-        assert_eq!(
-            serialized,
-            format!(
-                r#"[{},{{"endpoint":[{},"@jonas"]}}]"#,
-                CoreLibIdIndex::from(CoreLibTypeId::Base(
-                    CoreLibBaseTypeId::Map
-                )),
-                CoreLibIdIndex::from(CoreLibTypeId::Base(
-                    CoreLibBaseTypeId::Endpoint
-                ))
-            )
-        );
-
-        // { "endpoint": "@jonas" } -> [<map-idx>, [[<endpoint-idx>, "@jonas"]]]
-        let value = Value::from(CoreValue::Map(Map::new_structural(vec![(
-            "endpoint".into(),
-            Value::from(Endpoint::from_str("@jonas").unwrap()).into(),
-        )])));
         let serialized = context.serialize_to_json(&value);
         assert_eq!(
             serialized,

@@ -6,6 +6,7 @@ pub mod serde_dif;
 #[cfg(feature = "ast")]
 mod to_datex_expression_data;
 mod to_instructions;
+pub mod convert_parts;
 
 use crate::{
     prelude::*,

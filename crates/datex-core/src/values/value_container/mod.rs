@@ -46,6 +46,9 @@ use core::{
 };
 use serde::Serialize;
 use crate::instruction::regular_instruction::RegularInstruction;
+use crate::traits::convert_parts::FromParts;
+use crate::traits::convert_value::ConvertValue;
+use crate::values::core_value::CoreValue;
 use crate::values::core_values::text::Text;
 
 pub mod classification;
@@ -172,6 +175,15 @@ impl ValueContainer {
         T: ConvertValueContainer,
     {
         T::try_from_value_container(self)
+    }
+
+    /// Tries to convert the current value into the specific specified type.
+    /// Performs a cast between native and core values for local values if necessary, e.g. converting a [CoreValue::Map] into a native rust struct.
+    pub fn try_cast_into_value<T>(self) -> Result<T, ()>
+    where
+        T: ConvertValueContainer + FromParts,
+    {
+        T::try_cast_from_value_container(self)
     }
 
     /// Strips any local observers from the given value container.

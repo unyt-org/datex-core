@@ -353,12 +353,11 @@ fn new_type_struct_to_value() {
 
 #[test]
 fn value_container_to_struct() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let value_container: ValueContainer =
         ValueContainer::from(Map::from(vec![
-            ("a".to_string(), ValueContainer::from(42u8)),
-            ("b".to_string(), ValueContainer::from("Test")),
-            ("c".to_string(), ValueContainer::from(Endpoint::default())),
+            ("a", ValueContainer::from(42u8)),
+            ("b", ValueContainer::from("Test")),
+            ("c", ValueContainer::from(Endpoint::default())),
         ]));
 
     let example =
@@ -371,7 +370,6 @@ fn value_container_to_struct() {
 
 #[test]
 fn value_to_struct() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let value: Value = Value::from(Map::from(vec![
         ("a".to_string(), ValueContainer::from(42u8)),
         ("b".to_string(), ValueContainer::from("Test")),
@@ -389,7 +387,6 @@ fn value_to_struct() {
 
 #[test]
 fn value_to_new_typestruct() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let value: Value = Value::from(Map::from(vec![
         ("a".to_string(), ValueContainer::from(42u8)),
         ("b".to_string(), ValueContainer::from("Test")),
@@ -408,8 +405,6 @@ fn value_to_new_typestruct() {
 
 #[test]
 fn value_to_empty_enum_variant() {
-    let cache = RefCell::new(SharedReferencesCache::default());
-
     let variant_a = Value::core_with_classification(
         CoreValue::Null,
         ValueClassification::new_with_tag(ValueTag {
@@ -427,8 +422,6 @@ fn value_to_empty_enum_variant() {
 
 #[test]
 fn value_to_list_enum_variant() {
-    let cache = RefCell::new(SharedReferencesCache::default());
-
     let variant_b = Value::core_with_classification(
         List::new(vec![ValueContainer::from(1u8), ValueContainer::from(2u8)]),
         ValueClassification::new_with_tag(ValueTag {
@@ -445,8 +438,6 @@ fn value_to_list_enum_variant() {
 
 #[test]
 fn value_to_map_enum_variant() {
-    let cache = RefCell::new(SharedReferencesCache::default());
-
     let variant_c = Value::core_with_classification(
         Map::from(vec![
             ("x".to_string(), ValueContainer::from(3u8)),
@@ -466,8 +457,6 @@ fn value_to_map_enum_variant() {
 
 #[test]
 fn value_to_transparent_enum_variant() {
-    let cache = RefCell::new(SharedReferencesCache::default());
-
     let variant_d = Value::core_with_classification(
         TypedInteger::U8(42),
         ValueClassification::new_with_tag(ValueTag {
@@ -506,7 +495,6 @@ fn value_to_enum_failure() {
 
 #[test]
 fn struct_with_serde_to_value_container() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let serde_example = SerdeDatexExample {
         a: 42u8,
         serde: SerdeExample {
@@ -538,8 +526,6 @@ fn struct_with_serde_to_value_container() {
 
 #[test]
 fn struct_with_serde_infallible_to_value_container() {
-    let cache = RefCell::new(SharedReferencesCache::default());
-
     #[derive(Datex, Debug, Clone, PartialEq)]
     #[datex(structural)]
     struct SerdeDatexExampleInfallible {
@@ -579,7 +565,6 @@ fn struct_with_serde_infallible_to_value_container() {
 
 #[test]
 fn struct_with_value_container() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let address_provider = &mut SelfOwnedPointerAddressProvider::default();
 
     #[derive(Datex, Debug, PartialEq, Clone)]
@@ -635,7 +620,6 @@ fn struct_with_value_container() {
 
 #[test]
 fn struct_with_owned_shared_value_container() {
-    let cache = RefCell::new(SharedReferencesCache::default());
     let address_provider = &mut SelfOwnedPointerAddressProvider::default();
 
     #[derive(Datex, Debug, PartialEq)]

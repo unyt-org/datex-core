@@ -38,10 +38,10 @@ fn example_struct_to_instructions() {
         to_instructions(&structure),
         (RegularInstruction::map(2).with_children(instructions!(
             // a
-            RegularInstruction::text("a".to_string()),
+            RegularInstruction::key_value_short_text("a".to_string()),
             RegularInstruction::uint8(42),
             // b
-            RegularInstruction::text("b".to_string()),
+            RegularInstruction::key_value_short_text("b".to_string()),
             RegularInstruction::text("Test".to_string()),
         )))
     )
@@ -64,10 +64,10 @@ fn struct_with_value_to_instructions() {
         to_instructions(&structure),
         (RegularInstruction::map(2).with_children(instructions!(
             // a
-            RegularInstruction::text("a".to_string()),
+            RegularInstruction::key_value_short_text("a".to_string()),
             RegularInstruction::uint8(42),
             // value
-            RegularInstruction::text("value".to_string()),
+            RegularInstruction::key_value_short_text("value".to_string()),
             RegularInstruction::uint8(123),
         )))
     );
