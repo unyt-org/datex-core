@@ -23,7 +23,7 @@ pub trait ConvertValue {
         Self: FromParts + Sized,
     {
         // first try to convert (downcast) the value container directly into the type T
-        let val = value.try_into_value::<Self>();
+        let val = Self::try_from_value(value);
         match val {
             Ok(value) => Ok(value),
             // otherwise, try to convert the value container into map or list parts and then into the type T

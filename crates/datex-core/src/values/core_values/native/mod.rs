@@ -37,6 +37,7 @@ use crate::{
 };
 pub use datex_native_trait::*;
 pub use ops::*;
+use crate::traits::convert_parts::FromParts;
 
 impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
     for T
@@ -65,9 +66,7 @@ impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
         Self: Sized,
     {
         match value_container {
-            ValueContainer::Local(value) => {
-                Self::try_from_value(value).map_err(ValueContainer::Local)
-            }
+            ValueContainer::Local(value) => Self::try_from_value(value).map_err(ValueContainer::Local),
             _ => Err(value_container),
         }
     }
