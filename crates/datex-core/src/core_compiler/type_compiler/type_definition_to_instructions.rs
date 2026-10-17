@@ -102,7 +102,7 @@ impl ToInstructions for TypeDefinitionWithMetadata {
     {
         Box::new(gen {
             yield TypeInstruction::DefinitionWithMetadata(self.metadata).into();
-            yield_all!(self.metadata.to_instructions(visitor))
+            yield_all!(self.definition.to_instructions(visitor))
         })
     }
 }

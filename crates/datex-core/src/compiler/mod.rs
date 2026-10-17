@@ -238,7 +238,7 @@ pub fn extract_static_value_from_script(
     datex_script: &str,
 ) -> Result<Option<ValueContainer>, SpannedParserError> {
     let valid_parse_result = Parser::parse_with_default_options(datex_script)?;
-    Ok(extract_static_value_from_ast(&valid_parse_result))
+    Ok(ValueContainer::try_from(valid_parse_result.data()).ok())
 }
 
 /// Converts a DATEX script template text with inserted values into an AST with metadata
@@ -271,12 +271,11 @@ pub fn compile_script_or_return_static_value(
             compilation_result.scope,
         ))
     } else {
-        // try to extract static value from AST
-        extract_static_value_from_ast(&ast.ast)
-            .map(|value| (StaticValueOrDXB::StaticValue(Some(value)), compilation_result.scope))
-            .ok_or_else(|| {
-                SpannedCompilerError::from(CompilerError::NonStaticValue)
-            })
+        // try to extract static value from AST, otherwise panic (should not happen if compilation_result.has_non_static_value is false)
+        let value_container = ValueContainer::try_from(ast.ast.data())
+            .expect("AST should be a static value if compilation_result.has_non_static_value is false");
+
+        Ok((StaticValueOrDXB::StaticValue(Some(value_container)), compilation_result.scope))
     }
 }
 
@@ -435,19 +434,6 @@ pub fn compile_template(
         compile_start.elapsed().as_millis()
     );
     res
-}
-
-
-/// Tries to extract a static value from a DATEX expression AST.
-/// If the expression is not a static value (e.g., contains a placeholder or dynamic operation),
-/// it returns an error.
-fn extract_static_value_from_ast(
-    ast: &DatexExpression,
-) -> Option<ValueContainer> {
-    if let DatexExpressionData::Placeholder(_) = ast.data() {
-        return None;
-    }
-    ValueContainer::try_from(ast.data()).ok()
 }
 
 /// Macro for compiling a DATEX script template text with inserted values into a DXB body,
@@ -1703,6 +1689,7 @@ pub mod tests {
         )
         .unwrap()
         .0;
+
         assert_matches!(
             res,
             StaticValueOrDXB::DXB(DXBWithSharedValues { dxb, ..}) if dxb == vec![

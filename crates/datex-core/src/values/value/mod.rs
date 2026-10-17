@@ -63,6 +63,7 @@ use core::{
     fmt::{Debug, Formatter},
     result::Result,
 };
+use crate::traits::convert_parts::FromParts;
 
 mod try_clone;
 
@@ -220,6 +221,15 @@ impl Value {
         T: ConvertValue,
     {
         T::try_from_value(self)
+    }
+
+    /// Tries to convert the current value into the specific specified type.
+    /// Performs a cast between native and core values if necessary, e.g. converting a [CoreValue::Map] into a native rust struct.
+    pub fn try_cast_into_value<T>(self) -> Result<T, ()>
+    where
+        T: ConvertValue + FromParts,
+    {
+        T::try_cast_from_value(self)
     }
 
     /// Tries to get a reference to the inner [CoreValue] if the [Value] is a [Value::Core] variant.

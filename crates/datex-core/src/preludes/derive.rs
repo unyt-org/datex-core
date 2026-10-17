@@ -37,7 +37,7 @@ macro_rules! derive_prelude {
             traits::{
                 classification::Classification,
                 convert_parts::{
-                    FromParts, HasPartsKind, IntoParts, PartsKind,
+                    FromParts, HasPartsKind, IntoParts, PartsKind
                 },
                 convert_value::ConvertValue,
                 convert_value_container::ConvertValueContainer,

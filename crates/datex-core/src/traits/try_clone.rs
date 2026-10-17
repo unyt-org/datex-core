@@ -17,11 +17,11 @@ impl<T> TryClone for T {
 
 /// For any [DatexNative] type that implements [Clone],
 /// try_clone gets this default impl that returns a new [CoreValue] containing the cloned value.
-default impl<T> TryClone for T
+impl<T> TryClone for T
 where
     T: Clone + DatexNative,
 {
-    fn try_clone(&self) -> Result<Value, ()> {
+    default fn try_clone(&self) -> Result<Value, ()> {
         Ok(Value::native(self.clone()))
     }
 }

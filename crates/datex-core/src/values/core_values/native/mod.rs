@@ -200,6 +200,7 @@ impl NativeCoreValue {
     }
 }
 
+// FIXME: remove Clone for NativeCoreValue and other values, use try_clone everywhere
 impl Clone for NativeCoreValue {
     fn clone(&self) -> Self {
         match self.try_clone().unwrap() {

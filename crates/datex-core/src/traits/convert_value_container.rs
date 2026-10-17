@@ -173,15 +173,15 @@ pub trait ConvertValueContainer {
             .map_err(|_| DeserializationError::InvalidValue)
     }
 
-    /// Tries to cast a `ValueContainer` into the specified type `T`.
-    /// First, it attempts a direct conversion (downcast) of the `ValueContainer`
-    /// into the type `T`.
-    /// If that fails, it tries to convert the `ValueContainer` into map or list parts and then into the type `T`.
+    /// Tries to cast a [ValueContainer] into the specified type [T].
+    /// First, it attempts a direct conversion (downcast) of the [ValueContainer]
+    /// into the type [T].
+    /// If that fails, it tries to convert the [ValueContainer] into map or list parts and then into the type [T].
     fn try_cast_from_value_container(
         value_container: ValueContainer,
     ) -> Result<Self, ()>
     where
-        Self: ConvertValueContainer + FromParts + Sized,
+        Self: FromParts + Sized,
     {
         // first try to convert (downcast) the value container directly into the type T
         let val = value_container.try_into_value::<Self>();

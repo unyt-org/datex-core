@@ -357,7 +357,7 @@ fn value_container_to_struct() {
     let value_container: ValueContainer =
         ValueContainer::from(Map::from(vec![
             ("a".to_string(), ValueContainer::from(42u8)),
-            ("b".to_string(), ValueContainer::from("Test".to_string())),
+            ("b".to_string(), ValueContainer::from("Test")),
             ("c".to_string(), ValueContainer::from(Endpoint::default())),
         ]));
 
@@ -374,7 +374,7 @@ fn value_to_struct() {
     let cache = RefCell::new(SharedReferencesCache::default());
     let value: Value = Value::from(Map::from(vec![
         ("a".to_string(), ValueContainer::from(42u8)),
-        ("b".to_string(), ValueContainer::from("Test".to_string())),
+        ("b".to_string(), ValueContainer::from("Test")),
         ("c".to_string(), ValueContainer::from(Endpoint::default())),
     ]));
 
@@ -392,7 +392,7 @@ fn value_to_new_typestruct() {
     let cache = RefCell::new(SharedReferencesCache::default());
     let value: Value = Value::from(Map::from(vec![
         ("a".to_string(), ValueContainer::from(42u8)),
-        ("b".to_string(), ValueContainer::from("Test".to_string())),
+        ("b".to_string(), ValueContainer::from("Test")),
         ("c".to_string(), ValueContainer::from(Endpoint::default())),
     ]));
 
@@ -450,7 +450,7 @@ fn value_to_map_enum_variant() {
     let variant_c = Value::core_with_classification(
         Map::from(vec![
             ("x".to_string(), ValueContainer::from(3u8)),
-            ("y".to_string(), ValueContainer::from("Hello".to_string())),
+            ("y".to_string(), ValueContainer::from("Hello")),
         ]),
         ValueClassification::new_with_tag(ValueTag {
             tag: "VariantC".to_string(),

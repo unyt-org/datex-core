@@ -12,7 +12,6 @@ use crate::{
     runtime::execution::context::ExecutionMode,
     values::value_container::ValueContainer,
 };
-use binrw::{BinWrite, io::Cursor, meta::WriteEndian};
 use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
 use crate::compiler::error::CompilerError;
 use crate::compiler::precompiler::precompiled_ast::{AstMetadata, RichAst};
@@ -78,7 +77,7 @@ impl<'a> CompilationContext<'a> {
     ) -> Result<CompilationResult, CompilerError> {
         self.compile_ast_node_to_dxb_with_shared_values(
             &*rich_ast.ast.data,
-            &mut *rich_ast.metadata.borrow_mut(),
+            &mut rich_ast.metadata.borrow_mut(),
         )
     }
 

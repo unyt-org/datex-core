@@ -873,6 +873,8 @@ impl AstNodeToInstructions for ComparisonOperation {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
+
             yield Ok(RegularInstruction::comparison_operation(self.operator)
                 .into());
             yield_all!(self.left.ast_node_to_instructions_inner(compilation_context, ast_metadata));
@@ -926,6 +928,8 @@ impl AstNodeToInstructions for PropertyAssignment {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
+
             let PropertyAssignment {
                 base,
                 property,
@@ -938,7 +942,7 @@ impl AstNodeToInstructions for PropertyAssignment {
                 DatexExpressionData::Text(key)
                     if key.len() <= u8::MAX as usize =>
                 {
-                    yield Ok(RegularInstruction::set_entry_text(key.to_string())
+                    yield Ok(RegularInstruction::set_entry_text(key.as_string())
                         .into());
                 }
 
@@ -971,6 +975,8 @@ impl AstNodeToInstructions for UnaryOperation {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
+
             yield Ok(RegularInstruction::unary_operation(self.operator).into());
             yield_all!(self.expression.ast_node_to_instructions_inner(compilation_context, ast_metadata));
         })
@@ -1090,11 +1096,13 @@ impl AstNodeToInstructions for PropertyAccess {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
+
             // depending on the key, handle different property accesses
             match self.property.data() {
                 // simple text key if length fits in u8
                 DatexExpressionData::Text(key) if key.len() <= 255 => {
-                    yield Ok(RegularInstruction::get_entry_text(key.to_string())
+                    yield Ok(RegularInstruction::get_entry_text(key.as_string())
                         .into());
                 }
                 // index access if integer fits in u32
@@ -1292,6 +1300,8 @@ impl AstNodeToInstructions for CreateShared {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
+
             match self.mutability {
                 SharedContainerMutability::Immutable => {
                     yield Ok(RegularInstruction::create_shared().into());
@@ -1339,6 +1349,7 @@ impl AstNodeToInstructions for BinaryOperation {
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a>
     {
         Box::new(gen move {
+            compilation_context.mark_has_non_static_value();
             yield Ok(RegularInstruction::binary_operation(self.operator).into());
             yield_all!(self.left.ast_node_to_instructions_inner(compilation_context, ast_metadata));
             yield_all!(self.right.ast_node_to_instructions_inner(compilation_context, ast_metadata));

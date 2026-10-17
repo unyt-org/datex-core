@@ -23,7 +23,6 @@ pub enum CompilerError {
     IntegerOutOfBoundsError,
     InvalidPlaceholderCount,
     TooManyApplyArguments, // more than 255 arguments
-    NonStaticValue,
     SharedRefToNonSharedValue,
     ExpectedOwnedSharedValue,
     ExpectedReferencedSharedValue,
@@ -321,9 +320,6 @@ impl Display for CompilerError {
             }
             CompilerError::InvalidPlaceholderCount => {
                 core::write!(f, "Invalid placeholder count")
-            }
-            CompilerError::NonStaticValue => {
-                core::write!(f, "Encountered non-static value")
             }
             CompilerError::UndeclaredVariable(var) => {
                 core::write!(f, "Undeclared variable: {var}")
