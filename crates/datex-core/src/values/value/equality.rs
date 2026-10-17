@@ -53,7 +53,24 @@ impl ValueEq for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        self.value_eq(other)
+        match (self, other) {
+            // core vs core equality
+            (Value::Core(core_self), Value::Core(core_other)) => {
+                core_self.eq(core_other)
+            }
+
+            // native vs native equality
+            (Value::Native(native_self), Value::Native(native_other)) => {
+                native_self.eq(native_other)
+            }
+
+            // core vs native equality
+            (Value::Core(_core_self), Value::Native(_native_other))
+            | (Value::Native(_native_other), Value::Core(_core_self)) => {
+                todo!()
+                // native_other.value.try_into_map_parts(cache)
+            }
+        }
     }
 }
 

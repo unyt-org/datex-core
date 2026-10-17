@@ -49,19 +49,6 @@ impl SerializeWithSerdeContext for Map {
         S: Serializer,
     {
         match &self.entries {
-            MapEntries::StructuralWithStringKeys(entries) => {
-                let mut map = serializer.serialize_map(Some(entries.len()))?;
-
-                for (key, value) in entries {
-                    map.serialize_key(key)?;
-                    map.serialize_value(&ValueWithSerdeContext::new(
-                        value, ctx,
-                    ))?;
-                }
-
-                map.end()
-            }
-
             MapEntries::Structural(entries) => {
                 entries.serialize_with_ctx(ctx, serializer)
             }
@@ -113,10 +100,10 @@ impl<'de, 'a, 'ctx> Visitor<'de> for DeserializeSerdeContext<'a, 'ctx, Map> {
         while let Some(key) = map.next_key::<String>()? {
             let value = map.next_value_seed(self.cast::<ValueContainer>())?;
 
-            entries.push((key, value));
+            entries.push((ValueContainer::from(key), value));
         }
 
-        Ok(MapEntries::StructuralWithStringKeys(entries).into())
+        Ok(MapEntries::Structural(entries).into())
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Map, A::Error>

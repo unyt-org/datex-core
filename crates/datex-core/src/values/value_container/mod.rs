@@ -158,14 +158,9 @@ impl ValueContainer {
     /// Does not perform any type conversion.
     /// In contrast to [ValueContainer::try_as::<String>()], this method also works for [Text] values containing a static string slice.
     pub fn try_as_str(&self) -> Option<&str> {
-        if let Some(string) = self.try_as::<String>() {
-            Some(string.as_str())
-        }
-        // FIXME: must be handled explicitly because 'static str cannot be converted to String
-        else if let Some(text) = self.try_as::<Text>() {
-            Some(text.as_str())
-        } else {
-            None
+        match self {
+            ValueContainer::Local(value) => value.try_as_str(),
+            ValueContainer::Shared(shared) => None,
         }
     }
     

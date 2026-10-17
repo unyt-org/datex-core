@@ -413,11 +413,10 @@ mod tests {
     }
 
     #[test]
-    fn try_from_value() {
+    fn try_from_static_str_value() {
         let value =
             Value::from(CoreValue::Text(Text::StaticStr("Hello, World!")));
-        let result = value.try_into_value::<String>();
-        assert!(result.is_ok());
+        let result = value.try_as_str();
         assert_eq!(result.unwrap(), "Hello, World!");
     }
 

@@ -281,9 +281,9 @@ mod tests {
         ));
         let serialized = context.serialize_to_json(&value);
 
-        // we expect the JSON to be of the form { "$": "<address>" }
+        // we expect the JSON to be of the form { "_": "<address>" }
         assert!(
-            serialized.starts_with(r#"{"$":""#)
+            serialized.starts_with(r#"{"_":"$"#)
                 && serialized.ends_with(r#""}"#)
         );
 
@@ -345,7 +345,7 @@ mod tests {
         let pointer_address = referenced_container.pointer_address();
         let value = ValueContainer::Shared(referenced_container);
         let json = context.serialize_to_json(&value);
-        assert_eq!(json, format!(r#"{{"$":"'{}"}}"#, pointer_address));
+        assert_eq!(json, format!(r#"{{"_":"'{}"}}"#, pointer_address));
 
         let outer: ValueContainer =
             context.try_deserialize_from_json(&json).unwrap();

@@ -11,7 +11,7 @@ impl ValueEq for NativeCoreValue {
 
 impl PartialEq for NativeCoreValue {
     fn eq(&self, other: &Self) -> bool {
-        self.value_eq(other)
+        self.value.dyn_eq(&*other.value as &dyn Any)
     }
 }
 

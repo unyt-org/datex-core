@@ -395,7 +395,7 @@ mod tests {
 
         // { endpoint: "@jonas" } -> [<map-idx>, { endpoint: [<endpoint-idx>, "@jonas"] }]
         let value = Value::from(CoreValue::Map(
-            Map::structural_with_string_keys(vec![(
+            Map::new_structural(vec![(
                 "endpoint".into(),
                 ValueContainer::Local(Value::from(
                     Endpoint::from_str("@jonas").unwrap(),
@@ -417,8 +417,8 @@ mod tests {
         );
 
         // { "endpoint": "@jonas" } -> [<map-idx>, [[<endpoint-idx>, "@jonas"]]]
-        let value = Value::from(CoreValue::Map(Map::structural(vec![(
-            "endpoint".to_string().into(),
+        let value = Value::from(CoreValue::Map(Map::new_structural(vec![(
+            "endpoint".into(),
             Value::from(Endpoint::from_str("@jonas").unwrap()).into(),
         )])));
         let serialized = context.serialize_to_json(&value);
@@ -538,7 +538,7 @@ mod tests {
         CoreValue::Endpoint(Endpoint::from_str("@jonas").unwrap()) ; "endpoint"
     )]
     #[test_case(
-        CoreValue::Map(Map::structural_with_string_keys(vec![(
+        CoreValue::Map(Map::new_structural(vec![(
             "endpoint".into(),
             ValueContainer::Local(Value::from(Endpoint::from_str("@jonas").unwrap())),
         )])) ; "map with string keys"

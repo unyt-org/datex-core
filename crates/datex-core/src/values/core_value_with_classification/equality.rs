@@ -5,7 +5,7 @@ use crate::{
 
 impl PartialEq for CoreValueWithClassification {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.structural_eq(&other.inner)
+        self.inner.eq(&other.inner)
             && self.classification == other.classification
     }
 }

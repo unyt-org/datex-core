@@ -24,7 +24,7 @@ impl IterParts for Map {
     > {
         Some(Box::new(gen move {
             for (key, value) in self.iter() {
-                yield (key, value.into());
+                yield (key.into(), value.into());
             }
         }))
     }
@@ -43,7 +43,7 @@ impl IterParts for Map {
     > {
         Some(Box::new(gen move {
             for (key, value) in self.iter_mut() {
-                yield (key, value.into());
+                yield (key.into(), value.into());
             }
         }))
     }

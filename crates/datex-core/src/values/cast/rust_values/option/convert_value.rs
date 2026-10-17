@@ -7,6 +7,7 @@ use crate::{
         value::Value,
     },
 };
+use crate::values::core_values::native::NativeCoreValue;
 
 impl<T> ConvertValue for Option<T>
 where
@@ -20,10 +21,17 @@ where
     }
     fn try_from_value(value: Value) -> Result<Self, Value> {
         match value {
+            // null value, convert to None
             Value::Core(CoreValueWithClassification {
                 inner: CoreValue::Null,
                 ..
             }) => Ok(None),
+            // native "None" value
+            Value::Native(NativeCoreValue {value})
+            if value.as_any().is::<Option<T>>() && value.as_any().downcast_ref::<Option<T>>().unwrap().is_none() => {
+                Ok(None)
+            }
+            // other T values, convert to Some(T)
             value => value.try_into_value::<T>().map(Option::Some),
         }
     }

@@ -30,8 +30,7 @@ impl Map {
                         key.clone(),
                     ))
                 }),
-            MapEntries::Structural(_)
-            | MapEntries::StructuralWithStringKeys(_) => {
+            MapEntries::Structural(_) => {
                 Err(MapAccessError::Immutable)
             }
         }?
@@ -67,21 +66,6 @@ impl Map {
                     }
                 }
                 Err(KeyNotFoundError::new(key.clone()))
-            },
-            MapEntries::StructuralWithStringKeys(vec) => {
-                if let Some(string) = key.try_as::<String>() {
-                    for (k, v) in vec.iter_mut() {
-                        if k == string {
-                            return Ok(core::mem::replace(
-                                v,
-                                ValueContainer::from(Value::null()),
-                            ));
-                        }
-                    }
-                    Err(KeyNotFoundError::new(key.clone().into()))
-                } else {
-                    Err(KeyNotFoundError::new(key.clone().into()))
-                }
             }
         }?;
 
@@ -104,8 +88,7 @@ impl Map {
                     previous,
                 ))))
             }
-            MapEntries::Structural(_)
-            | MapEntries::StructuralWithStringKeys(_) => {
+            MapEntries::Structural(_) => {
                 Err(MapAccessError::Immutable)
             }
         }?
@@ -143,20 +126,7 @@ impl Map {
                     Ok(Some(core::mem::replace(v, value)))
                 } else {
                     Err(KeyNotFoundError::new(key.clone()))
-                },
-            MapEntries::StructuralWithStringKeys(vec) => {
-                if let Some(string) = key.try_as::<String>() {
-                    if let Some((_, v)) =
-                        vec.iter_mut().find(|(k, _)| k == string)
-                    {
-                        Ok(Some(core::mem::replace(v, value)))
-                    } else {
-                        Err(KeyNotFoundError::new(key.clone().into()))
-                    }
-                } else {
-                    Err(KeyNotFoundError::new(key.clone().into()))
                 }
-            }
         }?
         .map(|v| v.without_local_observers());
 

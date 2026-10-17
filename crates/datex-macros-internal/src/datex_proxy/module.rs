@@ -75,7 +75,7 @@ pub fn generate_mod_glue_code(
             #datex_core_crate_name::inventory::submit! {
                 #datex_core_crate_name::datex_registry::DatexModuleRegistration {
                     name: #datex_module_name,
-                    create_module: |cache| #datex_core_crate_name::values::core_values::map::Map::structural_with_string_keys(
+                    create_module: |cache| #datex_core_crate_name::values::core_values::map::Map::new_structural(
                         vec![#(#datex_items),*],
                     ),
                 }
@@ -95,7 +95,7 @@ fn map_to_datex_item(item: &Item) -> Option<TokenStream> {
 
             Some(quote! {
                 (
-                    #name.to_string(),
+                    #name.into(),
                     #mapped.into(),
                 )
             })

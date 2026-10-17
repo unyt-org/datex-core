@@ -766,8 +766,8 @@ mod tests {
         if let ValueContainer::Local(Value::Core(value)) = result {
             assert_eq!(
                 &value.inner,
-                &CoreValue::Map(Map::structural_with_string_keys(vec![(
-                    "a".to_string(),
+                &CoreValue::Map(Map::new_structural(vec![(
+                    "a".into(),
                     ValueContainer::from(true)
                 )]))
             );
@@ -805,13 +805,17 @@ mod tests {
     fn list_with_nested_scope() {
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
         let expected = datex_list![
-            Integer::from(1i8),
-            Integer::from(5i8),
-            Integer::from(4i8)
+            Integer::from(1),
+            Integer::from(5),
+            Integer::from(4)
         ];
 
         assert_eq!(result, expected.into());
-        assert_ne!(result, ValueContainer::from(vec![1_u8, 5_u8, 4_u8]));
+        assert_ne!(result, datex_list![
+            TypedInteger::from(1u8),
+            TypedInteger::from(5u8),
+            TypedInteger::from(4u8)
+        ].into());
         assert_structural_eq!(
             result,
             List::new(vec![1_u8, 5_u8, 4_u8]).to_value_container()

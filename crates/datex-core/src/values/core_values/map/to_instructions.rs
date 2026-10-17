@@ -19,9 +19,9 @@ impl ToInstructions for Map {
 
             for (key, value) in self.iter() {
 
-                match key.try_as::<str>() {
+                match key.try_as_str() {
                     // text -> insert key string
-                    Ok(string) => {
+                    Some(string) => {
                         if string.len() < 256 {
                             yield RegularInstruction::key_value_short_text(
                                 string.to_string(),
@@ -35,7 +35,7 @@ impl ToInstructions for Map {
                         }
                     }
                     // other -> insert key as dynamic
-                    Err(key) => {
+                    None => {
                         yield RegularInstruction::key_value_dynamic().into();
                         yield_all_collected!(key.to_instructions(visitor));
                     }

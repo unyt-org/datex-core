@@ -200,9 +200,9 @@ impl Value {
 
     /// Tries to get a borrow of the current value as the specified type.
     /// Does not perform any type conversion.
-    pub fn try_as<T: ?Sized>(&self) -> Option<&T>
+    pub fn try_as<T>(&self) -> Option<&T>
     where
-        T: ConvertValue,
+        T: ConvertValue + ?Sized,
     {
         T::try_borrow_from_value(self).ok()
     }
@@ -212,6 +212,21 @@ impl Value {
         T: ConvertValue,
     {
         T::try_borrow_mut_from_value(self).ok()
+    }
+
+    /// Tries to get an immutable reference to the value as a string slice.
+    /// Does not perform any type conversion.
+    /// In contrast to [Value::try_as::<String>()], this method also works for [Text] values containing a static string slice.
+    pub fn try_as_str(&self) -> Option<&str> {
+        if let Some(string) = self.try_as::<String>() {
+            Some(string.as_str())
+        }
+        // FIXME: must be handled explicitly because 'static str cannot be converted to String
+        else if let Some(text) = self.try_as::<Text>() {
+            Some(text.as_str())
+        } else {
+            None
+        }
     }
 
     /// Tries to convert the current value into the specific specified type.
@@ -483,8 +498,8 @@ mod tests {
 
         let maybe_value: Option<i8> = None;
         let null_value = Value::from(maybe_value);
-        assert_eq!(*null_value.try_as::<Option<i8>>().unwrap(), None);
-        assert_eq!(null_value.try_into_value::<Option<i8>>().unwrap(), None);
+        // can only get None via cast
+        assert_eq!(null_value.try_cast_into_value::<Option<i8>>().unwrap(), None);
     }
 
     #[test]
