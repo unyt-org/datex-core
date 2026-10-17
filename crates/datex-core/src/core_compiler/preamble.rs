@@ -25,11 +25,10 @@ use crate::{
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Write};
-use crate::core_compiler::to_instructions::yield_all;
+use crate::core_compiler::to_instructions::{yield_all, yield_all_collected};
 
 #[derive(Debug)]
-struct PreambleContext<'a> {
-    cursor: &'a mut ByteCursor,
+struct PreambleContext {
     self_referencing_containers: HashMap<SharedContainer, StackIndex>,
     known_container: HashSet<SharedContainer>,
     current_stack_index: StackIndex,
@@ -38,7 +37,7 @@ struct PreambleContext<'a> {
 // var x = shared {a: {b: null}};
 // x.a.b = x; /// #0.a.b = x;
 
-impl<'ctx> ValueVisitor for PreambleContext<'ctx> {
+impl ValueVisitor for PreambleContext {
     fn visit_shared_container<'a>(
         &'a mut self,
         shared_container: &'a SharedContainer,
@@ -61,9 +60,9 @@ impl<'ctx> ValueVisitor for PreambleContext<'ctx> {
             Some(stack_index) => {
                 if shared_container.treat_as_move() {
                     todo!("Create test case here!");
-                    RegularInstruction::take_stack_value(*stack_index)
-                        .write(self.cursor)
-                        .unwrap();
+                    // RegularInstruction::take_stack_value(*stack_index)
+                    //     .write(self.cursor)
+                    //     .unwrap();
                 } else {
                     match shared_container.ownership() {
                         // FIXME can we be sure, that this can not happen?
@@ -91,7 +90,7 @@ impl<'ctx> ValueVisitor for PreambleContext<'ctx> {
     }
 }
 
-impl<'a> PreambleContext<'a> {
+impl PreambleContext {
     fn get_next_stack_index(&mut self) -> StackIndex {
         let stack_index = self.current_stack_index;
         self.current_stack_index = StackIndex(self.current_stack_index.0 + 1);
@@ -109,7 +108,7 @@ pub(super) fn append_injected_values_preamble(
     }
 
     let tracked_values = collection.tracked_values;
-    let mut inner_cursor = ByteCursor::new(vec![]);
+    let mut cursor = ByteCursor::new(vec![]);
 
     let mut root_containers =
         Vec::<SharedContainer>::with_capacity(collection.root_count);
@@ -121,7 +120,6 @@ pub(super) fn append_injected_values_preamble(
 
     {
         let context = &mut PreambleContext {
-            cursor: &mut inner_cursor,
             self_referencing_containers: HashMap::new(),
             current_stack_index: StackIndex(0),
             known_container: HashSet::new(),
@@ -139,7 +137,7 @@ pub(super) fn append_injected_values_preamble(
                 )
                 .collect::<Vec<_>>()
                 {
-                    instruction.write(context.cursor_mut());
+                    instruction.write(&mut cursor);
                 }
                 context
                     .self_referencing_containers
@@ -165,9 +163,9 @@ pub(super) fn append_injected_values_preamble(
                             inner_statement_count,
                             uninitialized_index,
                         )
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<Instruction>>()
                     {
-                        instruction.write(context.cursor_mut());
+                        instruction.write(&mut cursor).unwrap();
                     }
                     uninitialized_index
                 } else {
@@ -178,9 +176,9 @@ pub(super) fn append_injected_values_preamble(
                         is_known,
                         inner_statement_count,
                     )
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<Instruction>>()
                     {
-                        instruction.write(context.cursor_mut());
+                        instruction.write(&mut cursor).unwrap();
                     }
                     index
                 };
@@ -199,14 +197,14 @@ pub(super) fn append_injected_values_preamble(
             .collect::<Vec<_>>();
 
         // Final root list
-        context.write(RegularInstruction::list(
+        RegularInstruction::list(
             root_container_stack_indices_sorted.len() as u32,
-        ));
+        ).write(&mut cursor).unwrap();
 
         // insert all root stack values into the list, which is the final value of the preamble
         // append [#0,...#x]
         for stack_index in root_container_stack_indices_sorted {
-            context.write(RegularInstruction::take_stack_value(stack_index));
+            RegularInstruction::take_stack_value(stack_index).write(&mut cursor).unwrap();
         }
 
         // The final root list is also one inner statement.
@@ -230,15 +228,15 @@ pub(super) fn append_injected_values_preamble(
         .write(&mut byte_cursor)
         .unwrap();
     // the inner preamble content, which pushes the shared containers to the stack and applies the patches
-    byte_cursor.write_all(&inner_cursor.into_inner()).unwrap();
+    byte_cursor.write_all(&cursor.into_inner()).unwrap();
 
     // append body
     byte_cursor.write_all(&body).unwrap();
     (byte_cursor.into_inner(), root_containers)
 }
 
-gen fn append_uninitialized_shared_container<'ctx>(
-    context: &mut PreambleContext<'ctx>,
+gen fn append_uninitialized_shared_container(
+    context: &mut PreambleContext,
     container: &SharedContainer,
     metadata: &TrackedValueMetadata,
     statements_count: &mut u32,
@@ -294,24 +292,23 @@ gen fn append_uninitialized_shared_container<'ctx>(
     return;
 }
 
-fn append_self_referencing_shared_container_to_stack<'ctx>(
-    context: &'ctx mut PreambleContext<'ctx>,
-    container: &'ctx SharedContainer,
-    statements_count: &'ctx mut u32,
+gen fn append_self_referencing_shared_container_to_stack(
+    context: &mut PreambleContext,
+    container: &SharedContainer,
+    statements_count: &mut u32,
     uninitialized_index: StackIndex,
-) -> Box<dyn Iterator<Item = Instruction> + 'ctx>
+) -> Instruction
 {
-    Box::new(gen move {
-        *statements_count += 1;
-        yield RegularInstruction::set_shared_container_value().into();
-        yield_all!(container.value_container().deref().to_instructions(context));
-        yield RegularInstruction::borrow_stack_value(uninitialized_index)
-            .into();
-    })
+    *statements_count += 1;
+    yield RegularInstruction::set_shared_container_value().into();
+    yield_all_collected!(container.value_container().deref().to_instructions(context));
+    yield RegularInstruction::borrow_stack_value(uninitialized_index)
+        .into();
+    return;
 }
 
-gen fn append_shared_container_to_stack<'ctx>(
-    context: &mut PreambleContext<'ctx>,
+gen fn append_shared_container_to_stack(
+    context: &mut PreambleContext,
     container: &SharedContainer,
     is_known: bool,
     statements_count: &mut u32,
@@ -325,8 +322,8 @@ gen fn append_shared_container_to_stack<'ctx>(
     }
 }
 
-gen fn append_shared_container<'ctx>(
-    context: &mut PreambleContext<'ctx>,
+gen fn append_shared_container(
+    context: &mut PreambleContext,
     container: &SharedContainer,
     is_known: bool,
 ) -> Instruction {
@@ -380,8 +377,8 @@ gen fn append_shared_container<'ctx>(
 }
 
 /// Appends a move instruction to the preamble to move an owned shared containers
-gen fn append_move_with_value<'ctx>(
-    context: &mut PreambleContext<'ctx>,
+gen fn append_move_with_value(
+    context: &mut PreambleContext,
     container_mutability: SharedContainerMutability,
     previous_address: SelfOwnedPointerAddress,
     value_container: Option<&ValueContainer>,
@@ -401,7 +398,7 @@ gen fn append_move_with_value<'ctx>(
     return;
 }
 
-gen fn append_referenced_shared_container<'ctx>(
+gen fn append_referenced_shared_container(
     referenced_container: &ReferencedSharedContainer,
 ) -> Instruction {
     match referenced_container.pointer_address() {
@@ -428,8 +425,8 @@ gen fn append_referenced_shared_container<'ctx>(
     return;
 }
 
-gen fn append_referenced_shared_container_with_value<'ctx>(
-    context: &mut PreambleContext<'ctx>,
+gen fn append_referenced_shared_container_with_value(
+    context: &mut PreambleContext,
     referenced_container: &ReferencedSharedContainer,
     unitialized: bool,
 ) -> Instruction {
@@ -449,7 +446,7 @@ gen fn append_referenced_shared_container_with_value<'ctx>(
                 yield RegularInstruction::Uninitialized.into();
             } else {
                 // TODO: no collect?
-                yield_all!(referenced_container.value_container().deref().to_instructions(context));
+                yield_all_collected!(referenced_container.value_container().deref().to_instructions(context));
             }
         }
         // insert without value for non self owned references

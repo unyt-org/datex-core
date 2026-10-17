@@ -204,6 +204,7 @@ mod tests {
     use core::assert_matches;
     use log::info;
     use crate::core_compiler::to_instructions::ToInstructions;
+    use crate::core_compiler::value_visitor::compile_instructions_to_dxb;
 
     fn compile_value_assert_instructions(
         value: Value,
@@ -300,7 +301,7 @@ mod tests {
         let shared_container = ValueContainer::Shared(owned_shared);
         let mut context = core_compilation_context();
 
-        let dxb = shared_container.to_instructions(context.shared_value_tracking.get_mut());
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
         
         // The address should now be registered in the shared value tracking
         assert_matches!(
@@ -317,7 +318,7 @@ mod tests {
         );
 
         assert_instructions_equal!(
-            &context.compile_to_dxb_with_shared_values().dxb,
+            &dxb,
             (RegularInstruction::statements_with_children(
                 false,
                 instructions!(
@@ -389,8 +390,8 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        let _ = shared_container.to_instructions(context.shared_value_tracking.get_mut());
-
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        
         assert_matches!(
             context
                 .shared_value_tracking
@@ -423,9 +424,7 @@ mod tests {
                 ..
             }
         );
-
-        let dxb = context.compile_to_dxb_with_shared_values().dxb;
-
+        
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -507,8 +506,8 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        let _ = shared_container.to_instructions(context.shared_value_tracking.get_mut());
-
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        
         assert_matches!(
             context
                 .shared_value_tracking
@@ -532,9 +531,7 @@ mod tests {
                 is_known: false,
             }
         );
-
-        let dxb = context.compile_to_dxb_with_shared_values().dxb;
-
+        
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -590,8 +587,8 @@ mod tests {
         let shared_container = ValueContainer::Shared(reference.clone());
         let mut context = core_compilation_context();
 
-        let _ = shared_container.to_instructions(context.shared_value_tracking.get_mut());
-
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        
         assert_matches!(
             context
                 .shared_value_tracking
@@ -605,9 +602,7 @@ mod tests {
                 is_self_referencing: false,
             }
         );
-
-        let dxb = context.compile_to_dxb_with_shared_values().dxb;
-
+        
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -672,8 +667,8 @@ mod tests {
             .into(),
         );
         let mut context = core_compilation_context();
-        let _ = local.to_instructions(context.shared_value_tracking.get_mut());
-
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &local);
+        
         assert_matches!(
             context
                 .shared_value_tracking
@@ -700,9 +695,7 @@ mod tests {
                 is_self_referencing: false,
             }
         );
-
-        let dxb = context.compile_to_dxb_with_shared_values().dxb;
-
+        
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(
@@ -777,8 +770,8 @@ mod tests {
 
         let mut context = core_compilation_context();
         let shared_container = ValueContainer::Shared(shared);
-        let _ = shared_container.to_instructions(context.shared_value_tracking.get_mut());
-
+        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        
         assert_matches!(
             context
                 .shared_value_tracking
@@ -792,9 +785,7 @@ mod tests {
                 is_self_referencing: true,
             }
         );
-
-        let dxb = context.compile_to_dxb_with_shared_values().dxb;
-
+        
         assert_instructions_equal!(
             &dxb,
             (RegularInstruction::statements_with_children(

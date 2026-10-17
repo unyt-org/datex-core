@@ -21,6 +21,7 @@ use datex_core::{
     },
 };
 use log::info;
+use datex_core::compiler::context::CompilationResult;
 
 pub mod local_values;
 pub mod shared_values;
@@ -66,7 +67,10 @@ fn compile_and_execute_multiple(
     );
     // FIXME can we make this cleaner, by using one of the other 10000 helper functions doing the same shit
 
-    let (dxb, _) = compile_template(
+    let CompilationResult {
+        dxb_with_shared_values,
+        ..
+    } = compile_template(
         &script,
         input.into_iter().map(Some).collect::<Vec<_>>(),
         CompileOptions::new(CompilationScope::default(), vec![Endpoint::LOCAL]),
@@ -74,10 +78,10 @@ fn compile_and_execute_multiple(
     )
     .unwrap();
 
-    print_disassembled_with_options(&dxb.dxb, DisassemblerOptions::default());
+    print_disassembled_with_options(&dxb_with_shared_values.dxb, DisassemblerOptions::default());
 
     let result = execute_dxb_sync(ExecutionInput::new(
-        dxb,
+        dxb_with_shared_values,
         ExecutionCallerMetadata::local_default(),
         ExecutionOptions { verbose: true },
         runtime,

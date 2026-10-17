@@ -42,6 +42,7 @@ use datex_core::{
     },
 };
 use test_case::test_case;
+use datex_core::compiler::context::CompilationResult;
 
 #[test_case(LiteralTypeDefinition::Integer(Integer::from(42)))]
 #[test_case(LiteralTypeDefinition::TypedInteger(3u8.into()))]
@@ -261,16 +262,19 @@ fn round_trip_type_definition(ty: TypeDefinition, runtime: Runtime) {
 }
 
 fn round_trip_type(ty: Type, runtime: Runtime) {
-    let (dxb, _) = compile_template(
+    let CompilationResult {
+        dxb_with_shared_values,
+        ..
+    } = compile_template(
         "?",
         vec![Some(ValueContainer::local(ty.clone()))],
         CompileOptions::new(CompilationScope::default(), vec![Endpoint::LOCAL]),
         runtime.clone(),
     )
     .unwrap();
-    print_disassembled_with_options(&dxb.dxb, DisassemblerOptions::default());
+    print_disassembled_with_options(&dxb_with_shared_values.dxb, DisassemblerOptions::default());
     let result = execute_dxb_sync(ExecutionInput::new(
-        dxb,
+        dxb_with_shared_values,
         ExecutionCallerMetadata::local_default(),
         ExecutionOptions { verbose: true },
         runtime,
