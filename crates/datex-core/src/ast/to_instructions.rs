@@ -48,7 +48,7 @@ impl AstNodeToInstructions for DatexExpression {
         ctx_metadata: CompileContextMetadata,
     ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a> {
         Box::new(gen move {
-            yield_all!(self.data.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+            yield_all!(self.data.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
         })
     }
 }
@@ -98,104 +98,104 @@ impl AstNodeToInstructions for DatexExpressionData {
                 }
 
                 DatexExpressionData::List(list) => {
-                    yield_all!(list.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(list.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Map(map) => {
-                    yield_all!(map.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(map.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // unary operations
                 DatexExpressionData::UnaryOperation(unary_operation) => {
-                    yield_all!(unary_operation.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(unary_operation.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // binary operations
                 DatexExpressionData::BinaryOperation(binary_operation) => {
-                    yield_all!(binary_operation.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(binary_operation.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // comparisons
                 DatexExpressionData::ComparisonOperation(
                     comparison_operation,
                 ) => {
-                    yield_all!(comparison_operation.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(comparison_operation.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // apply
                 DatexExpressionData::Apply(apply) => {
-                    yield_all!(apply.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(apply.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // interface methods
                 DatexExpressionData::InterfaceMethodCall(
                     interface_method_call,
                 ) => {
-                    yield_all!(interface_method_call.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(interface_method_call.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // property access
                 DatexExpressionData::PropertyAccess(property_access) => {
-                    yield_all!(property_access.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(property_access.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::GenericInstantiation(
                     generic_instantiation,
                 ) => {
-                    yield_all!(generic_instantiation.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(generic_instantiation.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::PropertyAssignment(
                     property_assignment,
                 ) => {
-                    yield_all!(property_assignment.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(property_assignment.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::RequestSharedRef(request_shared_ref) => {
-                    yield_all!(request_shared_ref.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(request_shared_ref.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::UnboxAssignment(unbox_assignment) => {
-                    yield_all!(unbox_assignment.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(unbox_assignment.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // root property
                 DatexExpressionData::RootPropertyAccess(
                     root_property_access,
                 ) => {
-                    yield_all!(root_property_access.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(root_property_access.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // refs
                 DatexExpressionData::DeriveRef(derive_ref) => {
-                    yield_all!(derive_ref.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(derive_ref.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // shared refs
                 DatexExpressionData::DeriveSharedRef(derive_shared_ref) => {
-                    yield_all!(derive_shared_ref.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(derive_shared_ref.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 // shared values
                 DatexExpressionData::CreateShared(create_shared) => {
-                    yield_all!(create_shared.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(create_shared.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::TypeExpression(type_expression) => {
                     yield Ok(RegularInstruction::TypeExpression.into());
-                    yield_all!(type_expression.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(type_expression.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Range(range_dec) => {
-                    yield_all!(range_dec.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(range_dec.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Unbox(unbox) => {
-                    yield_all!(unbox.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(unbox.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Tag(tag_expression) => {
-                    yield_all!(tag_expression.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(tag_expression.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::ResolveCoreLibId(core_lib_id) => {
@@ -208,37 +208,37 @@ impl AstNodeToInstructions for DatexExpressionData {
                 DatexExpressionData::CallableDeclaration(
                     callable_declaration,
                 ) => {
-                    yield_all!(callable_declaration.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(callable_declaration.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Conditional(conditional) => {
-                    yield_all!(conditional.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(conditional.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
                 DatexExpressionData::RemoteExecution(remote_execution) => {
-                    yield_all!(remote_execution.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(remote_execution.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::VariableDeclaration(
                     _variable_declaration,
                 ) => {
-                    yield_all!(_variable_declaration.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(_variable_declaration.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
                 DatexExpressionData::Statements(statements) => {
-                    yield_all!(statements.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(statements.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::VariableAssignment(
                     variable_assignment,
                 ) => {
-                    yield_all!(variable_assignment.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(variable_assignment.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::VariableAccess(variable_access) => {
-                    yield_all!(variable_access.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(variable_access.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 DatexExpressionData::Placeholder(value_access_type) => {
-                    yield_all!(value_access_type.ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(value_access_type.ast_node_to_instructions(compilation_context, ast_metadata, ctx_metadata));
                 }
 
                 e => panic!(
@@ -732,7 +732,7 @@ impl AstNodeToInstructions for Statements {
                     ).into());
                 }
 
-                for statement in statements.into_iter() {
+                for statement in statements {
                     yield_all!(statement.ast_node_to_instructions_inner(compilation_context, ast_metadata));
                 }
 

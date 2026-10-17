@@ -418,7 +418,7 @@ pub fn compile_template(
     )?;
     let lookup = runtime.pointer_availability_lookup();
     let input = CompileInput::new(&lookup, &options.receivers);
-    let mut compilation_context = CompilationContext::new(
+    let compilation_context = CompilationContext::new(
         inserted_values,
         options.compile_scope.execution_mode,
         input,

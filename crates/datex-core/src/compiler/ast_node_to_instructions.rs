@@ -40,7 +40,7 @@ pub trait AstNodeToInstructions {
             ast_metadata,
             CompileContextMetadata::outer(),
         ) {
-            instruction?.write(&mut buffer).unwrap();
+            instruction?.write(&mut buffer)?;
         }
         Ok(buffer.into_inner())
     }

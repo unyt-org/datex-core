@@ -118,7 +118,7 @@ mod tests {
             &cache,
         )
         .expect("Failed to push value to list");
-        let updated_value = list.try_get_property(&ValueContainer::from(3)).unwrap();
+        let updated_value = list.try_get_property(&ValueContainer::from(3u32)).unwrap();
         assert_eq!(updated_value.try_as::<i32>().unwrap().deref(), &4);
 
         // Try to push to non-list value
@@ -173,18 +173,18 @@ mod tests {
         let cache = RefCell::new(SharedReferencesCache::default());
         // Set existing index
         list.try_update_collapsed_local_inner(
-            UpdateOperation::set_entry(1.into(), ValueContainer::from(42)),
+            UpdateOperation::set_entry(1u32.into(), ValueContainer::from(42)),
             vec![],
             None,
             &cache,
         )
         .expect("Failed to set existing index");
-        let updated_value = list.try_get_property(&ValueContainer::from(1)).unwrap();
+        let updated_value = list.try_get_property(&ValueContainer::from(1u32)).unwrap();
         assert_eq!(updated_value.try_as::<i32>().unwrap().deref(), &42);
 
         // Try to set out-of-bounds index
         let result = list.try_update_collapsed_local_inner(
-            UpdateOperation::set_entry(5.into(), ValueContainer::from(99)),
+            UpdateOperation::set_entry(5u32.into(), ValueContainer::from(99)),
             vec![],
             None,
             &cache,
@@ -199,7 +199,7 @@ mod tests {
         // Try to set index on non-map value
         let mut int_ref = Value::from(1);
         let result = int_ref.try_update_collapsed_local_inner(
-            UpdateOperation::set_entry(0.into(), ValueContainer::from(42)),
+            UpdateOperation::set_entry(0u32.into(), ValueContainer::from(42)),
             vec![],
             None,
             &cache,
