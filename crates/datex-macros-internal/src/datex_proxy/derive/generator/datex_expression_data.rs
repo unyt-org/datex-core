@@ -35,26 +35,22 @@ pub fn generate_datex_expression_data(
 /// Generates the datex expression data for the given fields. Returns a TokenStream of [DatexExpressionData].
 fn generate_datex_expression_data_fields(
     fields: &Fields,
-    _tag: Option<&String>,
+    tag: Option<&String>,
 ) -> TokenStream {
-    // TODO: handle tag?
-
-    match fields {
-        Fields::Unit => quote! {
-            DatexExpressionData::Statements(Statements::empty())
-        },
+    let inner = match fields {
+        Fields::Unit => None,
         Fields::Named(fields) => {
             let field_expressions = fields
                 .iter()
                 .map(named_field_to_expression_data)
                 .collect::<Vec<_>>();
-            quote! {
+            Some(quote! {
                 DatexExpressionData::Map(ast::expressions::Map::new(
                     vec![
                         #(#field_expressions),*
                     ]
                 ))
-            }
+            })
         }
         Fields::Unnamed(field) => {
             let field_expressions = field
@@ -67,25 +63,46 @@ fn generate_datex_expression_data_fields(
                 })
                 .collect::<Vec<_>>();
 
-            quote! {
+            Some(quote! {
                 DatexExpressionData::List(ast::expressions::List::new(
                     vec![
                         #(#field_expressions),*
                     ]
                 ))
-            }
+            })
         }
         Fields::Transparent(field) => {
             let first_field = field_to_expression_data(
                 field.normalized_ident().into_token_stream(),
                 &field.field.attributes.field_mapping,
             );
-            quote! {
+            Some(quote! {
                 {
                     *(#first_field.data)
                 }
-            }
+            })
         }
+    };
+
+    match tag {
+        Some(tag) => {
+            let expression = match inner {
+                Some(inner) => quote! {
+                    Some(#inner.with_default_span())
+                },
+                None => quote! { None },
+            };
+
+            quote! {
+                DatexExpressionData::Tag(TagExpression {
+                    tag: #tag.to_string(),
+                    expression: #expression
+                })
+            }
+        },
+        None => inner.unwrap_or(quote! {
+            DatexExpressionData::Statements(Statements::empty())
+        }),
     }
 }
 

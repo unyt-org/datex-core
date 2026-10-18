@@ -106,7 +106,7 @@ macro_rules! derive_prelude_ast {
         use $crate::{
             ast,
             ast::{
-                expressions::DatexExpressionData, expressions::Statements,
+                expressions::DatexExpressionData, expressions::TagExpression, expressions::Statements,
                 spanned::Spanned,
             },
             traits::to_datex_expression_data::ToDatexExpressionData,
