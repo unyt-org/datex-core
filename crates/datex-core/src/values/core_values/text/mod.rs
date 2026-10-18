@@ -73,12 +73,23 @@ impl Text {
         }
     }
 
+    /// Converts the Text into a String, cloning the inner string if necessary.
     pub fn as_string(&self) -> String {
         match self {
             Text::String(s) => s.clone(),
             Text::StaticStr(s) => s.to_string(),
         }
     }
+
+    /// Converts the Text into a String, consuming the Text in the process.
+    /// If the Text is a StaticStr variant, it will allocate a new String from the static string slice.
+    pub fn into_string(self) -> String {
+        match self {
+            Text::String(s) => s,
+            Text::StaticStr(s) => s.to_string(),
+        }
+    }
+
     pub fn char_at(&self, index: u32) -> Result<char, IndexOutOfBoundsError> {
         match self {
             Text::String(s) => s.chars().nth(index as usize).ok_or(IndexOutOfBoundsError { index }),

@@ -53,6 +53,18 @@ fn generate_classification_methods(
         quote! { None }
     };
 
+    let entity_type_init = if structure_data.attributes.type_kind.is_entity() {
+        quote! {
+            let ty = Self::datex_type(cache);
+            match ty {
+                Type::Entity(entity_type) => Some(entity_type),
+                _ => unreachable!(),
+            }
+        }
+    } else {
+        quote! { None }
+    };
+
     let entity_type_method = if structure_data.attributes.type_kind.is_entity()
     {
         Some(quote! {
@@ -60,7 +72,7 @@ fn generate_classification_methods(
                 &self,
                 cache: &mut SharedReferencesCache,
             ) -> Option<EntityType> {
-                todo!("entity_type")
+                #entity_type_init
             }
 
             fn entity_type_address(&self) -> Option<PointerAddress> {

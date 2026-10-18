@@ -41,6 +41,8 @@ use datex_core::{
         value_container::ValueContainer,
     },
 };
+use datex_core::traits::classification::Classification;
+use datex_core::traits::convert_value_container::ConvertValueContainer;
 use datex_macros_internal::{Datex, datex};
 
 #[derive(Datex, Debug, Clone, PartialEq)]
@@ -199,20 +201,14 @@ fn signatures() {
                 .unwrap()
                 .0
                 .unwrap();
-            assert_eq!(result, ValueContainer::Local(Value::native(3u8)));
+            assert_eq!(result, ValueContainer::from(3u8));
         }
         _ => {
             panic!("Expected entity type, got {:?}", example_type);
         }
     }
 
-    // call method directly on an Example instance via the ValueContainer
-    let example_instance = Box::new(Example { a: 1, b: 2 });
-    let example_instance_vc =
-        ValueContainer::from(Value::native(example_instance));
-    // TODO: also store type in value container (this will require passing cache to the ValueContainer::from function somehow)
-    // Then we can access methods on the type definition here
-
+    // check methods signatures
     {
         // set_a
         let set_a_sig = &type_definition
@@ -308,4 +304,34 @@ fn signatures() {
             }
         );
     }
+}
+
+#[test]
+fn methods_calls_on_value_container() {
+    let runtime = Runtime::stub();
+    let mut cache = runtime.shared_references_cache_mut();
+
+    // call methods directly on an Example instance via the ValueContainer
+    let example_instance = Example { a: 1, b: 2 };
+    let example_instance_vc = ValueContainer::from(example_instance);
+
+    // get type
+    let example_type = example_instance_vc.entity_type(cache.deref_mut()).unwrap();
+
+    // set_a
+    let set_a = example_type.try_get_property(&ValueContainer::from("set_a")).unwrap().try_as::<Callable>().unwrap();
+    let (res, mut borrows) = set_a
+        .try_apply_sync_checked(
+            &runtime,
+            vec![
+                ApplyArgument::referenced(example_instance_vc),
+                TypedInteger::U8(10).into(),
+            ],
+        )
+        .unwrap();
+    let res = res.unwrap();
+    let result_u8 = res.try_as::<u8>().unwrap();
+    assert_eq!(result_u8, &10u8);
+    let retrieved_example_instance = borrows.remove(0);
+    assert_eq!(retrieved_example_instance.try_as::<Example>().unwrap(), &Example { a: 10, b: 2 });
 }

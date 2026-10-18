@@ -102,7 +102,9 @@ pub fn generate_native_callable(
     }
 
     let has_mutable_inputs = sig.inputs.iter().any(|param| match param {
-        syn::FnArg::Receiver(receiver) => receiver.mutability.is_some(),
+        syn::FnArg::Receiver(receiver) => {
+            receiver.mutability.is_some() || matches!(receiver.kind, syn::ReceiverKind::Reference(_, _, Some(_)))
+        }
         syn::FnArg::Typed(pat_type) => {
             if let Type::Reference(type_reference) = &*pat_type.ty {
                 type_reference.mutability.is_some()
@@ -216,7 +218,7 @@ pub fn generate_native_callable(
             let mut val_iter = vals.into_iter();
 
             #(#call_argument_inits)*
-
+            
             let mut result_value = ConvertValueContainer::to_value_container(
                 #method_call_body,
             );

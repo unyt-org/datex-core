@@ -20,6 +20,7 @@ pub mod goat_helpers;
 mod ops;
 pub mod serde_dif;
 pub mod equality;
+pub mod classification;
 
 use crate::{
     libs::core::type_id::CoreLibTypeId,
@@ -39,11 +40,9 @@ pub use datex_native_trait::*;
 pub use ops::*;
 use crate::traits::convert_parts::FromParts;
 
-impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
-    for T
-{
+impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer for T {
     fn to_value_container(self) -> ValueContainer {
-        ValueContainer::Local(Value::new(self))
+        ValueContainer::Local(T::to_value(self))
     }
 
     fn as_borrowed_value_container(&self) -> BorrowedValueContainer<'_> {
@@ -68,6 +67,16 @@ impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer
         match value_container {
             ValueContainer::Local(value) => Self::try_from_value(value).map_err(ValueContainer::Local),
             _ => Err(value_container),
+        }
+    }
+
+    fn try_cast_from_value_container(value_container: ValueContainer) -> Result<Self, ()>
+    where
+        Self: FromParts + Sized,
+    {
+        match value_container {
+            ValueContainer::Local(value) => Self::try_cast_from_value(value),
+            _ => Err(()),
         }
     }
 

@@ -413,10 +413,10 @@ fn value_to_empty_enum_variant() {
         }),
     );
 
-    let example = ExampleEnum::try_cast_from_value_container(
-        ValueContainer::from(variant_a),
-    )
-    .unwrap();
+    let example = ExampleEnum::try_cast_from_value(variant_a.clone()).unwrap();
+    assert_matches!(example, ExampleEnum::VariantA);
+
+    let example = ExampleEnum::try_cast_from_value_container(variant_a.into()).unwrap();
     assert_matches!(example, ExampleEnum::VariantA);
 }
 

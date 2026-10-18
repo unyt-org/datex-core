@@ -17,6 +17,12 @@ use crate::{
     },
 };
 use core::{any::TypeId, fmt::Display, ops::Deref};
+use crate::datex_registry::get_impls_for;
+use crate::dif::deserialize_with_serde_context::DeserializeWithSerdeContext;
+use crate::traits::convert_value::ConvertValue;
+use crate::types::entities::entity_type_definition::dyn_deserialize::{de_as, DeFn};
+use crate::types::type_definition::TypeDefinition;
+use crate::prelude::*;
 
 pub enum SharedTypeReservation {
     Existing(EntityType),
@@ -216,6 +222,50 @@ impl SharedReferencesCache {
                 .derive_reference_with_max_mutability(),
         );
         shared_type_container
+    }
+
+    /// Generates or retrieves an [EntityType] for the given type T, using the provided address and generation function.
+    /// If the type is already registered in the cache, it returns the existing [EntityType].
+    /// If not, it generates a new [EntityTypeDefinition] using the provided closure and registers it in the cache.
+    /// # Safety
+    /// The caller must ensure that the address is unique.
+    pub unsafe fn init_entity_type<T>(
+        &mut self,
+        address: SelfOwnedPointerAddress,
+        generate: impl FnOnce(&mut Self) -> (String, TypeDefinition),
+    ) -> EntityType
+    where
+        T: for<'de> DeserializeWithSerdeContext<'de> + ConvertValue + 'static
+    {
+        match unsafe {
+            self.reserve_shared_type(address.clone())
+        } {
+            SharedTypeReservation::Existing(ty) => {
+                ty
+            }
+            // if not found, create new def and register in cache
+            SharedTypeReservation::New(ty) => {
+                self.with_entity_boundary(|cache| {
+                    let (name, type_definition) = generate(cache);
+
+                    let impls = get_impls_for::<T>(cache);
+
+                    let definition = EntityTypeDefinition::new_with_impls_and_deserialize(
+                        type_definition,
+                        name,
+                        impls,
+                        Some(de_as::<T> as DeFn),
+                    );
+
+                    cache.finish_shared_type(
+                        address.clone(),
+                        definition,
+                    );
+
+                    ty
+                })
+            }
+        }
     }
 
     /// Reserves a shared container type in the cache for the given address and returns a [SharedTypeReservation].

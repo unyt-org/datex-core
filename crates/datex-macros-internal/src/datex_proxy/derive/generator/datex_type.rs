@@ -217,7 +217,6 @@ fn generate_datex_enum_type(enum_ty: &[EnumVariant]) -> TokenStream {
 
 /// Wraps a type definition. Returns a TokenStream of [Type].
 fn generate_type(structure_data: &StructureData) -> TokenStream {
-    let ident = &structure_data.ident;
     let type_definition = match &structure_data.structure {
         Structure::Enum(enum_val) => generate_datex_enum_type(enum_val),
         Structure::Struct(fields) => generate_datex_type_definition(fields),
@@ -236,38 +235,11 @@ fn generate_type(structure_data: &StructureData) -> TokenStream {
             .datex_name
             .clone()
             .unwrap_or(structure_data.ident.to_string());
-        // TODO: move out of macro as utility function
-        quote! {{
-            let address = #ptr_address_init;
-            match unsafe {
-                cache.reserve_shared_type(address.clone())
-            } {
-                SharedTypeReservation::Existing(ty) => {
-                    Type::Entity(ty)
-                }
-                // if not found, create new def and register in cache
-                SharedTypeReservation::New(ty) => {
-                    cache.with_entity_boundary(|cache| {
-                        let type_definition = #type_definition;
 
-                        let impls = get_impls_for::<Self>(cache);
-
-                        let definition = EntityTypeDefinition::new_with_impls_and_deserialize(
-                            type_definition.into(),
-                            #name.to_string(),
-                            impls,
-                            Some(de_as::<#ident> as DeFn),
-                        );
-
-                        cache.finish_shared_type(
-                            address.clone(),
-                            definition,
-                        );
-
-                        Type::Entity(ty)
-                    })
-                }
-            }
-        }}
+        quote! {
+            Type::Entity(unsafe {
+                cache.init_entity_type::<Self>(#ptr_address_init, |cache| (#name.to_string(), #type_definition))
+            })
+        }
     }
 }

@@ -19,6 +19,7 @@ use core::{
     ops::Deref,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Shared<T: DatexNative + ?Sized> {
     container: SharedContainer,
     _phantom_t: core::marker::PhantomData<T>,

@@ -3,30 +3,39 @@ use crate::{
     traits::classification::Classification,
     values::value::{
         Value,
-        value_classification::{
-            ValueClassification,
-            unresolved_value_classification::UnresolvedValueClassification,
-        },
     },
 };
+use crate::shared_values::PointerAddress;
+use crate::types::entity_type::EntityType;
+use crate::values::value::value_classification::ValueTag;
+use crate::prelude::*;
 
 impl Classification for Value {
-    fn classification(
-        &self,
-        cache: &mut SharedReferencesCache,
-    ) -> ValueClassification {
+    fn entity_type(&self, cache: &mut SharedReferencesCache) -> Option<EntityType> {
         match self {
-            Value::Core(core_value) => core_value.classification(cache),
-            Value::Native(custom_value) => custom_value.classification(cache),
+            Value::Core(core_value) => core_value.entity_type(cache),
+            Value::Native(custom_value) => custom_value.entity_type(cache),
         }
     }
 
-    fn unresolved_classification(&self) -> UnresolvedValueClassification {
+    fn entity_type_address(&self) -> Option<PointerAddress> {
         match self {
-            Value::Core(core_value) => core_value.unresolved_classification(),
-            Value::Native(custom_value) => {
-                custom_value.unresolved_classification()
-            }
+            Value::Core(core_value) => core_value.entity_type_address(),
+            Value::Native(custom_value) => custom_value.entity_type_address(),
+        }
+    }
+
+    fn tag(&self) -> Option<ValueTag> {
+        match self {
+            Value::Core(core_value) => core_value.tag(),
+            Value::Native(custom_value) => custom_value.tag(),
+        }
+    }
+
+    fn impls(&self) -> Vec<PointerAddress> {
+        match self {
+            Value::Core(core_value) => core_value.impls(),
+            Value::Native(custom_value) => custom_value.impls(),
         }
     }
 }

@@ -32,9 +32,9 @@ impl ConvertValue for String {
     fn try_from_value(value: Value) -> Result<Self, Value> {
         match value {
             Value::Core(CoreValueWithClassification {
-                inner: CoreValue::Text(Text::String(string)),
+                inner: CoreValue::Text(text),
                 ..
-            }) => Ok(string),
+            }) => Ok(text.into_string()),
             Value::Native(native) => {
                 native.try_into_value().map_err(Value::Native)
             }
