@@ -34,6 +34,9 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
+use crate::runtime::cache::shared_references_cache::SharedReferencesCache;
+use crate::shared_values::SharedContainer;
+use crate::values::core_values::native::DatexNative;
 
 /// Wrapper struct for an owned shared value (i.e. `shared X`)
 /// It is guaranteed that the inner value is a [SharedContainerInner::EndpointOwned].
@@ -93,6 +96,35 @@ impl OwnedSharedContainer {
         }
     }
 
+
+    /// Creates a new [OwnedSharedContainer] containing an initial [DatexNative] value.
+    /// The allowed type is the type of the [DatexNative].
+    pub fn new_native<T: DatexNative>(
+        value: T,
+        mutability: SharedContainerMutability,
+        address_provider: &mut SelfOwnedPointerAddressProvider,
+        cache: &mut SharedReferencesCache
+    ) -> Self {
+        let ty = value.allowed_type(cache);
+
+        let value_container = value.to_value_container();
+        let is_uninitialized = value_container.is_uninitialized();
+
+        // SAFETY: address provider guarantees new unique address
+        unsafe {
+            Self::new_from_base_shared_container_unsafe(
+                BaseSharedValueContainer::try_new(
+                    value_container,
+                    ty,
+                    mutability,
+                ).unwrap(), // the unwrap is safe since the type of the native value is guaranteed to match the value
+                address_provider.get_new_self_owned_address(),
+                is_uninitialized,
+            )
+        }
+    }
+
+
     /// Creates a new [OwnedSharedContainer] with an initial [ValueContainer],
     /// a [SharedContainerMutability], and an [SelfOwnedPointerAddress].
     ///
@@ -105,14 +137,30 @@ impl OwnedSharedContainer {
         address: SelfOwnedPointerAddress,
     ) -> Self {
         let is_uninitialized = value_container.is_uninitialized();
+        unsafe {
+            Self::new_from_base_shared_container_unsafe(
+                BaseSharedValueContainer::new_with_inferred_allowed_type(
+                    value_container,
+                    mutability,
+                ),
+                address,
+                is_uninitialized,
+            )
+        }
+    }
 
+    /// Creates a new [OwnedSharedContainer] from a [BaseSharedValueContainer] and a [SelfOwnedPointerAddress].
+    /// # Safety
+    /// The caller must ensure that the address is not used anywhere else.
+    unsafe fn new_from_base_shared_container_unsafe(
+        base_shared_container: BaseSharedValueContainer,
+        address: SelfOwnedPointerAddress,
+        is_uninitialized: bool,
+    ) -> Self {
         let mut container =
             OwnedSharedContainer::new_from_self_owned_container(unsafe {
                 SelfOwnedSharedContainer::new_with_address(
-                    BaseSharedValueContainer::new_with_inferred_allowed_type(
-                        value_container,
-                        mutability,
-                    ),
+                    base_shared_container,
                     address,
                 )
             });

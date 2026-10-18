@@ -6,7 +6,7 @@ use crate::{
 
 // Returns the DATEX [Type] for the target
 pub trait GetDatexType {
-    fn datex_type(_context: &mut SharedReferencesCache) -> Type {
+    fn datex_type(_cache: &mut SharedReferencesCache) -> Type {
         Type::core(CoreLibBaseTypeId::Any)
     }
 }

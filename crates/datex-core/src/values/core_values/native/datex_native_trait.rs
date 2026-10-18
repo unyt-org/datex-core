@@ -14,6 +14,7 @@ use crate::{
         dyn_eq::DynEq,
         get_core_lib_type_id::GetCoreLibTypeId,
         get_datex_type::GetDatexType,
+        get_allowed_type::GetAllowedType,
         iter_parts::IterParts,
         local_child_path_resolver::LocalChildPathResolver,
         try_clone::TryClone,
@@ -95,6 +96,7 @@ pub trait DatexNative:
     + FromParts
     + IntoParts
     + GetCoreLibTypeId
+    + GetAllowedType
     + ValueAccess
     + TryClone
     + ConvertValueContainer
@@ -122,6 +124,7 @@ pub trait DatexNative:
     + FromParts
     + IntoParts
     + GetCoreLibTypeId
+    + GetAllowedType
     + ValueAccess
     + TryClone
     + ConvertValueContainer

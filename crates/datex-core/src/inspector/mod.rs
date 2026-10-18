@@ -57,43 +57,48 @@ mod tests {
         traits::apply::Apply, types::type_definition::callable::CallableKind,
         values::core_values::callable::native_sync_callable,
     };
-    // FIXME
-    // #[test]
-    // fn ty() {
-    //     let mut memory = SharedReferencesCache::default();
-    //     let inspector_type = Inspector::datex_type(
-    //         &mut memory,
-    //     );
-    //     let r = native_sync_callable(
-    //         Inspector::create,
-    //         Some("create".to_string()),
-    //         CallableKind::Procedure,
-    //         &mut memory,
-    //     );
-    //
-    //     let inspector = Inspector::create("Test Inspector".to_string());
-    //     let vc = inspector.to_value_container(&mut memory);
-    //
-    //     // TODO: methods bound to value container / even better, methods bound to the type definition
-    //     // We must the store type in value container (this will require passing cache to the ValueContainer::from function somehow)
-    //     // Then we can access methods on the type definition here
-    //     let runtime = crate::runtime::Runtime::stub();
-    //     if let Some(method) = vc
-    //         .try_as::<Map>()
-    //         .and_then(|map| map.try_get("name_getter").ok())
-    //     {
-    //         let result = method
-    //             .try_apply_sync(&runtime, vec![])
-    //             .unwrap()
-    //             .expect("Method should return a value");
-    //         assert_eq!(
-    //             result.try_into_value::<String>().unwrap(),
-    //             "Test Inspector"
-    //         );
-    //     } else {
-    //         panic!("Method not found");
-    //     }
-    // }
+    use crate::inspector::datex_inspector::Inspector;
+    use crate::runtime::cache::shared_references_cache::SharedReferencesCache;
+    use crate::traits::convert_value_container::ConvertValueContainer;
+
+    #[test]
+    fn ty() {
+        let mut cache = SharedReferencesCache::default();
+        let inspector_type = Inspector::datex_type(
+            &mut cache,
+        );
+        let create = native_sync_callable(
+            datex_inspector::create,
+            Some("create".to_string()),
+            CallableKind::Procedure,
+            &mut cache,
+        );
+
+        let inspector = datex_inspector::create("Test Inspector".to_string());
+        let vc = inspector.to_value_container();
+
+        // FIXME
+        // call create
+        // // TODO: methods bound to value container / even better, methods bound to the type definition
+        // // We must the store type in value container (this will require passing cache to the ValueContainer::from function somehow)
+        // // Then we can access methods on the type definition here
+        // let runtime = crate::runtime::Runtime::stub();
+        // if let Some(method) = vc
+        //     .try_as::<Map>()
+        //     .and_then(|map| map.try_get("name_getter").ok())
+        // {
+        //     let result = method
+        //         .try_apply_sync(&runtime, vec![])
+        //         .unwrap()
+        //         .expect("Method should return a value");
+        //     assert_eq!(
+        //         result.try_into_value::<String>().unwrap(),
+        //         "Test Inspector"
+        //     );
+        // } else {
+        //     panic!("Method not found");
+        // }
+    }
 
     use super::*;
     #[test]

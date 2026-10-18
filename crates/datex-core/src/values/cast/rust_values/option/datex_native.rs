@@ -17,8 +17,9 @@ use crate::{
     },
 };
 use core::{any::Any, cell::RefCell};
+use crate::traits::get_datex_type::GetDatexType;
 
-impl<T: DatexNative + ConvertValue + 'static> DatexNative for Option<T> {
+impl<T: DatexNative + GetDatexType + ConvertValue + 'static> DatexNative for Option<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -37,6 +38,32 @@ impl<T: DatexNative + ConvertValue + 'static> UpdateCallbackDataAccess
 {
 }
 impl<T: DatexNative + ConvertValue + 'static> UpdateHandlerImpl for Option<T> {
+    fn try_set_entry(
+        &mut self,
+        data: SetEntryUpdateData,
+        cache: &RefCell<SharedReferencesCache>,
+    ) -> Result<Option<ValueContainer>, UpdateError> {
+        if let Some(inner) = self {
+            inner.try_set_entry(data, cache)
+        } else {
+            Err(UpdateError::access_error(AccessError::InvalidOperation(
+                "Cannot set entry on null value".to_string(),
+            )))
+        }
+    }
+    fn try_delete_entry(
+        &mut self,
+        data: DeleteEntryUpdateData,
+        cache: &RefCell<SharedReferencesCache>,
+    ) -> Result<ValueContainer, UpdateError> {
+        if let Some(inner) = self {
+            inner.try_delete_entry(data, cache)
+        } else {
+            Err(UpdateError::access_error(AccessError::InvalidOperation(
+                "Cannot delete entry from null value".to_string(),
+            )))
+        }
+    }
     fn try_append_entry(
         &mut self,
         data: AppendEntryUpdateData,
@@ -62,29 +89,16 @@ impl<T: DatexNative + ConvertValue + 'static> UpdateHandlerImpl for Option<T> {
             )))
         }
     }
-    fn try_decrement(
+    fn try_list_splice(
         &mut self,
-        data: DecrementUpdateData,
+        data: ListSpliceUpdateData,
         cache: &RefCell<SharedReferencesCache>,
-    ) -> Result<(), UpdateError> {
+    ) -> Result<Vec<ValueContainer>, UpdateError> {
         if let Some(inner) = self {
-            inner.try_decrement(data, cache)
+            inner.try_list_splice(data, cache)
         } else {
             Err(UpdateError::access_error(AccessError::InvalidOperation(
-                "Cannot decrement null value".to_string(),
-            )))
-        }
-    }
-    fn try_delete_entry(
-        &mut self,
-        data: DeleteEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
-    ) -> Result<ValueContainer, UpdateError> {
-        if let Some(inner) = self {
-            inner.try_delete_entry(data, cache)
-        } else {
-            Err(UpdateError::access_error(AccessError::InvalidOperation(
-                "Cannot delete entry from null value".to_string(),
+                "Cannot list splice null value".to_string(),
             )))
         }
     }
@@ -101,29 +115,16 @@ impl<T: DatexNative + ConvertValue + 'static> UpdateHandlerImpl for Option<T> {
             )))
         }
     }
-    fn try_list_splice(
+    fn try_decrement(
         &mut self,
-        data: ListSpliceUpdateData,
+        data: DecrementUpdateData,
         cache: &RefCell<SharedReferencesCache>,
-    ) -> Result<Vec<ValueContainer>, UpdateError> {
+    ) -> Result<(), UpdateError> {
         if let Some(inner) = self {
-            inner.try_list_splice(data, cache)
+            inner.try_decrement(data, cache)
         } else {
             Err(UpdateError::access_error(AccessError::InvalidOperation(
-                "Cannot list splice null value".to_string(),
-            )))
-        }
-    }
-    fn try_set_entry(
-        &mut self,
-        data: SetEntryUpdateData,
-        cache: &RefCell<SharedReferencesCache>,
-    ) -> Result<Option<ValueContainer>, UpdateError> {
-        if let Some(inner) = self {
-            inner.try_set_entry(data, cache)
-        } else {
-            Err(UpdateError::access_error(AccessError::InvalidOperation(
-                "Cannot set entry on null value".to_string(),
+                "Cannot decrement null value".to_string(),
             )))
         }
     }

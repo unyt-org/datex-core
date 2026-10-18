@@ -23,3 +23,4 @@ pub mod to_type_expression_data;
 pub mod try_clone;
 pub mod value_access;
 pub mod value_eq;
+pub mod get_allowed_type;

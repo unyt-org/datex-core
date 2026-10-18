@@ -7,6 +7,8 @@ use crate::{
         type_definition::{TypeDefinition, union::UnionTypeDefinition},
     },
 };
+use crate::traits::get_allowed_type::GetAllowedType;
+
 /// TODO: only wrap nested Option<Option<T>> into container. Single option can be mapped directly to X|null
 impl<T> GetDatexType for Option<T>
 where

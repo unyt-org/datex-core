@@ -44,6 +44,8 @@ use core::{
     mem,
     ops::Deref,
 };
+use crate::runtime::cache::shared_references_cache::SharedReferencesCache;
+use crate::values::core_values::native::DatexNative;
 
 pub mod apply;
 pub mod serde_dif;
@@ -90,6 +92,24 @@ impl SharedContainer {
                 value_container,
                 mutability,
                 address_provider,
+            ),
+        )
+    }
+
+    /// Creates a new owned [SharedContainer] containing an initial [DatexNative] value.
+    /// The allowed type is the type of the [DatexNative].
+    pub fn new_native<T: DatexNative>(
+        value: T,
+        mutability: SharedContainerMutability,
+        address_provider: &mut SelfOwnedPointerAddressProvider,
+        cache: &mut SharedReferencesCache
+    ) -> Self {
+        SharedContainer::Owned(
+            OwnedSharedContainer::new_native(
+                value,
+                mutability,
+                address_provider,
+                cache,
             ),
         )
     }

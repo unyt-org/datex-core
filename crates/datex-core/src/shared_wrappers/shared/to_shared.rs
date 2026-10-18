@@ -11,13 +11,14 @@ use crate::{
 pub trait ToShared: DatexNative + Sized {
     fn shared(
         self,
-        _cache: &mut SharedReferencesCache,
+        cache: &mut SharedReferencesCache,
         provider: &mut SelfOwnedPointerAddressProvider,
     ) -> Shared<Self> {
-        Shared::try_from(SharedContainer::new_owned_with_inferred_allowed_type(
-            self.to_value_container(),
+        Shared::try_from(SharedContainer::new_native(
+            self,
             SharedContainerMutability::Mutable,
             provider,
+            cache,
         ))
         .unwrap() // TODO: can we always unwrap safely here?
     }
