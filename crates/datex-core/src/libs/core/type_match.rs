@@ -7,12 +7,21 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
+use crate::libs::core::type_id::CoreLibBaseTypeId;
 
 /// Type superset of core lib types, e.g. integer >= integer/u8
 impl TypeSuperset<CoreLibTypeId> for CoreLibTypeId {
     fn is_superset_of(&self, other: &CoreLibTypeId) -> bool {
+        // any type is superset of any other type
+        if *self == CoreLibTypeId::Base(CoreLibBaseTypeId::Any) {
+            true
+        }
+        // never type is not a superset of any other type
+        else if *self == CoreLibTypeId::Base(CoreLibBaseTypeId::Never) {
+            false
+        }
         // exact match
-        if self == other {
+        else if self == other {
             true
         }
         // other is subvariant of self
