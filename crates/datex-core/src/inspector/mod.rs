@@ -10,7 +10,7 @@ mod datex_inspector {
     use crate::shared_wrappers::shared::{to_shared::ToShared};
     use crate::shared_wrappers::shared::shared_ref::SharedRef;
 
-    #[derive(Datex, Debug, Clone)]
+    #[derive(Datex, Debug, Clone, PartialEq, Eq, Hash)]
     #[datex(no_deserialize)]
     pub struct Inspector {
         // TODO: #[datex(readonly)]
@@ -60,37 +60,29 @@ mod tests {
         values::core_values::callable::native_sync_callable,
     };
     use crate::inspector::datex_inspector::Inspector;
+    use crate::traits::apply::ApplyArgument;
     use crate::traits::convert_value_container::ConvertValueContainer;
+    use crate::traits::value_access::ValueAccess;
+    use crate::values::core_values::callable::Callable;
 
     #[test]
     fn ty() {
         let runtime = Runtime::stub();
         let inspector_type = Inspector::datex_type(runtime.shared_references_cache_mut().deref_mut());
 
+        // create a new inspector instance via inspector.create()
         let inspector = datex_inspector::create("Test Inspector".to_string(), &runtime);
-        let vc = inspector.to_value_container();
+        let inspector_container = inspector.to_value_container();
+        let inspector_container_clone = inspector_container.clone();
 
-        // FIXME
-        // call create
-        // // TODO: methods bound to value container / even better, methods bound to the type definition
-        // // We must the store type in value container (this will require passing cache to the ValueContainer::from function somehow)
-        // // Then we can access methods on the type definition here
-        // let runtime = crate::runtime::Runtime::stub();
-        // if let Some(method) = vc
-        //     .try_as::<Map>()
-        //     .and_then(|map| map.try_get("name_getter").ok())
-        // {
-        //     let result = method
-        //         .try_apply_sync(&runtime, vec![])
-        //         .unwrap()
-        //         .expect("Method should return a value");
-        //     assert_eq!(
-        //         result.try_into_value::<String>().unwrap(),
-        //         "Test Inspector"
-        //     );
-        // } else {
-        //     panic!("Method not found");
-        // }
+        // call inspector->name()
+        let name_fn = inspector_type.try_get_property(&ValueContainer::from("name")).unwrap().try_as::<Callable>().unwrap();
+        let (result, mut borrows) = name_fn.try_apply_sync_checked(&runtime, vec![ApplyArgument::referenced(inspector_container)]).unwrap();
+
+        // return value should be "Test Inspector"
+        assert_eq!(result.unwrap().try_as_str().unwrap(), "Test Inspector");
+        // borrowed inspector should be given back to the caller
+        assert_eq!(borrows.remove(0), inspector_container_clone);
     }
 
     use super::*;
