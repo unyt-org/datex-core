@@ -7,15 +7,19 @@ use datex_macros_internal::{Datex, datex};
 #[datex(name = "inspector")]
 mod datex_inspector {
     use super::*;
-    use crate::shared_wrappers::shared::{Shared, to_shared::ToShared};
+    use crate::shared_wrappers::shared::{to_shared::ToShared};
+    use crate::shared_wrappers::shared::shared_ref::SharedRef;
 
     #[derive(Datex, Debug, Clone)]
+    #[datex(no_deserialize)]
     pub struct Inspector {
-        name: String, // TODO: distinguish between pub and private entity properties
+        // TODO: #[datex(readonly)]
+        pub name: String, // TODO: distinguish between pub and private entity properties
     }
+
     #[datex]
     impl Inspector {
-        pub fn name_getter(&self) -> String {
+        pub fn name(&self) -> String {
             self.name.clone()
         }
 
@@ -26,12 +30,9 @@ mod datex_inspector {
     }
 
     /// Creates a new [Inspector] instance.
-    pub fn create(name: String) -> Shared<Inspector> {
-        // TODO: add SharedRef here, caller should not own inspector
-        Inspector { name }.shared(
-            &mut crate::runtime::cache::shared_references_cache::SharedReferencesCache::default(),
-            &mut crate::runtime::pointer_address_provider::SelfOwnedPointerAddressProvider::default(),
-        )
+    #[datex]
+    pub fn create(name: String, #[runtime] runtime: &Runtime) -> SharedRef<Inspector> {
+        Inspector { name }.shared_ref(runtime)
     }
 
     pub async fn async_test(a: String) -> String {
@@ -53,28 +54,20 @@ pub fn register_inspector_namespace(runtime: &Runtime) {
 
 #[cfg(test)]
 mod tests {
+    use core::ops::{DerefMut};
     use crate::{
         traits::apply::Apply, types::type_definition::callable::CallableKind,
         values::core_values::callable::native_sync_callable,
     };
     use crate::inspector::datex_inspector::Inspector;
-    use crate::runtime::cache::shared_references_cache::SharedReferencesCache;
     use crate::traits::convert_value_container::ConvertValueContainer;
 
     #[test]
     fn ty() {
-        let mut cache = SharedReferencesCache::default();
-        let inspector_type = Inspector::datex_type(
-            &mut cache,
-        );
-        let create = native_sync_callable(
-            datex_inspector::create,
-            Some("create".to_string()),
-            CallableKind::Procedure,
-            &mut cache,
-        );
+        let runtime = Runtime::stub();
+        let inspector_type = Inspector::datex_type(runtime.shared_references_cache_mut().deref_mut());
 
-        let inspector = datex_inspector::create("Test Inspector".to_string());
+        let inspector = datex_inspector::create("Test Inspector".to_string(), &runtime);
         let vc = inspector.to_value_container();
 
         // FIXME

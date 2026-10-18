@@ -4,7 +4,7 @@ use crate::{
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use syn::{Item, ItemMod, LitStr, parse::Parse};
+use syn::{parse::Parse, FnArg, Item, ItemMod, LitStr};
 
 struct ModuleAttributes {
     name: Option<String>,
@@ -40,9 +40,9 @@ impl Parse for ModuleAttributes {
 
 pub fn generate_mod_glue_code(
     args: Option<TokenStream>,
-    item: &ItemMod,
+    item: ItemMod,
 ) -> TokenStream {
-    let items = if let Some((_, items)) = &item.content {
+    let mut items = if let Some((_, items)) = item.content {
         items
     } else {
         panic!("The #[datex] attribute can only be applied to inline modules.");
@@ -63,7 +63,7 @@ pub fn generate_mod_glue_code(
 
     // map items to their token streams
     let datex_items: Vec<TokenStream> =
-        items.iter().filter_map(map_to_datex_item).collect();
+        items.iter_mut().filter_map(map_to_datex_item).collect();
     let prelude = derive_datex_prelude(false);
     quote! {
         #(#attrs)*
@@ -84,7 +84,7 @@ pub fn generate_mod_glue_code(
     }
 }
 
-fn map_to_datex_item(item: &Item) -> Option<TokenStream> {
+fn map_to_datex_item(item: &mut Item) -> Option<TokenStream> {
     match item {
         // only register pub functions
         Item::Fn(item_fn)

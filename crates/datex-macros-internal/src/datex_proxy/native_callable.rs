@@ -1,22 +1,22 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{ExprClosure, ImplItemFn, ItemFn, Signature, Type, fold, fold::Fold};
+use syn::{fold, fold::Fold, ExprClosure, FnArg, ImplItemFn, ItemFn, Signature, Type};
 
 pub fn generate_native_callable_from_impl_fn(
-    function: &ImplItemFn,
+    function: &mut ImplItemFn,
     self_type: &Type,
 ) -> TokenStream {
     generate_native_callable(
         function.sig.asyncness.is_some(),
-        &function.sig,
+        &mut function.sig,
         Some(self_type),
     )
 }
 
-pub fn generate_native_callable_from_fn(function: &ItemFn) -> TokenStream {
+pub fn generate_native_callable_from_fn(function: &mut ItemFn) -> TokenStream {
     generate_native_callable(
         function.sig.asyncness.is_some(),
-        &function.sig,
+        &mut function.sig,
         None,
     )
 }
@@ -31,10 +31,22 @@ pub fn generate_native_callable_from_closure(
     // )
 }
 
+
+enum RuntimeParamType {
+    MutableRef,
+    ImmutableRef,
+    Owned,
+}
+
+enum FunctionArg {
+    Runtime(RuntimeParamType),
+    Arg(FnArg),
+}
+
 /// Generates the code that creates a [Callable] from a given rust function signature and optional self type.
 pub fn generate_native_callable(
     is_async: bool,
-    sig: &Signature,
+    sig: &mut Signature,
     self_ty: Option<&Type>,
 ) -> TokenStream {
     let method_ident = &sig.ident;
@@ -69,9 +81,10 @@ pub fn generate_native_callable(
     };
 
     let mut parameter_defs = Vec::new();
+    let mut has_runtime_param = false;
 
-    for param in &sig.inputs {
-        match param {
+    let actual_inputs: Vec<FunctionArg> = sig.inputs.iter_mut().map(|arg| {
+        match arg {
             syn::FnArg::Receiver(_ty) => {
                 let ty =
                     self_ty.expect("Self type must be provided for methods");
@@ -89,28 +102,57 @@ pub fn generate_native_callable(
                         panic!("Unsupported parameter pattern")
                     }
                 };
-                // normalize type name (replace Self with the actual type name)
-                let ty = replace_self_type(&pat_type.ty, self_ty);
-                parameter_defs.push(quote! {
-                    (
-                        Some(#name.to_string()),
-                        <#ty as GetDatexType>::datex_type(cache)
-                    )
-                });
+                // check if #[runtime] parameter exists
+                let is_runtime_arg = pat_type.attrs.iter().any(|a| a.path().is_ident("runtime"));
+                // Strip #[runtime] so compiler never sees it
+                pat_type.attrs.retain(|a| !a.path().is_ident("runtime"));
+
+                if is_runtime_arg {
+                    if has_runtime_param {
+                        panic!("Only one #[runtime] parameter is allowed");
+                    }
+                    let runtime_param_type = if let Type::Reference(type_reference) = &*pat_type.ty {
+                        if type_reference.mutability.is_some() {
+                            RuntimeParamType::MutableRef
+                        } else {
+                            RuntimeParamType::ImmutableRef
+                        }
+                    } else {
+                        RuntimeParamType::Owned
+                    };
+                    has_runtime_param = true;
+                    return FunctionArg::Runtime(runtime_param_type);
+                }
+
+                else {
+                    // normalize type name (replace Self with the actual type name)
+                    let ty = replace_self_type(&pat_type.ty, self_ty);
+                    parameter_defs.push(quote! {
+                        (
+                            Some(#name.to_string()),
+                            <#ty as GetDatexType>::datex_type(cache)
+                        )
+                    });
+                }
             }
         }
-    }
 
-    let has_mutable_inputs = sig.inputs.iter().any(|param| match param {
-        syn::FnArg::Receiver(receiver) => {
+        FunctionArg::Arg(arg.clone())
+    }).collect();
+
+    let has_mutable_inputs = actual_inputs.iter().any(|param| match param {
+        FunctionArg::Arg(syn::FnArg::Receiver(receiver)) => {
             receiver.mutability.is_some() || matches!(receiver.kind, syn::ReceiverKind::Reference(_, _, Some(_)))
         }
-        syn::FnArg::Typed(pat_type) => {
+        FunctionArg::Arg(syn::FnArg::Typed(pat_type)) => {
             if let Type::Reference(type_reference) = &*pat_type.ty {
                 type_reference.mutability.is_some()
             } else {
                 false
             }
+        }
+        FunctionArg::Runtime(_) => {
+            false // passing runtime is not considered a mutable input - to be discussed
         }
     });
 
@@ -119,75 +161,92 @@ pub fn generate_native_callable(
     let mut call_arguments = Vec::new();
     let mut call_argument_collections = Vec::new();
 
-    for (index, param) in sig.inputs.iter().enumerate() {
-        let ty = match param {
-            syn::FnArg::Receiver(_receiver) => self_ty.unwrap().clone(),
-            syn::FnArg::Typed(pat_type) => {
-                replace_self_type(&pat_type.ty, self_ty)
+    for (index, arg) in actual_inputs.iter().enumerate() {
+        match arg {
+            FunctionArg::Runtime(runtime_param_type) => {
+                call_arguments.push(match runtime_param_type {
+                    RuntimeParamType::MutableRef => {
+                        quote! { &mut runtime }
+                    }
+                    RuntimeParamType::ImmutableRef => {
+                        quote! { &runtime }
+                    }
+                    RuntimeParamType::Owned => {
+                        quote! { runtime.clone() }
+                    }
+                })
             }
-        };
-        let var_ident_container = syn::Ident::new(
-            &format!("arg_container_{}", index),
-            proc_macro2::Span::call_site(),
-        );
-        let var_ident = syn::Ident::new(
-            &format!("arg_{}", index),
-            proc_macro2::Span::call_site(),
-        );
-        let is_borrowed = match param {
-            syn::FnArg::Receiver(receiver) => {
-                matches!(receiver.kind, syn::ReceiverKind::Reference(..))
-            }
-            syn::FnArg::Typed(pat_type) => {
-                matches!(&*pat_type.ty, Type::Reference(..))
-            }
-        };
-        call_argument_inits.push(quote! {
-            let mut #var_ident_container = val_iter.next().unwrap();
-        });
+            FunctionArg::Arg(arg) => {
+                let ty = match arg {
+                    syn::FnArg::Receiver(_receiver) => self_ty.unwrap().clone(),
+                    syn::FnArg::Typed(pat_type) => {
+                        replace_self_type(&pat_type.ty, self_ty)
+                    }
+                };
+                let var_ident_container = syn::Ident::new(
+                    &format!("arg_container_{}", index),
+                    proc_macro2::Span::call_site(),
+                );
+                let var_ident = syn::Ident::new(
+                    &format!("arg_{}", index),
+                    proc_macro2::Span::call_site(),
+                );
+                let is_borrowed = match arg {
+                    syn::FnArg::Receiver(receiver) => {
+                        matches!(receiver.kind, syn::ReceiverKind::Reference(..))
+                    }
+                    syn::FnArg::Typed(pat_type) => {
+                        matches!(&*pat_type.ty, Type::Reference(..))
+                    }
+                };
+                call_argument_inits.push(quote! {
+                    let mut #var_ident_container = val_iter.next().unwrap();
+                });
 
-        // distinguish between move, & and &mut
-        call_argument_accesses.push(
-            // handle & and &mut
-            if is_borrowed {
-                quote! {
-                    let mut value_sheep = (&mut #var_ident_container.value).value_container_mut(); // collapse potential Shared to inner ValueContainer
-                    // try to get stored native value from the value container
-                    let #var_ident = if let Ok(mut inner) = <#ty as ConvertValueContainer>::try_borrow_mut_from_value_container(core::ops::DerefMut::deref_mut(&mut value_sheep)) {
-                        inner
-                    } else {
-                        // fallback: handle serde conversion
-                        todo!()
-                        //&mut (<#ty as #datex_core_crate_name::datex_proxy::DatexValueContainerProxyDeserialize>::try_from_value_container(value_sheep.clone()).unwrap())
-                    };
-                }
-            }
-            // handle move
-            else {
-                quote! {
-                    // try to get stored native value from the value container
-                    let #var_ident = match <#ty as ConvertValueContainer>::try_from_value_container(#var_ident_container.value) {
-                        Ok(inner) => inner,
-                        Err(value) => {
-                            // fallback: handle serde conversion
-                            todo!()
+                // distinguish between move, & and &mut
+                call_argument_accesses.push(
+                    // handle & and &mut
+                    if is_borrowed {
+                        quote! {
+                            let mut value_sheep = (&mut #var_ident_container.value).value_container_mut(); // collapse potential Shared to inner ValueContainer
+                            // try to get stored native value from the value container
+                            let #var_ident = if let Ok(mut inner) = <#ty as ConvertValueContainer>::try_borrow_mut_from_value_container(core::ops::DerefMut::deref_mut(&mut value_sheep)) {
+                                inner
+                            } else {
+                                // fallback: handle serde conversion
+                                todo!()
+                                //&mut (<#ty as #datex_core_crate_name::datex_proxy::DatexValueContainerProxyDeserialize>::try_from_value_container(value_sheep.clone()).unwrap())
+                            };
                         }
-                    };
-                }
-            }
-        );
-        call_arguments.push(quote! { #var_ident });
+                    }
+                    // handle move
+                    else {
+                        quote! {
+                        // try to get stored native value from the value container
+                        let #var_ident = match <#ty as ConvertValueContainer>::try_from_value_container(#var_ident_container.value) {
+                            Ok(inner) => inner,
+                            Err(value) => {
+                                // fallback: handle serde conversion
+                                todo!()
+                            }
+                        };
+                    }
+                    }
+                );
+                call_arguments.push(quote! { #var_ident });
 
-        call_argument_collections.push(
-            // borrowed values are collected and returned back
-            if is_borrowed {
-                quote! { if #var_ident_container.passed_as_ref { Some(#var_ident_container.value) } else { None } }
+                call_argument_collections.push(
+                    // borrowed values are collected and returned back
+                    if is_borrowed {
+                        quote! { if #var_ident_container.passed_as_ref { Some(#var_ident_container.value) } else { None } }
+                    }
+                    // moved values can no longer be accessed, so we return None
+                    else {
+                        quote! { None }
+                    }
+                );
             }
-            // moved values can no longer be accessed, so we return None
-            else {
-                quote! { None }
-            }
-        );
+        }
     }
 
     // reverse the call_arguments initialization, but keep usage in the original order
@@ -244,14 +303,14 @@ pub fn generate_native_callable(
 
     let body = if is_async {
         quote! {
-            CallableBody::native_async(move |mut vals, runtime| {
+            CallableBody::native_async(move |mut vals, mut runtime| {
                 let runtime = runtime.clone();
                 alloc::boxed::Box::pin(async move {Ok(#method_call_conversion)})
             })
         }
     } else {
         quote! {
-            CallableBody::native_sync(move |mut vals, runtime| {
+            CallableBody::native_sync(move |mut vals, mut runtime| {
                 let runtime = runtime.clone();
                 Ok(#method_call_conversion)
             })

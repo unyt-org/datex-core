@@ -1,5 +1,4 @@
 use crate::{
-    shared_wrappers::shared::Shared,
     traits::convert_value_container::ConvertValueContainer,
     values::{
         core_values::native::DatexNative,
@@ -11,22 +10,24 @@ use crate::{
         },
     },
 };
+use crate::shared_values::SharedContainer;
+use crate::shared_wrappers::shared::shared_ref::SharedRef;
 
-impl<T> ConvertValueContainer for Shared<T>
+impl<T> ConvertValueContainer for SharedRef<T>
 where
     T: ConvertValueContainer + DatexNative,
 {
     fn to_value_container(self) -> ValueContainer {
-        ValueContainer::Shared(self.container)
+        ValueContainer::Shared(SharedContainer::Referenced(self.into_container()))
     }
 
-    fn as_borrowed_value_container<'a>(&'a self) -> BorrowedValueContainer<'a> {
-        BorrowedValueContainer::Shared(self.container.clone())
+    fn as_borrowed_value_container(&self) -> BorrowedValueContainer {
+        BorrowedValueContainer::Shared(SharedContainer::Referenced(self.container().clone()))
     }
     fn as_borrowed_value_container_mut(
         &mut self,
-    ) -> BorrowedValueContainerMut<'_> {
-        BorrowedValueContainerMut::Shared(self.container.clone())
+    ) -> BorrowedValueContainerMut {
+        BorrowedValueContainerMut::Shared(SharedContainer::Referenced(self.container().clone()))
     }
 
     fn try_from_value_container(
@@ -36,10 +37,9 @@ where
         Self: Sized,
     {
         match value_container {
-            ValueContainer::Shared(container) => {
-                // TODO: no clone?
-                Shared::try_from(container.clone())
-                    .map_err(|_| ValueContainer::Shared(container))
+            ValueContainer::Shared(SharedContainer::Referenced(container)) => {
+                SharedRef::try_from(container)
+                    .map_err(|container| ValueContainer::Shared(SharedContainer::Referenced(container)))
             }
             _ => Err(value_container),
         }

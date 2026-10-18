@@ -12,7 +12,7 @@ use syn::ItemImpl;
 pub fn generate_impl_glue_code(
     _args: Option<TokenStream>,
     input: TokenStream,
-    item: &ItemImpl,
+    mut item: ItemImpl,
 ) -> TokenStream {
     let datex_core_crate_name = get_datex_core_crate_name();
     let self_ty = &item.self_ty;
@@ -20,7 +20,7 @@ pub fn generate_impl_glue_code(
     let mut methods = Vec::new();
     let mut static_methods = Vec::new();
 
-    for impl_item in &item.items {
+    for impl_item in &mut item.items {
         if let syn::ImplItem::Fn(method) = impl_item {
             let is_method = method
                 .sig
