@@ -119,7 +119,7 @@ impl Clone for Map {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MapAccessError {
     KeyNotFound(KeyNotFoundError),
     Immutable,

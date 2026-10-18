@@ -2,7 +2,7 @@ use core::fmt::Display;
 
 use crate::runtime::execution::ExecutionError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CallableError {
     InvalidSignature,
     RuntimeOnlyCallable,

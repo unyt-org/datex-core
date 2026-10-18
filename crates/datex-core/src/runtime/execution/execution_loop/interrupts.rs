@@ -60,6 +60,14 @@ pub struct InterruptProvider {
     result: Rc<RefCell<Option<InterruptResult>>>,
 }
 
+impl PartialEq for InterruptProvider {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.result, &other.result)
+    }
+}
+
+impl Eq for InterruptProvider {}
+
 impl Default for InterruptProvider {
     fn default() -> Self {
         Self::new()

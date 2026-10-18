@@ -35,6 +35,16 @@ pub struct ExecutionLoopState {
     pub dxb_body: Rc<RefCell<Vec<u8>>>,
     pub(crate) interrupt_provider: InterruptProvider,
 }
+
+impl PartialEq for ExecutionLoopState {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.dxb_body, &other.dxb_body)
+            && self.interrupt_provider == other.interrupt_provider
+    }
+}
+
+impl Eq for ExecutionLoopState {}
+
 impl ExecutionLoopState {
     pub fn new(
         dxb_body: Vec<u8>,

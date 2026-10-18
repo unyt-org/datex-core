@@ -3,7 +3,7 @@ use crate::{
 };
 use core::fmt::Display;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UpdateError {
     ImmutableValue,
     ImmutableReference,

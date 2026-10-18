@@ -23,7 +23,7 @@ use serde::{
 };
 use serde_with::__private__::DeError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ObserverError {
     ObserverNotFound,
     ImmutableValue,

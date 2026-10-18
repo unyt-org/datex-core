@@ -12,7 +12,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ApplyError {
     UnsupportedApply,
     AsyncCallableRequiresAsyncExecution,

@@ -42,7 +42,7 @@ pub struct DetailedParserErrorsWithAst {
     pub errors: Vec<SpannedParserError>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpannedParserError {
     pub error: ParserError,
     pub span: Range<usize>,

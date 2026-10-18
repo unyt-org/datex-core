@@ -308,7 +308,7 @@ fn generate_from_map_parts_for_fields(
     match fields {
         Fields::Named(fields) => {
             let field_conversions = fields.iter().map(|field| {
-                let field_name = &field.name;
+                let field_name = field.datex_field_name();
                 let field_ident = field.ident_accessor();
                 let accessor = field.normalized_ident();
 

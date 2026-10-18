@@ -79,7 +79,7 @@ impl Display for InvalidProgramError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExecutionError {
     Unspecified(String), // TODO: replace with nested stack trace exceptions
     DXBParserError(Box<DXBParserError>),

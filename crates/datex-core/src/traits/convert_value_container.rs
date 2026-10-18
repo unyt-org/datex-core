@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DeserializationError {
     NoValue,
     InvalidValue,
@@ -128,6 +128,7 @@ pub trait ConvertValueContainer {
         Self: Sized + FromParts,
     {
         let value = runtime.execute_sync(script, &[], None)?;
+
         if let Some(value) = value {
             let config = Self::try_convert_from_value_container(value)
                 .map_err(|_| DeserializationError::InvalidValue)?;

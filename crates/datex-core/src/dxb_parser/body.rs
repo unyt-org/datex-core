@@ -87,6 +87,8 @@ impl PartialEq for DXBParserError {
     }
 }
 
+impl Eq for DXBParserError {}
+
 impl From<fmt::Error> for DXBParserError {
     fn from(error: fmt::Error) -> Self {
         DXBParserError::FmtError(error)

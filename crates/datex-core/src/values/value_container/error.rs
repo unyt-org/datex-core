@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueError {
     IsVoid,
     InvalidOperation,

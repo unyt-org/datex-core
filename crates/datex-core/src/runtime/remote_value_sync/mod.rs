@@ -24,7 +24,7 @@ use crate::{
 use alloc::rc::Rc;
 use core::{assert_matches, fmt::Display, ops::Deref};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SubscriberError {
     NotASelfOwnedContainer,
     Observer(ObserverError),

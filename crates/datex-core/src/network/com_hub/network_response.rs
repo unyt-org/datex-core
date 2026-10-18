@@ -91,7 +91,7 @@ impl Response {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ResponseError {
     NoResponseAfterTimeout(Endpoint, Duration),
     NotReachable(Endpoint),

@@ -4,7 +4,7 @@ use crate::{
 };
 use core::fmt::Display;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum IllegalTypeError {
     MutableRef(String),
     TypeNotFound,

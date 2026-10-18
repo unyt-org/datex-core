@@ -15,7 +15,7 @@ use core::{
     ops::Range,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompilerError {
     UnexpectedTerm(Box<DatexExpression>),
     SerializationError(String),
@@ -73,7 +73,7 @@ impl From<InjectedValueValidationError> for CompilerError {
 }
 
 /// A compiler error that can be linked to a specific span in the source code
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SpannedCompilerError {
     pub error: CompilerError,
     pub span: Option<Range<usize>>,

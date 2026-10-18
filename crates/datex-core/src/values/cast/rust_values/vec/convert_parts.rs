@@ -25,7 +25,7 @@ impl<T: ConvertValueContainer> IntoParts for Vec<T> {
     }
 }
 
-impl<T: ConvertValueContainer> FromParts for Vec<T> {
+impl<T: ConvertValueContainer + FromParts> FromParts for Vec<T> {
     fn try_from_list_parts_with_tag(
         parts: List,
         _tag: Option<&str>,
@@ -35,7 +35,7 @@ impl<T: ConvertValueContainer> FromParts for Vec<T> {
     {
         let mut vec = Vec::new();
         for item in parts {
-            vec.push(T::try_from_value_container(item).map_err(|_| ())?);
+            vec.push(T::try_convert_from_value_container(item).map_err(|_| ())?);
         }
         Ok(vec)
     }

@@ -46,7 +46,7 @@ impl RuntimeConfigInterface {
     }
 }
 
-#[derive(Datex, Debug, Default, Clone)]
+#[derive(Datex, Debug, Default, Clone, PartialEq, Eq)]
 #[datex(structural)]
 pub struct RuntimeConfig {
     pub endpoint: Endpoint,
@@ -139,6 +139,9 @@ pub mod tests {
             value::Value,
         },
     };
+    use crate::network::com_hub::InterfacePriority;
+    use crate::runtime::Runtime;
+    use crate::traits::convert_value_container::ConvertValueContainer;
     use crate::values::value_container::ValueContainer;
 
     #[derive(Datex, Clone)]
@@ -200,5 +203,80 @@ pub mod tests {
         let parsed_config: RuntimeConfig =
             value_container.try_into_value().unwrap();
         assert_eq!(parsed_config.endpoint, Endpoint::new("@test"));
+    }
+
+    #[test]
+    #[cfg(feature = "compiler")]
+    fn read_interface_priority_from_datex_source() {
+        let priority_source = "#Priority(5u16)";
+
+        let priority = InterfacePriority::try_from_script(priority_source, &Runtime::stub());
+        assert_eq!(
+            priority,
+            Ok(InterfacePriority::Priority(5))
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "compiler")]
+    fn read_interface_configs_from_datex_source() {
+        let interface_config_source = r#"[
+            {
+                type: "websocket-client",
+                config: {url:"wss://example.unyt.land"},
+                priority: #Priority(0u16)
+            }
+        ]"#;
+
+        let config = <Vec<RuntimeConfigInterface>>::try_from_script(interface_config_source, &Runtime::stub());
+
+        assert_eq!(
+            config,
+            Ok(
+                vec![
+                    RuntimeConfigInterface {
+                        interface_type: "websocket-client".to_string(),
+                        config: Map::from(vec![("url", "wss://example.unyt.land".into())]).into(),
+                        priority: InterfacePriority::Priority(0),
+                    }
+                ]
+            )
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "compiler")]
+    fn read_runtime_config_from_datex_source() {
+
+        let config_source = r#"{
+            endpoint: @test,
+            interfaces: [
+                {
+                    type: "websocket-client",
+                    config: {url:"wss://example.unyt.land"},
+                    priority: #Priority(0u16)
+                }
+            ],
+            env: null
+        }"#;
+
+        let config = RuntimeConfig::try_from_script(config_source, &Runtime::stub());
+
+        assert_eq!(
+            config,
+            Ok(
+                RuntimeConfig {
+                    endpoint: Endpoint::new("@test"),
+                    interfaces: Some(vec![
+                        RuntimeConfigInterface {
+                            interface_type: "websocket-client".to_string(),
+                            config: Map::from(vec![("url", "wss://example.unyt.land".into())]).into(),
+                            priority: InterfacePriority::Priority(0),
+                        }
+                    ]),
+                    env: None,
+                }
+            )
+        );
     }
 }

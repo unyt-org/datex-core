@@ -94,6 +94,7 @@ impl PartialEq for DatexExpression {
         self.data == other.data
     }
 }
+impl Eq for DatexExpression {}
 
 #[derive(Clone, Debug, PartialEq)]
 /// The different kinds of type expressions in the AST
