@@ -42,6 +42,7 @@ use datex_macros_internal::Datex;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_with::{DurationMilliSeconds, serde_as};
+use crate::values::core_values::list::List;
 
 #[derive(Datex, Serialize, Deserialize, Debug, Clone)]
 #[datex(structural)]
@@ -555,16 +556,13 @@ impl ComHub {
         );
         let hops_datex =
             execute_dxb_sync(exec_input).expect("Failed to execute DATEX");
-        if let Some(ValueContainer::Local(Value::Core(
-            CoreValueWithClassification {
-                inner: CoreValue::List(list),
-                ..
-            },
-        ))) = hops_datex
+
+        if let Some(hops_datex) = hops_datex &&
+            let Ok(list) = hops_datex.try_into_value::<List>()
         {
             let hops: Vec<NetworkTraceHop> = list
                 .into_iter()
-                .map(NetworkTraceHop::try_from_value_container)
+                .map(NetworkTraceHop::try_cast_from_value_container)
                 .collect::<Result<Vec<_>, _>>()
                 .ok()?;
             Some(hops)
@@ -662,6 +660,7 @@ pub mod tests {
     #[tokio::test]
     #[timeout(1000)]
     async fn create_network_trace() {
+        flexi_logger::init();
         run_with_coupled_com_hubs(async move |a, _b| {
             // send trace from A to B
             let network_trace =
