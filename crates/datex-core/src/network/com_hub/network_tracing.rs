@@ -562,7 +562,7 @@ impl ComHub {
         {
             let hops: Vec<NetworkTraceHop> = list
                 .into_iter()
-                .map(NetworkTraceHop::try_cast_from_value_container)
+                .map(NetworkTraceHop::try_convert_from_value_container)
                 .collect::<Result<Vec<_>, _>>()
                 .ok()?;
             Some(hops)

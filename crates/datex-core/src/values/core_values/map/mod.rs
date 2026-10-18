@@ -166,8 +166,8 @@ impl Map {
         MapEntries::Dynamic(entries).into()
     }
 
-    // Tries to cast the map into a type that implements [FromParts].
-    pub fn try_cast_to<T: FromParts>(self) -> Result<T, ()> {
+    // Tries to convert the map into a type that implements [FromParts].
+    pub fn try_convert_to<T: FromParts>(self) -> Result<T, ()> {
         T::try_from_map_parts(self)
     }
 

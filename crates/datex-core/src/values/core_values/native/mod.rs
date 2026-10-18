@@ -11,6 +11,8 @@ use core::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+use core::any::TypeId;
+
 mod datex_native_ops;
 pub use datex_native_ops::*;
 mod datex_native_trait;
@@ -70,12 +72,12 @@ impl<T: DatexNative + ConvertValue + Classification> ConvertValueContainer for T
         }
     }
 
-    fn try_cast_from_value_container(value_container: ValueContainer) -> Result<Self, ()>
+    fn try_convert_from_value_container(value_container: ValueContainer) -> Result<Self, ()>
     where
         Self: FromParts + Sized,
     {
         match value_container {
-            ValueContainer::Local(value) => Self::try_cast_from_value(value),
+            ValueContainer::Local(value) => Self::try_convert_from_value(value),
             _ => Err(()),
         }
     }
@@ -174,15 +176,21 @@ impl NativeCoreValue {
     /// Returns `Some(&mut T)` if the downcast is successful, or `None` if it fails.
     pub fn try_as_mut<T: 'static>(&mut self) -> Option<&mut T> {
         let any_mut = self.value.as_any_mut();
-        if let Some(val) = any_mut.downcast_mut::<T>() {
-            Some(val)
-        } else if let Some(val) = any_mut.downcast_mut::<Box<T>>() {
-            Some(&mut **val)
-        } else if let Some(val) = any_mut.downcast_mut::<Option<T>>() {
-            val.as_mut()
-        } else {
-            None
+        let type_id = (&*any_mut).type_id();
+
+        if type_id == TypeId::of::<T>() {
+            return any_mut.downcast_mut::<T>();
         }
+
+        if type_id == TypeId::of::<Box<T>>() {
+            return any_mut.downcast_mut::<Box<T>>().map(|val| val.as_mut());
+        }
+
+        if type_id == TypeId::of::<Option<T>>() {
+            return any_mut.downcast_mut::<Option<T>>().and_then(|val| val.as_mut());
+        }
+
+        None
     }
 
     /// Attempt to downcast the native value to a specific type.

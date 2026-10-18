@@ -20,6 +20,7 @@ use core::{async_iter::AsyncIterator, fmt::Debug, pin::Pin};
 use futures::channel::oneshot::Sender;
 use futures_core::future::LocalBoxFuture;
 use futures_util::TryStreamExt;
+use crate::traits::convert_parts::FromParts;
 
 pub type NewSocketsIterator = Pin<
     Box<dyn AsyncIterator<Item = Result<SocketConfiguration, ()>> + 'static>,
@@ -419,7 +420,7 @@ pub type CloseAsyncCallback = Box<dyn FnOnce() -> LocalBoxFuture<'static, ()>>;
 /// }
 pub trait ComInterfaceSyncFactory
 where
-    Self: ConvertValue + Sized,
+    Self: ConvertValue + FromParts + Sized,
 {
     /// The factory method that is called from the ComHub on a registered interface
     /// to create a new instance of the interface.
@@ -428,7 +429,7 @@ where
         setup_data: Value,
     ) -> Result<ComInterfaceConfiguration, ComInterfaceCreateError> {
         let setup_data = setup_data
-            .try_into_value()
+            .try_convert_into_value()
             .map_err(|_| ComInterfaceCreateError::SetupDataParseError)?;
         Self::create_interface(setup_data)
     }
@@ -481,7 +482,7 @@ where
 /// }
 pub trait ComInterfaceAsyncFactory
 where
-    Self: ConvertValue + Sized,
+    Self: ConvertValue + FromParts + Sized,
 {
     /// The factory method that is called from the ComHub on a registered interface
     /// to create a new instance of the interface.
@@ -489,7 +490,7 @@ where
     fn factory(setup_data: Value) -> ComInterfaceAsyncFactoryResult {
         Box::pin(async move {
             let setup_data = setup_data
-                .try_into_value()
+                .try_convert_into_value()
                 .map_err(|_| ComInterfaceCreateError::SetupDataParseError)?;
             Self::create_interface(setup_data).await
         })

@@ -125,11 +125,11 @@ pub trait ConvertValueContainer {
         runtime: &Runtime,
     ) -> Result<Self, DeserializationError>
     where
-        Self: Sized,
+        Self: Sized + FromParts,
     {
         let value = runtime.execute_sync(script, &[], None)?;
         if let Some(value) = value {
-            let config = Self::try_from_value_container(value)
+            let config = Self::try_convert_from_value_container(value)
                 .map_err(|_| DeserializationError::InvalidValue)?;
             Ok(config)
         } else {
@@ -143,7 +143,7 @@ pub trait ConvertValueContainer {
         runtime: &Runtime,
     ) -> Result<Self, DeserializationError>
     where
-        Self: Sized,
+        Self: Sized + FromParts,
     {
         let script = std::fs::read_to_string(path)
             .map_err(|e| DeserializationError::CanNotReadFile(e.to_string()))?;
@@ -177,7 +177,7 @@ pub trait ConvertValueContainer {
     /// First, it attempts a direct conversion (downcast) of the [ValueContainer]
     /// into the type [T].
     /// If that fails, it tries to convert the [ValueContainer] into map or list parts and then into the type [T].
-    fn try_cast_from_value_container(
+    fn try_convert_from_value_container(
         value_container: ValueContainer,
     ) -> Result<Self, ()>
     where

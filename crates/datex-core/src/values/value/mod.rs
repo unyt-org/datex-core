@@ -240,11 +240,11 @@ impl Value {
 
     /// Tries to convert the current value into the specific specified type.
     /// Performs a cast between native and core values if necessary, e.g. converting a [CoreValue::Map] into a native rust struct.
-    pub fn try_cast_into_value<T>(self) -> Result<T, ()>
+    pub fn try_convert_into_value<T>(self) -> Result<T, ()>
     where
         T: ConvertValue + FromParts,
     {
-        T::try_cast_from_value(self)
+        T::try_convert_from_value(self)
     }
 
     /// Tries to get a reference to the inner [CoreValue] if the [Value] is a [Value::Core] variant.
@@ -499,7 +499,7 @@ mod tests {
         let maybe_value: Option<i8> = None;
         let null_value = Value::from(maybe_value);
         // can only get None via cast
-        assert_eq!(null_value.try_cast_into_value::<Option<i8>>().unwrap(), None);
+        assert_eq!(null_value.try_convert_into_value::<Option<i8>>().unwrap(), None);
     }
 
     #[test]

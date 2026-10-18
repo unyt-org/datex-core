@@ -222,7 +222,7 @@ fn field_from_value_container(
     } else {
         quote! {{
             match #accessor_result {
-                Ok(v) => Ok(v.try_cast_into_value().map_err(|_| ())?),
+                Ok(v) => Ok(v.try_convert_into_value().map_err(|_| ())?),
                 Err(e) => Err(e),
             }
         }}

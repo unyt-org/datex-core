@@ -169,7 +169,7 @@ pub mod tests {
 
         assert_eq!(config_interface.interface_type, "test");
         let setup_data = config_interface.config.try_clone().unwrap();
-        let map: Map = setup_data.try_cast_into_value().unwrap();
+        let map: Map = setup_data.try_convert_into_value().unwrap();
         assert_eq!(
             map.try_get(&ValueContainer::from("field1"))
                 .unwrap()

@@ -13,10 +13,10 @@ pub trait ConvertValue {
 
     fn try_borrow_mut_from_value(value: &mut Value) -> Result<&mut Self, ()>;
 
-    /// Tries to cast a [Value] into the specified type [T].
+    /// Tries to convert a [Value] into the specified type [T].
     /// First, it attempts a direct conversion (downcast) of the [Value] into the type [T].
     /// If that fails, it tries to convert the [Value] into map or list parts and then into the type [T].
-    fn try_cast_from_value(
+    fn try_convert_from_value(
         value: Value,
     ) -> Result<Self, ()>
     where

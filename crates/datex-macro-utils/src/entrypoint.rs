@@ -13,6 +13,7 @@ use syn::{
     Attribute, FnArg, Ident, ItemFn, LitStr, Pat, PatIdent, Token, Type,
     parse::{Parse, ParseStream},
 };
+use datex_core::compiler::compilation_result::CompilationResult;
 
 #[derive(Debug)]
 pub struct ParsedAttributes {
@@ -250,7 +251,10 @@ pub fn get_arg_ident_and_type(
 
 /// Compiles the given RuntimeConfig into DXB
 fn compile_datex_config(config: RuntimeConfig) -> Vec<u8> {
-    let (dxb, _) = compile_template(
+    let CompilationResult {
+        dxb_with_shared_values,
+        ..
+    } = compile_template(
         "?",
         vec![Some(ValueContainer::from(config))],
         CompileOptions::default(),
@@ -258,5 +262,5 @@ fn compile_datex_config(config: RuntimeConfig) -> Vec<u8> {
         Runtime::stub(),
     )
     .expect("failed to compile DATEX config file");
-    dxb.dxb
+    dxb_with_shared_values.dxb
 }

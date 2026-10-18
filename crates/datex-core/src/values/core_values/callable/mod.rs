@@ -71,10 +71,10 @@ impl PartialEq for NativeCallable {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (NativeCallable::Sync(f1), NativeCallable::Sync(f2)) => {
-                Rc::as_ptr(f1) == Rc::as_ptr(f2)
+                core::ptr::addr_eq(f1, f2)
             }
             (NativeCallable::Async(f1), NativeCallable::Async(f2)) => {
-                Rc::as_ptr(f1) == Rc::as_ptr(f2)
+                core::ptr::addr_eq(f1, f2)
             }
             _ => false,
         }

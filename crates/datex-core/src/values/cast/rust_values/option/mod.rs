@@ -45,16 +45,16 @@ mod tests {
 
     #[test]
     fn from_value() {
-        // Convert native Integer to Some(Integer) using try_cast_into_value
+        // Convert native Integer to Some(Integer) using try_convert_into_value
         let normal_value = Value::native(Integer::new(1));
         let normal_some_option =
-            normal_value.try_cast_into_value::<Option<Integer>>().unwrap();
+            normal_value.try_convert_into_value::<Option<Integer>>().unwrap();
         assert_eq!(normal_some_option, Some(Integer::new(1)));
 
-        // Convert null to None using try_cast_into_value
+        // Convert null to None using try_convert_into_value
         let null_value = Value::null();
         let null_none_option =
-            null_value.try_cast_into_value::<Option<Integer>>().unwrap();
+            null_value.try_convert_into_value::<Option<Integer>>().unwrap();
         assert_eq!(null_none_option, None);
 
         // Convert Some(Integer) to Some(Integer) using try_into_value
@@ -92,13 +92,13 @@ mod tests {
             value
                 .try_clone()
                 .unwrap()
-                .try_cast_into_value::<Option<Endpoint>>()
+                .try_convert_into_value::<Option<Endpoint>>()
                 .expect("Expected Option<Endpoint>"),
             Some(endpoint.clone())
         );
 
         assert_eq!(
-            value.try_cast_into_value::<Endpoint>().expect("Expected Endpoint"),
+            value.try_convert_into_value::<Endpoint>().expect("Expected Endpoint"),
             endpoint
         );
     }

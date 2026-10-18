@@ -147,7 +147,7 @@ impl CoreValue {
     }
 
     /// Casts the value to a [Text] value
-    /// Note: in contrast to [try_cast_to], [Text] values are not wrapped in quotation marks.
+    /// Note: [Text] values are kept as is an not wrapped in quotes
     pub fn cast_to_text(&self) -> Text {
         match self {
             CoreValue::Text(text) => text.clone(),
