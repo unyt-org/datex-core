@@ -32,31 +32,15 @@ impl<T: DatexNative> Shared<T> {
 
     pub fn borrow(&self) -> Ref<'_, T> {
         Ref::map(self.container.value_container(), |value_container| {
-            match value_container {
-                ValueContainer::Local(value) => {
-                    // inner should always contain value castable to T
-                    value.downcast_native_ref::<T>().unwrap()
-                }
-                // inner should never contain a shared value
-                ValueContainer::Shared(_) => {
-                    unreachable!()
-                }
-            }
+            // assumes T can always be borrowed from the value container, otherwise it will panic
+            T::try_borrow_from_value_container(value_container).unwrap()
         })
     }
 
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::map(self.container.value_container_mut(), |value_container| {
-            match value_container {
-                ValueContainer::Local(value) => {
-                    // inner should always contain value castable to T
-                    value.downcast_native_mut::<T>().unwrap()
-                }
-                // inner should never contain a shared value
-                ValueContainer::Shared(_) => {
-                    unreachable!()
-                }
-            }
+            // assumes T can always be borrowed from the value container, otherwise it will panic
+            T::try_borrow_mut_from_value_container(value_container).unwrap()
         })
     }
 }
@@ -100,16 +84,10 @@ impl<T: DatexNative + 'static> TryFrom<SharedContainer> for Shared<T> {
     fn try_from(container: SharedContainer) -> Result<Self, Self::Error> {
         // TODO: also check if the type only allows values that are of type T.
         // check if the container contains a local value of type T
-        match container.value_container().deref() {
-            ValueContainer::Local(value) => {
-                if value.downcast_native_ref::<T>().is_none() {
-                    return Err(());
-                }
-            }
-            ValueContainer::Shared(_) => {
-                return Err(());
-            }
+        if T::try_borrow_from_value_container(container.value_container().deref()).is_err() {
+            return Err(());
         }
+
         Ok(Self {
             container,
             _phantom_t: core::marker::PhantomData,
@@ -134,16 +112,18 @@ mod test {
     fn string_shared() {
         let address_provider = &mut SelfOwnedPointerAddressProvider::default();
 
-        // TODO: also allow conversion to Shared<String> from CoreValue::Text
         let shared_container =
             SharedContainer::new_owned_with_inferred_allowed_type(
-                Value::native("Hello DATEX".to_string()),
+                Value::from("Hello DATEX".to_string()),
                 SharedContainerMutability::Mutable,
                 address_provider,
             );
 
-        let shared_string: Shared<String> =
+        let mut shared_string: Shared<String> =
             Shared::try_from(shared_container).unwrap();
         assert_eq!(shared_string.borrow().as_str(), "Hello DATEX");
+
+        *shared_string.borrow_mut() = "Hello DATEX!".to_string();
+        assert_eq!(shared_string.borrow().as_str(), "Hello DATEX!");
     }
 }

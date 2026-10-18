@@ -13,10 +13,6 @@ impl ToInstructions for TypedDecimal {
     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
     {
         Box::new(gen move {
-            todo!(
-                "TODO: append type cast with only id (no need to access shared container)"
-            );
-            // let id = CoreLibTypeId::from(self);
             yield match &self {
                 TypedDecimal::F32(val) => {
                     RegularInstruction::decimal_f32(val.into_inner()).into()

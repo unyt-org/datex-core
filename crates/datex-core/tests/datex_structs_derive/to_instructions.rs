@@ -136,7 +136,7 @@ fn example_enum_variant_4_to_instructions() {
         to_instructions(&variant4),
         vec![RegularInstruction::tagged_value(
             "Variant4".to_string(),
-            false
+            true
         )]
     );
 }

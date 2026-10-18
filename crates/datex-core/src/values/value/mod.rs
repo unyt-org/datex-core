@@ -333,14 +333,14 @@ impl Value {
     }
 
     /// Gets a property on the value if applicable (e.g. for map and structs)
-    pub fn try_get_property<'a>(
+    pub fn try_get_property(
         &self,
         key: &ValueContainer,
     ) -> Result<BorrowedValueContainer<'_>, AccessError> {
         <Self as ValueAccess>::try_get_property(self, key)
     }
 
-    pub fn try_get_property_mut<'a>(
+    pub fn try_get_property_mut(
         &mut self,
         key: &ValueContainer,
     ) -> Result<BorrowedValueContainerMut<'_>, AccessError> {
