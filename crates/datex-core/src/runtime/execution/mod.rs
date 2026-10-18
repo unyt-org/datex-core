@@ -28,10 +28,13 @@ use crate::{
     },
 };
 use core::{cell::Ref, ops::Deref, result::Result, unreachable};
+use std::ops::DerefMut;
 pub use errors::*;
 pub use execution_input::{ExecutionInput, ExecutionOptions};
 pub use stack_dump::*;
 use crate::core_compiler::instruction_input::InstructionInput;
+use crate::shared_values::collapsed_container_value::CollapsedContainerValue;
+use crate::traits::classification::Classification;
 
 pub mod context;
 mod errors;
@@ -131,7 +134,7 @@ pub fn execute_dxb_sync(
                 args,
             ) => {
                 let val = callee.value.collapsed_value();
-                let entity_type = try_get_entity_type(val.borrow().deref())?;
+                let entity_type = try_get_entity_type(val, &runtime)?;
                 let method = try_get_method_data(&entity_type, method_name)?;
 
                 interrupt_provider.provide_result(
@@ -283,7 +286,7 @@ pub async fn execute_dxb(
                 args,
             ) => {
                 let val = callee.value.collapsed_value();
-                let entity_type = try_get_entity_type(val.borrow().deref())?;
+                let entity_type = try_get_entity_type(val, &runtime)?;
                 let method = try_get_method_data(&entity_type, method_name)?;
 
                 interrupt_provider.provide_result(
@@ -304,17 +307,16 @@ pub async fn execute_dxb(
     unreachable!("Execution loop should always return a result");
 }
 
-fn try_get_entity_type(value: &Value) -> Result<EntityType, ExecutionError> {
-    match value {
-        Value::Core(CoreValueWithClassification {
-            classification:
-                ValueClassification {
-                    entity_type: Some(entity_type),
-                    ..
-                },
-            ..
-        }) => Ok(entity_type.clone()),
-        _ => Err(ExecutionError::ExpectedEntityValue),
+/// Tries to get the entity type of the [CollapsedContainerValue]. If the value is not an entity, returns an error.
+fn try_get_entity_type(
+    value: CollapsedContainerValue,
+    runtime: &Runtime
+) -> Result<EntityType, ExecutionError> {
+    if let Some(entity_type) = value.borrow().deref().entity_type(runtime.shared_references_cache_mut().deref_mut()) {
+        Ok(entity_type)
+    }
+    else {
+        Err(ExecutionError::ExpectedEntityValue)
     }
 }
 
