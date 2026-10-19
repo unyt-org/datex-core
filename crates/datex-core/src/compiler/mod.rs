@@ -12,6 +12,7 @@ use crate::{
         resolved_variable::VariableId,
     },
     compiler::{
+        compilation_result::CompilationResult,
         context::CompilationContext,
         error::{
             CompilerError, DetailedCompilerErrorsWithMaybeRichAst,
@@ -63,15 +64,16 @@ use crate::{
         core_values::endpoint::Endpoint, value_container::ValueContainer,
     },
 };
-use core::{str::FromStr};
+use core::str::FromStr;
 use log::{debug, info};
 use precompiler::{
     options::PrecompilerOptions,
     precompile_ast,
     precompiled_ast::{AstMetadata, RichAst, VariableMetadata},
 };
-use crate::compiler::compilation_result::CompilationResult;
 
+pub mod ast_node_to_instructions;
+pub mod compilation_result;
 pub mod context;
 pub mod error;
 pub mod metadata;
@@ -80,8 +82,6 @@ pub mod scope;
 pub mod type_compiler;
 #[cfg(feature = "std")]
 pub mod workspace;
-pub mod ast_node_to_instructions;
-pub mod compilation_result;
 
 #[derive(Clone, Default)]
 pub struct CompileOptions {
@@ -261,10 +261,11 @@ pub fn compile_script_or_return_static_value(
         CompileInput::new(&lookup, &options.receivers),
         options.compile_scope,
     );
-    let compilation_result = compilation_context.compile_ast_node_to_dxb_with_shared_values(
-        &*ast.ast.data,
-        &mut ast.metadata.borrow_mut(),
-    )?;
+    let compilation_result = compilation_context
+        .compile_ast_node_to_dxb_with_shared_values(
+            &*ast.ast.data,
+            &mut ast.metadata.borrow_mut(),
+        )?;
     if compilation_result.has_non_static_value {
         Ok((
             StaticValueOrDXB::DXB(compilation_result.dxb_with_shared_values),
@@ -275,7 +276,10 @@ pub fn compile_script_or_return_static_value(
         let value_container = ValueContainer::try_from(ast.ast.data())
             .expect("AST should be a static value if compilation_result.has_non_static_value is false");
 
-        Ok((StaticValueOrDXB::StaticValue(Some(value_container)), compilation_result.scope))
+        Ok((
+            StaticValueOrDXB::StaticValue(Some(value_container)),
+            compilation_result.scope,
+        ))
     }
 }
 
@@ -530,16 +534,15 @@ pub fn compile_child_realm_instructions(
 
     // TODO: what to do with the shared values? [shared_values]
     let CompilationResult {
-        dxb_with_shared_values: DXBWithSharedValues {
-            dxb,
-            shared_values: _,
-        },
+        dxb_with_shared_values:
+            DXBWithSharedValues {
+                dxb,
+                shared_values: _,
+            },
         scope: child_scope,
         ..
-    } = execution_block_ctx.compile_ast_node_to_dxb_with_shared_values(
-        &*ast.data,
-        metadata,
-    )?;
+    } = execution_block_ctx
+        .compile_ast_node_to_dxb_with_shared_values(&*ast.data, metadata)?;
 
     // reset to current scope
     let external_parent_scope = child_scope
@@ -560,12 +563,14 @@ pub fn compile_child_realm_instructions(
     ))
 }
 
-
-
 #[cfg(test)]
 #[cfg(feature = "disassembler")]
 pub mod tests {
-    use super::{compile_script, compile_script_or_return_static_value, compile_template, parse_datex_script_to_rich_ast_simple_error, CompilationContext, CompileOptions, StaticValueOrDXB};
+    use super::{
+        CompilationContext, CompileOptions, StaticValueOrDXB, compile_script,
+        compile_script_or_return_static_value, compile_template,
+        parse_datex_script_to_rich_ast_simple_error,
+    };
     use crate::{
         ast::expressions::{CallableDeclaration, CallableSignature},
         compiler::scope::CompilationScope,
@@ -593,7 +598,9 @@ pub mod tests {
     };
 
     use crate::{
-        compiler::error::CompilerError,
+        compiler::{
+            compilation_result::CompilationResult, error::CompilerError,
+        },
         disassembler::{
             assertions::{
                 assert_instructions_equal, instructions, instructions_with_span,
@@ -629,7 +636,6 @@ pub mod tests {
     use alloc::format;
     use core::assert_matches;
     use log::*;
-    use crate::compiler::compilation_result::CompilationResult;
 
     fn compile_unwrap(script: &str) -> Vec<u8> {
         compile_script(script, CompileOptions::default(), Runtime::stub())
@@ -670,7 +676,8 @@ pub mod tests {
             input,
             options.compile_scope,
         );
-        compilation_context.compile_ast_with_metadata_to_dxb_with_shared_values(ast)
+        compilation_context
+            .compile_ast_with_metadata_to_dxb_with_shared_values(ast)
             .unwrap()
     }
 

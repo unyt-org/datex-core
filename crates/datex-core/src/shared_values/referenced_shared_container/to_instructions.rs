@@ -4,18 +4,16 @@ use crate::{
     },
     instruction::Instruction,
     prelude::*,
-    shared_values::{SharedContainer},
+    shared_values::{ReferencedSharedContainer, SharedContainer},
 };
-use crate::shared_values::ReferencedSharedContainer;
 
 impl ToInstructions for ReferencedSharedContainer {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         let reference = SharedContainer::Referenced(self.clone());
-        let instructions: Vec<Instruction> = reference.to_instructions(visitor).collect(); // FIXME: no collect
+        let instructions: Vec<_> = reference.to_bytecode_item(visitor).collect(); // FIXME: no collect
         Box::new(instructions.into_iter())
     }
 }

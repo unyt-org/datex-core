@@ -29,7 +29,7 @@ use binrw::{
 use crate::{
     core_compiler::{
         core_compilation_context::{ByteCursor, CoreCompilationContext},
-        to_instructions::ToInstructions,
+        to_instructions::{ToInstructions, yield_all, yield_all_collected},
     },
     instruction::Instruction,
     libs::core::{
@@ -44,7 +44,6 @@ use crate::{
         SharedContainerOwnership, traits::SharedContainerCommon,
     },
 };
-use crate::core_compiler::to_instructions::{yield_all, yield_all_collected};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum InjectedValueValidationError {
@@ -76,7 +75,8 @@ pub fn compile_value_container(
     value_container: &ValueContainer,
     compile_input: CompileInput,
 ) -> DXBWithSharedValues {
-    CoreCompilationContext::new(compile_input).compile_to_dxb_with_shared_values(value_container)
+    CoreCompilationContext::new(compile_input)
+        .compile_to_dxb_with_shared_values(value_container)
 }
 
 pub fn compile_value(
@@ -97,7 +97,8 @@ pub fn compile_panic(
                 CoreLibId::Value(CoreLibValueId::Panic).into(),
             ),
             args: vec![ValueContainer::Local(panic_value.into())],
-        }).dxb
+        })
+        .dxb
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -107,12 +108,16 @@ pub struct ApplyWithArgs {
 }
 
 impl ToInstructions for ApplyWithArgs {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
-        visitor: &'a mut dyn ValueVisitor
-    ) -> Box<dyn Iterator<Item=Instruction> + 'a> {
+        visitor: &'a mut dyn ValueVisitor,
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen {
-            yield_all!(append_apply(visitor, self.callee.clone(), self.args.clone()));
+            yield_all!(append_apply(
+                visitor,
+                self.callee.clone(),
+                self.args.clone()
+            ));
         })
     }
 }
@@ -121,16 +126,14 @@ gen fn append_apply<'a>(
     visitor: &'a mut dyn ValueVisitor,
     callee: RegularInstruction,
     args: Vec<ValueContainer>,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::apply(args.len() as u8).into();
     for arg in args {
-        yield_all_collected!(arg.to_instructions(visitor)); // FIXME: don't collect
+        yield_all_collected!(arg.to_bytecode_item(visitor)); // FIXME: don't collect
     }
     yield callee.into();
     return;
 }
-
-
 
 /// Helper function to directly compile an instruction into a byte vector
 pub fn compile_instruction(instruction: impl Into<Instruction>) -> Vec<u8> {
@@ -160,8 +163,9 @@ mod tests {
                 default_core_compilation_context,
             },
             shared_value_tracking::TrackedValueMetadata,
+            to_instructions::ToInstructions,
             value_compiler::compile_value,
-            value_visitor::ValueVisitor,
+            value_visitor::{ValueVisitor, compile_instructions_to_dxb},
         },
         disassembler::{
             assertions::{assert_instructions_equal, instructions},
@@ -203,8 +207,6 @@ mod tests {
     };
     use core::assert_matches;
     use log::info;
-    use crate::core_compiler::to_instructions::ToInstructions;
-    use crate::core_compiler::value_visitor::compile_instructions_to_dxb;
 
     fn compile_value_assert_instructions(
         value: Value,
@@ -301,8 +303,11 @@ mod tests {
         let shared_container = ValueContainer::Shared(owned_shared);
         let mut context = core_compilation_context();
 
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
-        
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &shared_container,
+        );
+
         // The address should now be registered in the shared value tracking
         assert_matches!(
             context
@@ -392,7 +397,10 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &shared_container,
+        );
 
         assert_matches!(
             context
@@ -510,7 +518,10 @@ mod tests {
 
         let shared_container = ValueContainer::Shared(outer_shared);
         let mut context = core_compilation_context();
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &shared_container,
+        );
 
         assert_matches!(
             context
@@ -593,7 +604,10 @@ mod tests {
         let shared_container = ValueContainer::Shared(reference.clone());
         let mut context = core_compilation_context();
 
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &shared_container,
+        );
 
         assert_matches!(
             context
@@ -675,7 +689,10 @@ mod tests {
             .into(),
         );
         let mut context = core_compilation_context();
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &local);
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &local,
+        );
 
         assert_matches!(
             context
@@ -780,7 +797,10 @@ mod tests {
 
         let mut context = core_compilation_context();
         let shared_container = ValueContainer::Shared(shared);
-        let dxb = compile_instructions_to_dxb(context.shared_value_tracking.get_mut(), &shared_container);
+        let dxb = compile_instructions_to_dxb(
+            context.shared_value_tracking.get_mut(),
+            &shared_container,
+        );
 
         assert_matches!(
             context

@@ -20,6 +20,43 @@ use binrw::{
 use core::{fmt::Display, prelude::rust_2024::*};
 use serde::Serialize;
 
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Label(pub usize);
+
+static NEXT_LABEL: AtomicUsize = AtomicUsize::new(0);
+
+impl Label {
+    pub fn new() -> Self {
+        // FIXME make part of compiler metadata, not global
+        Self(NEXT_LABEL.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+pub enum BytecodeItem {
+    Instruction(Instruction),
+    Label(Label),
+    Jump { target: Label },
+    JumpIfFalse { target: Label, condition_end: Label },
+}
+impl From<Instruction> for BytecodeItem {
+    fn from(instruction: Instruction) -> Self {
+        Self::Instruction(instruction)
+    }
+}
+impl From<RegularInstruction> for BytecodeItem {
+    fn from(instruction: RegularInstruction) -> Self {
+        Self::Instruction(Instruction::Regular(instruction))
+    }
+}
+
+impl From<TypeInstruction> for BytecodeItem {
+    fn from(instruction: TypeInstruction) -> Self {
+        Self::Instruction(Instruction::Type(instruction))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "disassembler", derive(Serialize))]
 #[cfg_attr(feature = "disassembler", serde(untagged))]

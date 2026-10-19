@@ -43,6 +43,7 @@ pub enum CompilerError {
     InvalidConversionFromRefToOwnedValue,
     UnknownInterfaceMethod(String),
     InvalidInterfaceMethodCall(String),
+    InvalidJump,
 }
 impl CompilerError {
     pub fn unexpected_term(expr: DatexExpression) -> Self {
@@ -407,6 +408,9 @@ impl Display for CompilerError {
                     f,
                     "Interface method \"{name}\" was called with wrong arguments"
                 )
+            }
+            CompilerError::InvalidJump => {
+                core::write!(f, "Invalid jump detected during compilation")
             }
         }
     }

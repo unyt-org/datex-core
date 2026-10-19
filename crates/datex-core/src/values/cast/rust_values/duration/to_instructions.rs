@@ -16,11 +16,10 @@ use crate::{
 // }
 
 impl ToInstructions for Duration {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         _ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move { todo!() })
     }
 }
@@ -28,7 +27,7 @@ impl ToInstructions for Duration {
 //     fn to_instructions_dyn<'a, 'ctx>(
 //         &'a self,
 //         ctx: &'a mut (dyn ValueVisitor + 'ctx),
-//     ) -> Box<dyn Iterator<Item = Instruction> + 'a>
+//     ) -> Box<dyn Iterator<Item = crate::instruction::CompileItem> + 'a>
 //     where
 //         'ctx: 'a,
 //     {

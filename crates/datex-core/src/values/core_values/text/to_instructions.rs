@@ -8,13 +8,13 @@ use crate::{
 };
 
 impl ToInstructions for Text {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         // FIXME: more efficient way to do this without collecting?
-        let instructions = self.as_string().to_instructions(ctx).collect::<Vec<_>>();
+        let instructions =
+            self.as_string().to_bytecode_item(ctx).collect::<Vec<_>>();
         Box::new(instructions.into_iter())
     }
 }

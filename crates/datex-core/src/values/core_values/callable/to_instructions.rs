@@ -1,4 +1,3 @@
-use core::ops::Deref;
 use crate::{
     core_compiler::{
         to_instructions::ToInstructions, value_visitor::ValueVisitor,
@@ -14,12 +13,12 @@ use crate::{
     prelude::*,
     values::core_values::callable::{Callable, CallableBody},
 };
+use core::ops::Deref;
 impl ToInstructions for Callable {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             let (body, injected_values) = match &self.body {
                 CallableBody::DatexBytecode(datex_bytecode) => (
@@ -74,32 +73,31 @@ impl ToInstructions for Callable {
 
             // add parameter types
             for (_, param) in &self.signature.parameters {
-                for instruction in param.to_instructions(ctx) {
+                for instruction in param.to_bytecode_item(ctx) {
                     yield instruction;
                 }
             }
             // add rest parameter type
             if let Some((_, param)) = &self.signature.rest_parameter {
-                for instruction in param.deref().to_instructions(ctx) {
+                for instruction in param.deref().to_bytecode_item(ctx) {
                     yield instruction;
                 }
             }
             // add return type
             if let Some(ty) = &self.signature.return_type {
-                for instruction in ty.deref().to_instructions(ctx) {
+                for instruction in ty.deref().to_bytecode_item(ctx) {
                     yield instruction;
                 }
             }
             // add yield type
             if let Some(ty) = &self.signature.yeet_type {
-                for instruction in ty.deref().to_instructions(ctx) {
+                for instruction in ty.deref().to_bytecode_item(ctx) {
                     yield instruction;
                 }
             }
 
             for value in injected_values {
-                let instructions: Vec<Instruction> =
-                    value.to_instructions(ctx).collect();
+                let instructions: Vec<_> = value.to_bytecode_item(ctx).collect();
 
                 for instruction in instructions {
                     yield instruction;

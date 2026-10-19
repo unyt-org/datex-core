@@ -1,27 +1,31 @@
-use core::ops::Deref;
 use crate::{
     ast::type_expressions::{TypeExpression, TypeExpressionData},
-    core_compiler::{
-        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+    compiler::{
+        ast_node_to_instructions::AstNodeToInstructions,
+        context::CompilationContext, error::CompilerError,
+        metadata::CompileContextMetadata,
+        precompiler::precompiled_ast::AstMetadata,
     },
-    instruction::{Instruction, type_instruction::TypeInstruction},
+    core_compiler::{
+        to_instructions::{ToInstructions, yield_all, yield_all_ok},
+        value_visitor::ValueVisitor,
+    },
+    instruction::{
+        BytecodeItem, Instruction, type_instruction::TypeInstruction,
+    },
     prelude::*,
     types::literal_type_definition::LiteralTypeDefinition,
 };
-use crate::compiler::ast_node_to_instructions::AstNodeToInstructions;
-use crate::compiler::context::CompilationContext;
-use crate::compiler::error::CompilerError;
-use crate::compiler::metadata::CompileContextMetadata;
-use crate::compiler::precompiler::precompiled_ast::AstMetadata;
-use crate::core_compiler::to_instructions::{yield_all, yield_all_ok};
+use core::ops::Deref;
 
 impl AstNodeToInstructions for TypeExpression {
     fn ast_node_to_instructions<'a>(
-        &'a self, 
-        compilation_context: &'a mut CompilationContext, 
+        &'a self,
+        compilation_context: &'a mut CompilationContext,
         ast_metadata: &'a mut AstMetadata,
-        ctx_metadata: CompileContextMetadata
-    ) -> Box<dyn Iterator<Item=Result<Instruction, CompilerError>> + 'a> {
+        ctx_metadata: CompileContextMetadata,
+    ) -> Box<dyn Iterator<Item = Result<BytecodeItem, CompilerError>> + 'a>
+    {
         Box::new(gen move {
             match self.data() {
                 TypeExpressionData::Integer(integer) => {
@@ -31,9 +35,9 @@ impl AstNodeToInstructions for TypeExpression {
                     .into())
                 }
                 TypeExpressionData::Text(text) => {
-                    yield Ok(TypeInstruction::Literal(LiteralTypeDefinition::Text(
-                        text.clone(),
-                    ))
+                    yield Ok(TypeInstruction::Literal(
+                        LiteralTypeDefinition::Text(text.clone()),
+                    )
                     .into())
                 }
                 TypeExpressionData::Boolean(boolean) => {
@@ -47,8 +51,18 @@ impl AstNodeToInstructions for TypeExpression {
                 }
                 TypeExpressionData::Range(range) => {
                     yield Ok(TypeInstruction::Range.into());
-                    yield_all!(range.start.deref().ast_node_to_instructions_inner(compilation_context, ast_metadata));
-                    yield_all!(range.end.deref().ast_node_to_instructions_inner(compilation_context, ast_metadata));
+                    yield_all!(
+                        range.start.deref().ast_node_to_instructions_inner(
+                            compilation_context,
+                            ast_metadata
+                        )
+                    );
+                    yield_all!(
+                        range.end.deref().ast_node_to_instructions_inner(
+                            compilation_context,
+                            ast_metadata
+                        )
+                    );
                 }
                 e => todo!(
                     "Type expression to instruction not implemented for {:?}",

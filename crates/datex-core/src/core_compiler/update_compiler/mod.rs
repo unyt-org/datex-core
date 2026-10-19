@@ -5,11 +5,13 @@ use crate::{
         core_compilation_context::{
             CompileInput, CoreCompilationContext, DXBWithSharedValues,
         },
+        to_instructions::{ToInstructions, yield_all},
         value_visitor::ValueVisitor,
     },
     global::stack_index::StackIndex,
     instruction::{
-        instruction_data::SharedRef, regular_instruction::RegularInstruction,
+        Instruction, instruction_data::SharedRef,
+        regular_instruction::RegularInstruction,
     },
     prelude::*,
     shared_values::{
@@ -21,8 +23,6 @@ use crate::{
     },
     values::value_container::ValueContainer,
 };
-use crate::core_compiler::to_instructions::{yield_all, ToInstructions};
-use crate::instruction::Instruction;
 
 /// Compiles an update operation on a shared container into DXB
 /// e.g. [UpdateData::SetEntry] to $x.a = b;
@@ -31,16 +31,15 @@ pub fn compile_updates(
     updates: &[&UpdateData],
     compile_input: CompileInput,
 ) -> DXBWithSharedValues {
-    CoreCompilationContext::new(compile_input).compile_to_dxb_with_shared_values(
-        &(container, updates)
-    )
+    CoreCompilationContext::new(compile_input)
+        .compile_to_dxb_with_shared_values(&(container, updates))
 }
 
 impl ToInstructions for (&SharedContainer, &[&UpdateData]) {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         let (container, updates) = self;
         Box::new(gen move {
             yield_all!(append_updates(visitor, container, updates));
@@ -54,7 +53,7 @@ gen fn append_updates<'a>(
     visitor: &mut dyn ValueVisitor,
     container: &SharedContainer,
     updates: &[&UpdateData],
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     let statements_count = 1 + updates.len() as u32; // 1 for the push to stack, and 1 for each update operation
 
     yield RegularInstruction::statements(statements_count, true).into();
@@ -63,7 +62,8 @@ gen fn append_updates<'a>(
         address: container.pointer_address(),
         ref_mutability: ReferenceMutability::Mutable, // can always be upgraded to mutable since the executing endpoint is the owner
         container_mutability: SharedContainerMutability::Mutable, // must be mutable for updates
-    }).into();
+    })
+    .into();
 
     for update in updates {
         // TODO append update.path
@@ -75,14 +75,24 @@ gen fn append_updates<'a>(
 gen fn append_update_operation<'a>(
     visitor: &mut dyn ValueVisitor,
     operation: &UpdateOperation,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     match operation {
-        UpdateOperation::SetEntry(data) => yield_all!(append_set_entry(visitor, data)),
-        UpdateOperation::AppendEntry(data) => yield_all!(append_append_entry(visitor, data)),
-        UpdateOperation::Replace(data) => yield_all!(append_replace(visitor, data)),
+        UpdateOperation::SetEntry(data) => {
+            yield_all!(append_set_entry(visitor, data))
+        }
+        UpdateOperation::AppendEntry(data) => {
+            yield_all!(append_append_entry(visitor, data))
+        }
+        UpdateOperation::Replace(data) => {
+            yield_all!(append_replace(visitor, data))
+        }
         UpdateOperation::Clear => yield_all!(append_clear(visitor)),
-        UpdateOperation::DeleteEntry(data) => yield_all!(append_delete_entry(visitor, data)),
-        UpdateOperation::ListSplice(data) => yield_all!(append_list_splice(visitor, data)),
+        UpdateOperation::DeleteEntry(data) => {
+            yield_all!(append_delete_entry(visitor, data))
+        }
+        UpdateOperation::ListSplice(data) => {
+            yield_all!(append_list_splice(visitor, data))
+        }
         UpdateOperation::Increment(_data) => {
             todo!()
         }
@@ -98,11 +108,14 @@ gen fn append_update_operation<'a>(
 gen fn append_set_entry<'a>(
     visitor: &mut dyn ValueVisitor,
     set_entry_update_data: &SetEntryUpdateData,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     // key
-    yield_all!(append_set_property_value_key(visitor, &set_entry_update_data.key));
+    yield_all!(append_set_property_value_key(
+        visitor,
+        &set_entry_update_data.key
+    ));
     // value
-    yield_all!(set_entry_update_data.value.to_instructions(visitor));
+    yield_all!(set_entry_update_data.value.to_bytecode_item(visitor));
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
 
@@ -113,9 +126,9 @@ gen fn append_set_entry<'a>(
 gen fn append_replace<'a>(
     visitor: &mut dyn ValueVisitor,
     replace_update_data: &ReplaceUpdateData,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::set_shared_container_value().into();
-    yield_all!(replace_update_data.value.to_instructions(visitor));
+    yield_all!(replace_update_data.value.to_bytecode_item(visitor));
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
     return;
@@ -125,9 +138,9 @@ gen fn append_replace<'a>(
 gen fn append_append_entry<'a>(
     visitor: &mut dyn ValueVisitor,
     append_entry_update_data: &AppendEntryUpdateData,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::append_entry().into();
-    yield_all!(append_entry_update_data.value.to_instructions(visitor));
+    yield_all!(append_entry_update_data.value.to_bytecode_item(visitor));
 
     // target
     yield RegularInstruction::borrow_stack_value(StackIndex(0)).into();
@@ -138,15 +151,16 @@ gen fn append_append_entry<'a>(
 gen fn append_list_splice<'a>(
     visitor: &mut dyn ValueVisitor,
     list_splice_update_data: &ListSpliceUpdateData,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::splice(
         list_splice_update_data.start,
         list_splice_update_data.delete_count,
         list_splice_update_data.items.len() as u32,
-    ).into();
+    )
+    .into();
 
     for item in &list_splice_update_data.items {
-        yield_all!(item.to_instructions(visitor));
+        yield_all!(item.to_bytecode_item(visitor));
     }
 
     // target
@@ -156,7 +170,9 @@ gen fn append_list_splice<'a>(
 }
 
 /// Appends a clear operation on a shared container
-gen fn append_clear(visitor: &mut dyn ValueVisitor) -> Instruction {
+gen fn append_clear(
+    visitor: &mut dyn ValueVisitor,
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::clear().into();
 
     // target
@@ -168,7 +184,7 @@ gen fn append_clear(visitor: &mut dyn ValueVisitor) -> Instruction {
 gen fn append_delete_entry(
     visitor: &mut dyn ValueVisitor,
     _delete_entry_update_data: &DeleteEntryUpdateData,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     todo!()
 }
 
@@ -176,15 +192,15 @@ gen fn append_delete_entry(
 pub gen fn append_set_property_value_key<'a>(
     visitor: &mut dyn ValueVisitor,
     value_key: &ValueContainer,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     if let Some(string) = value_key.try_as_str() {
         yield RegularInstruction::set_entry_text(string.to_string()).into();
-    }
-    else if let Some(index) = value_key.try_as::<u32>() { // TODO: integer conversion
+    } else if let Some(index) = value_key.try_as::<u32>() {
+        // TODO: integer conversion
         yield RegularInstruction::set_entry_index(*index).into();
     } else {
         yield RegularInstruction::set_entry_dynamic().into();
-        yield_all!(value_key.to_instructions(visitor));
+        yield_all!(value_key.to_bytecode_item(visitor));
     }
 
     return;
@@ -215,10 +231,7 @@ mod tests {
         value_updates::update_data::{
             SetEntryUpdateData, UpdateData, UpdateOperation,
         },
-        values::{
-            core_values::map::Map,
-            value_container::{ValueContainer},
-        },
+        values::{core_values::map::Map, value_container::ValueContainer},
     };
 
     #[test]

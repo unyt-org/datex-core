@@ -8,11 +8,10 @@ use crate::{
 };
 
 impl ToInstructions for Endpoint {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         _ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(core::iter::once(
             RegularInstruction::endpoint(self.clone()).into(),
         ))

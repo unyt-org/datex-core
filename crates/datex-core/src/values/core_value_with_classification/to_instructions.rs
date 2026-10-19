@@ -1,6 +1,8 @@
 use crate::{
     core_compiler::{
-        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+        shared_value_tracking::SharedValueTracking,
+        to_instructions::{ToInstructions, yield_all},
+        value_visitor::ValueVisitor,
     },
     instruction::{Instruction, regular_instruction::RegularInstruction},
     prelude::*,
@@ -9,15 +11,12 @@ use crate::{
         value::value_classification::ValueTag,
     },
 };
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
-use crate::core_compiler::to_instructions::yield_all;
 
 impl ToInstructions for CoreValueWithClassification {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             let classification = &self.classification;
 
@@ -43,7 +42,7 @@ impl ToInstructions for CoreValueWithClassification {
                 };
             }
 
-            yield_all!(self.inner.to_instructions(visitor));
+            yield_all!(self.inner.to_bytecode_item(visitor));
         })
     }
 }

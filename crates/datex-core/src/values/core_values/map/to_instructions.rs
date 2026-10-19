@@ -1,24 +1,22 @@
 use crate::{
     core_compiler::{
-        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+        to_instructions::{ToInstructions, yield_all, yield_all_collected},
+        value_visitor::ValueVisitor,
     },
     instruction::{Instruction, regular_instruction::RegularInstruction},
     prelude::*,
     values::core_values::map::Map,
 };
-use crate::core_compiler::to_instructions::{yield_all, yield_all_collected};
 
 impl ToInstructions for Map {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             yield RegularInstruction::map(self.size() as u32).into();
 
             for (key, value) in self.iter() {
-
                 match key.try_as_str() {
                     // text -> insert key string
                     Some(string) => {
@@ -26,7 +24,7 @@ impl ToInstructions for Map {
                             yield RegularInstruction::key_value_short_text(
                                 string.to_string(),
                             )
-                                .into();
+                            .into();
                         } else {
                             yield RegularInstruction::key_value_dynamic()
                                 .into();
@@ -37,11 +35,11 @@ impl ToInstructions for Map {
                     // other -> insert key as dynamic
                     None => {
                         yield RegularInstruction::key_value_dynamic().into();
-                        yield_all_collected!(key.to_instructions(visitor));
+                        yield_all_collected!(key.to_bytecode_item(visitor));
                     }
                 }
-                
-                yield_all!(value.to_instructions(visitor));
+
+                yield_all!(value.to_bytecode_item(visitor));
             }
         })
     }

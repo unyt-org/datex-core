@@ -4,6 +4,7 @@ use crate::{
             ByteCursor, CompileInput, CoreCompilationContext,
             DXBWithSharedValues,
         },
+        to_instructions::{ToInstructions, yield_all},
         value_compiler::InjectedValueValidationError,
         value_visitor::ValueVisitor,
     },
@@ -11,7 +12,7 @@ use crate::{
         InjectedValueDeclaration, InjectedValueType, SharedInjectedValueType,
     },
     instruction::{
-        instruction_data::InstructionBlockData,
+        Instruction, instruction_data::InstructionBlockData,
         regular_instruction::RegularInstruction,
     },
     prelude::*,
@@ -19,11 +20,9 @@ use crate::{
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Write};
-use crate::core_compiler::to_instructions::{yield_all, ToInstructions};
-use crate::instruction::Instruction;
 
 struct InjectedValues {
-    pub values: Vec<ValueContainer>
+    pub values: Vec<ValueContainer>,
 }
 
 /// Compiles injected values into a DXB buffer with shared values
@@ -48,13 +47,13 @@ pub fn compile_injected_values(
             &instruction_block_data.injected_values,
             &injected_values,
         )?;
-        
+
         let DXBWithSharedValues {
             dxb: preambles_dxb,
             shared_values,
         } = CoreCompilationContext::new(compile_input)
             .compile_to_dxb_with_shared_values(&InjectedValues {
-                values: injected_values
+                values: injected_values,
             });
 
         // prepend statements block
@@ -77,10 +76,10 @@ pub fn compile_injected_values(
 /// # Safety
 /// The caller must ensure that minimum a single injected value is provided, as this function assumes that the injected values are not empty
 impl ToInstructions for InjectedValues {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             if self.values.is_empty() {
                 unreachable!(); // injected values should not be empty, this function should only be called if there are injected values
@@ -88,12 +87,11 @@ impl ToInstructions for InjectedValues {
             yield RegularInstruction::list(self.values.len() as u32).into();
 
             for value_container in &self.values {
-                yield_all!(value_container.to_instructions(visitor));
+                yield_all!(value_container.to_bytecode_item(visitor));
             }
         })
     }
 }
-
 
 /// Validates that the injected values match the injected value declarations in the instruction block data
 ///  - local injected values must be local containers
@@ -146,8 +144,6 @@ fn validate_injected_value_declaration_for_values(
 
     Ok(())
 }
-
-
 
 #[cfg(test)]
 #[cfg(feature = "disassembler")]

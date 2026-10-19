@@ -8,11 +8,10 @@ use crate::{
 };
 
 impl ToInstructions for Decimal {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         _ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             match &self {
                 Decimal::Finite(big_decimal) if big_decimal.is_integer() => {

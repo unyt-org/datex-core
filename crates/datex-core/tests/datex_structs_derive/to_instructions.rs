@@ -22,10 +22,11 @@ struct ExampleStruct {
 }
 fn to_instructions<T: ToInstructions>(structure: &T) -> Vec<Instruction> {
     let pointer_lookup = PointerAvailabilityLookup::default();
-    let mut context = CoreCompilationContext::new(
-        CompileInput::new(&pointer_lookup, &[]),
-    );
-    structure.to_instructions(context.shared_value_tracking.get_mut()).collect::<Vec<_>>()
+    let mut context =
+        CoreCompilationContext::new(CompileInput::new(&pointer_lookup, &[]));
+    structure
+        .to_instructions(context.shared_value_tracking.get_mut())
+        .collect::<Vec<_>>()
 }
 
 #[test]

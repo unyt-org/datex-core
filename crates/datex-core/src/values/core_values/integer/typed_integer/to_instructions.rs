@@ -7,60 +7,59 @@ use crate::{
     values::core_values::integer::typed_integer::TypedInteger,
 };
 impl ToInstructions for TypedInteger {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         ctx: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             match self {
                 TypedInteger::I8(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::I16(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::I32(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::I64(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::I128(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::U8(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::U16(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::U32(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::U64(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }
                 TypedInteger::U128(val) => {
-                    for i in val.to_instructions(ctx) {
+                    for i in val.to_bytecode_item(ctx) {
                         yield i;
                     }
                 }

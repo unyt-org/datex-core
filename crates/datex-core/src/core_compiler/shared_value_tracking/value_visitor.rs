@@ -1,20 +1,23 @@
-use crate::core_compiler::shared_value_tracking::SharedValueTracking;
-use crate::core_compiler::value_visitor::ValueVisitor;
-use crate::instruction::Instruction;
-use crate::instruction::regular_instruction::RegularInstruction;
-use crate::shared_values::{ReferenceMutability, SharedContainer, SharedContainerOwnership};
-use crate::shared_values::traits::SharedContainerCommon;
-use crate::prelude::*;
+use crate::{
+    core_compiler::{
+        shared_value_tracking::SharedValueTracking, value_visitor::ValueVisitor,
+    },
+    instruction::{Instruction, regular_instruction::RegularInstruction},
+    prelude::*,
+    shared_values::{
+        ReferenceMutability, SharedContainer, SharedContainerOwnership,
+        traits::SharedContainerCommon,
+    },
+};
 
 impl<'ctx> ValueVisitor for SharedValueTracking<'ctx> {
     /// Registers a visited shared value in the shared value tracking
     fn visit_shared_container<'a>(
         &'a mut self,
-        shared_container: &'a SharedContainer
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
+        shared_container: &'a SharedContainer,
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         let ownership = shared_container.ownership();
-        let index = self
-            .register_shared_value(shared_container);
+        let index = self.register_shared_value(shared_container);
 
         Box::new(gen move {
             yield match ownership {
@@ -28,7 +31,7 @@ impl<'ctx> ValueVisitor for SharedValueTracking<'ctx> {
                     ReferenceMutability::Mutable,
                 ) => RegularInstruction::get_stack_value_shared_ref_mut(index),
             }
-                .into()
+            .into()
         })
     }
 }

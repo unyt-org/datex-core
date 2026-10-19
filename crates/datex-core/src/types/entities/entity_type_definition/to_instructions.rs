@@ -8,11 +8,10 @@ use crate::{
 };
 
 impl ToInstructions for EntityTypeDefinition {
-    fn to_instructions<'a>(
+    fn to_bytecode_item<'a>(
         &'a self,
         _visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         Box::new(gen move {
             todo!("Implement ToInstructions for EntityTypeDefinition")
         })

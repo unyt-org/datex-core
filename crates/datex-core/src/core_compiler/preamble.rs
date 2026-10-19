@@ -4,15 +4,13 @@ use crate::{
     collections::HashMap,
     core_compiler::{
         core_compilation_context::ByteCursor,
-        shared_value_tracking::{
-            TrackedValueCollection, TrackedValueMetadata,
-        },
-        to_instructions::ToInstructions,
+        shared_value_tracking::{TrackedValueCollection, TrackedValueMetadata},
+        to_instructions::{ToInstructions, yield_all, yield_all_collected},
         value_visitor::ValueVisitor,
     },
     global::stack_index::StackIndex,
     instruction::{
-        Instruction,
+        BytecodeItem, Instruction,
         instruction_data::{MoveWithValue, SharedRef, SharedRefWithValue},
         regular_instruction::RegularInstruction,
     },
@@ -25,7 +23,6 @@ use crate::{
     values::value_container::ValueContainer,
 };
 use binrw::{BinWrite, io::Write};
-use crate::core_compiler::to_instructions::{yield_all, yield_all_collected};
 
 #[derive(Debug)]
 struct PreambleContext {
@@ -41,10 +38,8 @@ impl ValueVisitor for PreambleContext {
     fn visit_shared_container<'a>(
         &'a mut self,
         shared_container: &'a SharedContainer,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>
-    {
-        match self.self_referencing_containers.get(shared_container)
-        {
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
+        match self.self_referencing_containers.get(shared_container) {
             // not self referencing
             None => {
                 // placeholder, will be later replaced via setter
@@ -137,7 +132,12 @@ pub(super) fn append_injected_values_preamble(
                 )
                 .collect::<Vec<_>>()
                 {
-                    instruction.write(&mut cursor);
+                    match instruction {
+                        BytecodeItem::Instruction(instruction) => {
+                            instruction.write(&mut cursor);
+                        }
+                        _ => unreachable!(),
+                    }
                 }
                 context
                     .self_referencing_containers
@@ -163,9 +163,14 @@ pub(super) fn append_injected_values_preamble(
                             inner_statement_count,
                             uninitialized_index,
                         )
-                        .collect::<Vec<Instruction>>()
+                        .collect::<Vec<crate::instruction::BytecodeItem>>()
                     {
-                        instruction.write(&mut cursor).unwrap();
+                        match instruction {
+                            BytecodeItem::Instruction(instruction) => {
+                                instruction.write(&mut cursor).unwrap();
+                            }
+                            _ => unreachable!(),
+                        }
                     }
                     uninitialized_index
                 } else {
@@ -176,9 +181,14 @@ pub(super) fn append_injected_values_preamble(
                         is_known,
                         inner_statement_count,
                     )
-                    .collect::<Vec<Instruction>>()
+                    .collect::<Vec<crate::instruction::BytecodeItem>>()
                     {
-                        instruction.write(&mut cursor).unwrap();
+                        match instruction {
+                            BytecodeItem::Instruction(instruction) => {
+                                instruction.write(&mut cursor).unwrap();
+                            }
+                            _ => unreachable!(),
+                        }
                     }
                     index
                 };
@@ -198,13 +208,17 @@ pub(super) fn append_injected_values_preamble(
 
         // Final root list
         RegularInstruction::list(
-            root_container_stack_indices_sorted.len() as u32,
-        ).write(&mut cursor).unwrap();
+            root_container_stack_indices_sorted.len() as u32
+        )
+        .write(&mut cursor)
+        .unwrap();
 
         // insert all root stack values into the list, which is the final value of the preamble
         // append [#0,...#x]
         for stack_index in root_container_stack_indices_sorted {
-            RegularInstruction::take_stack_value(stack_index).write(&mut cursor).unwrap();
+            RegularInstruction::take_stack_value(stack_index)
+                .write(&mut cursor)
+                .unwrap();
         }
 
         // The final root list is also one inner statement.
@@ -240,7 +254,7 @@ gen fn append_uninitialized_shared_container(
     container: &SharedContainer,
     metadata: &TrackedValueMetadata,
     statements_count: &mut u32,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     *statements_count += 1;
 
     // append push to stack
@@ -280,9 +294,9 @@ gen fn append_uninitialized_shared_container(
                     yield instruction;
                 }
             } else {
-                for instruction in append_referenced_shared_container(
-                    referenced_container,
-                ) {
+                for instruction in
+                    append_referenced_shared_container(referenced_container)
+                {
                     yield instruction;
                 }
             }
@@ -297,13 +311,16 @@ gen fn append_self_referencing_shared_container_to_stack(
     container: &SharedContainer,
     statements_count: &mut u32,
     uninitialized_index: StackIndex,
-) -> Instruction
-{
+) -> crate::instruction::BytecodeItem {
     *statements_count += 1;
     yield RegularInstruction::set_shared_container_value().into();
-    yield_all_collected!(container.value_container().deref().to_instructions(context));
-    yield RegularInstruction::borrow_stack_value(uninitialized_index)
-        .into();
+    yield_all_collected!(
+        container
+            .value_container()
+            .deref()
+            .to_bytecode_item(context)
+    );
+    yield RegularInstruction::borrow_stack_value(uninitialized_index).into();
     return;
 }
 
@@ -312,7 +329,7 @@ gen fn append_shared_container_to_stack(
     container: &SharedContainer,
     is_known: bool,
     statements_count: &mut u32,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     *statements_count += 1;
 
     // append push to stack
@@ -326,7 +343,7 @@ gen fn append_shared_container(
     context: &mut PreambleContext,
     container: &SharedContainer,
     is_known: bool,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     match container {
         SharedContainer::Owned(owned_container) => {
             let value_container = owned_container.value_container();
@@ -366,9 +383,9 @@ gen fn append_shared_container(
                     yield instruction;
                 }
             } else {
-                for instruction in append_referenced_shared_container(
-                    referenced_container,
-                ) {
+                for instruction in
+                    append_referenced_shared_container(referenced_container)
+                {
                     yield instruction;
                 }
             }
@@ -382,7 +399,7 @@ gen fn append_move_with_value(
     container_mutability: SharedContainerMutability,
     previous_address: SelfOwnedPointerAddress,
     value_container: Option<&ValueContainer>,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     yield RegularInstruction::move_with_value(MoveWithValue {
         mutability: container_mutability,
         previous_address,
@@ -390,7 +407,7 @@ gen fn append_move_with_value(
     .into();
 
     if let Some(value_container) = value_container {
-        yield_all!(value_container.to_instructions(context));
+        yield_all!(value_container.to_bytecode_item(context));
     } else {
         yield RegularInstruction::Uninitialized.into();
     }
@@ -400,7 +417,7 @@ gen fn append_move_with_value(
 
 gen fn append_referenced_shared_container(
     referenced_container: &ReferencedSharedContainer,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     match referenced_container.pointer_address() {
         PointerAddress::SelfOwned(pointer_address) => {
             yield RegularInstruction::shared_ref(SharedRef {
@@ -429,7 +446,7 @@ gen fn append_referenced_shared_container_with_value(
     context: &mut PreambleContext,
     referenced_container: &ReferencedSharedContainer,
     unitialized: bool,
-) -> Instruction {
+) -> crate::instruction::BytecodeItem {
     match referenced_container.pointer_address() {
         // insert with value for self owned references
         PointerAddress::SelfOwned(pointer_address) => {
@@ -446,7 +463,12 @@ gen fn append_referenced_shared_container_with_value(
                 yield RegularInstruction::Uninitialized.into();
             } else {
                 // TODO: no collect?
-                yield_all_collected!(referenced_container.value_container().deref().to_instructions(context));
+                yield_all_collected!(
+                    referenced_container
+                        .value_container()
+                        .deref()
+                        .to_bytecode_item(context)
+                );
             }
         }
         // insert without value for non self owned references

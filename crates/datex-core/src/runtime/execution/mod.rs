@@ -1,5 +1,6 @@
 //! This module contains the implementation of the execution engine which is responsible for executing compiled DATEX bytecode (DXB) and handling interrupts that can occur during execution, such as calling functions, loading pointers, and performing pointer updates.
 use crate::{
+    core_compiler::instruction_input::InstructionInput,
     instruction::regular_instruction::RegularInstruction,
     libs::core::core_lib_id::CoreLibId,
     prelude::*,
@@ -15,8 +16,12 @@ use crate::{
     shared_values::{
         PointerAddress, ReferenceMutability, ReferencedSharedContainer,
         RemotePointerAddress, SelfOwnedPointerAddress, SharedContainer,
+        collapsed_container_value::CollapsedContainerValue,
     },
-    traits::apply::{Apply, ApplyArgument},
+    traits::{
+        apply::{Apply, ApplyArgument},
+        classification::Classification,
+    },
     types::{
         entities::entity_impls::EntityImplMethod, entity_type::EntityType,
     },
@@ -27,14 +32,15 @@ use crate::{
         value_container::ValueContainer,
     },
 };
-use core::{cell::Ref, ops::Deref, result::Result, unreachable};
-use std::ops::DerefMut;
+use core::{
+    cell::Ref,
+    ops::{Deref, DerefMut},
+    result::Result,
+    unreachable,
+};
 pub use errors::*;
 pub use execution_input::{ExecutionInput, ExecutionOptions};
 pub use stack_dump::*;
-use crate::core_compiler::instruction_input::InstructionInput;
-use crate::shared_values::collapsed_container_value::CollapsedContainerValue;
-use crate::traits::classification::Classification;
 
 pub mod context;
 mod errors;
@@ -310,12 +316,15 @@ pub async fn execute_dxb(
 /// Tries to get the entity type of the [CollapsedContainerValue]. If the value is not an entity, returns an error.
 fn try_get_entity_type(
     value: CollapsedContainerValue,
-    runtime: &Runtime
+    runtime: &Runtime,
 ) -> Result<EntityType, ExecutionError> {
-    if let Some(entity_type) = value.borrow().deref().entity_type(runtime.shared_references_cache_mut().deref_mut()) {
+    if let Some(entity_type) = value
+        .borrow()
+        .deref()
+        .entity_type(runtime.shared_references_cache_mut().deref_mut())
+    {
         Ok(entity_type)
-    }
-    else {
+    } else {
         Err(ExecutionError::ExpectedEntityValue)
     }
 }
@@ -806,18 +815,19 @@ mod tests {
     #[test]
     fn list_with_nested_scope() {
         let result = execute_datex_script_debug_with_result("[1, (2 + 3), 4]");
-        let expected = datex_list![
-            Integer::from(1),
-            Integer::from(5),
-            Integer::from(4)
-        ];
+        let expected =
+            datex_list![Integer::from(1), Integer::from(5), Integer::from(4)];
 
         assert_eq!(result, expected.into());
-        assert_ne!(result, datex_list![
-            TypedInteger::from(1u8),
-            TypedInteger::from(5u8),
-            TypedInteger::from(4u8)
-        ].into());
+        assert_ne!(
+            result,
+            datex_list![
+                TypedInteger::from(1u8),
+                TypedInteger::from(5u8),
+                TypedInteger::from(4u8)
+            ]
+            .into()
+        );
         assert_structural_eq!(
             result,
             List::new(vec![1_u8, 5_u8, 4_u8]).to_value_container()
@@ -925,9 +935,18 @@ mod tests {
         info!("Map: {:?}", map);
 
         // access by key
-        assert_eq!(map.try_get(&ValueContainer::from("x")), Ok(&Integer::from(1).into()));
-        assert_eq!(map.try_get(&ValueContainer::from("y")), Ok(&Integer::from(2).into()));
-        assert_eq!(map.try_get(&ValueContainer::from("z")), Ok(&Integer::from(42).into()));
+        assert_eq!(
+            map.try_get(&ValueContainer::from("x")),
+            Ok(&Integer::from(1).into())
+        );
+        assert_eq!(
+            map.try_get(&ValueContainer::from("y")),
+            Ok(&Integer::from(2).into())
+        );
+        assert_eq!(
+            map.try_get(&ValueContainer::from("z")),
+            Ok(&Integer::from(42).into())
+        );
 
         // structural equality checks
         let expected_se: Map = Map::from(vec![

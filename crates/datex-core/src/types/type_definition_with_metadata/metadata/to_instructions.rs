@@ -1,11 +1,17 @@
-use crate::core_compiler::to_instructions::ToInstructions;
-use crate::core_compiler::value_visitor::ValueVisitor;
-use crate::instruction::Instruction;
-use crate::types::type_definition_with_metadata::TypeMetadata;
-use crate::prelude::*;
+use crate::{
+    core_compiler::{
+        to_instructions::ToInstructions, value_visitor::ValueVisitor,
+    },
+    instruction::Instruction,
+    prelude::*,
+    types::type_definition_with_metadata::TypeMetadata,
+};
 
 impl ToInstructions for TypeMetadata {
-    fn to_instructions<'a>(&'a self, visitor: &'a mut dyn ValueVisitor) -> Box<dyn Iterator<Item=Instruction> + 'a> {
+    fn to_bytecode_item<'a>(
+        &'a self,
+        visitor: &'a mut dyn ValueVisitor,
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a> {
         todo!()
     }
 }

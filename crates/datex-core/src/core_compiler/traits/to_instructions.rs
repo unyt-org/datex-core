@@ -1,17 +1,31 @@
 use crate::{
-    core_compiler::{
-        value_visitor::ValueVisitor,
-    },
-    instruction::Instruction,
+    core_compiler::value_visitor::ValueVisitor,
+    instruction::{BytecodeItem, Instruction},
     prelude::*,
 };
 
-
 pub trait ToInstructions {
+    fn to_bytecode_item<'a>(
+        &'a self,
+        visitor: &'a mut dyn ValueVisitor,
+    ) -> Box<dyn Iterator<Item = crate::instruction::BytecodeItem> + 'a>;
+
+    #[deprecated(
+        note = "Use to_bytecode_item instead. This will panic, if the item is not an instruction (such as if else)"
+    )]
     fn to_instructions<'a>(
         &'a self,
         visitor: &'a mut dyn ValueVisitor,
-    ) -> Box<dyn Iterator<Item = Instruction> + 'a>;
+    ) -> Box<dyn Iterator<Item = Instruction> + 'a> {
+        Box::new(gen move {
+            for item in self.to_bytecode_item(visitor) {
+                match item {
+                    BytecodeItem::Instruction(instruction) => yield instruction,
+                    _ => unreachable!(),
+                }
+            }
+        })
+    }
 }
 
 /// A macro to yield instructions from a value that implements `ToInstructions`.
@@ -23,14 +37,12 @@ pub macro yield_all($iterator:expr) {
 }
 
 /// A macro to yield all instructions from a value that implements `ToInstructions`, collecting them into a vector first.
-pub macro yield_all_collected($iter:expr) {
-    {
-        let collected: Vec<Instruction> = $iter.collect();
-        for instr in collected {
-            yield instr;
-        }
+pub macro yield_all_collected($iter:expr) {{
+    let collected: Vec<_> = $iter.collect();
+    for instr in collected {
+        yield instr;
     }
-}
+}}
 
 /// A macro to yield `Ok` instructions from a value that implements `ToInstructions`.
 /// This expands to a loop that iterates over the instructions produced by the `to_instructions` method of the value, yielding each instruction wrapped in `Ok` to the caller.
@@ -41,11 +53,9 @@ pub macro yield_all_ok($iterator:expr) {
 }
 
 /// A macro to yield all `Ok` instructions from a value that implements `ToInstructions`, collecting them into a vector first.
-pub macro yield_all_ok_collected($iter:expr) {
-    {
-        let collected: Vec<Instruction> = $iter.collect();
-        for instr in collected {
-            yield Ok(instr);
-        }
+pub macro yield_all_ok_collected($iter:expr) {{
+    let collected: Vec<_> = $iter.collect();
+    for instr in collected {
+        yield Ok(instr);
     }
-}
+}}
