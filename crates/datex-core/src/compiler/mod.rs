@@ -420,6 +420,7 @@ pub fn compile_template(
         &mut options,
         runtime.clone(),
     )?;
+
     let lookup = runtime.pointer_availability_lookup();
     let input = CompileInput::new(&lookup, &options.receivers);
     let compilation_context = CompilationContext::new(
@@ -429,10 +430,11 @@ pub fn compile_template(
         options.compile_scope,
     );
     let compile_start = TimingInstant::now();
+
     let res = compilation_context
         .compile_ast_with_metadata_to_dxb_with_shared_values(ast)
         .map_err(SpannedCompilerError::from);
-
+    
     debug!(
         " [compile_ast took {} ms]",
         compile_start.elapsed().as_millis()
