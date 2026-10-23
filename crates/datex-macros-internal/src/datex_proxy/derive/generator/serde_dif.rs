@@ -9,7 +9,7 @@ use crate::datex_proxy::{
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::{GenericArgument, PathArguments, Type};
+use crate::datex_proxy::generator::helpers::is_option;
 
 /// Creates the implementation of the [SerializeWithSerdeContext] and [DeserializeWithSerdeContext] trait for the given structure data.
 /// Returns a TokenStream of the implementation.
@@ -876,22 +876,3 @@ fn generate_property_mappings(
         .collect()
 }
 
-fn is_option(ty: &Type) -> bool {
-    match ty {
-        Type::Path(type_path) => {
-            type_path.path.segments.last().is_some_and(|segment| {
-                segment.ident == "Option"
-                    && matches!(
-                        &segment.arguments,
-                        PathArguments::AngleBracketed(args)
-                            if args.args.len() == 1
-                                && matches!(
-                                    args.args.first(),
-                                    Some(GenericArgument::Type(_))
-                                )
-                    )
-            })
-        }
-        _ => false,
-    }
-}

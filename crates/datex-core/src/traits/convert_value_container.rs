@@ -102,7 +102,7 @@ pub trait ConvertValueContainer {
         runtime: &Runtime,
     ) -> Result<Self, DeserializationError>
     where
-        Self: Sized,
+        Self: Sized + FromParts,
     {
         let value = runtime.execute_dxb_sync(
             DXBWithSharedValues::new(dxb, vec![]),
@@ -111,7 +111,7 @@ pub trait ConvertValueContainer {
             true,
         )?;
         if let Some(value) = value {
-            let config = Self::try_from_value_container(value)
+            let config = Self::try_convert_from_value_container(value)
                 .map_err(|_| DeserializationError::InvalidValue)?;
             Ok(config)
         } else {

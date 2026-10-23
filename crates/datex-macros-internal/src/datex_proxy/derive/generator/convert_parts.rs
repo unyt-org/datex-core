@@ -9,6 +9,8 @@ use crate::{
 };
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use syn::Type;
+use crate::datex_proxy::generator::helpers::is_option;
 
 /// Generates the [FromParts] and [IntoParts] implementations
 pub fn generate_convert_parts(structure_data: &StructureData) -> TokenStream {
@@ -211,25 +213,36 @@ fn field_from_value_container(
     accessor_result: Ident,
     field_mapping: &FieldMapping,
     unwrap_default: bool,
+    field_type: &Type,
 ) -> TokenStream {
+    let is_option_ty = is_option(field_type);
+    // for option fields, if the field is not present, we return None
+    let error_case = if is_option_ty {
+        quote! { Ok::<_, ()>(<#field_type>::None) }
+    } else {
+        quote! { Err(e) }
+    };
+
     let access = if field_mapping.is_serde() {
         quote! {{
             match #accessor_result {
                 Ok(v) => Ok(try_serde_from_value_container(v).map_err(|_| ())?),
-                Err(e) => Err(e),
+                Err(e) => #error_case,
             }
         }}
     } else {
         quote! {{
             match #accessor_result {
                 Ok(v) => Ok(v.try_convert_into_value().map_err(|_| ())?),
-                Err(e) => Err(e),
+                Err(e) => #error_case,
             }
         }}
     };
 
     if unwrap_default {
         quote! { #access.unwrap_or_default() }
+    } else if is_option_ty {
+        quote! { #access.unwrap() } // Note: unwrap is safe here because there's always an Ok in this case
     } else {
         quote! { #access.map_err(|_| ())? }
     }
@@ -316,6 +329,7 @@ fn generate_from_map_parts_for_fields(
                     accessor.clone(),
                     &field.field.attributes.field_mapping,
                     field.attributes.skip_with_default,
+                    &field.field.ty,
                 );
 
                 quote! {
@@ -359,6 +373,7 @@ fn generate_from_list_parts_for_fields(
                         ident.clone(),
                         &field.field.attributes.field_mapping,
                         false, // TODO
+                        &field.field.ty,
                     );
                     (
                         quote! {

@@ -1,7 +1,7 @@
 use crate::datex_proxy::data::{EnumVariant, Fields, Structure, StructureData};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::Path;
+use syn::{GenericArgument, Path, PathArguments, Type};
 
 /// Represents whether the self value is borrowed or moved in the context of generating code for struct or enum variants.
 pub enum SelfAccess {
@@ -197,5 +197,25 @@ pub fn get_pointer_address(
                 #unique_name
             )
         }
+    }
+}
+
+pub fn is_option(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            type_path.path.segments.last().is_some_and(|segment| {
+                segment.ident == "Option"
+                    && matches!(
+                        &segment.arguments,
+                        PathArguments::AngleBracketed(args)
+                            if args.args.len() == 1
+                                && matches!(
+                                    args.args.first(),
+                                    Some(GenericArgument::Type(_))
+                                )
+                    )
+            })
+        }
+        _ => false,
     }
 }
