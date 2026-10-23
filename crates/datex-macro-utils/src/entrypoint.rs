@@ -174,12 +174,15 @@ pub fn datex_main_impl_with_config(
         #(#additional_attributes)*
         #(#attrs)*
         #vis #sig {
-            use #core_namespace::{runtime::{RuntimeRunner, RuntimeConfig, Runtime}};
+            use #core_namespace::{
+                runtime::{RuntimeRunner, RuntimeConfig, Runtime},
+                traits::convert_value_container::ConvertValueContainer,
+            };
 
             #setup
 
             let config = match (#config_bytes) {
-                Some(bytes) => DatexValueContainerProxyDeserialize::try_from_bytes(bytes, &Runtime::stub()).unwrap(),
+                Some(bytes) => ConvertValueContainer::try_from_bytes(bytes, &Runtime::stub()).unwrap(),
                 None => RuntimeConfig::default(),
             };
 
