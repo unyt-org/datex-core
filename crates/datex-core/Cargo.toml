@@ -83,6 +83,11 @@ serde_with = { version = "3.12.0", default-features = false, features = [
 serde_json = { version = "1.0.140", default-features = false, features = [
     "alloc",
 ] }
+erased-serde = {
+    version = "0.4.10",
+    default-features = false,
+    features = ["alloc"],
+}
 serde-val = { version = "0.1.0", git = "https://github.com/unyt-org/serde-value" }
 serde-big-array = { version = "0.5.1" }
 async-select = "0.3.0"
@@ -162,7 +167,6 @@ twox-hash = { version = "2.1.3", default-features = false, features = [
     "xxhash32",
 ] }
 seq-macro = "0.3.6"
-erased-serde = "0.4.10"
 
 ### dev dependencies (for benchmarks and tests)
 [dev-dependencies]
